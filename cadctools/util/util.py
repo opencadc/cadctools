@@ -66,6 +66,10 @@
 #
 # ***********************************************************************
 
+import logging
+import os
+import sys
+from argparse import ArgumentParser
 from datetime import datetime
 
 # TODO both these are very bad, implement more sensibly
@@ -88,4 +92,76 @@ def str2ivoa(s):
     if s is None:
         return None
     return datetime.strptime(s, IVOA_DATE_FORMAT)
+
+def init_logging(obj, name='', log_level=logging.ERROR):
+    """Create a logger named 'name' for object 'obj'
+       - Default logging level is ERROR
+       - Default stream handling is to stdout
+    """
+    
+    if obj is None:
+        return
+    
+    if name is None:
+        if hasattr(obj, '__name__'):
+            name = obj.__name__
+        else:
+            name = str(obj)
+    
+    obj.logger = logging.getLogger(name)
+    log_format = "%(name)s %(module)s: %(levelname)s: %(message)s"
+
+    if log_level == logging.DEBUG:
+        log_format = "%(name)s %(levelname)s: @(%(asctime)s) - " \
+            "%(module)s.%(funcName)s %(lineno)d: %(message)s"
+
+    obj.logger.setLevel(log_level)
+    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setFormatter(logging.Formatter(fmt=log_format))
+    obj.logger.addHandler(stream_handler)
+
+class BaseParser(ArgumentParser):
+    """An ArgumentParser with some common things most CADC clients will want"""
+
+    def __init__(self, version=None, usecert=True, *args, **kwargs):
+        """ Construct a basic parser
+
+        version  -- a version number if desired
+        usercert -- if True add '--certfile' argument
+        """
+
+        ArgumentParser.__init__(self,  *args, **kwargs)
+
+        if usecert:
+            self.add_argument('--certfile', type=str,
+                              help="location of your CADC certificate "
+                              + "file (default: $HOME/.ssl/cadcproxy.pem, " + \
+                              "otherwise uses $HOME/.netrc for name/password)",
+                          default=os.path.join(os.getenv("HOME", "."),
+                                                 ".ssl/cadcproxy.pem"))
+        self.add_argument('--anonymous', action="store_true", default=False,
+                          help='Force anonymous connection')
+        self.add_argument('--host', help="Base hostname for services"
+                          + "(default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)",
+                          default='www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')
+        self.add_argument('--verbose', action="store_true", default=False,
+                          help='verbose messages')
+        self.add_argument('--debug', action="store_true", default=False,
+                          help='debug messages')
+        self.add_argument('--quiet', action="store_true", default=False,
+                          help='run quietly')
+
+        if version is not None:
+            self.add_argument('--version', action='version',
+                              version=version)
+
+    def get_log_level(self, args):
+        """ Obtain a single logger level from parsed args """
+
+        log_level = ((args.debug and logging.DEBUG) or
+                     (args.verbose and logging.INFO) or
+                     (args.quiet and logging.FATAL) or
+                      logging.ERROR
+                    )
+        return log_level
 
