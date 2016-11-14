@@ -69,12 +69,117 @@
 import unittest
 from mock import Mock, patch, MagicMock, call, mock_open
 from cadctools.net import ws
+import requests
 
 class TestWs(unittest.TestCase):
 
-    ''' Class for testing networking authorization functionality'''
+    ''' Class for testing the webservie client'''
+    @patch('cadctools.net.ws.os.path.isfile', Mock())
+    @patch('cadctools.net.ws.auth.get_user_password', Mock(return_value=['usr', 'passwd']))
+    @patch('cadctools.net.ws.RetrySession.put')
+    @patch('cadctools.net.ws.RetrySession.head')
+    @patch('cadctools.net.ws.RetrySession.delete')
+    @patch('cadctools.net.ws.RetrySession.get')
+    @patch('cadctools.net.ws.RetrySession.post')
+    def test_ops(self, post_mock, get_mock, delete_mock, head_mock, put_mock):
+        with self.assertRaises(ValueError) as context:
+            client = ws.BaseWsClient(None)
+        resource = 'aresource'
+        service = 'www.canfar.phys.uvic.ca/myservice'
+        # test anonymous access
+        client = ws.BaseWsClient(service)
+        self.assertTrue(client.anon)
+        self.assertTrue(client.retry)
+        self.assertEqual('http://www.canfar.phys.uvic.ca/myservice', client.base_url)
+        self.assertEqual(None, client.agent)
+        self.assertEqual(None, client.certificate_file_location)
+        self.assertEqual(None, client.basic_auth)
+        self.assertTrue(client.retry)
+        self.assertEquals(None, client._session) #lazy initialization
+        response = client.get(resource)
+        get_mock.assert_called_with('http://{}/{}'.format(service, resource), params=None)
+        params = {'arg1':'abc', 'arg2':123, 'arg3':True}
+        response = client.post(resource, **params)
+        post_mock.assert_called_with('http://{}/{}'.format(service, resource), **params)
+        response = client.delete(resource)
+        delete_mock.assert_called_with('http://{}/{}'.format(service, resource))
+        response = client.head(resource)
+        head_mock.assert_called_with('http://{}/{}'.format(service, resource))
+        response = client.put(resource, **params)
+        put_mock.assert_called_with('http://{}/{}'.format(service, resource), **params)
+        self.assertTrue(isinstance(client._session, ws.RetrySession))
 
-    def test_get(self):
-        client = ws.BaseWsClient(service='www.google.com')
-        print (client._get().content)
+        # test basic authentication access
+        post_mock.reset_mock()
+        get_mock.reset_mock()
+        put_mock.reset_mock()
+        delete_mock.reset_mock()
+        head_mock.reset_mock()
+        client = ws.BaseWsClient(service, anon=False, retry=False)
+        self.assertFalse(client.anon)
+        self.assertEquals(['usr', 'passwd'], client.basic_auth) #as per the get_user_password patch
+        self.assertEquals('http://www.canfar.phys.uvic.ca/myservice/auth', client.base_url)
+        self.assertEquals(None, client.agent)
+        self.assertFalse(client.retry)
+        self.assertEqual(None, client.certificate_file_location)
+        response = client.get(resource)
+        get_mock.assert_called_with('http://{}/auth/{}'.format(service, resource), params=None)
+        params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
+        response = client.post(resource, **params)
+        post_mock.assert_called_with('http://{}/auth/{}'.format(service, resource), **params)
+        response = client.delete(resource)
+        delete_mock.assert_called_with('http://{}/auth/{}'.format(service, resource))
+        response = client.head(resource)
+        head_mock.assert_called_with('http://{}/auth/{}'.format(service, resource))
+        response = client.put(resource, **params)
+        put_mock.assert_called_with('http://{}/auth/{}'.format(service, resource), **params)
+        self.assertTrue(isinstance(client._session, ws.RetrySession))
+
+
+        # test cert authentication
+        post_mock.reset_mock()
+        get_mock.reset_mock()
+        put_mock.reset_mock()
+        delete_mock.reset_mock()
+        head_mock.reset_mock()
+        certfile = 'some/certfile.pem'
+        client = ws.BaseWsClient(service, anon=False, cert_file=certfile)
+        self.assertFalse(client.anon)
+        self.assertEquals(None, client.basic_auth)
+        self.assertEquals('https://www.canfar.phys.uvic.ca/myservice/pub', client.base_url)
+        self.assertEquals(None, client.agent)
+        self.assertTrue(client.retry)
+        self.assertEqual(certfile, client.certificate_file_location)
+        response = client.get(resource)
+        get_mock.assert_called_with('https://{}/pub/{}'.format(service, resource), params=None)
+        params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
+        response = client.post(resource, **params)
+        post_mock.assert_called_with('https://{}/pub/{}'.format(service, resource), **params)
+        response = client.delete(resource)
+        delete_mock.assert_called_with('https://{}/pub/{}'.format(service, resource))
+        response = client.head(resource)
+        head_mock.assert_called_with('https://{}/pub/{}'.format(service, resource))
+        response = client.put(resource, **params)
+        put_mock.assert_called_with('https://{}/pub/{}'.format(service, resource), **params)
+        self.assertTrue(isinstance(client._session, ws.RetrySession))
+        self.assertEquals((certfile, certfile), client._session.cert)
+
+class TestRetrySession(unittest.TestCase):
+
+    ''' Class for testing retry session '''
+
+    @patch('cadctools.net.ws.requests.Session.get')
+    def test_retry(self, get_mock):
+        request = Mock()
+        get_mock.send.return_value = Mock()
+        rs = ws.RetrySession(False)
+        rs.send(request)
+        get_mock.assert_called_with(request)
+
+        # mock delays
+        get_mock.reset_mock()
+        request = Mock()
+        rs.ws.RetrySession()
+        get_mock.side_effect = requests.exceptions.ConnectionError()
+        rs.send(request)
 

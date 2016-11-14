@@ -66,6 +66,7 @@
 #
 # ***********************************************************************
 import requests
+from requests import Session
 import logging
 import os
 from cadctools import exceptions
@@ -86,44 +87,11 @@ except:
 
 
 
-class RetrySession(requests.Session):
-
-    def __init__(self, *args, **kwargs):
-        self.logger = logging.getLogger('RetrySession')
-        super(RetrySession, self).__init__(*args, **kwargs)
-
-    def send(self, request, **kwargs):
-        """
-        Send a given PreparedRequest, wrapping the connection to service in try/except that retries on
-        Connection reset by peer.
-        :param request: The prepared request to send._session
-        :param kwargs: Any keywords the adaptor for the request accepts.
-        :return: the response
-        :rtype: requests.Response
-        """
-
-        total_delay = 0
-        current_delay = DEFAULT_RETRY_DELAY
-        self.logger.debug("--------------->>>> Sending request {0}  to server.".format(request))
-        while total_delay < MAX_RETRY_DELAY:
-            try:
-                return super(RetrySession, self).send(request, **kwargs)
-            except requests.exceptions.ConnectionError as ce:
-                self.logger.debug("Caught exception: {0}".format(ce))
-                if ce.errno != 104:
-                    # Only continue trying on a reset by peer error.
-                    raise ce
-                time.sleep(current_delay)
-                total_delay += current_delay
-                current_delay = MAX_RETRY_DELAY > current_delay * 2 and current_delay * 2 or MAX_RETRY_DELAY
-        raise
-
-
 class BaseWsClient(object):
     """Web Service client primarily for CADC services"""
 
-    def __init__(self, anon = True, cert_file = None,
-                 service='www.canfar.phys.uvic.ca', agent = None):
+    def __init__(self, service, anon=True, cert_file=None,
+                 agent=None, verify=False, retry=True):
         """
         Client constructor
         :param anon  -- anonymous access or not. If not anonymous and
@@ -131,13 +99,22 @@ class BaseWsClient(object):
         :param cert_file -- location of the X509 certificate file.
         :param service -- URI or URL of the service being accessed
         :param agent -- Name of the agent (application) that accesses the service
+        :param verify -- Path to file or directory with certificates of trusted CAs to verify the WS ssl certificate
+                         against or False if no verfication required.
         """
 
         self.logger = logging.getLogger('BaseWsClient')
+
+        if service is None:
+            raise ValueError
+
         self._session = None
         self.certificate_file_location = None
         self.basic_auth = None
         self.anon = None
+        self.retry = retry
+
+        self.verify = verify
 
 
         #TODO check if uri and resolve it
@@ -154,7 +131,8 @@ class BaseWsClient(object):
                 else:
                     logging.warn( "Unable to open supplied certfile '%s':" % cert_file +\
                         " Ignoring.")
-                    self.basic_auth = auth.get_user_password(service)
+            else:
+                self.basic_auth = auth.get_user_password(service)
         else:
             self.anon = True
 
@@ -164,15 +142,29 @@ class BaseWsClient(object):
                 (str(self.anon), str(self.certificate_file_location),
                  str(self.basic_auth is not None)) ) #TODO hide password
 
+
+        # TODO The service URL needs to be discoverable based on the URI/URL of the service with the
+        # following steps:
+        # 1. Download the configuration of services at the service provider and get the URL for the capabilities
+        #    resource of the service (This is not yet implemented at the CADC)
+        # 2. Check the capabilities of the service to determine the protocol and the URL of the end points of the
+        #    service
+        # This will eventually replace the hardcoded code below.
+
         # Base URL for web services.
         # Clients will probably append a specific service
-        if self.certificate_file_location:
-            self.protocol = 'https'
-        else:
-            # For both anonymous and name/password authentication
+        if self.anon:
             self.protocol = 'http'
+            self.base_url = '%s://%s' % (self.protocol, self.host)
+        else:
+            if self.certificate_file_location:
+                self.protocol = 'https'
+                self.base_url = '%s://%s/pub' % (self.protocol, self.host)
+            else:
+                # For both anonymous and name/password authentication
+                self.protocol = 'http'
+                self.base_url = '%s://%s/auth' % (self.protocol, self.host)
 
-        self.base_url = '%s://%s' % (self.protocol, self.host)
 
         # Clients should add entries to this dict for specialized
         # conversion of HTTP error codes into particular exceptions.
@@ -191,33 +183,34 @@ class BaseWsClient(object):
             }
 
 
-    def _post(self, *args, **kwargs):
+    def post(self, resource=None, **kwargs):
         """Wrapper for POST so that we use this client's session"""
-        return self._get_session().post(*args, **kwargs)
+        return self._get_session().post(self._get_url(resource), **kwargs)
 
-    def _put(self, *args, **kwargs):
+    def put(self, resource=None, **kwargs):
         """Wrapper for PUT so that we use this client's session"""
-        return self._get_session().put(*args, **kwargs)
+        return self._get_session().put(self._get_url(resource), **kwargs)
 
-    def _get(self, resource=None, params=None, **kwargs):
+    def get(self, resource, params=None, **kwargs):
         """Wrapper for GET so that we use this client's session"""
-        url = self.base_url
-        if resource is not None:
-            if str(resource).startswith('/'):
-                url += str(resource)
-            else:
-                url += '/' + str(resource)
+        return self._get_session().get(self._get_url(resource), params=params, **kwargs)
 
-        return self._get_session().get(url, params=params, **kwargs)
-
-    def _delete(self, *args, **kwargs):
+    def delete(self, resource=None, **kwargs):
         """Wrapper for DELETE so that we use this client's session"""
-        return self._get_session().delete(*args, **kwargs)
+        return self._get_session().delete(self._get_url(resource), **kwargs)
 
-    def _head(self, *args, **kwargs):
+    def head(self, resource=None, **kwargs):
         """Wrapper for HEAD so that we use this client's session"""
-        return self._get_session().head(*args, **kwargs)
+        return self._get_session().head(self._get_url(resource), **kwargs)
 
+    def _get_url(self, resource):
+        if resource is None:
+            return self.base_url
+
+        if str(resource).startswith('/'):
+            return self.base_url + str(resource)
+        else:
+            return self.base_url + '/' + str(resource)
 
     def _get_session(self):
         # Note that the cert goes into the adapter, but we can also
@@ -226,15 +219,56 @@ class BaseWsClient(object):
         # are provided.
         if(self._session is None):
             self.logger.debug('Creating session.')
-            self._session = RetrySession()
-            print(str(self._session.cookies))
+            self._session = RetrySession(self.retry)
             if self.certificate_file_location is not None:
                 self._session.cert = (self.certificate_file_location, self.certificate_file_location)
             else:
                 if self.basic_auth is not None:
                     self._session.auth = self.basic_auth
 
-        #self._session.headers.update({"User-Agent": self.agent})
+        if self.agent is not None:
+            self._session.headers.update({"User-Agent": self.agent})
         assert isinstance(self._session, requests.Session)
-        print(str(requests.Session().cookies))
         return self._session
+
+
+
+class RetrySession(Session):
+
+    def __init__(self, retry=True, *args, **kwargs):
+        self.logger = logging.getLogger('RetrySession')
+        self.retry = retry
+        super(RetrySession, self).__init__(*args, **kwargs)
+
+    def send(self, request, **kwargs):
+        """
+        Send a given PreparedRequest, wrapping the connection to service in try/except that retries on
+        Connection reset by peer.
+        :param request: The prepared request to send._session
+        :param kwargs: Any keywords the adaptor for the request accepts.
+        :return: the response
+        :rtype: requests.Response
+        """
+
+        if self.retry:
+            total_delay = 0
+            current_delay = DEFAULT_RETRY_DELAY
+            self.logger.debug("--------------->>>> Sending request {0}  to server.".format(request))
+            while total_delay < MAX_RETRY_DELAY:
+                try:
+                    response = super(RetrySession, self).send(request, **kwargs)
+                    response.raise_for_status()
+                    return response
+                except requests.exceptions.ConnectionError as ce:
+                    self.logger.debug("Caught exception: {0}".format(ce))
+                    if ce.errno != 104:
+                        # Only continue trying on a reset by peer error.
+                        raise ce
+                    time.sleep(current_delay)
+                    total_delay += current_delay
+                    current_delay = MAX_RETRY_DELAY > current_delay * 2 and current_delay * 2 or MAX_RETRY_DELAY
+            raise
+        else:
+            response = super(RetrySession, self).send(request, **kwargs)
+            response.raise_for_status()
+            return response
