@@ -66,11 +66,12 @@
 #
 # ***********************************************************************
 
-from ..util import date2ivoa, str2ivoa
+from ..util import date2ivoa, str2ivoa, init_logging, BaseParser
 import unittest
+import logging
 
 
-class TestCAOM2Visitor(unittest.TestCase):
+class UtilTests(unittest.TestCase):
 
     ''' Class for testing cadc utilities'''
 
@@ -87,5 +88,48 @@ class TestCAOM2Visitor(unittest.TestCase):
         # handling of None arguments
         self.assertEquals(None, date2ivoa(None))
         self.assertEquals(None, str2ivoa(None))
+        
+    def test_get_log_level(self):
+        ''' Test the handling of logging level control from command line arguments '''
+        
+        parser = BaseParser(description="UtilTests")
+        args = parser.parse_args(["--debug"])        
+        self.assertEqual(logging.DEBUG, parser.get_log_level(args), "wrong log level")
+        
+        args = parser.parse_args(["--verbose"])        
+        self.assertEqual(logging.INFO, parser.get_log_level(args), "wrong log level")
+        
+        args = parser.parse_args(["--quiet"])        
+        self.assertEqual(logging.FATAL, parser.get_log_level(args), "wrong log level")
+        
+        args = parser.parse_args([])        
+        self.assertEqual(logging.ERROR, parser.get_log_level(args), "wrong log level")
+        
+        print ("passed log level tests")
+        
+    def test_init_logging(self):
+        ''' Test the init_logging function '''
+        
+        self.assertFalse(hasattr(self, 'logger'), "logger should not exist")
+        
+        init_logging(self, 'test_init_logging')
+        self.assertTrue(hasattr(self, 'logger'), "logger should exist")
+        self.assertEquals(logging.ERROR, self.logger.getEffectiveLevel(), "wrong default log level")
+        
+    def test_init_logging_debug(self):
+        ''' Test the init_logging function '''
+        
+        self.assertFalse(hasattr(self, 'logger'), "logger should not exist")
+        
+        init_logging(self, 'test_init_logging', log_level=logging.DEBUG)
+        self.assertTrue(hasattr(self, 'logger'), "logger should exist")
+        self.assertEquals(logging.DEBUG, self.logger.getEffectiveLevel(), "wrong default log level")
+        
+    def test_init_logging_none_target(self):
+        ''' Test the init_logging function with a target == None '''
+        
+        self.assertFalse(hasattr(self, 'logger'), "logger should not exist")
+        init_logging(None, 'test_init_logging')
+        self.assertFalse(hasattr(self, 'logger'), "logger should not exist")
 
 
