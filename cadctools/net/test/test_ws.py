@@ -69,11 +69,14 @@
 import unittest
 from mock import Mock, patch, MagicMock, call, mock_open
 from cadctools.net import ws
+from cadctools.net.ws import DEFAULT_RETRY_DELAY, MAX_RETRY_DELAY, MAX_NUM_RETRIES, SERVICE_RETRY
 import requests
+
+
 
 class TestWs(unittest.TestCase):
 
-    ''' Class for testing the webservie client'''
+    """Class for testing the webservie client"""
     @patch('cadctools.net.ws.os.path.isfile', Mock())
     @patch('cadctools.net.ws.auth.get_user_password', Mock(return_value=['usr', 'passwd']))
     @patch('cadctools.net.ws.RetrySession.put')
@@ -82,8 +85,8 @@ class TestWs(unittest.TestCase):
     @patch('cadctools.net.ws.RetrySession.get')
     @patch('cadctools.net.ws.RetrySession.post')
     def test_ops(self, post_mock, get_mock, delete_mock, head_mock, put_mock):
-        with self.assertRaises(ValueError) as context:
-            client = ws.BaseWsClient(None)
+        with self.assertRaises(ValueError):
+            ws.BaseWsClient(None)
         resource = 'aresource'
         service = 'www.canfar.phys.uvic.ca/myservice'
         # test anonymous access
@@ -96,16 +99,16 @@ class TestWs(unittest.TestCase):
         self.assertEqual(None, client.basic_auth)
         self.assertTrue(client.retry)
         self.assertEquals(None, client._session) #lazy initialization
-        response = client.get(resource)
+        client.get(resource)
         get_mock.assert_called_with('http://{}/{}'.format(service, resource), params=None)
         params = {'arg1':'abc', 'arg2':123, 'arg3':True}
-        response = client.post(resource, **params)
+        client.post(resource, **params)
         post_mock.assert_called_with('http://{}/{}'.format(service, resource), **params)
-        response = client.delete(resource)
+        client.delete(resource)
         delete_mock.assert_called_with('http://{}/{}'.format(service, resource))
-        response = client.head(resource)
+        client.head(resource)
         head_mock.assert_called_with('http://{}/{}'.format(service, resource))
-        response = client.put(resource, **params)
+        client.put(resource, **params)
         put_mock.assert_called_with('http://{}/{}'.format(service, resource), **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
 
@@ -122,16 +125,16 @@ class TestWs(unittest.TestCase):
         self.assertEquals(None, client.agent)
         self.assertFalse(client.retry)
         self.assertEqual(None, client.certificate_file_location)
-        response = client.get(resource)
+        client.get(resource)
         get_mock.assert_called_with('http://{}/auth/{}'.format(service, resource), params=None)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
-        response = client.post(resource, **params)
+        client.post(resource, **params)
         post_mock.assert_called_with('http://{}/auth/{}'.format(service, resource), **params)
-        response = client.delete(resource)
+        client.delete(resource)
         delete_mock.assert_called_with('http://{}/auth/{}'.format(service, resource))
-        response = client.head(resource)
+        client.head(resource)
         head_mock.assert_called_with('http://{}/auth/{}'.format(service, resource))
-        response = client.put(resource, **params)
+        client.put(resource, **params)
         put_mock.assert_called_with('http://{}/auth/{}'.format(service, resource), **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
 
@@ -150,36 +153,168 @@ class TestWs(unittest.TestCase):
         self.assertEquals(None, client.agent)
         self.assertTrue(client.retry)
         self.assertEqual(certfile, client.certificate_file_location)
-        response = client.get(resource)
+        client.get(resource)
         get_mock.assert_called_with('https://{}/pub/{}'.format(service, resource), params=None)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
-        response = client.post(resource, **params)
+        client.post(resource, **params)
         post_mock.assert_called_with('https://{}/pub/{}'.format(service, resource), **params)
-        response = client.delete(resource)
+        client.delete(resource)
         delete_mock.assert_called_with('https://{}/pub/{}'.format(service, resource))
-        response = client.head(resource)
+        client.head(resource)
         head_mock.assert_called_with('https://{}/pub/{}'.format(service, resource))
-        response = client.put(resource, **params)
+        client.put(resource, **params)
         put_mock.assert_called_with('https://{}/pub/{}'.format(service, resource), **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
         self.assertEquals((certfile, certfile), client._session.cert)
 
+
 class TestRetrySession(unittest.TestCase):
 
-    ''' Class for testing retry session '''
+    """ Class for testing retry session """
 
-    @patch('cadctools.net.ws.requests.Session.get')
-    def test_retry(self, get_mock):
+    @patch('time.sleep')
+    @patch('cadctools.net.ws.requests.Session.send')
+    def test_retry(self, send_mock, time_mock):
         request = Mock()
-        get_mock.send.return_value = Mock()
+        send_mock.return_value = Mock()
         rs = ws.RetrySession(False)
         rs.send(request)
-        get_mock.assert_called_with(request)
+        send_mock.assert_called_with(request)
 
-        # mock delays
-        get_mock.reset_mock()
-        request = Mock()
-        rs.ws.RetrySession()
-        get_mock.side_effect = requests.exceptions.ConnectionError()
+        # mock delays for the 'Connection reset by peer error'
+        # one connection error delay = DEFAULT_RETRY_DELAY
+        send_mock.reset_mock()
+        rs = ws.RetrySession()
+        ce = requests.exceptions.ConnectionError() #connection error that triggers retries
+        ce.errno = 104
+        send_mock.side_effect = [ce, requests.Response()]
         rs.send(request)
+        time_mock.assert_called_with(DEFAULT_RETRY_DELAY)
 
+        # two connection error delay = DEFAULT_RETRY_DELAY
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        rs = ws.RetrySession()
+        ce = requests.exceptions.ConnectionError() #connection error that triggers retries
+        ce.errno = 104
+        send_mock.side_effect = [ce, ce, requests.Response()] # two connection errors
+        rs.send(request)
+        calls = [call(DEFAULT_RETRY_DELAY), call(DEFAULT_RETRY_DELAY*2)]
+        time_mock.assert_has_calls(calls)
+
+        # set the start retry to a large number and see how it is capped to MAX_RETRY_DELAY
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        rs = ws.RetrySession(start_delay = MAX_RETRY_DELAY/2 + 1)
+        ce = requests.exceptions.ConnectionError() #connection error that triggers retries
+        ce.errno = 104
+        send_mock.side_effect = [ce, ce, requests.Response()] # two connection errors
+        rs.send(request)
+        calls = (call(MAX_RETRY_DELAY/2 + 1), call(MAX_RETRY_DELAY))
+        time_mock.assert_has_calls(calls)
+
+        # return the error all the time
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        rs = ws.RetrySession(start_delay = MAX_RETRY_DELAY/2 + 1)
+        ce = requests.exceptions.ConnectionError() #connection error that triggers retries
+        ce.errno = 104
+        # make sure the mock returns more errors than the maximum number of retries allowed
+        http_errors = []
+        i = 0
+        while i <= MAX_NUM_RETRIES:
+            http_errors.append(ce)
+            i += 1
+        send_mock.side_effect = http_errors
+        with self.assertRaises(requests.ConnectionError):
+            rs.send(request)
+
+        # return the connection error other than 104 - connection reset by peer
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        rs = ws.RetrySession(start_delay=MAX_RETRY_DELAY / 2 + 1)
+        ce = requests.exceptions.ConnectionError()  # connection error that triggers retries
+        ce.errno = 105
+        send_mock.side_effect = ce
+        with self.assertRaises(requests.ConnectionError):
+            rs.send(request)
+
+        # return HttpError 503 with Retry-After
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        rs = ws.RetrySession()
+        server_delay = 5
+        he = requests.exceptions.HTTPError()  # connection error that triggers retries
+        he.response = requests.Response()
+        he.response.status_code = requests.codes.unavailable
+        he.response.headers[SERVICE_RETRY] = server_delay
+        send_mock.side_effect = [he, requests.Response()]
+        rs.send(request)
+        calls = [call(server_delay)]
+        time_mock.assert_has_calls(calls)
+
+        # return HttpError 503 with Retry-After with an invalid value
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        start_delay = 66
+        rs = ws.RetrySession(start_delay=start_delay)
+        server_delay = 'notnumber'
+        he = requests.exceptions.HTTPError()  # connection error that triggers retries
+        he.response = requests.Response()
+        he.response.status_code = requests.codes.unavailable
+        he.response.headers[SERVICE_RETRY] = server_delay
+        send_mock.side_effect = [he, requests.Response()]
+        rs.send(request)
+        calls = [call(start_delay)] # uses the default delay
+        time_mock.assert_has_calls(calls)
+
+        # return HttpError 503 with no Retry-After
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        start_delay = 66
+        rs = ws.RetrySession(start_delay=start_delay)
+        he = requests.exceptions.HTTPError()  # connection error that triggers retries
+        he.response = requests.Response()
+        he.response.status_code = requests.codes.unavailable
+        send_mock.side_effect = [he, requests.Response()]
+        rs.send(request)
+        calls = [call(start_delay)] # uses the default delay
+        time_mock.assert_has_calls(calls)
+
+        # tests non-transient errors
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        rs = ws.RetrySession()
+        he = requests.exceptions.HTTPError()  # connection error that triggers retries
+        he.response = requests.Response()
+        he.response.status_code = requests.codes.internal_server_error
+        send_mock.side_effect = he
+        with self.assertRaises(requests.HTTPError):
+            rs.send(request)
+
+#TODO By default, internet tests fail. They only succeed when test with --remote-data flag.
+# Need to figure out a way to skip the tests unless that flag is present.
+# class TestWsOutsideCalls(unittest.TestCase):
+#     """ Class to test Ws with calls to outside sites"""
+#
+#     @patch('time.sleep')
+#     def testCalls(self, time_mock):
+#         client = ws.BaseWsClient('httpbin.org')
+#         response = client.get('')
+#         self.assertEqual(response.status_code, requests.codes.ok)
+#
+#         with self.assertRaises(requests.HTTPError):
+#             client.get('status/500')
+#
+#         time_mock.reset_mock()
+#         with self.assertRaises(requests.HTTPError):
+#             client.get('status/503')
+#
+#         calls = [call(DEFAULT_RETRY_DELAY),
+#                  call(min(DEFAULT_RETRY_DELAY*2, MAX_RETRY_DELAY)),
+#                  call(min(DEFAULT_RETRY_DELAY * 4, MAX_RETRY_DELAY)),
+#                  call(min(DEFAULT_RETRY_DELAY * 8, MAX_RETRY_DELAY)),
+#                  call(min(DEFAULT_RETRY_DELAY * 16, MAX_RETRY_DELAY)),
+#                  call(min(DEFAULT_RETRY_DELAY * 32, MAX_RETRY_DELAY))]
+#
+#         time_mock.assert_has_calls(calls)

@@ -76,8 +76,9 @@ import auth
 BUFSIZE = 8388608  # Size of read/write buffer
 MAX_RETRY_DELAY = 128  # maximum delay between retries
 DEFAULT_RETRY_DELAY = 30  # start delay between retries when Try_After not sent by server.
-MAX_RETRY_TIME = 900  # maximum time for retries before giving up...
-CONNECTION_TIMEOUT = 30  # seconds before HTTP connection should drop, should be less than DAEMON timeout in vofs
+MAX_NUM_RETRIES = 6
+
+SERVICE_RETRY = 'Retry-After'
 
 # try to disable the unverified HTTPS call warnings
 try:
@@ -234,10 +235,42 @@ class BaseWsClient(object):
 
 
 class RetrySession(Session):
+    """ Session that automatically does a number of retries for failed transient errors. The time between retries
+        double every time until a maximum of 30sec is reached
 
-    def __init__(self, retry=True, *args, **kwargs):
+        The following network errors are considered transient:
+            requests.codes.unavailable,
+            requests.codes.service_unavailable,
+            requests.codes.gateway_timeout,
+            requests.codes.request_timeout,
+            requests.codes.timeout,
+            requests.codes.precondition_failed,
+            requests.codes.precondition,
+            requests.codes.payment_required,
+            requests.codes.payment
+
+        In addition, the Connection error 'Connection reset be remote user' also triggers a retry
+        """
+
+    retry_errors = [requests.codes.unavailable,
+                    requests.codes.service_unavailable,
+                    requests.codes.gateway_timeout,
+                    requests.codes.request_timeout,
+                    requests.codes.timeout,
+                    requests.codes.precondition_failed,
+                    requests.codes.precondition,
+                    requests.codes.payment_required,
+                    requests.codes.payment]
+
+    def __init__(self, retry=True, start_delay=1, *args, **kwargs):
+        """
+        ::param retry: set to False if retries no required
+        ::param start_delay: start delay interval between retries (default=1s). Note that for HTTP 503,
+                             this code follows the retry timeout set by the server in Retry-After
+        """
         self.logger = logging.getLogger('RetrySession')
         self.retry = retry
+        self.start_delay = start_delay
         super(RetrySession, self).__init__(*args, **kwargs)
 
     def send(self, request, **kwargs):
@@ -251,22 +284,42 @@ class RetrySession(Session):
         """
 
         if self.retry:
-            total_delay = 0
-            current_delay = DEFAULT_RETRY_DELAY
-            self.logger.debug("--------------->>>> Sending request {0}  to server.".format(request))
-            while total_delay < MAX_RETRY_DELAY:
+            current_delay = max(self.start_delay, DEFAULT_RETRY_DELAY)
+            current_delay = min(current_delay, MAX_RETRY_DELAY)
+            num_retries = 0
+            self.logger.debug("Sending request {0}  to server.".format(request))
+            while num_retries < MAX_NUM_RETRIES:
                 try:
                     response = super(RetrySession, self).send(request, **kwargs)
                     response.raise_for_status()
                     return response
-                except requests.exceptions.ConnectionError as ce:
+                except requests.HTTPError as e:
+                    if e.response.status_code not in self.retry_errors:
+                        raise e
+
+                    if e.response.status_code == requests.codes.unavailable:
+                        # is there a delay from the server (Retry-After)?
+                        try:
+                            current_delay = int(e.response.headers.get(SERVICE_RETRY, current_delay))
+                            current_delay = min(current_delay, MAX_RETRY_DELAY)
+                        except Exception:
+                            pass
+
+                except requests.ConnectionError as ce:
+                    # TODO not sure this appropriate for all the 'Connection reset by peer' errors.
+                    # A post/put to vospace returns a document. If operation succeeded but the error
+                    # occurs during the response the code below will send the request again. Since the
+                    # resource has been created/updated, a new error (bad request maybe) might be issued
+                    # by the server and that can confuse the caller.
+                    # This code should probably deal with HTTP errors only as the 503s above.
                     self.logger.debug("Caught exception: {0}".format(ce))
                     if ce.errno != 104:
                         # Only continue trying on a reset by peer error.
                         raise ce
-                    time.sleep(current_delay)
-                    total_delay += current_delay
-                    current_delay = MAX_RETRY_DELAY > current_delay * 2 and current_delay * 2 or MAX_RETRY_DELAY
+                self.logger
+                time.sleep(current_delay)
+                num_retries += 1
+                current_delay = min(current_delay*2, MAX_RETRY_DELAY)
             raise
         else:
             response = super(RetrySession, self).send(request, **kwargs)
