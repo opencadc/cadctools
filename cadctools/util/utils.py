@@ -73,15 +73,17 @@ import sys
 from argparse import ArgumentParser
 from datetime import datetime
 
-__all__ = ['IVOA_DATE_FORMAT', 'date2ivoa', 'str2ivoa', 'init_logging', 'BaseParser']
+__all__ = ['IVOA_DATE_FORMAT', 'date2ivoa', 'str2ivoa', 'get_logger', 'BaseParser']
 
 # TODO both these are very bad, implement more sensibly
 IVOA_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 
 
 def date2ivoa(d):
-    """ Takes a datetime and returns a string formatted
+    """
+    Takes a datetime and returns a string formatted
     to the IVOA date format yyyy-MM-dd'T'HH:mm:ss.SSS
+    
     """
 
     if d is None:
@@ -90,47 +92,58 @@ def date2ivoa(d):
 
 
 def str2ivoa(s):
-    """Takes a IVOA date formatted string and returns a datetime"""
+    """
+    Takes a IVOA date formatted string and returns a datetime.
+    
+    """
 
     if s is None:
         return None
     return datetime.strptime(s, IVOA_DATE_FORMAT)
 
-def init_logging(obj, name='', log_level=logging.ERROR):
-    """Create a logger named 'name' for object 'obj'
-       - Default logging level is ERROR
-       - Default stream handling is to stdout
+
+def get_logger(namespace=__name__, log_level=logging.ERROR, handler=None):
+    """
+    Create a logger with a standard format.
+    :param namespace: The namespace to which to attach the logger.
+        default: the name of the module.
+    :ptype log_level: The initial log level.
+        default: logging.ERROR
+    :param handle: the object to stream the log output
+        default: handler to stdout.
+    :return the logger object.
     """
     
-    if obj is None:
-        return
+    if handler is None:
+        handler = logging.StreamHandler(sys.stdout)
     
-    if name is None:
-        if hasattr(obj, '__name__'):
-            name = obj.__name__
-        else:
-            name = str(obj)
-    
-    obj.logger = logging.getLogger(name)
+    logger = logging.getLogger(namespace)
     log_format = "%(name)s %(module)s: %(levelname)s: %(message)s"
 
     if log_level == logging.DEBUG:
         log_format = "%(name)s %(levelname)s: @(%(asctime)s) - " \
             "%(module)s.%(funcName)s %(lineno)d: %(message)s"
 
-    obj.logger.setLevel(log_level)
-    stream_handler = logging.StreamHandler(sys.stdout)
+    logger.setLevel(log_level)
+    stream_handler = handler
     stream_handler.setFormatter(logging.Formatter(fmt=log_format))
-    obj.logger.addHandler(stream_handler)
+    logger.addHandler(stream_handler)
+    
+    return logger
+
 
 class BaseParser(ArgumentParser):
-    """An ArgumentParser with some common things most CADC clients will want"""
+    """
+    An ArgumentParser with some common things most CADC clients will want.
+    
+    """
 
     def __init__(self, version=None, usecert=True, *args, **kwargs):
-        """ Construct a basic parser
-
-        version  -- a version number if desired
-        usercert -- if True add '--certfile' argument
+        """
+        Construct a basic parser
+        :param version A version number if desired.
+        :param usercert If True add '--certfile' argument.
+        
         """
 
         ArgumentParser.__init__(self,  *args, **kwargs)
@@ -158,8 +171,14 @@ class BaseParser(ArgumentParser):
             self.add_argument('--version', action='version',
                               version=version)
 
+
     def get_log_level(self, args):
-        """ Obtain a single logger level from parsed args """
+        """
+        Obtain a single logger level from parsed args.
+        
+        :param args The list of arguments.
+        
+        """
 
         log_level = ((args.debug and logging.DEBUG) or
                      (args.verbose and logging.INFO) or
@@ -167,4 +186,3 @@ class BaseParser(ArgumentParser):
                       logging.ERROR
                     )
         return log_level
-

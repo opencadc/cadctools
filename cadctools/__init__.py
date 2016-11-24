@@ -15,4 +15,3 @@ if not _ASTROPY_SETUP_:
 #    from .example_mod import *
     pass
 
-from util.util import date2ivoa, str2ivoa
