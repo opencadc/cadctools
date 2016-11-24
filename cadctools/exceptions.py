@@ -64,6 +64,9 @@
 # *
 # *
 # ************************************************************************
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+__all__ = ['UnauthorizedException']
 
 class UnauthorizedException(Exception):
     """Raised when the user is not allowed to perform an action.

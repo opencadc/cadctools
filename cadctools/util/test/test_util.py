@@ -65,7 +65,8 @@
 #
 #
 # ***********************************************************************
-
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 from ..util import date2ivoa, str2ivoa, init_logging, BaseParser
 import unittest
 import logging

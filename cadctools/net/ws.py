@@ -65,13 +65,17 @@
 #
 #
 # ***********************************************************************
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 import requests
 from requests import Session
 import logging
 import os
 from cadctools import exceptions
 import time
-import auth
+from . import auth
+
+__all__ = ['BaseWsClient']
 
 BUFSIZE = 8388608  # Size of read/write buffer
 MAX_RETRY_DELAY = 128  # maximum delay between retries
@@ -91,8 +95,7 @@ except:
 class BaseWsClient(object):
     """Web Service client primarily for CADC services"""
 
-    def __init__(self, service, anon=True, cert_file=None,
-                 agent=None, verify=False, retry=True):
+    def __init__(self, service, anon=True, cert_file=None, agent=None, retry=True):
         """
         Client constructor
         :param anon  -- anonymous access or not. If not anonymous and
@@ -100,8 +103,6 @@ class BaseWsClient(object):
         :param cert_file -- location of the X509 certificate file.
         :param service -- URI or URL of the service being accessed
         :param agent -- Name of the agent (application) that accesses the service
-        :param verify -- Path to file or directory with certificates of trusted CAs to verify the WS ssl certificate
-                         against or False if no verfication required.
         """
 
         self.logger = logging.getLogger('BaseWsClient')
@@ -114,9 +115,6 @@ class BaseWsClient(object):
         self.basic_auth = None
         self.anon = None
         self.retry = retry
-
-        self.verify = verify
-
 
         #TODO check if uri and resolve it
         self.host = service
@@ -316,7 +314,7 @@ class RetrySession(Session):
                     if ce.errno != 104:
                         # Only continue trying on a reset by peer error.
                         raise ce
-                self.logger
+                self.logger.warn("Resending request in {}s ...".format(current_delay))
                 time.sleep(current_delay)
                 num_retries += 1
                 current_delay = min(current_delay*2, MAX_RETRY_DELAY)

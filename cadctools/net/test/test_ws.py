@@ -65,7 +65,8 @@
 #
 #
 # ***********************************************************************
-
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 import unittest
 from mock import Mock, patch, MagicMock, call, mock_open
 from cadctools.net import ws
@@ -78,7 +79,7 @@ class TestWs(unittest.TestCase):
 
     """Class for testing the webservie client"""
     @patch('cadctools.net.ws.os.path.isfile', Mock())
-    @patch('cadctools.net.ws.auth.get_user_password', Mock(return_value=['usr', 'passwd']))
+    @patch('cadctools.net.ws.auth.get_user_password', Mock(return_value=('usr', 'passwd')))
     @patch('cadctools.net.ws.RetrySession.put')
     @patch('cadctools.net.ws.RetrySession.head')
     @patch('cadctools.net.ws.RetrySession.delete')
@@ -120,7 +121,7 @@ class TestWs(unittest.TestCase):
         head_mock.reset_mock()
         client = ws.BaseWsClient(service, anon=False, retry=False)
         self.assertFalse(client.anon)
-        self.assertEquals(['usr', 'passwd'], client.basic_auth) #as per the get_user_password patch
+        self.assertEquals(('usr', 'passwd'), client.basic_auth) #as per the get_user_password patch
         self.assertEquals('http://www.canfar.phys.uvic.ca/myservice/auth', client.base_url)
         self.assertEquals(None, client.agent)
         self.assertFalse(client.retry)

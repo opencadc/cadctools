@@ -1,4 +1,6 @@
 #!python
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import getpass
 import netrc
@@ -11,6 +13,7 @@ import requests
 CERT_ENDPOINT = "/cred/proxyCert"
 CERT_SERVER = "www.canfar.phys.uvic.ca"
 
+__all__ = ['get_cert', 'get_user_password']
 
 def get_cert(cert_server=None,
              cert_endpoint=None, **kwargs):

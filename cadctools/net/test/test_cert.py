@@ -65,7 +65,8 @@
 #
 #
 # ***********************************************************************
-
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 import unittest
 from mock import Mock, patch, MagicMock, call, mock_open
 from cadctools.net import auth
