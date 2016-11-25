@@ -97,7 +97,7 @@ def get_cert_main():
         if os.path.isdir(dirname):
             pass
         elif oex.errno == 20 or oex.errno == 17:
-            sys.stderr.write("%s : %s \n" % (str(oex), dirname))
+            sys.stderr.write("%s : %s\n" % (str(oex), dirname))
             sys.stderr.write("Expected %s to be a directory.\n" % dirname)
             sys.exit(oex.errno)
         else:

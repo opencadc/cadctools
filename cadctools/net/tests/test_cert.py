@@ -70,6 +70,13 @@ from __future__ import (absolute_import, division, print_function,
 import unittest
 from mock import Mock, patch, MagicMock, call, mock_open
 from cadctools.net import auth
+from StringIO import StringIO
+import sys
+from cadctools.net import auth
+import os
+
+class MyExitError(Exception):
+    pass
 
 class TestAuth(unittest.TestCase):
 
@@ -107,10 +114,76 @@ class TestAuth(unittest.TestCase):
 
         self.assertEqual(response.content, auth.get_cert())
 
-
-
-    @patch('cadctools.net.auth.get_user_password', Mock(return_value='CERT'))
+    @patch('cadctools.net.auth.get_cert', Mock(return_value='CERTVALUE'))
+    @patch('sys.exit', Mock(side_effect=[MyExitError]))
     def test_get_cert_main(self):
-        ''' Test the cadc-get-cert app'''
-        #TODO
-        pass
+        ''' Test the help option of the cadc-get-cert app'''
+
+        value = "CERTVALUE"
+
+        # get certificate default location
+        m = mock_open()
+        with patch('__builtin__.open', m, create=True):
+            sys.argv = ["cadc-get-cert"]
+            auth.get_cert_main()
+        m.assert_called_once_with(os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'), 'w')
+        handle = m()
+        handle.write.assert_called_once_with(value)
+
+
+        # save certificate in a file
+        certfile = '/tmp/testcertfile'
+        try:
+            os.remove(certfile)
+        except OSError as ex:
+            pass
+        sys.argv = ["cadc-get-cert", "--cert-filename", certfile]
+        auth.get_cert_main()
+        with open(certfile, 'r') as f:
+            self.assertEqual(value, f.read())
+
+        # test error when the directory of the cert file is in fact an existing file..
+        errmsg = """[Errno 17] File exists: '/tmp/testcertfile' : /tmp/testcertfile
+Expected /tmp/testcertfile to be a directory.
+"""
+        sys.argv = ["cadc-get-cert", "--cert-filename", certfile + "/cert"]
+        with self.assertRaises(MyExitError):
+            with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
+                auth.get_cert_main()
+        self.assertEqual(errmsg, stderr_mock.getvalue())
+        os.remove(certfile)
+
+
+    @patch('sys.exit', Mock(side_effect=[MyExitError]))
+    def test_get_cert_main_help(self):
+        ''' Test the help option of the cadc-get-cert app'''
+
+        usage =\
+"""usage: cadc-get-cert [-h] [--daysValid DAYSVALID]
+                     [--cert-filename CERT_FILENAME]
+                     [--cert-server CERT_SERVER]
+
+Retrieve a security certificate for interation with a Web service such as
+VOSpace. Certificate will be valid for daysValid and stored as local file
+cert_filename. First looks for an entry in the users .netrc matching the realm
+www.canfar.phys.uvic.ca, the user is prompted for a username and password if
+no entry is found.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --daysValid DAYSVALID
+                        Number of days the cetificate should be valid.
+                        (default: 10)
+  --cert-filename CERT_FILENAME
+                        Filesysm location to store the proxy certifcate.
+                        (default: /home/NSIV/cadc/adriand/.ssl/cadcproxy.pem)
+  --cert-server CERT_SERVER
+                        Certificate server network address. (default:
+                        www.canfar.phys.uvic.ca)
+"""
+        # --help
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            sys.argv = ["cadc-get-cert", "--help"]
+            with self.assertRaises(MyExitError):
+                auth.get_cert_main()
+            self.assertEqual(usage, stdout_mock.getvalue())

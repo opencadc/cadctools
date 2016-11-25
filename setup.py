@@ -76,9 +76,9 @@ package_info = get_package_info()
 
 # Add the project-global data
 package_info['package_data'].setdefault(PACKAGENAME, [])
-package_info['package_data'][PACKAGENAME].append('test/*')
-package_info['package_data'][PACKAGENAME].append('net/test/*')
-package_info['package_data'][PACKAGENAME].append('util/test/*')
+package_info['package_data'][PACKAGENAME].append('tests/*')
+package_info['package_data'][PACKAGENAME].append('net/tests/*')
+package_info['package_data'][PACKAGENAME].append('util/tests/*')
 
 # Define entry points for command-line scripts
 entry_points = {'console_scripts': []}
