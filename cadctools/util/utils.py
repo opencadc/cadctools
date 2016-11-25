@@ -70,6 +70,7 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import os
 import sys
+import inspect
 from argparse import ArgumentParser
 from datetime import datetime
 
@@ -77,6 +78,9 @@ __all__ = ['IVOA_DATE_FORMAT', 'date2ivoa', 'str2ivoa', 'get_logger', 'BaseParse
 
 # TODO both these are very bad, implement more sensibly
 IVOA_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
+
+DEFAULT_LOG_FORMAT = "%(levelname)s: %(name)s %(message)s"
+DEBUG_LOG_FORMAT = "%(levelname)s: @(%(asctime)s) %(name)s %(module)s.%(funcName)s:%(lineno)d - %(message)s"
 
 
 def date2ivoa(d):
@@ -102,32 +106,39 @@ def str2ivoa(s):
     return datetime.strptime(s, IVOA_DATE_FORMAT)
 
 
-def get_logger(namespace=__name__, log_level=logging.ERROR, handler=None):
+def get_logger(namespace=None, log_level=logging.ERROR):
     """
     Create a logger with a standard format.
     :param namespace: The namespace to which to attach the logger.
-        default: the name of the module.
+        default: the name of the calling module.
     :ptype log_level: The initial log level.
         default: logging.ERROR
-    :param handle: the object to stream the log output
-        default: handler to stdout.
     :return the logger object.
+    
     """
     
-    if handler is None:
-        handler = logging.StreamHandler(sys.stdout)
+    if namespace is None:
+        frm = inspect.stack()[1]
+        mod = inspect.getmodule(frm[0])
+        if mod is None:
+            namespace =__name__
+        else:
+            namespace = mod.__name__ 
     
     logger = logging.getLogger(namespace)
-    log_format = "%(name)s %(module)s: %(levelname)s: %(message)s"
-
+    
+    if not len(logger.handlers):
+        handler = logging.StreamHandler(sys.stdout)
+        logger.addHandler(handler)
+    else:
+        handler = logger.handlers[0]
+    
+    log_format = DEFAULT_LOG_FORMAT
     if log_level == logging.DEBUG:
-        log_format = "%(name)s %(levelname)s: @(%(asctime)s) - " \
-            "%(module)s.%(funcName)s %(lineno)d: %(message)s"
+        log_format = DEBUG_LOG_FORMAT
 
     logger.setLevel(log_level)
-    stream_handler = handler
-    stream_handler.setFormatter(logging.Formatter(fmt=log_format))
-    logger.addHandler(stream_handler)
+    handler.setFormatter(logging.Formatter(fmt=log_format))
     
     return logger
 
