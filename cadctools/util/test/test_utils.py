@@ -65,9 +65,8 @@
 #
 #
 # ***********************************************************************
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-from ..util import date2ivoa, str2ivoa, init_logging, BaseParser
+
+from ..utils import date2ivoa, str2ivoa, get_logger, BaseParser
 import unittest
 import logging
 
@@ -110,27 +109,25 @@ class UtilTests(unittest.TestCase):
         
     def test_init_logging(self):
         ''' Test the init_logging function '''
-        
-        self.assertFalse(hasattr(self, 'logger'), "logger should not exist")
-        
-        init_logging(self, 'test_init_logging')
-        self.assertTrue(hasattr(self, 'logger'), "logger should exist")
-        self.assertEquals(logging.ERROR, self.logger.getEffectiveLevel(), "wrong default log level")
+
         
     def test_init_logging_debug(self):
         ''' Test the init_logging function '''
+        logger1 = get_logger('namspace1', log_level=logging.DEBUG)
+        self.assertEquals(logging.DEBUG, logger1.getEffectiveLevel(), "wrong log level")
+        logger2 = get_logger('namspace2')
+        self.assertEquals(logging.ERROR, logger2.getEffectiveLevel(), "wrong default log level")
         
-        self.assertFalse(hasattr(self, 'logger'), "logger should not exist")
         
-        init_logging(self, 'test_init_logging', log_level=logging.DEBUG)
-        self.assertTrue(hasattr(self, 'logger'), "logger should exist")
-        self.assertEquals(logging.DEBUG, self.logger.getEffectiveLevel(), "wrong default log level")
-        
-    def test_init_logging_none_target(self):
-        ''' Test the init_logging function with a target == None '''
-        
-        self.assertFalse(hasattr(self, 'logger'), "logger should not exist")
-        init_logging(None, 'test_init_logging')
-        self.assertFalse(hasattr(self, 'logger'), "logger should not exist")
-
-
+    def test_shared_logger(self):
+        ''' Loggers with the same namespace share the
+            same logging instances '''
+        logger1 = get_logger('namspace1', log_level=logging.DEBUG)
+        self.assertEquals(logging.DEBUG, logger1.getEffectiveLevel(), "wrong log level")
+        logger2 = get_logger('namspace1', log_level=logging.WARN)
+        self.assertEquals(logging.WARN, logger1.getEffectiveLevel(), "wrong log level")
+        self.assertEquals(logging.WARN, logger2.getEffectiveLevel(), "wrong log level")
+        logger3 = get_logger('namspace2', log_level=logging.INFO)
+        self.assertEquals(logging.INFO, logger3.getEffectiveLevel(), "wrong log level")
+        self.assertEquals(logging.WARN, logger1.getEffectiveLevel(), "wrong log level")
+        self.assertEquals(logging.WARN, logger2.getEffectiveLevel(), "wrong log level")
