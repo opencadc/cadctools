@@ -287,6 +287,7 @@ class RetrySession(Session):
             num_retries = 0
             self.logger.debug("Sending request {0}  to server.".format(request))
             while num_retries < MAX_NUM_RETRIES:
+                current_error = None
                 try:
                     response = super(RetrySession, self).send(request, **kwargs)
                     response.raise_for_status()
@@ -294,16 +295,17 @@ class RetrySession(Session):
                 except requests.HTTPError as e:
                     if e.response.status_code not in self.retry_errors:
                         raise e
-
+                    current_error = e
                     if e.response.status_code == requests.codes.unavailable:
                         # is there a delay from the server (Retry-After)?
                         try:
                             current_delay = int(e.response.headers.get(SERVICE_RETRY, current_delay))
                             current_delay = min(current_delay, MAX_RETRY_DELAY)
-                        except Exception:
+                        except Exception as e:
                             pass
 
                 except requests.ConnectionError as ce:
+                    current_error = ce
                     # TODO not sure this appropriate for all the 'Connection reset by peer' errors.
                     # A post/put to vospace returns a document. If operation succeeded but the error
                     # occurs during the response the code below will send the request again. Since the
@@ -318,7 +320,7 @@ class RetrySession(Session):
                 time.sleep(current_delay)
                 num_retries += 1
                 current_delay = min(current_delay*2, MAX_RETRY_DELAY)
-            raise
+            raise current_error
         else:
             response = super(RetrySession, self).send(request, **kwargs)
             response.raise_for_status()

@@ -70,7 +70,7 @@ from __future__ import (absolute_import, division, print_function,
 import unittest
 from mock import Mock, patch, MagicMock, call, mock_open
 from cadctools.net import auth
-from StringIO import StringIO
+from six import StringIO
 import sys
 from cadctools.net import auth
 import os
@@ -124,7 +124,7 @@ class TestAuth(unittest.TestCase):
 
         # get certificate default location
         m = mock_open()
-        with patch('__builtin__.open', m, create=True):
+        with patch('six.moves.builtins.open', m, create=True):
             sys.argv = ["cadc-get-cert"]
             auth.get_cert_main()
         m.assert_called_once_with(os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'), 'w')

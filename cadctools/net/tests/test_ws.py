@@ -188,7 +188,9 @@ class TestRetrySession(unittest.TestCase):
         rs = ws.RetrySession()
         ce = requests.exceptions.ConnectionError() #connection error that triggers retries
         ce.errno = 104
-        send_mock.side_effect = [ce, requests.Response()]
+        response = requests.Response()
+        response.status_code = requests.codes.ok
+        send_mock.side_effect = [ce, response]
         rs.send(request)
         time_mock.assert_called_with(DEFAULT_RETRY_DELAY)
 
@@ -198,7 +200,9 @@ class TestRetrySession(unittest.TestCase):
         rs = ws.RetrySession()
         ce = requests.exceptions.ConnectionError() #connection error that triggers retries
         ce.errno = 104
-        send_mock.side_effect = [ce, ce, requests.Response()] # two connection errors
+        response = requests.Response()
+        response.status_code = requests.codes.ok
+        send_mock.side_effect = [ce, ce, response] # two connection errors
         rs.send(request)
         calls = [call(DEFAULT_RETRY_DELAY), call(DEFAULT_RETRY_DELAY*2)]
         time_mock.assert_has_calls(calls)
@@ -209,7 +213,9 @@ class TestRetrySession(unittest.TestCase):
         rs = ws.RetrySession(start_delay = MAX_RETRY_DELAY/2 + 1)
         ce = requests.exceptions.ConnectionError() #connection error that triggers retries
         ce.errno = 104
-        send_mock.side_effect = [ce, ce, requests.Response()] # two connection errors
+        response = requests.Response()
+        response.status_code = requests.codes.ok
+        send_mock.side_effect = [ce, ce, response] # two connection errors
         rs.send(request)
         calls = (call(MAX_RETRY_DELAY/2 + 1), call(MAX_RETRY_DELAY))
         time_mock.assert_has_calls(calls)
@@ -249,7 +255,9 @@ class TestRetrySession(unittest.TestCase):
         he.response = requests.Response()
         he.response.status_code = requests.codes.unavailable
         he.response.headers[SERVICE_RETRY] = server_delay
-        send_mock.side_effect = [he, requests.Response()]
+        response = requests.Response()
+        response.status_code = requests.codes.ok
+        send_mock.side_effect = [he, response]
         rs.send(request)
         calls = [call(server_delay)]
         time_mock.assert_has_calls(calls)
@@ -264,7 +272,9 @@ class TestRetrySession(unittest.TestCase):
         he.response = requests.Response()
         he.response.status_code = requests.codes.unavailable
         he.response.headers[SERVICE_RETRY] = server_delay
-        send_mock.side_effect = [he, requests.Response()]
+        response = requests.Response()
+        response.status_code = requests.codes.ok
+        send_mock.side_effect = [he, response]
         rs.send(request)
         calls = [call(start_delay)] # uses the default delay
         time_mock.assert_has_calls(calls)
@@ -277,7 +287,9 @@ class TestRetrySession(unittest.TestCase):
         he = requests.exceptions.HTTPError()  # connection error that triggers retries
         he.response = requests.Response()
         he.response.status_code = requests.codes.unavailable
-        send_mock.side_effect = [he, requests.Response()]
+        response = requests.Response()
+        response.status_code = requests.codes.ok
+        send_mock.side_effect = [he, response]
         rs.send(request)
         calls = [call(start_delay)] # uses the default delay
         time_mock.assert_has_calls(calls)
