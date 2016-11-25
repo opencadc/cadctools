@@ -70,7 +70,7 @@ from __future__ import (absolute_import, division, print_function,
 import unittest
 from mock import Mock, patch, MagicMock, call, mock_open
 from cadctools.net import auth
-from StringIO import StringIO
+from six import StringIO
 import sys
 from cadctools.net import auth
 import os
@@ -114,6 +114,7 @@ class TestAuth(unittest.TestCase):
 
         self.assertEqual(response.content, auth.get_cert())
 
+
     @patch('cadctools.net.auth.get_cert', Mock(return_value='CERTVALUE'))
     @patch('sys.exit', Mock(side_effect=[MyExitError]))
     def test_get_cert_main(self):
@@ -123,7 +124,7 @@ class TestAuth(unittest.TestCase):
 
         # get certificate default location
         m = mock_open()
-        with patch('__builtin__.open', m, create=True):
+        with patch('six.moves.builtins.open', m, create=True):
             sys.argv = ["cadc-get-cert"]
             auth.get_cert_main()
         m.assert_called_once_with(os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'), 'w')
@@ -143,9 +144,9 @@ class TestAuth(unittest.TestCase):
             self.assertEqual(value, f.read())
 
         # test error when the directory of the cert file is in fact an existing file..
-        errmsg = """[Errno 17] File exists: '/tmp/testcertfile' : /tmp/testcertfile
+        errmsg = """[Errno 17] File exists: '{}' : {}
 Expected /tmp/testcertfile to be a directory.
-"""
+""".format(certfile, certfile)
         sys.argv = ["cadc-get-cert", "--cert-filename", certfile + "/cert"]
         with self.assertRaises(MyExitError):
             with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
@@ -176,11 +177,11 @@ optional arguments:
                         (default: 10)
   --cert-filename CERT_FILENAME
                         Filesysm location to store the proxy certifcate.
-                        (default: /home/NSIV/cadc/adriand/.ssl/cadcproxy.pem)
+                        (default: {})
   --cert-server CERT_SERVER
                         Certificate server network address. (default:
                         www.canfar.phys.uvic.ca)
-"""
+""".format(os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'))
         # --help
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             sys.argv = ["cadc-get-cert", "--help"]
