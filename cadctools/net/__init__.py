@@ -1,2 +1,2 @@
-from auth import *
-from ws import *
+from .auth import *
+from .ws import *
