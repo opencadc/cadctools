@@ -34,7 +34,7 @@ env:
         # For this package-template, we include examples of Cython modules,
         # so Cython is required for testing. If your package does not include
         # Cython code, you can set CONDA_DEPENDENCIES=''
-        - CONDA_DEPENDENCIES='Cython'
+        - CONDA_DEPENDENCIES=''
 
         # Conda packages for affiliated packages are hosted in channel
         # "astropy" while builds for astropy LTS with recent numpy versions
@@ -66,10 +66,10 @@ matrix:
           env: SETUP_CMD='build_sphinx -w'
 
         # Try Astropy development version
-        - python: 2.7
-          env: ASTROPY_VERSION=development
-        - python: 3.5
-          env: ASTROPY_VERSION=development
+        #- python: 2.7
+        #  env: ASTROPY_VERSION=development
+        #- python: 3.5
+        #  env: ASTROPY_VERSION=development
         - python: 2.7
           env: ASTROPY_VERSION=lts
         - python: 3.5
@@ -88,12 +88,12 @@ matrix:
         # Try older numpy versions
         - python: 2.7
           env: NUMPY_VERSION=1.10
-        - python: 2.7
-          env: NUMPY_VERSION=1.9
-        - python: 2.7
-          env: NUMPY_VERSION=1.8
-        - python: 2.7
-          env: NUMPY_VERSION=1.7
+        #- python: 2.7
+        #  env: NUMPY_VERSION=1.9
+        #- python: 2.7
+        #  env: NUMPY_VERSION=1.8
+        #- python: 2.7
+        #  env: NUMPY_VERSION=1.7
 
         # Try numpy pre-release
         - python: 3.5
@@ -114,6 +114,7 @@ install:
 
     - git clone git://github.com/astropy/ci-helpers.git
     - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
+      env: PIP_DEPENDENCIES=mock
 
     # As described above, using ci-helpers, you should be able to set up an
     # environment with dependencies installed using conda and pip, but in some
