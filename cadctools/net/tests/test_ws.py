@@ -87,15 +87,15 @@ class TestWs(unittest.TestCase):
     @patch('cadctools.net.ws.RetrySession.post')
     def test_ops(self, post_mock, get_mock, delete_mock, head_mock, put_mock):
         with self.assertRaises(ValueError):
-            ws.BaseWsClient(None)
+            ws.BaseWsClient(None, "TestApp")
         resource = 'aresource'
         service = 'www.canfar.phys.uvic.ca/myservice'
         # test anonymous access
-        client = ws.BaseWsClient(service)
+        client = ws.BaseWsClient(service, 'TestApp')
         self.assertTrue(client.anon)
         self.assertTrue(client.retry)
         self.assertEqual('http://www.canfar.phys.uvic.ca/myservice', client.base_url)
-        self.assertEqual(None, client.agent)
+        self.assertEqual('TestApp', client.agent)
         self.assertEqual(None, client.certificate_file_location)
         self.assertEqual(None, client.basic_auth)
         self.assertTrue(client.retry)
@@ -119,11 +119,11 @@ class TestWs(unittest.TestCase):
         put_mock.reset_mock()
         delete_mock.reset_mock()
         head_mock.reset_mock()
-        client = ws.BaseWsClient(service, anon=False, retry=False)
+        client = ws.BaseWsClient(service, 'TestApp', anon=False, retry=False)
         self.assertFalse(client.anon)
         self.assertEquals(('usr', 'passwd'), client.basic_auth) #as per the get_user_password patch
         self.assertEquals('http://www.canfar.phys.uvic.ca/myservice/auth', client.base_url)
-        self.assertEquals(None, client.agent)
+        self.assertEquals('TestApp', client.agent)
         self.assertFalse(client.retry)
         self.assertEqual(None, client.certificate_file_location)
         client.get(resource)
@@ -147,11 +147,11 @@ class TestWs(unittest.TestCase):
         delete_mock.reset_mock()
         head_mock.reset_mock()
         certfile = 'some/certfile.pem'
-        client = ws.BaseWsClient(service, anon=False, cert_file=certfile)
+        client = ws.BaseWsClient(service, 'TestApp', anon=False, cert_file=certfile)
         self.assertFalse(client.anon)
         self.assertEquals(None, client.basic_auth)
         self.assertEquals('https://www.canfar.phys.uvic.ca/myservice/pub', client.base_url)
-        self.assertEquals(None, client.agent)
+        self.assertEquals('TestApp', client.agent)
         self.assertTrue(client.retry)
         self.assertEqual(certfile, client.certificate_file_location)
         client.get(resource)

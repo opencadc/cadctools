@@ -95,14 +95,15 @@ except:
 class BaseWsClient(object):
     """Web Service client primarily for CADC services"""
 
-    def __init__(self, service, anon=True, cert_file=None, agent=None, retry=True):
+    def __init__(self, service, agent, anon=True, cert_file=None, retry=True):
         """
         Client constructor
         :param anon  -- anonymous access or not. If not anonymous and
         cert_file present, use it otherwise use basic authentication
+        :param agent -- Name of the agent (application) that accesses the service
         :param cert_file -- location of the X509 certificate file.
         :param service -- URI or URL of the service being accessed
-        :param agent -- Name of the agent (application) that accesses the service
+
         """
 
         self.logger = logging.getLogger('BaseWsClient')
@@ -116,7 +117,6 @@ class BaseWsClient(object):
         self.anon = None
         self.retry = retry
 
-        #TODO check if uri and resolve it
         self.host = service
         self.agent = agent
         # Unless the caller specifically requests an anonymous client,
@@ -128,8 +128,8 @@ class BaseWsClient(object):
                 if os.path.isfile(cert_file):
                     self.certificate_file_location = cert_file
                 else:
-                    logging.warn( "Unable to open supplied certfile '%s':" % cert_file +\
-                        " Ignoring.")
+                    logging.warn( "Unable to open supplied certfile ({}). Ignoring."
+                                  .format(cert_file))
             else:
                 self.basic_auth = auth.get_user_password(service)
         else:
@@ -137,9 +137,9 @@ class BaseWsClient(object):
 
 
         self.logger.debug(
-            "Client anonymous: %s, certfile: %s, name/password: %s" % \
-                (str(self.anon), str(self.certificate_file_location),
-                 str(self.basic_auth is not None)) ) #TODO hide password
+            "Client anonymous: %s, certfile: %s, name: %s".format(
+                str(self.anon), str(self.certificate_file_location),
+                 str((self.basic_auth is not None) and (self.basic_auth[0]))))
 
 
         # TODO The service URL needs to be discoverable based on the URI/URL of the service with the
