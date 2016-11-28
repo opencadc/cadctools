@@ -70,7 +70,7 @@ from cadctools.util import *
 import unittest
 import logging
 import sys
-from cStringIO import StringIO
+from six import StringIO
 
 
 class UtilTests(unittest.TestCase):
