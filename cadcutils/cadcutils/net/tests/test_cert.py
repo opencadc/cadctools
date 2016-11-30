@@ -69,10 +69,10 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import unittest
 from mock import Mock, patch, MagicMock, call, mock_open
-from cadctools.net import auth
+from cadcutils.net import auth
 from six import StringIO
 import sys
-from cadctools.net import auth
+from cadcutils.net import auth
 import os
 
 class MyExitError(Exception):
@@ -83,11 +83,11 @@ class TestAuth(unittest.TestCase):
     ''' Class for testing networking authorization functionality'''
 
 
-    @patch('cadctools.net.auth.os', Mock())
-    @patch('cadctools.net.auth.sys.stdout', Mock())
-    @patch('cadctools.net.auth.getpass')
-    @patch('cadctools.net.auth.sys.stdin')
-    @patch('cadctools.net.auth.netrc')
+    @patch('cadcutils.net.auth.os', Mock())
+    @patch('cadcutils.net.auth.sys.stdout', Mock())
+    @patch('cadcutils.net.auth.getpass')
+    @patch('cadcutils.net.auth.sys.stdin')
+    @patch('cadcutils.net.auth.netrc')
     def test_user_password(self, netrc_mock, stdin_mock, getpass_mock):
         ''' Test get-cert functionality'''
 
@@ -104,8 +104,8 @@ class TestAuth(unittest.TestCase):
 
 
 
-    @patch('cadctools.net.auth.get_user_password', Mock(return_value=['usr', 'passwd']))
-    @patch('cadctools.net.auth.requests')
+    @patch('cadcutils.net.auth.get_user_password', Mock(return_value=['usr', 'passwd']))
+    @patch('cadcutils.net.auth.requests')
     def test_get_cert(self, requests_mock):
         ''' Test get_cert functionality '''
         response = Mock()
@@ -115,7 +115,7 @@ class TestAuth(unittest.TestCase):
         self.assertEqual(response.content, auth.get_cert())
 
 
-    @patch('cadctools.net.auth.get_cert', Mock(return_value='CERTVALUE'))
+    @patch('cadcutils.net.auth.get_cert', Mock(return_value='CERTVALUE'))
     @patch('sys.exit', Mock(side_effect=[MyExitError]))
     def test_get_cert_main(self):
         ''' Test the help option of the cadc-get-cert app'''

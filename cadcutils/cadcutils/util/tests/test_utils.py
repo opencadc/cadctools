@@ -66,7 +66,7 @@
 #
 # ***********************************************************************
 
-from cadctools.util import *
+from cadcutils.util import *
 import unittest
 import logging
 import sys

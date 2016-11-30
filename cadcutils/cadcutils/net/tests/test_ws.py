@@ -69,8 +69,8 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import unittest
 from mock import Mock, patch, MagicMock, call, mock_open
-from cadctools.net import ws
-from cadctools.net.ws import DEFAULT_RETRY_DELAY, MAX_RETRY_DELAY, MAX_NUM_RETRIES, SERVICE_RETRY
+from cadcutils.net import ws
+from cadcutils.net.ws import DEFAULT_RETRY_DELAY, MAX_RETRY_DELAY, MAX_NUM_RETRIES, SERVICE_RETRY
 import requests
 
 
@@ -78,13 +78,13 @@ import requests
 class TestWs(unittest.TestCase):
 
     """Class for testing the webservie client"""
-    @patch('cadctools.net.ws.os.path.isfile', Mock())
-    @patch('cadctools.net.ws.auth.get_user_password', Mock(return_value=('usr', 'passwd')))
-    @patch('cadctools.net.ws.RetrySession.put')
-    @patch('cadctools.net.ws.RetrySession.head')
-    @patch('cadctools.net.ws.RetrySession.delete')
-    @patch('cadctools.net.ws.RetrySession.get')
-    @patch('cadctools.net.ws.RetrySession.post')
+    @patch('cadcutils.net.ws.os.path.isfile', Mock())
+    @patch('cadcutils.net.ws.auth.get_user_password', Mock(return_value=('usr', 'passwd')))
+    @patch('cadcutils.net.ws.RetrySession.put')
+    @patch('cadcutils.net.ws.RetrySession.head')
+    @patch('cadcutils.net.ws.RetrySession.delete')
+    @patch('cadcutils.net.ws.RetrySession.get')
+    @patch('cadcutils.net.ws.RetrySession.post')
     def test_ops(self, post_mock, get_mock, delete_mock, head_mock, put_mock):
         with self.assertRaises(ValueError):
             ws.BaseWsClient(None, "TestApp")
@@ -174,7 +174,7 @@ class TestRetrySession(unittest.TestCase):
     """ Class for testing retry session """
 
     @patch('time.sleep')
-    @patch('cadctools.net.ws.requests.Session.send')
+    @patch('cadcutils.net.ws.requests.Session.send')
     def test_retry(self, send_mock, time_mock):
         request = Mock()
         send_mock.return_value = Mock()
