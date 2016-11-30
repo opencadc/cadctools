@@ -71,7 +71,7 @@ import requests
 from requests import Session
 import logging
 import os
-from cadctools import exceptions
+from cadcutils import exceptions
 import time
 from . import auth
 

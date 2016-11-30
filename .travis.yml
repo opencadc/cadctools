@@ -125,7 +125,7 @@ install:
     # other dependencies.
 
 script:
-   - python setup.py $SETUP_CMD
+   - for mod in cadcutil; do cd $mod; python setup.py test || break -1; cd ..; done 
 
 after_success:
     # If coveralls.io is set up for this package, uncomment the line
