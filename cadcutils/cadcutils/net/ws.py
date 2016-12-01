@@ -67,12 +67,15 @@
 # ***********************************************************************
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-import requests
-from requests import Session
+
 import logging
 import os
-from cadcutils import exceptions
 import time
+
+import requests
+from requests import Session
+
+from cadcutils import exceptions
 from . import auth
 
 __all__ = ['BaseWsClient']
@@ -89,7 +92,6 @@ try:
     requests.packages.urllib3.disable_warnings()
 except:
     pass
-
 
 
 class BaseWsClient(object):
@@ -128,19 +130,17 @@ class BaseWsClient(object):
                 if os.path.isfile(cert_file):
                     self.certificate_file_location = cert_file
                 else:
-                    logging.warn( "Unable to open supplied certfile ({}). Ignoring."
-                                  .format(cert_file))
+                    logging.warn("Unable to open supplied certfile ({}). Ignoring."
+                                 .format(cert_file))
             else:
                 self.basic_auth = auth.get_user_password(service)
         else:
             self.anon = True
 
-
         self.logger.debug(
-            "Client anonymous: %s, certfile: %s, name: %s".format(
+            "Client anonymous: {}, certfile: {}, name: {}".format(
                 str(self.anon), str(self.certificate_file_location),
-                 str((self.basic_auth is not None) and (self.basic_auth[0]))))
-
+                str((self.basic_auth is not None) and (self.basic_auth[0]))))
 
         # TODO The service URL needs to be discoverable based on the URI/URL of the service with the
         # following steps:
@@ -164,7 +164,6 @@ class BaseWsClient(object):
                 self.protocol = 'http'
                 self.base_url = '%s://%s/auth' % (self.protocol, self.host)
 
-
         # Clients should add entries to this dict for specialized
         # conversion of HTTP error codes into particular exceptions.
         #
@@ -178,9 +177,7 @@ class BaseWsClient(object):
         #
         # The actual conversion is performed by get_exception()
         self._HTTP_STATUS_CODE_EXCEPTIONS = {
-            401 : exceptions.UnauthorizedException()
-            }
-
+            401: exceptions.UnauthorizedException()}
 
     def post(self, resource=None, **kwargs):
         """Wrapper for POST so that we use this client's session"""
@@ -216,7 +213,7 @@ class BaseWsClient(object):
         # use name/password for the auth. We may want to enforce the
         # usage of only the cert in case both name/password and cert
         # are provided.
-        if(self._session is None):
+        if self._session is None:
             self.logger.debug('Creating session.')
             self._session = RetrySession(self.retry)
             if self.certificate_file_location is not None:
@@ -229,7 +226,6 @@ class BaseWsClient(object):
             self._session.headers.update({"User-Agent": self.agent})
         assert isinstance(self._session, requests.Session)
         return self._session
-
 
 
 class RetrySession(Session):
@@ -286,8 +282,8 @@ class RetrySession(Session):
             current_delay = min(current_delay, MAX_RETRY_DELAY)
             num_retries = 0
             self.logger.debug("Sending request {0}  to server.".format(request))
+            current_error = None
             while num_retries < MAX_NUM_RETRIES:
-                current_error = None
                 try:
                     response = super(RetrySession, self).send(request, **kwargs)
                     response.raise_for_status()
@@ -301,7 +297,7 @@ class RetrySession(Session):
                         try:
                             current_delay = int(e.response.headers.get(SERVICE_RETRY, current_delay))
                             current_delay = min(current_delay, MAX_RETRY_DELAY)
-                        except Exception as e:
+                        except Exception:
                             pass
 
                 except requests.ConnectionError as ce:

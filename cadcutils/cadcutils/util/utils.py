@@ -4,7 +4,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2014.                            (c) 2014.
+#  (c) 2016.                            (c) 2014.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -74,7 +74,8 @@ import inspect
 from argparse import ArgumentParser
 from datetime import datetime
 
-__all__ = ['IVOA_DATE_FORMAT', 'date2ivoa', 'str2ivoa', 'get_logger', 'BaseParser']
+__all__ = ['IVOA_DATE_FORMAT', 'date2ivoa', 'str2ivoa',
+           'get_logger', 'get_log_level','get_base_parser']
 
 # TODO both these are very bad, implement more sensibly
 IVOA_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
@@ -143,57 +144,105 @@ def get_logger(namespace=None, log_level=logging.ERROR):
     return logger
 
 
-class BaseParser(ArgumentParser):
+def get_log_level(args):
+    """
+    Obtain a single logger level from parsed args.
+
+    :param args The list of arguments.
+
+    """
+
+    log_level = ((args.debug and logging.DEBUG) or
+                 (args.verbose and logging.INFO) or
+                 (args.quiet and logging.FATAL) or
+                 logging.ERROR)
+    return log_level
+
+
+def get_base_parser(version=None, usecert=True):
     """
     An ArgumentParser with some common things most CADC clients will want.
-    
+
+    :param version: A version number if desired.
+    :param usecert: If True add '--certfile' argument.
+    :return: An ArgumentParser instance.
     """
-
-    def __init__(self, version=None, usecert=True, *args, **kwargs):
-        """
-        Construct a basic parser
-        :param version A version number if desired.
-        :param usercert If True add '--certfile' argument.
-        
-        """
-
-        ArgumentParser.__init__(self,  *args, **kwargs)
-
-        if usecert:
-            self.add_argument('--certfile', type=str,
-                              help="location of your CADC certificate "
-                              + "file (default: $HOME/.ssl/cadcproxy.pem, " + \
-                              "otherwise uses $HOME/.netrc for name/password)",
-                          default=os.path.join(os.getenv("HOME", "."),
+    parser = ArgumentParser(add_help=False)
+    if usecert:
+        parser.add_argument('--certfile', type=str,
+                            help="location of your CADC certificate "
+                            + "file (default: $HOME/.ssl/cadcproxy.pem, " +
+                            "otherwise uses $HOME/.netrc for name/password)",
+                            default=os.path.join(os.getenv("HOME", "."),
                                                  ".ssl/cadcproxy.pem"))
-        self.add_argument('--anonymous', action="store_true", default=False,
-                          help='Force anonymous connection')
-        self.add_argument('--host', help="Base hostname for services"
-                          + "(default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)",
-                          default='www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')
-        self.add_argument('--verbose', action="store_true", default=False,
-                          help='verbose messages')
-        self.add_argument('--debug', action="store_true", default=False,
-                          help='debug messages')
-        self.add_argument('--quiet', action="store_true", default=False,
-                          help='run quietly')
+    parser.add_argument('--anonymous', action="store_true",
+                        help='Force anonymous connection')
+    parser.add_argument('--host', help="Base hostname for services" +
+                                       "(default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)",
+                        default='www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')
+    parser.add_argument('--verbose', action="store_true",
+                        help='verbose messages')
+    parser.add_argument('--debug', action="store_true",
+                        help='debug messages')
+    parser.add_argument('--quiet', action="store_true",
+                        help='run quietly')
 
-        if version is not None:
-            self.add_argument('--version', action='version',
-                              version=version)
+    if version is not None:
+        parser.add_argument('--version', action='version', version=version)
 
+    return parser
 
-    def get_log_level(self, args):
-        """
-        Obtain a single logger level from parsed args.
-        
-        :param args The list of arguments.
-        
-        """
-
-        log_level = ((args.debug and logging.DEBUG) or
-                     (args.verbose and logging.INFO) or
-                     (args.quiet and logging.FATAL) or
-                      logging.ERROR
-                    )
-        return log_level
+# class BaseParser(ArgumentParser):
+#     """
+#     An ArgumentParser with some common things most CADC clients will want.
+#
+#     """
+#
+#     def __init__(self, version=None, usecert=True, *args, **kwargs):
+#         """
+#         Construct a basic parser
+#         :param version A version number if desired.
+#         :param usercert If True add '--certfile' argument.
+#
+#         """
+#
+#         ArgumentParser.__init__(self,  *args, **kwargs)
+#
+#         if usecert:
+#             self.add_argument('--certfile', type=str,
+#                               help="location of your CADC certificate "
+#                               + "file (default: $HOME/.ssl/cadcproxy.pem, " + \
+#                               "otherwise uses $HOME/.netrc for name/password)",
+#                           default=os.path.join(os.getenv("HOME", "."),
+#                                                  ".ssl/cadcproxy.pem"))
+#         self.add_argument('--anonymous', action="store_true", default=False,
+#                           help='Force anonymous connection')
+#         self.add_argument('--host', help="Base hostname for services"
+#                           + "(default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)",
+#                           default='www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')
+#         self.add_argument('--verbose', action="store_true", default=False,
+#                           help='verbose messages')
+#         self.add_argument('--debug', action="store_true", default=False,
+#                           help='debug messages')
+#         self.add_argument('--quiet', action="store_true", default=False,
+#                           help='run quietly')
+#
+#         if version is not None:
+#             self.add_argument('--version', action='version',
+#                               version=version)
+#
+#
+#     def get_log_level(self, args):
+#         """
+#         Obtain a single logger level from parsed args.
+#
+#         :param args The list of arguments.
+#
+#         """
+#
+#         log_level = ((args.debug and logging.DEBUG) or
+#                      (args.verbose and logging.INFO) or
+#                      (args.quiet and logging.FATAL) or
+#                       logging.ERROR
+#                     )
+#         return log_level
