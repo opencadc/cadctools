@@ -69,13 +69,16 @@ from __future__ import (absolute_import, division, print_function,
 
 import logging
 import os
+import sys
 import time
+import platform
 
 import requests
 from requests import Session
 
 from cadcutils import exceptions
 from . import auth
+from .. import version as cadctools_version
 
 __all__ = ['BaseWsClient']
 
@@ -111,6 +114,8 @@ class BaseWsClient(object):
 
         if service is None:
             raise ValueError
+        if agent is None or not agent:
+            raise ValueError('agent is None or empty string')
 
         self._session = None
         self.certificate_file_location = None
@@ -119,11 +124,32 @@ class BaseWsClient(object):
         self.retry = retry
 
         self.host = service
+        # agent is / delimited key value pairs, separated by a space,
+        # containing the application name and version,
+        # plus the name and version of application libraries.
+        # eg: foo/1.0.2 foo-lib/1.2.3
         self.agent = agent
+
+        # Get the package name and version, plus any imported libraries.
+        self.package_info = "cadcutils/{} requests/{}".format(cadctools_version.version,
+                                                              requests.__version__)
+        self.python_info = "{}/{}".format(platform.python_implementation(),
+                                          platform.python_version())
+        self.system_info = "{}/{}".format(platform.system(), platform.version())
+        o_s = sys.platform
+        if o_s.lower().startswith('linux'):
+            distname, version, id = platform.linux_distribution()
+            self.os_info = "{} {}".format(distname, version)
+        elif o_s == "darwin":
+            release, version, machine = platform.mac_ver()
+            self.os_info = "Mac OS X {}".format(release)
+        elif o_s.lower().startswith("win32"):
+            release, version, csd, ptype = platform.win32_ver()
+            self.os_info = "{} {}".format(release, version)
+
         # Unless the caller specifically requests an anonymous client,
         # check first for a certificate, then an externally created
         # HTTPBasicAuth object, and finally a name+password in .netrc.
-
         if not anon:
             if (cert_file is not None) and (cert_file is not ''):
                 if os.path.isfile(cert_file):
@@ -221,8 +247,9 @@ class BaseWsClient(object):
                 if self.basic_auth is not None:
                     self._session.auth = self.basic_auth
 
-        if self.agent is not None:
-            self._session.headers.update({"User-Agent": self.agent})
+        user_agent = "{} {} {} {} ({})".format(self.agent, self.package_info, self.python_info,
+                                               self.system_info, self.os_info)
+        self._session.headers.update({"User-Agent": user_agent})
         assert isinstance(self._session, requests.Session)
         return self._session
 
