@@ -1,10 +1,9 @@
-#!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2014.                            (c) 2014.
+#  (c) 2016.                            (c) 2016.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -66,20 +65,21 @@
 #
 # ***********************************************************************
 
-from cadcutils.util import *
-import unittest
 import logging
 import sys
+import unittest
+
 from six import StringIO
+
+from cadcutils.util import *
 
 
 class UtilTests(unittest.TestCase):
 
-    ''' Class for testing cadc utilities'''
-
+    """ Class for testing cadc utilities """
 
     def test_ivoa_dates(self):
-        ''' Test the ivoa date formats functions date2ivoa and str2ivoa'''
+        """ Test the ivoa date formats functions date2ivoa and str2ivoa """
 
         expect_date = '2016-11-07T11:22:33.123'
         self.assertEquals(expect_date, date2ivoa(str2ivoa(expect_date)))
@@ -92,35 +92,33 @@ class UtilTests(unittest.TestCase):
         self.assertEquals(None, str2ivoa(None))
         
     def test_get_log_level(self):
-        ''' Test the handling of logging level control from command line arguments '''
+        """ Test the handling of logging level control from command line arguments """
         
-        parser = BaseParser(description="UtilTests")
+        parser = get_base_parser()
         args = parser.parse_args(["--debug"])        
-        self.assertEqual(logging.DEBUG, parser.get_log_level(args))
+        self.assertEqual(logging.DEBUG, get_log_level(args))
         
         args = parser.parse_args(["--verbose"])        
-        self.assertEqual(logging.INFO, parser.get_log_level(args))
+        self.assertEqual(logging.INFO, get_log_level(args))
         
         args = parser.parse_args(["--quiet"])        
-        self.assertEqual(logging.FATAL, parser.get_log_level(args))
+        self.assertEqual(logging.FATAL, get_log_level(args))
         
         args = parser.parse_args([])        
-        self.assertEqual(logging.ERROR, parser.get_log_level(args))
+        self.assertEqual(logging.ERROR, get_log_level(args))
         
         print ("passed log level tests")
 
-        
     def test_init_logging_debug(self):
-        ''' Test the init_logging function '''
+        """ Test the init_logging function """
         logger1 = get_logger('namspace1', log_level=logging.DEBUG)
         self.assertEquals(logging.DEBUG, logger1.getEffectiveLevel())
         logger2 = get_logger('namspace2')
         self.assertEquals(logging.ERROR, logger2.getEffectiveLevel())
-        
-        
+
     def test_shared_logger(self):
-        ''' Loggers with the same namespace share the
-            same logging instances '''
+        """ Loggers with the same namespace share the
+            same logging instances """
         logger1 = get_logger('namspace1', log_level=logging.DEBUG)
         self.assertEquals(logging.DEBUG, logger1.getEffectiveLevel())
         logger2 = get_logger('namspace1', log_level=logging.WARN)
@@ -130,8 +128,7 @@ class UtilTests(unittest.TestCase):
         self.assertEquals(logging.INFO, logger3.getEffectiveLevel())
         self.assertEquals(logging.WARN, logger1.getEffectiveLevel())
         self.assertEquals(logging.WARN, logger2.getEffectiveLevel())
-        
-        
+
     def test_modify_log_level(self):
         logger = get_logger('test_modify_log_level', log_level=logging.INFO)
         self.assertEquals(logging.INFO, logger.getEffectiveLevel())
@@ -139,50 +136,47 @@ class UtilTests(unittest.TestCase):
         self.assertEquals(logging.DEBUG, logger.getEffectiveLevel())
         logger.setLevel(logging.ERROR)
         self.assertEquals(logging.ERROR, logger.getEffectiveLevel())
-        
-        
+
     def test_modname_log_format(self):
-        
+
+        stdout_pointer = sys.stdout
         try:
-            stdout_pointer = sys.stdout
-            sys.stdout = StringIO()     # capture output
+            sys.stdout = StringIO()      # capture output
             logger = get_logger()
             logger.error('Test message')
-            out = sys.stdout.getvalue() # release output
+            out = sys.stdout.getvalue()  # release output
             self.assertTrue('test_utils' in out)
         finally:
             sys.stdout.close()  # close the stream 
-            sys.stdout = stdout_pointer # restore original stdout
-        
-        
+            sys.stdout = stdout_pointer  # restore original stdout
+
     def test_info_log_format(self):
-        
+
+        stdout_pointer = sys.stdout
         try:
-            stdout_pointer = sys.stdout
-            sys.stdout = StringIO()     # capture output
+            sys.stdout = StringIO()      # capture output
             logger = get_logger('test_info_log_format', log_level=logging.INFO)
             logger.info('Test message')
-            out = sys.stdout.getvalue() # release output
+            out = sys.stdout.getvalue()  # release output
             self.assertTrue('INFO' in out)
             self.assertTrue('test_info_log_format' in out)
             self.assertTrue('Test message' in out)
         finally:
             sys.stdout.close()  # close the stream 
-            sys.stdout = stdout_pointer # restore original stdout
-        
-        
+            sys.stdout = stdout_pointer  # restore original stdout
+
     def test_debug_log_format(self):
-        
+
+        stdout_pointer = sys.stdout
         try:
-            stdout_pointer = sys.stdout
-            sys.stdout = StringIO()     # capture output
+            sys.stdout = StringIO()      # capture output
             logger = get_logger('test_debug_log_format_namespace', log_level=logging.DEBUG)
             logger.debug('Test message')
-            out = sys.stdout.getvalue() # release output
+            out = sys.stdout.getvalue()  # release output
             self.assertTrue('DEBUG' in out)
             self.assertTrue('test_debug_log_format_namespace' in out)
             self.assertTrue('test_utils.test_debug_log_format:' in out)
             self.assertTrue('Test message' in out)
         finally:
             sys.stdout.close()  # close the stream 
-            sys.stdout = stdout_pointer # restore original stdout
+            sys.stdout = stdout_pointer  # restore original stdout

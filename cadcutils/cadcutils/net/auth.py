@@ -1,4 +1,70 @@
-#!python
+# -*- coding: utf-8 -*-
+# ***********************************************************************
+# ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
+# *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
+#
+#  (c) 2016.                            (c) 2016.
+#  Government of Canada                 Gouvernement du Canada
+#  National Research Council            Conseil national de recherches
+#  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
+#  All rights reserved                  Tous droits réservés
+#
+#  NRC disclaims any warranties,        Le CNRC dénie toute garantie
+#  expressed, implied, or               énoncée, implicite ou légale,
+#  statutory, of any kind with          de quelque nature que ce
+#  respect to the software,             soit, concernant le logiciel,
+#  including without limitation         y compris sans restriction
+#  any warranty of merchantability      toute garantie de valeur
+#  or fitness for a particular          marchande ou de pertinence
+#  purpose. NRC shall not be            pour un usage particulier.
+#  liable in any event for any          Le CNRC ne pourra en aucun cas
+#  damages, whether direct or           être tenu responsable de tout
+#  indirect, special or general,        dommage, direct ou indirect,
+#  consequential or incidental,         particulier ou général,
+#  arising from the use of the          accessoire ou fortuit, résultant
+#  software.  Neither the name          de l'utilisation du logiciel. Ni
+#  of the National Research             le nom du Conseil National de
+#  Council of Canada nor the            Recherches du Canada ni les noms
+#  names of its contributors may        de ses  participants ne peuvent
+#  be used to endorse or promote        être utilisés pour approuver ou
+#  products derived from this           promouvoir les produits dérivés
+#  software without specific prior      de ce logiciel sans autorisation
+#  written permission.                  préalable et particulière
+#                                       par écrit.
+#
+#  This file is part of the             Ce fichier fait partie du projet
+#  OpenCADC project.                    OpenCADC.
+#
+#  OpenCADC is free software:           OpenCADC est un logiciel libre ;
+#  you can redistribute it and/or       vous pouvez le redistribuer ou le
+#  modify it under the terms of         modifier suivant les termes de
+#  the GNU Affero General Public        la “GNU Affero General Public
+#  License as published by the          License” telle que publiée
+#  Free Software Foundation,            par la Free Software Foundation
+#  either version 3 of the              : soit la version 3 de cette
+#  License, or (at your option)         licence, soit (à votre gré)
+#  any later version.                   toute version ultérieure.
+#
+#  OpenCADC is distributed in the       OpenCADC est distribué
+#  hope that it will be useful,         dans l’espoir qu’il vous
+#  but WITHOUT ANY WARRANTY;            sera utile, mais SANS AUCUNE
+#  without even the implied             GARANTIE : sans même la garantie
+#  warranty of MERCHANTABILITY          implicite de COMMERCIALISABILITÉ
+#  or FITNESS FOR A PARTICULAR          ni d’ADÉQUATION À UN OBJECTIF
+#  PURPOSE.  See the GNU Affero         PARTICULIER. Consultez la Licence
+#  General Public License for           Générale Publique GNU Affero
+#  more details.                        pour plus de détails.
+#
+#  You should have received             Vous devriez avoir reçu une
+#  a copy of the GNU Affero             copie de la Licence Générale
+#  General Public License along         Publique GNU Affero avec
+#  with OpenCADC.  If not, see          OpenCADC ; si ce n’est
+#  <http://www.gnu.org/licenses/>.      pas le cas, consultez :
+#                                       <http://www.gnu.org/licenses/>.
+#
+#
+# ***********************************************************************
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -14,6 +80,7 @@ CERT_ENDPOINT = "/cred/proxyCert"
 CERT_SERVER = "www.canfar.phys.uvic.ca"
 
 __all__ = ['get_cert', 'get_user_password']
+
 
 def get_cert(cert_server=None,
              cert_endpoint=None, **kwargs):
@@ -62,8 +129,6 @@ def get_user_password(realm):
     return username, password
 
 
-
-
 def get_cert_main():
     """ Client to download an X509 certificate and save it in users home directory"""
 
@@ -74,16 +139,16 @@ def get_cert_main():
     signal.signal(signal.SIGINT, _signal_handler)
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                                     description=("Retrieve a security certificate for interation with a Web service "
+                                     description=("Retrieve a security certificate for interaction with a Web service "
                                                   "such as VOSpace. Certificate will be valid for daysValid and stored "
                                                   "as local file cert_filename. First looks for an entry in the users "
                                                   ".netrc  matching the realm {0}, the user is prompted for a username "
                                                   "and password if no entry is found.".format(CERT_SERVER)))
 
-    parser.add_argument('--daysValid', type=int, default=10, help='Number of days the cetificate should be valid.')
+    parser.add_argument('--daysValid', type=int, default=10, help='Number of days the certificate should be valid.')
     parser.add_argument('--cert-filename',
                         default=os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'),
-                        help="Filesysm location to store the proxy certifcate.")
+                        help="Filesystem location to store the proxy certificate.")
     parser.add_argument('--cert-server',
                         default=CERT_SERVER,
                         help="Certificate server network address.")
@@ -103,15 +168,14 @@ def get_cert_main():
         else:
             raise oex
 
-
     retry = True
     while retry:
         try:
-            #if args.cert_filename is None:
+            # if args.cert_filename is None:
             #    cert_filename = os.path.join(os.getenv("HOME", "/tmp"), ".ssl/cadcproxy.pem")
 
             cert = get_cert(cert_server=args.cert_server,
-                     daysValid=args.daysValid)
+                            daysValid=args.daysValid)
             with open(args.cert_filename, 'w') as w:
                 w.write(cert)
             retry = False

@@ -1,10 +1,9 @@
-#!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2014.                            (c) 2014.
+#  (c) 2016.                            (c) 2016.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -65,23 +64,27 @@
 #
 #
 # ***********************************************************************
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-import unittest
-from mock import Mock, patch, MagicMock, call, mock_open
-from cadcutils.net import auth
-from six import StringIO
-import sys
-from cadcutils.net import auth
+
 import os
+import sys
+import unittest
+
+from mock import Mock, patch, mock_open
+from six import StringIO
+
+from cadcutils.net import auth
+
 
 class MyExitError(Exception):
     pass
 
+
 class TestAuth(unittest.TestCase):
 
-    ''' Class for testing networking authorization functionality'''
-
+    """ Class for testing networking authorization functionality """
 
     @patch('cadcutils.net.auth.os', Mock())
     @patch('cadcutils.net.auth.sys.stdout', Mock())
@@ -89,7 +92,7 @@ class TestAuth(unittest.TestCase):
     @patch('cadcutils.net.auth.sys.stdin')
     @patch('cadcutils.net.auth.netrc')
     def test_user_password(self, netrc_mock, stdin_mock, getpass_mock):
-        ''' Test get-cert functionality'''
+        """ Test get-cert functionality """
 
         # .netrc first
         netrc_mock.netrc.return_value.authenticators.return_value = ['usr', 'account', 'passwd']
@@ -102,23 +105,20 @@ class TestAuth(unittest.TestCase):
         getpass_mock.getpass.return_value = 'promptpasswd\n'
         self.assertEqual(('promptusr', 'promptpasswd'), auth.get_user_password(realm))
 
-
-
     @patch('cadcutils.net.auth.get_user_password', Mock(return_value=['usr', 'passwd']))
     @patch('cadcutils.net.auth.requests')
     def test_get_cert(self, requests_mock):
-        ''' Test get_cert functionality '''
+        """ Test get_cert functionality """
         response = Mock()
         response.content = 'CERT CONTENT'
         requests_mock.get.return_value = response
 
         self.assertEqual(response.content, auth.get_cert())
 
-
     @patch('cadcutils.net.auth.get_cert', Mock(return_value='CERTVALUE'))
     @patch('sys.exit', Mock(side_effect=[MyExitError]))
     def test_get_cert_main(self):
-        ''' Test the help option of the cadc-get-cert app'''
+        """ Test the help option of the cadc-get-cert app """
 
         value = "CERTVALUE"
 
@@ -130,7 +130,6 @@ class TestAuth(unittest.TestCase):
         m.assert_called_once_with(os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'), 'w')
         handle = m()
         handle.write.assert_called_once_with(value)
-
 
         # save certificate in a file
         certfile = '/tmp/testcertfile'
@@ -157,14 +156,14 @@ Expected /tmp/testcertfile to be a directory.
 
     @patch('sys.exit', Mock(side_effect=[MyExitError]))
     def test_get_cert_main_help(self):
-        ''' Test the help option of the cadc-get-cert app'''
+        """ Test the help option of the cadc-get-cert app """
 
         usage =\
 """usage: cadc-get-cert [-h] [--daysValid DAYSVALID]
                      [--cert-filename CERT_FILENAME]
                      [--cert-server CERT_SERVER]
 
-Retrieve a security certificate for interation with a Web service such as
+Retrieve a security certificate for interaction with a Web service such as
 VOSpace. Certificate will be valid for daysValid and stored as local file
 cert_filename. First looks for an entry in the users .netrc matching the realm
 www.canfar.phys.uvic.ca, the user is prompted for a username and password if
@@ -173,10 +172,10 @@ no entry is found.
 optional arguments:
   -h, --help            show this help message and exit
   --daysValid DAYSVALID
-                        Number of days the cetificate should be valid.
+                        Number of days the certificate should be valid.
                         (default: 10)
   --cert-filename CERT_FILENAME
-                        Filesysm location to store the proxy certifcate.
+                        Filesystem location to store the proxy certificate.
                         (default: {})
   --cert-server CERT_SERVER
                         Certificate server network address. (default:
