@@ -1,10 +1,9 @@
-#!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2016.                            (c) 2014.
+#  (c) 2016.                            (c) 2016.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -191,58 +190,3 @@ def get_base_parser(version=None, usecert=True):
         parser.add_argument('--version', action='version', version=version)
 
     return parser
-
-# class BaseParser(ArgumentParser):
-#     """
-#     An ArgumentParser with some common things most CADC clients will want.
-#
-#     """
-#
-#     def __init__(self, version=None, usecert=True, *args, **kwargs):
-#         """
-#         Construct a basic parser
-#         :param version A version number if desired.
-#         :param usercert If True add '--certfile' argument.
-#
-#         """
-#
-#         ArgumentParser.__init__(self,  *args, **kwargs)
-#
-#         if usecert:
-#             self.add_argument('--certfile', type=str,
-#                               help="location of your CADC certificate "
-#                               + "file (default: $HOME/.ssl/cadcproxy.pem, " + \
-#                               "otherwise uses $HOME/.netrc for name/password)",
-#                           default=os.path.join(os.getenv("HOME", "."),
-#                                                  ".ssl/cadcproxy.pem"))
-#         self.add_argument('--anonymous', action="store_true", default=False,
-#                           help='Force anonymous connection')
-#         self.add_argument('--host', help="Base hostname for services"
-#                           + "(default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)",
-#                           default='www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')
-#         self.add_argument('--verbose', action="store_true", default=False,
-#                           help='verbose messages')
-#         self.add_argument('--debug', action="store_true", default=False,
-#                           help='debug messages')
-#         self.add_argument('--quiet', action="store_true", default=False,
-#                           help='run quietly')
-#
-#         if version is not None:
-#             self.add_argument('--version', action='version',
-#                               version=version)
-#
-#
-#     def get_log_level(self, args):
-#         """
-#         Obtain a single logger level from parsed args.
-#
-#         :param args The list of arguments.
-#
-#         """
-#
-#         log_level = ((args.debug and logging.DEBUG) or
-#                      (args.verbose and logging.INFO) or
-#                      (args.quiet and logging.FATAL) or
-#                       logging.ERROR
-#                     )
-#         return log_level

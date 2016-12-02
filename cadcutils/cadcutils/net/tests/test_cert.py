@@ -1,10 +1,9 @@
-#!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2016.                            (c) 2014.
+#  (c) 2016.                            (c) 2016.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -164,7 +163,7 @@ Expected /tmp/testcertfile to be a directory.
                      [--cert-filename CERT_FILENAME]
                      [--cert-server CERT_SERVER]
 
-Retrieve a security certificate for interation with a Web service such as
+Retrieve a security certificate for interaction with a Web service such as
 VOSpace. Certificate will be valid for daysValid and stored as local file
 cert_filename. First looks for an entry in the users .netrc matching the realm
 www.canfar.phys.uvic.ca, the user is prompted for a username and password if
@@ -173,10 +172,10 @@ no entry is found.
 optional arguments:
   -h, --help            show this help message and exit
   --daysValid DAYSVALID
-                        Number of days the cetificate should be valid.
+                        Number of days the certificate should be valid.
                         (default: 10)
   --cert-filename CERT_FILENAME
-                        Filesysm location to store the proxy certifcate.
+                        Filesystem location to store the proxy certificate.
                         (default: {})
   --cert-server CERT_SERVER
                         Certificate server network address. (default:

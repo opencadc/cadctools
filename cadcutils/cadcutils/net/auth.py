@@ -1,4 +1,3 @@
-#!/usr/bin/env python2.7
 # -*- coding: utf-8 -*-
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
@@ -82,6 +81,7 @@ CERT_SERVER = "www.canfar.phys.uvic.ca"
 
 __all__ = ['get_cert', 'get_user_password']
 
+
 def get_cert(cert_server=None,
              cert_endpoint=None, **kwargs):
     """Access the cadc certificate server.
@@ -129,8 +129,6 @@ def get_user_password(realm):
     return username, password
 
 
-
-
 def get_cert_main():
     """ Client to download an X509 certificate and save it in users home directory"""
 
@@ -141,16 +139,16 @@ def get_cert_main():
     signal.signal(signal.SIGINT, _signal_handler)
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-                                     description=("Retrieve a security certificate for interation with a Web service "
+                                     description=("Retrieve a security certificate for interaction with a Web service "
                                                   "such as VOSpace. Certificate will be valid for daysValid and stored "
                                                   "as local file cert_filename. First looks for an entry in the users "
                                                   ".netrc  matching the realm {0}, the user is prompted for a username "
                                                   "and password if no entry is found.".format(CERT_SERVER)))
 
-    parser.add_argument('--daysValid', type=int, default=10, help='Number of days the cetificate should be valid.')
+    parser.add_argument('--daysValid', type=int, default=10, help='Number of days the certificate should be valid.')
     parser.add_argument('--cert-filename',
                         default=os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'),
-                        help="Filesysm location to store the proxy certifcate.")
+                        help="Filesystem location to store the proxy certificate.")
     parser.add_argument('--cert-server',
                         default=CERT_SERVER,
                         help="Certificate server network address.")
@@ -170,15 +168,14 @@ def get_cert_main():
         else:
             raise oex
 
-
     retry = True
     while retry:
         try:
-            #if args.cert_filename is None:
+            # if args.cert_filename is None:
             #    cert_filename = os.path.join(os.getenv("HOME", "/tmp"), ".ssl/cadcproxy.pem")
 
             cert = get_cert(cert_server=args.cert_server,
-                     daysValid=args.daysValid)
+                            daysValid=args.daysValid)
             with open(args.cert_filename, 'w') as w:
                 w.write(cert)
             retry = False
