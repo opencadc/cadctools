@@ -75,6 +75,7 @@ import platform
 
 import requests
 from requests import Session
+from urlparse import urlparse
 
 from cadcutils import exceptions
 from . import auth
@@ -99,21 +100,22 @@ except:
 class BaseWsClient(object):
     """Web Service client primarily for CADC services"""
 
-    def __init__(self, service, agent, anon=True, cert_file=None, retry=True):
+    def __init__(self, resource_id, agent, anon=True, cert_file=None, retry=True, host=None):
         """
         Client constructor
         :param anon  -- anonymous access or not. If not anonymous and
         cert_file present, use it otherwise use basic authentication
         :param agent -- Name of the agent (application) that accesses the service
         :param cert_file -- location of the X509 certificate file.
-        :param service -- URI or URL of the service being accessed
+        :param resource_id -- ID of the resource being accessed (URI format)
+        :param host -- override the name of the host the service is running on (for testing purposes)
 
         """
 
         self.logger = logging.getLogger('BaseWsClient')
 
-        if service is None:
-            raise ValueError
+        if resource_id is None:
+            raise ValueError("No resource ID provided")
         if agent is None or not agent:
             raise ValueError('agent is None or empty string')
 
@@ -122,8 +124,8 @@ class BaseWsClient(object):
         self.basic_auth = None
         self.anon = None
         self.retry = retry
+        self.host = host
 
-        self.host = service
         # agent is / delimited key value pairs, separated by a space,
         # containing the application name and version,
         # plus the name and version of application libraries.
@@ -147,9 +149,19 @@ class BaseWsClient(object):
             release, version, csd, ptype = platform.win32_ver()
             self.os_info = "{} {}".format(release, version)
 
+        # Determine the name of the caom2repo service and host
+        # TODO this should be discoverable
+        url = urlparse(resource_id)
+        if len(url.path) < 2 or len(url.scheme) < 2 or len(url.netloc) < 2:
+            raise ValueError("Invalid resource ID {}".format(resource_id))
+        self.service = url.path.strip('/')
+        if self.host is None:
+            self.host = url.netloc
+
         # Unless the caller specifically requests an anonymous client,
         # check first for a certificate, then an externally created
         # HTTPBasicAuth object, and finally a name+password in .netrc.
+        # TODO this should be read from the capabilities of the service
         if not anon:
             if (cert_file is not None) and (cert_file is not ''):
                 if os.path.isfile(cert_file):
@@ -158,7 +170,7 @@ class BaseWsClient(object):
                     logging.warn("Unable to open supplied certfile ({}). Ignoring."
                                  .format(cert_file))
             else:
-                self.basic_auth = auth.get_user_password(service)
+                self.basic_auth = auth.get_user_password(self.host)
         else:
             self.anon = True
 
@@ -177,17 +189,23 @@ class BaseWsClient(object):
 
         # Base URL for web services.
         # Clients will probably append a specific service
-        if self.anon:
-            self.protocol = 'http'
-            self.base_url = '%s://%s' % (self.protocol, self.host)
+        if self.service == u'sc2repo':
+            self.base_url = '{}://{}/{}/{}'.format(
+                'https' if self.certificate_file_location is not None else 'http',
+                self.host, self.service,
+                'auth-observations' if self.basic_auth is not None else 'observations')
         else:
-            if self.certificate_file_location:
-                self.protocol = 'https'
-                self.base_url = '%s://%s/pub' % (self.protocol, self.host)
-            else:
-                # For both anonymous and name/password authentication
+            if self.anon:
                 self.protocol = 'http'
-                self.base_url = '%s://%s/auth' % (self.protocol, self.host)
+                self.base_url = '{}://{}/{}'.format(self.protocol, self.host, self.service)
+            else:
+                if self.certificate_file_location:
+                    self.protocol = 'https'
+                    self.base_url = '{}://{}/{}/pub'.format(self.protocol, self.host, self.service)
+                else:
+                    # For both anonymous and name/password authentication
+                    self.protocol = 'http'
+                    self.base_url = '{}://{}/{}/auth'.format(self.protocol, self.host, self.service)
 
         # Clients should add entries to this dict for specialized
         # conversion of HTTP error codes into particular exceptions.
