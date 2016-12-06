@@ -201,7 +201,7 @@ class UtilTests(unittest.TestCase):
 
         parser = get_base_parser(default_resource_id=resource_id)
         args = parser.parse_args([])
-        self.assertEquals(urlparse(resource_id), args.resourceID)
+        self.assertEquals(resource_id, args.resourceID)
 
         # missing resourceID
         parser = get_base_parser()
