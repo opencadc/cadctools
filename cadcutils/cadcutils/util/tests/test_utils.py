@@ -69,10 +69,12 @@ import logging
 import sys
 import unittest
 
+from argparse import ArgumentError
 from six import StringIO
+from six.moves.urllib.parse import urlparse
+from mock import Mock, patch, MagicMock, ANY
 
 from cadcutils.util import *
-
 
 class UtilTests(unittest.TestCase):
 
@@ -95,18 +97,19 @@ class UtilTests(unittest.TestCase):
         """ Test the handling of logging level control from command line arguments """
         
         parser = get_base_parser()
-        args = parser.parse_args(["--debug"])        
+        args = parser.parse_args(["--debug", "--resourceID", "www.some.resource"])
         self.assertEqual(logging.DEBUG, get_log_level(args))
-        
-        args = parser.parse_args(["--verbose"])        
+
+        parser = get_base_parser(default_resource_id='ivo://www.some.resource/resourceID')
+        args = parser.parse_args(["--verbose"])
         self.assertEqual(logging.INFO, get_log_level(args))
         
-        args = parser.parse_args(["--quiet"])        
+        args = parser.parse_args(["--quiet"])
         self.assertEqual(logging.FATAL, get_log_level(args))
         
-        args = parser.parse_args([])        
+        args = parser.parse_args([])
         self.assertEqual(logging.ERROR, get_log_level(args))
-        
+
         print ("passed log level tests")
 
     def test_init_logging_debug(self):
@@ -180,3 +183,39 @@ class UtilTests(unittest.TestCase):
         finally:
             sys.stdout.close()  # close the stream 
             sys.stdout = stdout_pointer  # restore original stdout
+
+
+
+
+    @patch('sys.exit', Mock(side_effect=[ArgumentError(None, None),
+                                         ArgumentError(None, None),
+                                         ArgumentError(None, None),
+                                         ArgumentError(None, None),
+                                         ArgumentError(None, None)]))
+    def test_base_parser(self):
+
+        parser = get_base_parser()
+        resource_id = "ivo://www.some.resource/resourceid"
+        args = parser.parse_args(["--resourceID", resource_id])
+        self.assertEquals(urlparse(resource_id), args.resourceID)
+
+        parser = get_base_parser(default_resource_id=resource_id)
+        args = parser.parse_args([])
+        self.assertEquals(resource_id, args.resourceID)
+
+        # missing resourceID
+        parser = get_base_parser()
+        with self.assertRaises(ArgumentError):
+            args = parser.parse_args([])
+
+        # invalid resourceID (scheme)
+        resource_id = "http://www.some.resource/resourceid"
+        parser = get_base_parser(default_resource_id=resource_id)
+        with self.assertRaises(ArgumentError):
+            args = parser.parse_args([])
+
+        # invalid resourceID (missing resource id)
+        resource_id = "ivo://www.some.resource"
+        parser = get_base_parser(default_resource_id=resource_id)
+        with self.assertRaises(ArgumentError):
+            args = parser.parse_args([])

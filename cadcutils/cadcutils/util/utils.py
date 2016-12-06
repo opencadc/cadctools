@@ -72,6 +72,7 @@ import sys
 import inspect
 from argparse import ArgumentParser
 from datetime import datetime
+from six.moves.urllib.parse import urlparse
 
 __all__ = ['IVOA_DATE_FORMAT', 'date2ivoa', 'str2ivoa',
            'get_logger', 'get_log_level','get_base_parser']
@@ -158,12 +159,26 @@ def get_log_level(args):
     return log_level
 
 
-def get_base_parser(version=None, usecert=True):
+def parse_resource_id(resource_id):
+    """
+    Parses a resource identifier and returns its components as a tuple:
+    (scheme, netloc, path, params, query, fragment).
+    :param resource_id: the resource identifier
+    :return: (scheme, netloc, path, params, query, fragment)
+    """
+    result = urlparse(resource_id)
+    if len(result.netloc) < 2 or len(result.path) < 2 or (result.scheme != 'ivo'):
+        raise ValueError('Invalid resourceID: {}'.format(resource_id))
+    return resource_id
+
+
+def get_base_parser(version=None, usecert=True, default_resource_id=None):
     """
     An ArgumentParser with some common things most CADC clients will want.
 
     :param version: A version number if desired.
     :param usecert: If True add '--certfile' argument.
+    :param default_resource_id: default resource identifier to use
     :return: An ArgumentParser instance.
     """
     parser = ArgumentParser(add_help=False)
@@ -176,9 +191,16 @@ def get_base_parser(version=None, usecert=True):
                                                  ".ssl/cadcproxy.pem"))
     parser.add_argument('--anonymous', action="store_true",
                         help='Force anonymous connection')
-    parser.add_argument('--host', help="Base hostname for services" +
+    parser.add_argument('--host', help="Base hostname for services - used mainly for testing " +
                                        "(default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)",
                         default='www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')
+    if default_resource_id is None:
+        parser.add_argument('--resourceID', type=urlparse, required=True,
+                            help="resource identifier (e.g. ivo://cadc.nrc.ca/caom2repo")
+    else:
+        parser.add_argument('--resourceID', type=parse_resource_id,
+                            default = default_resource_id,
+                            help="resource identifier (default {})".format(default_resource_id))
     parser.add_argument('--verbose', action="store_true",
                         help='verbose messages')
     parser.add_argument('--debug', action="store_true",
