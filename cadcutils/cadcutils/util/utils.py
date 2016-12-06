@@ -169,7 +169,7 @@ def parse_resource_id(resource_id):
     result = urlparse(resource_id)
     if len(result.netloc) < 2 or len(result.path) < 2 or (result.scheme != 'ivo'):
         raise ValueError('Invalid resourceID: {}'.format(resource_id))
-    return result
+    return resource_id
 
 
 def get_base_parser(version=None, usecert=True, default_resource_id=None):
