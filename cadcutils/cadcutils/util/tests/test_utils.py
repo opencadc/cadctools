@@ -76,9 +76,6 @@ from mock import Mock, patch, MagicMock, ANY
 
 from cadcutils.util import *
 
-class MyExitError(Exception):
-    pass
-
 class UtilTests(unittest.TestCase):
 
     """ Class for testing cadc utilities """
@@ -188,9 +185,6 @@ class UtilTests(unittest.TestCase):
             sys.stdout = stdout_pointer  # restore original stdout
 
 
-
-
-    @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError]))
     def test_base_parser(self):
 
         parser = get_base_parser()
@@ -201,11 +195,6 @@ class UtilTests(unittest.TestCase):
         parser = get_base_parser(default_resource_id=resource_id)
         args = parser.parse_args([])
         self.assertEquals(urlparse(resource_id), args.resourceID)
-
-        # missing resourceID
-        parser = get_base_parser()
-        with self.assertRaises(MyExitError):
-            args = parser.parse_args([])
 
         # invalid resourceID (scheme)
         resource_id = "http://www.some.resource/resourceid"

@@ -191,7 +191,7 @@ def get_base_parser(version=None, usecert=True, default_resource_id=None):
                                                  ".ssl/cadcproxy.pem"))
     parser.add_argument('--anonymous', action="store_true",
                         help='Force anonymous connection')
-    parser.add_argument('--host', help="Base hostname for services - mainly for testing" +
+    parser.add_argument('--host', help="Base hostname for services - used mainly for testing " +
                                        "(default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)",
                         default='www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')
     if default_resource_id is None:
