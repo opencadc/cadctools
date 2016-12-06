@@ -189,6 +189,8 @@ class UtilTests(unittest.TestCase):
 
     @patch('sys.exit', Mock(side_effect=[ArgumentError(None, None),
                                          ArgumentError(None, None),
+                                         ArgumentError(None, None),
+                                         ArgumentError(None, None),
                                          ArgumentError(None, None)]))
     def test_base_parser(self):
 
