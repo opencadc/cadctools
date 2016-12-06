@@ -72,7 +72,7 @@ import unittest
 
 import requests
 from mock import Mock, patch, call
-from urlparse import urlparse
+from six.moves.urllib.parse import urlparse
 
 from cadcutils.net import ws
 from cadcutils.net.ws import DEFAULT_RETRY_DELAY, MAX_RETRY_DELAY, MAX_NUM_RETRIES, SERVICE_RETRY

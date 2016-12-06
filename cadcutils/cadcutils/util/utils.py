@@ -72,7 +72,7 @@ import sys
 import inspect
 from argparse import ArgumentParser
 from datetime import datetime
-from urlparse import urlparse
+from six.moves.urllib.parse import urlparse
 
 __all__ = ['IVOA_DATE_FORMAT', 'date2ivoa', 'str2ivoa',
            'get_logger', 'get_log_level','get_base_parser']

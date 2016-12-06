@@ -75,7 +75,7 @@ import platform
 
 import requests
 from requests import Session
-from urlparse import urlparse
+from six.moves.urllib.parse import urlparse
 
 from cadcutils import exceptions
 from . import auth

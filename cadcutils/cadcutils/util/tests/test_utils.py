@@ -71,7 +71,7 @@ import unittest
 
 from argparse import ArgumentError
 from six import StringIO
-from urlparse import urlparse
+from six.moves.urllib.parse import urlparse
 from mock import Mock, patch, MagicMock, ANY
 
 from cadcutils.util import *
