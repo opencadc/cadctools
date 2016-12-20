@@ -86,7 +86,7 @@ from caom2.version import version as caom2_version
 from six.moves.urllib.parse import urlparse
 
 # from . import version as caom2repo_version
-from . import version
+from cadcdata import version
 
 __all__ = ['CadcDataClient']
 
@@ -95,9 +95,10 @@ SERVICE_URL = 'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/'
 # IVOA dateformat
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 DEFAULT_RESOURCE_ID = 'ivo://cadc.nrc.ca/data'
+ARCHIVE_STREAM_HTTP_HEADER = 'X-CADC-Stream'
 
 
-class CAOM2RepoClient:
+class CadcDataClient:
 
     """Class to access CADC archival data."""
 
@@ -141,8 +142,11 @@ class CAOM2RepoClient:
         assert file_id is not None
         resource = '/{}/{}'.format(archive, file_id)
         logging.debug('GET '.format(resource))
-
-        response = self._repo_client.get(resource, stream=True)
+        if archive_stream is not None:
+            response = self._repo_client.get(resource, stream=True,
+                            headers={ARCHIVE_STREAM_HTTP_HEADER: str(archive_stream)})
+        else:
+            response = self._repo_client.get(resource, stream=True)
         if not hasattr(file, 'read'):
             with open(file, 'w') as f:
                 for chunk in response.iter_content(1024):
@@ -154,130 +158,147 @@ class CAOM2RepoClient:
                 if process_bytes is not None:
                     process_bytes(chunk)
                 file.write(chunk)
+        logging.debug('Successfully saved file\n')
 
 
-    def post_observation(self, observation):
+    def put_file(self, archive, file_id, file, archive_stream=None, replace=False):
         """
-        Updates an observation in the CAOM2 repo
-        :param observation: observation to update
-        :return: updated observation
+        Puts a file into the archive storage
+        :param archive: name of the archive
+        :param file_id: ID of file in the archive storage
+        :param file: location of the source file
+        :param archive_stream: specific archive stream
+        :param replace: True if this a replacement of an existing file, False otherwise
         """
-        assert observation.collection is not None
-        assert observation.observation_id is not None
-        resource = '/{}/{}'.format(observation.collection, observation.observation_id)
-        logging.debug('POST {}'.format(resource))
-
-        ibuffer = StringIO()
-        ObservationWriter().write(observation, ibuffer)
-        obs_xml = ibuffer.getvalue()
-        headers = {'Content-Type': 'application/xml'}
-        response = self._repo_client.post(
-            resource, headers=headers, data=obs_xml)
-        logging.debug('Successfully updated Observation\n')
-
-    def put_observation(self, observation):
-        """
-        Add an observation to the CAOM2 repo
-        :param observation: observation to add to the CAOM2 repo
-        :return: Added observation
-        """
-        assert observation.collection is not None
-        assert observation.observation_id is not None
-        resource = '/{}/{}'.format(observation.collection, observation.observation_id)
+        assert archive is not None
+        assert file_id is not None
+        resource = '/{}/{}'.format(archive, file_id)
         logging.debug('PUT {}'.format(resource))
+        headers = {}
+        if archive_stream is not None:
+            headers[ARCHIVE_STREAM_HTTP_HEADER] = str(archive_stream)
+        with open(file, 'rb') as f:
+            self._repo_client.put(resource, headers=headers, data=f)
+        logging.debug('Successfully updated file\n')
 
-        ibuffer = StringIO()
-        ObservationWriter().write(observation, ibuffer)
-        obs_xml = ibuffer.getvalue()
-        headers = {'Content-Type': 'application/xml'}
-        response = self._repo_client.put(
-            resource, headers=headers, data=obs_xml)
-        logging.debug('Successfully put Observation\n')
 
-    def delete_observation(self, collection, observation_id):
+    def get_file_info(self, archive, file_id):
         """
-        Delete an observation from the CAOM2 repo
-        :param collection: Name of the collection
-        :param observation_id: ID of the observation
+        Get information regarding a file in the archive
+        :param archive: Name of the archive
+        :param file_id: ID of the file
+        :returns dictionary of attributes/values
         """
-        assert observation_id is not None
-        resource = '/{}/{}'.format(collection, observation_id)
-        logging.debug('DELETE {}'.format(resource))
-        response = self._repo_client.delete(resource)
+        assert archive is not None
+        assert file_id is not None
+        resource = '/{}/{}'.format(archive, file_id)
+        logging.debug('HEAD {}'.format(resource))
+        response = self._repo_client.head(resource)
         logging.info('Successfully deleted Observation {}\n')
+        return response.content #TODO might need to return the headers
 
+class SingleMetavarHelpFormatter(argparse.HelpFormatter):
+    def _format_action_invocation(self, action):
+        if not action.option_strings:
+            metavar, = self._metavar_formatter(action, action.dest)(1)
+            return metavar
+
+        else:
+            parts = []
+
+            # if the Optional doesn't take a value, format is:
+            #    -s, --long
+            if action.nargs == 0:
+                parts.extend(action.option_strings)
+
+            # if the Optional takes a value, format is:
+            #    -s ARGS, --long ARGS
+            else:
+                default = action.dest.upper()
+                args_string = self._format_args(action, default)
+
+                ## THIS IS THE PART REPLACED
+                #~ for option_string in action.option_strings:
+                    #~ parts.append('%s %s' % (option_string, args_string)) ### this is change
+                ## /SECTION REPLACED
+
+                ## NEW CODE:
+                parts.extend(action.option_strings)
+                parts[-1] += ' %s' % args_string
+                ## /NEW CODE
+            return ', '.join(parts)
 
 def main():
 
-    base_parser = util.get_base_parser(version=version.version, default_resource_id=DEFAULT_RESOURCE_ID)
+    parser = util.get_base_parser(version=version.version, default_resource_id=DEFAULT_RESOURCE_ID)
 
-    parser = argparse.ArgumentParser(parents=[base_parser])
+    parser.description = ('Client for accessing the data Web Service at the Canadian Astronomy Data Centre '+
+                          '(www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data')
 
-    parser.description = ('Client for a CAOM2 repo. In addition to CRUD (Create, Read, Update and Delete) '
-                          'operations it also implements a visitor operation that allows for updating '
-                          'multiple observations in a collection')
-    parser.formatter_class = argparse.RawTextHelpFormatter
+    subparsers = parser.add_subparsers(dest='cmd',
+                                       help='Supported commands. Use the -h|--help argument of a command ' +\
+                                            'for more details')
+    get_parser = subparsers.add_parser('get',
+                                          description='Retrieve files from a CADC archive',
+                                          help='Retrieve files from a CADC archive')
+    get_parser.add_argument('-a', '--archive', help='CADC archive', required=True)
+    get_parser.add_argument('-o', '--output',
+                            help='Sspace-separated list of destination files (quotes required for multiple elements)',
+                            required=False)
+    get_parser.add_argument('--coutout', help='Perform one or multiple cutout operations as specified by the argument',
+                            required=False)
+    get_parser.add_argument('-de','--decompress', help='Decompress the data',
+                            action='store_true', required=False)
+    get_parser.add_argument('--wcs', help='Return the World Coordinate System (WCS) information',
+                            action='store_true', required=False)
+    get_parser.add_argument('--fhead', help='Return the FITS header information',
+                            action='store_true', required=False)
+    get_parser.add_argument('FILEIDs',
+                            help='File ID(s)')
 
-    subparsers = parser.add_subparsers(dest='cmd', )
+    put_parser = subparsers.add_parser('put',
+                                        description='Upload files into a CADC archive',
+                                        help='Upload files into a CADC archive')
+    put_parser.add_argument('-a','--archive', help='CADC archive', required=True)
+    put_parser.add_argument('-as', '--archive-stream', help='Specific archive stream to add the file to',
+                            required=False)
+    get_parser.add_argument('-c', '--compress', help='Compress the data',
+                            action='store_true', required=False)
+    put_parser.add_argument('--fileIDs',
+                            help='Space-separated list of file IDs to use (quotes required for multiple elements)',
+                            required=False)
+    put_parser.add_argument('files',
+                            help='Space-separate list of files or directories containing the files')
 
-    create_parser = subparsers.add_parser('create', parents=[base_parser],
-                                          description='Create a new observation',
-                                          help='Create a new observation')
-    create_parser.add_argument('observation', metavar='<new observation file>', type=file)
+    info_parser = subparsers.add_parser('info',
+                                          description=('Get information regarding files in a '
+                                                       'CADC archive on the form:\n'
+                                                       'File FILEID:\n'
+                                                       '\t -file name\n'
+                                                       '\t -file size\n'
+                                                       '\t -md5sum\n'
+                                                       '\t -content encoding\n'
+                                                       '\t -content type\n'
+                                                       '\t -uncompressed size\n'
+                                                       '\t -uncompressed md5sum\n'
+                                                       '\t -ingest date\n'
+                                                       '\t -last modified'),
+                                          help='Get information regarding files in a CADC archive')
+    info_parser.add_argument('-a', '--archive', help='CADC archive', required=True)
+    # info_parser.add_argument('--file-id', action='store_true', help='File ID')
+    # info_parser.add_argument('--file-name', action='store_true', help='File name')
+    # info_parser.add_argument('--file-size', action='store_true', help='File size')
+    # info_parser.add_argument('--md5sum', action='store_true', help='md5sum')
+    # info_parser.add_argument('--content-encoding', action='store_true', help='Content encoding')
+    # info_parser.add_argument('--content-type', action='store_true', help='Content type')
+    # info_parser.add_argument('--uncompressed-size', action='store_true', help='Uncompressed size')
+    # info_parser.add_argument('--uncompressed-md5sum', action='store_true', help='Uncompressed md5sum of the file')
+    # info_parser.add_argument('--ingest-date', action='store_true', help='Last modified')
+    # info_parser.add_argument('--last-modified', action='store_true', help='Ingest date')
+    info_parser.add_argument('FILEIDs',
+                             help='Space-separated list of file IDs')
 
-    read_parser = subparsers.add_parser('read', parents=[base_parser],
-                                        description='Read an existing observation',
-                                        help='Read an existing observation')
-    read_parser.add_argument('--collection', metavar='<collection>', required=True)
-    read_parser.add_argument('--output', '-o', metavar='<destination file>', required=False)
-    read_parser.add_argument('observation', metavar='<observation>')
 
-    update_parser = subparsers.add_parser('update', parents=[base_parser],
-                                          description='Update an existing observation',
-                                          help='Update an existing observation')
-    update_parser.add_argument('observation', metavar='<observation file>', type=file)
-
-    delete_parser = subparsers.add_parser('delete', parents=[base_parser],
-                                          description='Delete an existing observation',
-                                          help='Delete an existing observation')
-    delete_parser.add_argument('--collection', metavar='<collection>', required=True)
-    delete_parser.add_argument('observationID', metavar='<ID of observation>')
-
-    # Note: RawTextHelpFormatter allows for the use of newline in epilog
-    visit_parser = subparsers.add_parser('visit', parents=[base_parser],
-                                         formatter_class=argparse.RawTextHelpFormatter,
-                                         description='Visit observations in a collection',
-                                         help='Visit observations in a collection')
-    visit_parser.add_argument('--plugin', required=True, type=file,
-                              metavar='<pluginClassFile>',
-                              help='Plugin class to update each observation')
-    visit_parser.add_argument('--start', metavar='<datetime start point>',
-                              type=util.str2ivoa,
-                              help='oldest dataset to visit (UTC %%Y-%%m-%%d format)')
-    visit_parser.add_argument('--end', metavar='<datetime end point>',
-                              type=util.str2ivoa,
-                              help='earliest dataset to visit (UTC %%Y-%%m-%%d format)')
-    visit_parser.add_argument('--retries', metavar='<number of retries>', type=int,
-                              help='number of tries with transient server errors')
-    visit_parser.add_argument("-s", "--server", metavar='<CAOM2 service URL>',
-                              help="URL of the CAOM2 repo server")
-
-    visit_parser.add_argument('collection', metavar='<datacollection>', type=str,
-                              help='data collection in CAOM2 repo')
-    visit_parser.epilog =\
-"""
-Minimum plugin file format:
-----
-   from caom2.caom2_observation import Observation
-
-   class ObservationUpdater:
-
-    def update(self, observation):
-        assert isinstance(observation, Observation), (
-            'observation {} is not an Observation'.format(observation))
-        # custom code to update the observation
-----
-"""
     args = parser.parse_args()
     if args.verbose:
         logging.basicConfig(level=logging.INFO)
@@ -288,10 +309,10 @@ Minimum plugin file format:
     if os.path.isfile(args.certfile):
         cert_file = args.certfile
 
-    client = CAOM2RepoClient(args.resourceID, anon=args.anonymous, cert_file=cert_file, host=args.host)
-    if args.cmd == 'visit':
-        logging.info("Visit")
-        plugin = args.plugin
+    client = CadcDataClient(args.resourceID, anon=args.anonymous, cert_file=cert_file, host=args.host)
+    if args.cmd == 'get':
+        logging.info("get")
+        file = args.plugin
         start = args.start
         end = args.end
         retries = args.retries
@@ -302,8 +323,7 @@ Minimum plugin file format:
 
     elif args.cmd == 'create':
         logging.info("Create")
-        obs_reader = ObservationReader()
-        client.put_observation(obs_reader.read(args.observation))
+        print(args.__dict__)
     elif args.cmd == 'read':
         logging.info("Read")
         observation = client.get_observation(args.collection, args.observation)
@@ -323,3 +343,7 @@ Minimum plugin file format:
         client.delete_observation(collection=args.collection, observation_id=args.observationID)
 
     logging.info("DONE")
+
+#TODO remove
+if __name__ == '__main__':
+    main()
