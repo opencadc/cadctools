@@ -102,12 +102,12 @@ class CadcDataClient:
 
     """Class to access CADC archival data."""
 
-    def __init__(self, resource_id=DEFAULT_RESOURCE_ID, anon=True, cert_file=None, host=None):
+    def __init__(self, subject, resource_id=DEFAULT_RESOURCE_ID, host=None):
         """
         Instance of a CAOM2RepoClient
+        :param subject: the subject(user) performing the action
+        :type subject: Subject
         :param resource_id: The identifier of the service resource (e.g 'ivo://cadc.nrc.ca/data')
-        :param anon: True if anonymous access, False otherwise
-        :param cert_file: Location of X509 certificate used for authentication
         :param host: Host server for the caom2repo service
         """
 
@@ -119,19 +119,18 @@ class CadcDataClient:
 
         agent = "cadc-data-client/{}".format(version.version)
 
-        self._repo_client = net.BaseWsClient(resource_id, anon=anon, cert_file=cert_file,
-                                             agent=agent, retry=True, host=self.host)
+        self._repo_client = net.BaseWsClient(resource_id, subject,
+                                             agent, retry=True, host=self.host)
         logging.info('Service URL: {}'.format(self._repo_client.base_url))
 
 
-    def save_file(self, archive, file_id, archive_stream=None, file=file,
+    def get_file(self, archive, file_id, file=file,
                  cutout=None, wcs=None, process_bytes=None):
         """
         Get a file from an archive. The entire file is delivered unless the cutout argument
          is present specifying a cutout to extract from the file.
         :param archive: name of the archive containing the file
         :param file_id: the ID of the file to retrieve
-        :param archive_stream: the name of the stream in the archive
         :param file: file to save data to (file or file_name)
         :param cutout: perform cutout operation on the file before the result is delivered
         :param wcs: True if the wcs is to be included with the file
@@ -142,11 +141,7 @@ class CadcDataClient:
         assert file_id is not None
         resource = '/{}/{}'.format(archive, file_id)
         logging.debug('GET '.format(resource))
-        if archive_stream is not None:
-            response = self._repo_client.get(resource, stream=True,
-                            headers={ARCHIVE_STREAM_HTTP_HEADER: str(archive_stream)})
-        else:
-            response = self._repo_client.get(resource, stream=True)
+        response = self._repo_client.get(resource, stream=True)
         if not hasattr(file, 'read'):
             with open(file, 'w') as f:
                 for chunk in response.iter_content(1024):
@@ -197,36 +192,6 @@ class CadcDataClient:
         logging.info('Successfully deleted Observation {}\n')
         return response.content #TODO might need to return the headers
 
-class SingleMetavarHelpFormatter(argparse.HelpFormatter):
-    def _format_action_invocation(self, action):
-        if not action.option_strings:
-            metavar, = self._metavar_formatter(action, action.dest)(1)
-            return metavar
-
-        else:
-            parts = []
-
-            # if the Optional doesn't take a value, format is:
-            #    -s, --long
-            if action.nargs == 0:
-                parts.extend(action.option_strings)
-
-            # if the Optional takes a value, format is:
-            #    -s ARGS, --long ARGS
-            else:
-                default = action.dest.upper()
-                args_string = self._format_args(action, default)
-
-                ## THIS IS THE PART REPLACED
-                #~ for option_string in action.option_strings:
-                    #~ parts.append('%s %s' % (option_string, args_string)) ### this is change
-                ## /SECTION REPLACED
-
-                ## NEW CODE:
-                parts.extend(action.option_strings)
-                parts[-1] += ' %s' % args_string
-                ## /NEW CODE
-            return ', '.join(parts)
 
 def main():
 
@@ -305,21 +270,18 @@ def main():
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
 
-    cert_file = None
-    if os.path.isfile(args.certfile):
-        cert_file = args.certfile
+    subject = net.Subject(username=args.user,
+                          certificate=args.cert, use_netrc=args.n, netrc_file=args.netrc_file)
 
-    client = CadcDataClient(args.resourceID, anon=args.anonymous, cert_file=cert_file, host=args.host)
+    client = CadcDataClient(subject, args.resourceID, host=args.host)
     if args.cmd == 'get':
         logging.info("get")
-        file = args.plugin
-        start = args.start
-        end = args.end
-        retries = args.retries
-        collection = args.collection
-        logging.debug("Call visitor with plugin={}, start={}, end={}, dataset={}".
-                      format(plugin, start, end, collection, retries))
-        client.visit(plugin.name, collection, start=start, end=end)
+        archive = args.archive
+        file_id = args.FILEIDs
+        #logging.debug("Call visitor with plugin={}, start={}, end={}, dataset={}".
+        #              format(plugin, start, end, collection, retries))
+        with open(args.output, 'w') as dest:
+            client.get_file(archive, file_id, dest)
 
     elif args.cmd == 'create':
         logging.info("Create")

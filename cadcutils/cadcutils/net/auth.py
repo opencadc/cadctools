@@ -75,19 +75,63 @@ import os
 import signal
 import sys
 import requests
+import logging
 
 CERT_ENDPOINT = "/cred/proxyCert"
 CERT_SERVER = "www.canfar.phys.uvic.ca"
 
-__all__ = ['get_cert', 'get_user_password']
+__all__ = ['get_cert', 'get_user_password', 'Subject']
+
+class Subject:
+    def __init__(self, username=None, certificate=None, use_netrc=False, netrc_file=None):
+        self.logger = logging.getLogger('Subject')
+        self.username = username
+        self.certificate = certificate
+        self.use_netrc = use_netrc
+        self.netrc_file = netrc_file
+        if certificate is not None:
+            assert certificate is not '' and os.path.isfile(certificate)
+            assert use_netrc is False
+            assert username is None
+            assert netrc_file is None
+        else:
+            if use_netrc:
+                self.netrc = netrc.netrc(netrc_file)
+            self.username = username
+        self.anon = (self.certificate is None) and (self.use_netrc is False) \
+                    and (username is None)
+
+    def get_auth(self, realm):
+        if self.anon:
+            return None
+        #TODO add the password typed by the user to the list of known hosts/username/passwords
+        if self.username is None:
+            if realm in self.netrc.hosts:
+                return (self.netrc.hosts[realm][0], self.netrc.hosts[realm][2])
+            else:
+                self.logger.error('No user/password for {} in {}'.format(
+                    realm, self.netrc_file if self.netrc_file is not None else '$HOME/.netrc'))
+                return None
+        else:
+            if realm in self.netrc.hosts and self.username == self.netrc.hosts[realm][0]:
+                return (self.netrc.hosts[realm][0], self.netrc.hosts[realm][2])
+            else:
+                sys.stdout.write("Password for {}@{}: ".format(self.username, realm))
+                return (self.username, getpass.getpass().strip('\n'))
 
 
-def get_cert(cert_server=None,
+
+
+
+def get_cert(cert_server=None, user=None,
              cert_endpoint=None, **kwargs):
-    """Access the cadc certificate server.
+    """Access the CADC Certificate Delecation Protocol (CDP) server and retrieve
+       a X509 proxy certificate.
 
     :param cert_server: the http server that will provide the certificate
     :ptype cert_server: str
+    :param user: CADC ID of the user
+    :ptype user: str
     :param cert_endpoint: the endpoint on the server where the certificate service is
     :ptype cert_endpoint: str
     :param kwargs: not really any, but maybe daysValid.
@@ -100,33 +144,37 @@ def get_cert(cert_server=None,
     cert_server = cert_server is None and CERT_SERVER or cert_server
     cert_endpoint = cert_endpoint is None and CERT_ENDPOINT or cert_endpoint
 
-    username, passwd = get_user_password(cert_server)
+    username = user
+    if username is None:
+        sys.stdout.write("CADC user ID: ")
+        username = sys.stdin.readline().strip('\n')
+
+    username, passwd = get_user_password(cert_server, username=username)
 
     url = "http://{0}/{1}".format(cert_server, cert_endpoint)
     resp = requests.get(url, params=kwargs, auth=(username, passwd))
     resp.raise_for_status()
+    logging.getLogger('get_Cert').debug('Saved user {} certificate'.format(username))
     return resp.content
 
 
-def get_user_password(realm):
+def get_user_password(realm, username=None):
     """"Gett the username/password for realm from .netrc file or prompt the user
 
     :param realm: the server realm this user/password combination is for
     :ptype realm: str
+    :param username: user name to get the password for. Prompt for password.
     :return (username, password)
     """
-    if os.access(os.path.join(os.environ.get('HOME', '/'), ".netrc"), os.R_OK):
-        auth = netrc.netrc().authenticators(realm)
+    if username is None:
+        if os.access(os.path.join(os.environ.get('HOME', '/'), ".netrc"), os.R_OK):
+            auth = netrc.netrc().authenticators(realm)
+            return (auth[0], auth[2])
+        else:
+            return False
     else:
-        auth = False
-    if not auth:
-        sys.stdout.write("{0} Username: ".format(realm))
-        username = sys.stdin.readline().strip('\n')
-        password = getpass.getpass().strip('\n')
-    else:
-        username = auth[0]
-        password = auth[2]
-    return username, password
+        sys.stdout.write("Password for {}: ".format(username))
+        return(username, getpass.getpass().strip('\n'))
 
 
 def get_cert_main():
@@ -145,13 +193,15 @@ def get_cert_main():
                                                   ".netrc  matching the realm {0}, the user is prompted for a username "
                                                   "and password if no entry is found.".format(CERT_SERVER)))
 
-    parser.add_argument('--daysValid', type=int, default=10, help='Number of days the certificate should be valid.')
     parser.add_argument('--cert-filename',
                         default=os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'),
                         help="Filesystem location to store the proxy certificate.")
     parser.add_argument('--cert-server',
                         default=CERT_SERVER,
                         help="Certificate server network address.")
+    parser.add_argument('--daysValid', type=int, default=10, help='Number of days the certificate should be valid.')
+    parser.add_argument('-u', '--user', type=str, help='CADC user ID associated with the certificate',
+                        required=False)
 
     args = parser.parse_args()
 
@@ -174,7 +224,7 @@ def get_cert_main():
             # if args.cert_filename is None:
             #    cert_filename = os.path.join(os.getenv("HOME", "/tmp"), ".ssl/cadcproxy.pem")
 
-            cert = get_cert(cert_server=args.cert_server,
+            cert = get_cert(cert_server=args.cert_server, user=args.user,
                             daysValid=args.daysValid)
             with open(args.cert_filename, 'w') as w:
                 w.write(cert)

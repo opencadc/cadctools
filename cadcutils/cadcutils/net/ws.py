@@ -100,13 +100,14 @@ except:
 class BaseWsClient(object):
     """Web Service client primarily for CADC services"""
 
-    def __init__(self, resource_id, agent, anon=True, cert_file=None, retry=True, host=None):
+    def __init__(self, resource_id, subject, agent, retry=True, host=None):
         """
         Client constructor
         :param anon  -- anonymous access or not. If not anonymous and
         cert_file present, use it otherwise use basic authentication
         :param agent -- Name of the agent (application) that accesses the service
-        :param cert_file -- location of the X509 certificate file.
+        :type agent: Subject
+        :param subject -- The subject that is using the service
         :param resource_id -- ID of the resource being accessed (URI format)
         :param host -- override the name of the host the service is running on (for testing purposes)
 
@@ -120,9 +121,7 @@ class BaseWsClient(object):
             raise ValueError('agent is None or empty string')
 
         self._session = None
-        self.certificate_file_location = None
-        self.basic_auth = None
-        self.anon = None
+        self.subject = subject
         self.retry = retry
         self.host = host
 
@@ -163,24 +162,6 @@ class BaseWsClient(object):
         # Unless the caller specifically requests an anonymous client,
         # check first for a certificate, then an externally created
         # HTTPBasicAuth object, and finally a name+password in .netrc.
-        # TODO this should be read from the capabilities of the service
-        if not anon:
-            if (cert_file is not None) and (cert_file is not ''):
-                if os.path.isfile(cert_file):
-                    self.certificate_file_location = cert_file
-                else:
-                    logging.warn("Unable to open supplied certfile ({}). Ignoring."
-                                 .format(cert_file))
-            else:
-                self.basic_auth = auth.get_user_password(self.host)
-        else:
-            self.anon = True
-
-        self.logger.debug(
-            "Client anonymous: {}, certfile: {}, name: {}".format(
-                str(self.anon), str(self.certificate_file_location),
-                str((self.basic_auth is not None) and (self.basic_auth[0]))))
-
         # TODO The service URL needs to be discoverable based on the URI/URL of the service with the
         # following steps:
         # 1. Download the configuration of services at the service provider and get the URL for the capabilities
@@ -193,15 +174,15 @@ class BaseWsClient(object):
         # Clients will probably append a specific service
         if self.service == u'sc2repo':
             self.base_url = '{}://{}/{}/{}'.format(
-                'https' if self.certificate_file_location is not None else 'http',
+                'https' if self.subject.certificate is not None else 'http',
                 self.host, self.service,
-                'auth-observations' if self.basic_auth is not None else 'observations')
+                'auth-observations' if self.subject.get_auth(host) is not None else 'observations')
         else:
-            if self.anon:
+            if self.subject.anon:
                 self.protocol = 'http'
-                self.base_url = '{}://{}/{}'.format(self.protocol, self.host, self.service)
+                self.base_url = '{}://{}/{}/pub'.format(self.protocol, self.host, self.service)
             else:
-                if self.certificate_file_location:
+                if self.subject.certificate:
                     self.protocol = 'https'
                     self.base_url = '{}://{}/{}/pub'.format(self.protocol, self.host, self.service)
                 else:
@@ -261,11 +242,11 @@ class BaseWsClient(object):
         if self._session is None:
             self.logger.debug('Creating session.')
             self._session = RetrySession(self.retry)
-            if self.certificate_file_location is not None:
-                self._session.cert = (self.certificate_file_location, self.certificate_file_location)
+            if self.subject.certificate is not None:
+                self._session.cert = (self.subject.certificate, self.subject.certificate)
             else:
-                if self.basic_auth is not None:
-                    self._session.auth = self.basic_auth
+                if self.subject.get_auth(self.host) is not None:
+                    self._session.auth = self.subject.get_auth(self.host)
 
         user_agent = "{} {} {} {} ({})".format(self.agent, self.package_info, self.python_info,
                                                self.system_info, self.os_info)
