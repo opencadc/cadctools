@@ -69,10 +69,80 @@ from __future__ import (absolute_import, division, print_function,
 __all__ = ['UnauthorizedException']
 
 class UnauthorizedException(Exception):
-    """Raised when the user is not allowed to perform an action.
+    """Raised when the user is not allowed to perform an action unless correctly authenticated.
     Attributes:
         msg  -- explanation of why the specific transition is not allowed
     """
-
-    def __init__(self, msg=None):
+    def __init__(self, msg=None, orig_exception=None):
         self.msg = msg
+        self.orig_exception = orig_exception
+
+
+class ForbiddenException(Exception):
+    """Raised when the user is not authorized to perform an action.
+    Attributes:
+        msg  -- explanation of why the specific transition is not allowed
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        self.msg = msg
+        self.orig_exception = orig_exception
+
+
+class NotFoundException(Exception):
+    """Raised when resource not found.
+    Attributes:
+        msg
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        self.msg = msg
+        self.orig_exception = orig_exception
+
+
+class BadRequestException(Exception):
+    """Raised when and operation is not permitted or the argument is illegal
+    Attributes:
+        msg
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        self.msg = msg
+        self.orig_exception = orig_exception
+
+
+class AlreadyExistsException(Exception):
+    """Raised when resource already exists
+    Attributes:
+        msg
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        self.msg = msg
+        self.orig_exception = orig_exception
+
+
+class ByteLimitException(Exception):
+    """Raised when request is too large
+    Attributes:
+        msg
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        self.msg = msg
+        self.orig_exception = orig_exception
+
+
+class InternalServerException(Exception):
+    """Raised when the server encounters an internal error
+    Attributes:
+        msg
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        self.msg = msg
+        self.orig_exception = orig_exception
+
+
+class UnexpectedException(Exception):
+    """Raised when encountered an unexpected error
+    Attributes:
+        msg
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        self.msg = msg
+        self.orig_exception = orig_exception

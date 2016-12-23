@@ -89,6 +89,8 @@ class Subject:
         self.certificate = certificate
         self.use_netrc = use_netrc
         self.netrc_file = netrc_file
+        self.netrc = None
+        self.passwds = {}
         if certificate is not None:
             assert certificate is not '' and os.path.isfile(certificate)
             assert use_netrc is False
@@ -105,6 +107,8 @@ class Subject:
         if self.anon:
             return None
         #TODO add the password typed by the user to the list of known hosts/username/passwords
+        if realm in self.passwds:
+            return (self.username, self.passwds[realm])
         if self.username is None:
             if realm in self.netrc.hosts:
                 return (self.netrc.hosts[realm][0], self.netrc.hosts[realm][2])
@@ -113,14 +117,14 @@ class Subject:
                     realm, self.netrc_file if self.netrc_file is not None else '$HOME/.netrc'))
                 return None
         else:
-            if realm in self.netrc.hosts and self.username == self.netrc.hosts[realm][0]:
+            if (self.netrc is not None) and \
+               (realm in self.netrc.hosts) and \
+               (self.username == self.netrc.hosts[realm][0]):
                 return (self.netrc.hosts[realm][0], self.netrc.hosts[realm][2])
             else:
                 sys.stdout.write("Password for {}@{}: ".format(self.username, realm))
-                return (self.username, getpass.getpass().strip('\n'))
-
-
-
+                self.passwds[realm] = getpass.getpass().strip('\n')
+                return (self.username, self.passwds[realm])
 
 
 def get_cert(cert_server=None, user=None,
