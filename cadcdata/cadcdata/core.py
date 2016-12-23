@@ -84,6 +84,7 @@ from cadcutils import util
 from caom2.obs_reader_writer import ObservationReader, ObservationWriter
 from caom2.version import version as caom2_version
 from six.moves.urllib.parse import urlparse
+import zlib
 
 # from . import version as caom2repo_version
 from cadcdata import version
@@ -96,7 +97,9 @@ SERVICE_URL = 'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/'
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 DEFAULT_RESOURCE_ID = 'ivo://cadc.nrc.ca/data'
 ARCHIVE_STREAM_HTTP_HEADER = 'X-CADC-Stream'
+APP_NAME = 'cadc-data'
 
+READ_BLOCK_SIZE=8*1024
 
 class CadcDataClient:
 
@@ -124,14 +127,15 @@ class CadcDataClient:
         logging.info('Service URL: {}'.format(self._repo_client.base_url))
 
 
-    def get_file(self, archive, file_id, file=file,
-                 cutout=None, wcs=None, process_bytes=None):
+    def get_file(self, archive, file_id, file=None, decompress=False,
+                 cutout=None, fhead=False, wcs=False, process_bytes=None):
         """
         Get a file from an archive. The entire file is delivered unless the cutout argument
          is present specifying a cutout to extract from the file.
         :param archive: name of the archive containing the file
         :param file_id: the ID of the file to retrieve
-        :param file: file to save data to (file or file_name)
+        :param file: file to save data to (file or file_name). If None, it uses the response
+        content disposition to determine the name of the destination file
         :param cutout: perform cutout operation on the file before the result is delivered
         :param wcs: True if the wcs is to be included with the file
         :param process_bytes: function to be applied to the received bytes
@@ -140,20 +144,53 @@ class CadcDataClient:
         assert archive is not None
         assert file_id is not None
         resource = '/{}/{}'.format(archive, file_id)
+        params = {}
+        if fhead:
+            params['fhead'] = fhead
+        if wcs:
+            params['wcs'] = wcs
+        if cutout:
+            params['cutout'] = cutout
         logging.debug('GET '.format(resource))
-        response = self._repo_client.get(resource, stream=True)
-        if not hasattr(file, 'read'):
-            with open(file, 'w') as f:
-                for chunk in response.iter_content(1024):
-                    if process_bytes is not None:
-                        process_bytes(chunk)
-                    f.write(chunk)
+        response = self._repo_client.get(resource, stream=True, params=params)
+        if file is not None:
+            if not hasattr(file, 'read'):
+                # got a file name?
+                with open(file, 'w') as f:
+                    self._save_bytes(response, f, decompress, process_bytes)
+            else:
+                self._save_bytes(response, file, decompress, process_bytes)
         else:
-            for chunk in response.iter_content(1024):
+            # get the file name from the content disposition
+            content_disp = response.headers.get('content-disposition', '')
+            file = file_id
+            for content in content_disp.split():
+                if 'filename=' in content:
+                    file = content[9:]
+            if file.endswith('gz') and decompress:
+                file = os.path.splitext(file)[0]
+            logging.debug('Using content disposition file name: {}'.format(file))
+            with open(file, 'w') as f:
+                self._save_bytes(response, f, decompress, process_bytes)
+        logging.debug('Successfully saved file\n')
+
+
+    def _save_bytes(self, response, file, decompress=False, process_bytes=None):
+        # requests automatically decompresses the data. Tell it to do it only if it had to
+        if not decompress:
+            chunk = response.raw.read(READ_BLOCK_SIZE)
+            while len(chunk) > 0:
                 if process_bytes is not None:
                     process_bytes(chunk)
                 file.write(chunk)
-        logging.debug('Successfully saved file\n')
+                chunk = response.raw.read(READ_BLOCK_SIZE)
+        else:
+            for chunk in response.iter_content(READ_BLOCK_SIZE):
+                    if chunk is None:
+                        return
+                    if process_bytes is not None:
+                        process_bytes(chunk)
+                    file.write(chunk)
 
 
     def put_file(self, archive, file_id, file, archive_stream=None, replace=False):
@@ -189,8 +226,21 @@ class CadcDataClient:
         resource = '/{}/{}'.format(archive, file_id)
         logging.debug('HEAD {}'.format(resource))
         response = self._repo_client.head(resource)
-        logging.info('Successfully deleted Observation {}\n')
-        return response.content #TODO might need to return the headers
+        h = response.headers
+        file_info = {}
+        file_info['id'] = file_id
+        file_info['archive'] = archive
+        file_info['name'] = h['Content-Disposition'][17:] #remove 'inline; filename=' from file name
+        file_info['size'] = h['Content-Length']
+        file_info['md5sum'] = h['Content-MD5']
+        file_info['type'] = h['Content-Type']
+        file_info['encoding'] = h['Content-Encoding']
+        file_info['lastmod'] = h['Last-Modified']
+        file_info['usize'] = h['X-Uncompressed-Length']
+        file_info['umd5sum'] = h['X-Uncompressed-MD5']
+        #TODOfile_info['ingest_date'] = h[?]
+        logging.debug("File info: {}".format(file_info))
+        return file_info
 
 
 def main():
@@ -198,11 +248,11 @@ def main():
     parser = util.get_base_parser(version=version.version, default_resource_id=DEFAULT_RESOURCE_ID)
 
     parser.description = ('Client for accessing the data Web Service at the Canadian Astronomy Data Centre '+
-                          '(www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data')
+                          '(www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data)')
 
     subparsers = parser.add_subparsers(dest='cmd',
                                        help='Supported commands. Use the -h|--help argument of a command ' +\
-                                            'for more details')
+                                        'for more details')
     get_parser = subparsers.add_parser('get',
                                           description='Retrieve files from a CADC archive',
                                           help='Retrieve files from a CADC archive')
@@ -210,16 +260,15 @@ def main():
     get_parser.add_argument('-o', '--output',
                             help='Sspace-separated list of destination files (quotes required for multiple elements)',
                             required=False)
-    get_parser.add_argument('--coutout', help='Perform one or multiple cutout operations as specified by the argument',
+    get_parser.add_argument('--cutout', help='Perform one or multiple cutout operations as specified by the argument',
                             required=False)
-    get_parser.add_argument('-de','--decompress', help='Decompress the data',
+    get_parser.add_argument('-de','--decompress', help='Decompress the data (gzip only)',
                             action='store_true', required=False)
     get_parser.add_argument('--wcs', help='Return the World Coordinate System (WCS) information',
                             action='store_true', required=False)
     get_parser.add_argument('--fhead', help='Return the FITS header information',
                             action='store_true', required=False)
-    get_parser.add_argument('FILEIDs',
-                            help='File ID(s)')
+    get_parser.add_argument('fileID', help='The ID of the file in the archive', nargs='+')
 
     put_parser = subparsers.add_parser('put',
                                         description='Upload files into a CADC archive',
@@ -227,27 +276,27 @@ def main():
     put_parser.add_argument('-a','--archive', help='CADC archive', required=True)
     put_parser.add_argument('-as', '--archive-stream', help='Specific archive stream to add the file to',
                             required=False)
-    get_parser.add_argument('-c', '--compress', help='Compress the data',
+    put_parser.add_argument('-c', '--compress', help='gzip compress the data',
                             action='store_true', required=False)
     put_parser.add_argument('--fileIDs',
                             help='Space-separated list of file IDs to use (quotes required for multiple elements)',
                             required=False)
-    put_parser.add_argument('files',
-                            help='Space-separate list of files or directories containing the files')
+    put_parser.add_argument('source',
+                            help='File or directory containing the files to be put', nargs='+')
 
     info_parser = subparsers.add_parser('info',
                                           description=('Get information regarding files in a '
                                                        'CADC archive on the form:\n'
-                                                       'File FILEID:\n'
-                                                       '\t -file name\n'
-                                                       '\t -file size\n'
+                                                       'File id:\n'
+                                                       '\t -name\n'
+                                                       '\t -size\n'
                                                        '\t -md5sum\n'
-                                                       '\t -content encoding\n'
-                                                       '\t -content type\n'
-                                                       '\t -uncompressed size\n'
-                                                       '\t -uncompressed md5sum\n'
-                                                       '\t -ingest date\n'
-                                                       '\t -last modified'),
+                                                       '\t -encoding\n'
+                                                       '\t -type\n'
+                                                       '\t -usize\n'
+                                                       '\t -umd5sum\n'
+                                                       #'\t -ingest_date\n'
+                                                       '\t -lastmod'),
                                           help='Get information regarding files in a CADC archive')
     info_parser.add_argument('-a', '--archive', help='CADC archive', required=True)
     # info_parser.add_argument('--file-id', action='store_true', help='File ID')
@@ -257,11 +306,11 @@ def main():
     # info_parser.add_argument('--content-encoding', action='store_true', help='Content encoding')
     # info_parser.add_argument('--content-type', action='store_true', help='Content type')
     # info_parser.add_argument('--uncompressed-size', action='store_true', help='Uncompressed size')
-    # info_parser.add_argument('--uncompressed-md5sum', action='store_true', help='Uncompressed md5sum of the file')
+    # info_parser.add_argument('--uncompressed-md5sum', action='s   tore_true', help='Uncompressed md5sum of the file')
     # info_parser.add_argument('--ingest-date', action='store_true', help='Last modified')
     # info_parser.add_argument('--last-modified', action='store_true', help='Ingest date')
-    info_parser.add_argument('FILEIDs',
-                             help='Space-separated list of file IDs')
+    info_parser.add_argument('fileID',
+                             help='The ID of the file in the archive', nargs='+')
 
 
     args = parser.parse_args()
@@ -275,34 +324,57 @@ def main():
 
     client = CadcDataClient(subject, args.resourceID, host=args.host)
     if args.cmd == 'get':
-        logging.info("get")
+        logging.info('get')
         archive = args.archive
-        file_id = args.FILEIDs
-        #logging.debug("Call visitor with plugin={}, start={}, end={}, dataset={}".
-        #              format(plugin, start, end, collection, retries))
-        with open(args.output, 'w') as dest:
-            client.get_file(archive, file_id, dest)
-
-    elif args.cmd == 'create':
-        logging.info("Create")
-        print(args.__dict__)
-    elif args.cmd == 'read':
-        logging.info("Read")
-        observation = client.get_observation(args.collection, args.observation)
-        observation_writer = ObservationWriter()
-        if args.output:
-            with open(args.output, 'w') as obsfile:
-                observation_writer.write(observation, obsfile)
+        file_ids = args.fileID
+        if args.output is not None:
+            files = args.output.split()
+            if len(files) != len(file_ids):
+                print('{}: error: Different size of destination files list ({}) and list of file IDs ({})'.
+                              format(APP_NAME, files, file_ids))
+                sys.exit(2)
+            for f, fid in list(zip(files, file_ids)):
+                with open(f, 'w') as dest:
+                    client.get_file(archive, fid, dest, decompress=args.decompress,
+                                    fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
         else:
-            observation_writer.write(observation, sys.stdout)
-    elif args.cmd == 'update':
-        logging.info("Update")
-        obs_reader = ObservationReader()
-        # TODO not sure if need to read in string first
-        client.post_observation(obs_reader.read(args.observation))
+            for fid in file_ids:
+                client.get_file(archive, fid, None, decompress=args.decompress,
+                                fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
+    elif args.cmd == 'info':
+        logging.info('info')
+        archive = args.archive
+        for file_id in args.fileID:
+            file_info = client.get_file_info(archive, file_id)
+            print('File {}:'.format(file_id))
+            for field in sorted(file_info):
+                print('\t {:>10}: {}'.format(field, file_info[field]))
     else:
-        logging.info("Delete")
-        client.delete_observation(collection=args.collection, observation_id=args.observationID)
+        logging.info('put')
+        archive = args.archive
+        sources = args.source
+        files = []
+        for file in sources:
+            if os.path.isfile(file):
+                files.append(file)
+            elif os.path.isdir(file):
+                for f in os.listdir(file):
+                    if os.path.isfile(os.path.join(file, f)):
+                        files.append(os.path.join(file, f))
+                    else:
+                        logging.warn('{} not added to the list of files to put'.format(f))
+        logging.debug('Files to pu: {}'.format(files))
+        file_ids = None
+        if args.fileIDs is not None:
+            file_ids = args.fileIDs.split()
+            if len(file_ids) != len(files):
+                print('{}: error: Different size of file ID list ({}) and list of files to put ({})'.
+                              format(APP_NAME, file_ids, files))
+            for file, file_id in list(zip(files, file_ids)):
+                client.put_file(archive, file_id, file)
+        else:
+            for file in files:
+                client.put_file(archive, os.path.basename(file).split('.')[0], file)
 
     logging.info("DONE")
 
