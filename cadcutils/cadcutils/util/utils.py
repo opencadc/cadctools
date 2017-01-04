@@ -123,7 +123,7 @@ def get_logger(namespace=None, log_level=logging.ERROR):
         frm = inspect.stack()[1]
         mod = inspect.getmodule(frm[0])
         if mod is None:
-            namespace =__name__
+            namespace = __name__
         else:
             namespace = mod.__name__ 
     
@@ -251,21 +251,40 @@ class _CustomArgParser(ArgumentParser):
     """
     Custom arg parses to sort options in alphabetical order before displaying them
     """
-    def __init__(self, common_parser=None, **kwargs):
+    def __init__(self, subparsers=True, common_parser=None, **kwargs):
         self.common_parser = common_parser
+        self.subparsers = subparsers
+        self._subparsers_added = False
+        self.kwargs = kwargs
         kwargs['formatter_class'] = SingleMetavarHelpFormatter
-        super(_CustomArgParser, self).__init__(**kwargs)
+        if not self.subparsers:
+            super(_CustomArgParser, self).__init__(parents=[common_parser], **kwargs)
+        else:
+            super(_CustomArgParser, self).__init__(**kwargs)
 
     def add_subparsers(self, **kwargs):
+        if not self.subparsers:
+            raise RuntimeError('Parser created to run without subparsers')
+        self._subparsers_added = True
         return _AugmentAction(self.common_parser,
                         super(_CustomArgParser, self).add_subparsers(**kwargs))
 
+    def parse_args(self, args=None, namespace=None):
+         if self.subparsers and not self._subparsers_added:
+              raise RuntimeError('No subparsers added. Change the parsers flag?')
+         return super(_CustomArgParser, self).parse_args(args=args, namespace=namespace)
 
 
-def get_base_parser(version=None, usecert=True, default_resource_id=None):
+
+def get_base_parser(subparsers=True, version=None, usecert=True, default_resource_id=None):
     """
-    An ArgumentParser with some common things most CADC clients will want.
+    An ArgumentParser with some common things most CADC clients will want. There are two
+    modes to use this parser: with or without subparsers. With supbarsers (subparsers=True),
+    separate subparsers are created for each subcommand and the common CADC options show
+    up in each subcommand (and not on the parent parser). Without subparsers (subparsers=False)
+    the common options are automatically added to the base parser.
 
+    :param subparsers: True if the parser will use subparsers (subcommands) otherwise False
     :param version: A version number if desired.
     :param usecert: If True add '--cert' argument.
     :param default_resource_id: default resource identifier to use
@@ -304,5 +323,5 @@ def get_base_parser(version=None, usecert=True, default_resource_id=None):
     log_group.add_argument('-v', '--verbose', action='store_true',
                         help='verbose messages')
 
-    argparser = _CustomArgParser(common_parser=cparser)
+    argparser = _CustomArgParser(subparsers=subparsers, common_parser=cparser)
     return argparser

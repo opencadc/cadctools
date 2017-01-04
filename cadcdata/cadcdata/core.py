@@ -319,8 +319,7 @@ def main():
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
 
-    subject = net.Subject(username=args.user,
-                          certificate=args.cert, use_netrc=args.n, netrc_file=args.netrc_file)
+    subject = net.Subject.get_subject(args)
 
     client = CadcDataClient(subject, args.resourceID, host=args.host)
     if args.cmd == 'get':

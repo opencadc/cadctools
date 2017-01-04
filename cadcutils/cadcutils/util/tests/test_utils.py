@@ -76,6 +76,9 @@ from mock import Mock, patch, MagicMock, ANY
 
 from cadcutils.util import *
 
+class MyExitError(Exception):
+    pass
+
 class UtilTests(unittest.TestCase):
 
     """ Class for testing cadc utilities """
@@ -96,11 +99,12 @@ class UtilTests(unittest.TestCase):
     def test_get_log_level(self):
         """ Test the handling of logging level control from command line arguments """
         
-        parser = get_base_parser()
+        parser = get_base_parser(subparsers=False)
         args = parser.parse_args(["--debug", "--resourceID", "www.some.resource"])
         self.assertEqual(logging.DEBUG, get_log_level(args))
 
-        parser = get_base_parser(default_resource_id='ivo://www.some.resource/resourceID')
+        parser = get_base_parser(subparsers=False,
+                                 default_resource_id='ivo://www.some.resource/resourceID')
         args = parser.parse_args(["--verbose"])
         self.assertEqual(logging.INFO, get_log_level(args))
         
@@ -184,9 +188,6 @@ class UtilTests(unittest.TestCase):
             sys.stdout.close()  # close the stream 
             sys.stdout = stdout_pointer  # restore original stdout
 
-
-
-
     @patch('sys.exit', Mock(side_effect=[ArgumentError(None, None),
                                          ArgumentError(None, None),
                                          ArgumentError(None, None),
@@ -194,28 +195,195 @@ class UtilTests(unittest.TestCase):
                                          ArgumentError(None, None)]))
     def test_base_parser(self):
 
-        parser = get_base_parser()
+        parser = get_base_parser(subparsers=False)
         resource_id = "ivo://www.some.resource/resourceid"
         args = parser.parse_args(["--resourceID", resource_id])
         self.assertEquals(urlparse(resource_id), args.resourceID)
 
-        parser = get_base_parser(default_resource_id=resource_id)
+        parser = get_base_parser(subparsers=False, default_resource_id=resource_id)
         args = parser.parse_args([])
         self.assertEquals(resource_id, args.resourceID)
 
         # missing resourceID
-        parser = get_base_parser()
+        parser = get_base_parser(subparsers=False)
         with self.assertRaises(ArgumentError):
-            args = parser.parse_args([])
+            parser.parse_args([])
 
         # invalid resourceID (scheme)
         resource_id = "http://www.some.resource/resourceid"
-        parser = get_base_parser(default_resource_id=resource_id)
+        parser = get_base_parser(subparsers=False, default_resource_id=resource_id)
         with self.assertRaises(ArgumentError):
             args = parser.parse_args([])
 
         # invalid resourceID (missing resource id)
         resource_id = "ivo://www.some.resource"
-        parser = get_base_parser(default_resource_id=resource_id)
+        parser = get_base_parser(subparsers=False, default_resource_id=resource_id)
         with self.assertRaises(ArgumentError):
             args = parser.parse_args([])
+
+        # create a base parser for subparsers but fail to add subparsers
+        parser = get_base_parser()
+        with self.assertRaises(RuntimeError):
+            parser.parse_args(['-h'])
+
+        # try to add a subparser to a base parser created for no subparsers
+        parser = get_base_parser(subparsers=False)
+        with self.assertRaises(RuntimeError):
+            parser.add_subparsers(dest='cmd')
+
+    @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
+                                         MyExitError, MyExitError, MyExitError]))
+    def test_base_parser_help(self):
+        #help with a simple, no subparsers basic parser - these are the default arguments
+        expected_stdout = \
+'''usage: cadc-client [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                   [--host HOST] --resourceID RESOURCEID [-d | -q | -v]
+
+optional arguments:
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -d, --debug           debug messages
+  -h, --help            show this help message and exit
+  --host HOST           Base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    Use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -q, --quiet           run quietly
+  --resourceID RESOURCEID
+                        resource identifier (e.g. ivo://cadc.nrc.ca/service
+  -u, --user USER       Name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+'''
+
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            with self.assertRaises(MyExitError):
+                sys.argv = ["cadc-client", "--help"]
+                parser = get_base_parser(subparsers=False)
+                parser.parse_args()
+            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+
+        # --help with a simple parser with a few extra command line options
+        expected_stdout = \
+'''usage: cadc-client [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                   [--host HOST] --resourceID RESOURCEID [-d | -q | -v] [-x]
+                   fileID [fileID ...]
+
+positional arguments:
+  fileID                The ID of the file in the archive
+
+optional arguments:
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -d, --debug           debug messages
+  -h, --help            show this help message and exit
+  --host HOST           Base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    Use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -q, --quiet           run quietly
+  --resourceID RESOURCEID
+                        resource identifier (e.g. ivo://cadc.nrc.ca/service
+  -u, --user USER       Name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+  -x                    test argument
+'''
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            with self.assertRaises(MyExitError):
+                sys.argv = ["cadc-client", "--help"]
+                parser = get_base_parser(subparsers=False)
+                parser.add_argument('-x', action='store_true', help='test argument')
+                parser.add_argument('fileID',
+                             help='The ID of the file in the archive', nargs='+')
+                parser.parse_args()
+            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+
+
+        #help with a parser with 2 subcommands
+        parser = get_base_parser()
+        subparsers = parser.add_subparsers(dest='cmd', help='My subcommands')
+        parser_cmd1 = subparsers.add_parser('cmd1')
+        parser_cmd1.add_argument('-x', action='store_true', help='test argument')
+        parser_cmd2 = subparsers.add_parser('cmd2')
+        parser_cmd2.add_argument('fileID',
+                                 help='The ID of the file in the archive', nargs='+')
+
+        expected_stdout = \
+'''usage: cadc-client [-h] {cmd1,cmd2} ...
+
+positional arguments:
+  {cmd1,cmd2}  My subcommands
+
+optional arguments:
+  -h, --help   show this help message and exit
+'''
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            with self.assertRaises(MyExitError):
+                sys.argv = ["cadc-client", "-h"]
+                parser.parse_args()
+            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+
+        expected_stdout = \
+'''usage: cadc-client cmd1 [-h]
+                        [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                        [--host HOST] --resourceID RESOURCEID [-d | -q | -v]
+                        [-x]
+
+optional arguments:
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -d, --debug           debug messages
+  -h, --help            show this help message and exit
+  --host HOST           Base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    Use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -q, --quiet           run quietly
+  --resourceID RESOURCEID
+                        resource identifier (e.g. ivo://cadc.nrc.ca/service
+  -u, --user USER       Name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+  -x                    test argument
+'''
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            with self.assertRaises(MyExitError):
+                sys.argv = ['cadc-client', 'cmd1', '-h']
+                parser.parse_args()
+            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+
+        expected_stdout = \
+'''usage: cadc-client cmd2 [-h]
+                        [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                        [--host HOST] --resourceID RESOURCEID [-d | -q | -v]
+                        fileID [fileID ...]
+
+positional arguments:
+  fileID                The ID of the file in the archive
+
+optional arguments:
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -d, --debug           debug messages
+  -h, --help            show this help message and exit
+  --host HOST           Base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    Use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -q, --quiet           run quietly
+  --resourceID RESOURCEID
+                        resource identifier (e.g. ivo://cadc.nrc.ca/service
+  -u, --user USER       Name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+'''
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            with self.assertRaises(MyExitError):
+                sys.argv = ['cadc-client', 'cmd2', '-h']
+                parser.parse_args()
+            self.assertEqual(expected_stdout, stdout_mock.getvalue())

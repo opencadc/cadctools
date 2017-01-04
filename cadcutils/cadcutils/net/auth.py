@@ -69,7 +69,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import getpass
-import netrc
+import netrc as netrclib
 import argparse
 import os
 import signal
@@ -82,45 +82,81 @@ CERT_SERVER = "www.canfar.phys.uvic.ca"
 
 __all__ = ['get_cert', 'get_user_password', 'Subject']
 
+
 class Subject:
-    def __init__(self, username=None, certificate=None, use_netrc=False, netrc_file=None):
+    """
+    Class that stores user authentication information. For now, it includes: username,
+        X509 certificate file or netrc file that stores user/password.
+    """
+
+    def __init__(self, username=None, certificate=None, netrc=False):
+        """
+            The subject is anonymous if neither of this arguments is set
+        :param username: user name
+        :param certificate: name of the X509 certificate file
+        :param netrc: use information from .netrc. Value can be True (use default $HOME/.netrc)
+                    or the name of the netrc file to use.
+        """
         self.logger = logging.getLogger('Subject')
         self.username = username
         self.certificate = certificate
-        self.use_netrc = use_netrc
-        self.netrc_file = netrc_file
+        self.netrc = netrc
+        self.hosts_auth = {}
         if certificate is not None:
             assert certificate is not '' and os.path.isfile(certificate)
-            assert use_netrc is False
-            assert username is None
-            assert netrc_file is None
         else:
-            if use_netrc:
-                self.netrc = netrc.netrc(netrc_file)
-            self.username = username
-        self.anon = (self.certificate is None) and (self.use_netrc is False) \
-                    and (username is None)
+            if netrc:
+                hosts = netrclib.netrc(netrc if netrc is not True else None).hosts
+                for host_name in hosts:
+                    self.hosts_auth[host_name] = (hosts[host_name][0], hosts[host_name][2])
+        self.username = username
+        self.anon = (self.certificate is None) and (self.netrc is False) \
+            and (username is None)
+
+    @staticmethod
+    def get_subject(args):
+        """
+        Instantiates a subject based on attributes of a command line. It works with the base parser in cadcutils.
+        and uses the following command line arguments:
+            args.user: username
+            args.cert: x509 certificate location
+            args.n: use netrc files for authentication info
+            args.netrc_file: use this netrc file for authentication info
+        :param args: argparse command line arguments
+        :return: corresponding subject
+        """
+        return Subject(username=args.user, certificate=args.cert,
+                       netrc=(args.netrc_file if args.netrc_file is not None else args.n))
 
     def get_auth(self, realm):
+        """
+        Returns a user/password touple for the given realm. Note that this function prompts for the
+        password on stdout when the username of the subject is known but no correponding password can be found
+
+        :param realm: realm for the authentication
+        :return: (username, password) touple or None if subject is anonymous or password not found.
+        """
         if self.anon:
             return None
-        #TODO add the password typed by the user to the list of known hosts/username/passwords
         if self.username is None:
-            if realm in self.netrc.hosts:
-                return (self.netrc.hosts[realm][0], self.netrc.hosts[realm][2])
+            if realm in self.hosts_auth:
+                return self.hosts_auth[realm]
             else:
-                self.logger.error('No user/password for {} in {}'.format(
-                    realm, self.netrc_file if self.netrc_file is not None else '$HOME/.netrc'))
+                msg = 'No user/password for {}'.format(realm)
+                if self.netrc is not False:
+                    msg = '{} in {}'.format(msg, self.netrc if self.netrc is not True else '$HOME/.netrc')
+                self.logger.error(msg)
                 return None
         else:
-            if realm in self.netrc.hosts and self.username == self.netrc.hosts[realm][0]:
-                return (self.netrc.hosts[realm][0], self.netrc.hosts[realm][2])
+            if realm in self.hosts_auth \
+                    and self.username == self.hosts_auth[realm][0]:
+                return self.hosts_auth[realm]
             else:
                 sys.stdout.write("Password for {}@{}: ".format(self.username, realm))
-                return (self.username, getpass.getpass().strip('\n'))
-
-
-
+                self.hosts_auth[realm] = (self.username, getpass.getpass().strip('\n'))
+                return (self.hosts_auth[realm])
+        logging.warn('')
+        return None
 
 
 def get_cert(cert_server=None, user=None,
@@ -168,7 +204,7 @@ def get_user_password(realm, username=None):
     """
     if username is None:
         if os.access(os.path.join(os.environ.get('HOME', '/'), ".netrc"), os.R_OK):
-            auth = netrc.netrc().authenticators(realm)
+            auth = netrclib.netrc().authenticators(realm)
             return (auth[0], auth[2])
         else:
             return False
