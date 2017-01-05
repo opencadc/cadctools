@@ -76,604 +76,318 @@ import unittest
 # TODO to be changed to io.StringIO when caom2 is prepared for python3
 from StringIO import StringIO
 from datetime import datetime
-
+import gzip
 import requests
-from cadcutils import util
-from caom2.obs_reader_writer import ObservationWriter
-from caom2.observation import SimpleObservation
+from cadcutils.net import auth
+from cadcdata import CadcDataClient
+from cadcdata.core import main
 from mock import Mock, patch, MagicMock, ANY
 
-from caom2repo import core
-from caom2repo.core import CAOM2RepoClient, DATE_FORMAT
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 
+class MyExitError(Exception):
+    pass
 
 class MyExitError(Exception):
     pass
 
 
-class TestCAOM2Repo(unittest.TestCase):
+mycontent = ''
 
-    """Test the Caom2Visitor class"""
+class TestCadcDataClient(unittest.TestCase):
+    """Test the CadcDataClient class"""
 
-    def test_plugin_class(self):
-        # plugin class does not change the observation
-        collection = 'cfht'
-        observation_id = '7000000o'
-        visitor = CAOM2RepoClient()
-        obs = SimpleObservation(collection, observation_id)
-        expect_obs = copy.deepcopy(obs)
-        visitor._load_plugin_class(os.path.join(THIS_DIR, 'passplugin.py'))
-        visitor.plugin.update(obs)
-        self.assertEquals(expect_obs, obs)
-        
-        # plugin class adds a plane to the observation
-        visitor = CAOM2RepoClient()
-        obs = SimpleObservation('cfht', '7000000o')
-        expect_obs = copy.deepcopy(obs)
-        visitor._load_plugin_class(os.path.join(THIS_DIR, 'addplaneplugin.py'))
-        visitor.plugin.update(obs)
-        self.assertNotEquals(expect_obs, obs)
-        self.assertEquals(len(expect_obs.planes) + 1, len(obs.planes))
-        
-        # non-existent the plugin file
-        with self.assertRaises(Exception):
-            visitor._load_plugin_class(os.path.join(THIS_DIR, 'blah.py'))
-        
-        # non-existent ObservationUpdater class in the plugin file
-        with self.assertRaises(Exception):
-            visitor._load_plugin_class(os.path.join(THIS_DIR, 'test_visitor.py'))
-            
-        # non-existent update method in ObservationUpdater class
-        with self.assertRaises(Exception):    
-            visitor._load_plugin_class(os.path.join(THIS_DIR, 'noupdateplugin.py'))
+    @patch('cadcdata.core.net.BaseWsClient')
+    def test_get_file(self, basews_mock):
+        # test a simple get - no decompress
+        file_name = '/tmp/afile.txt'
+        file_chunks = ['aaaa', 'bbbb', '']
+        response = Mock()
+        response.headers.get.return_value = 'filename={}'.format('orig_file_name')
+        response.raw.read.side_effect = file_chunks
+        basews_mock.return_value.get.return_value = response
+        client = CadcDataClient(auth.Subject())
+        client.get_file('TEST', 'afile', file=file_name)
+        expected_content = ''.join(file_chunks)
+        with open(file_name, 'r') as f:
+            self.assertEquals(expected_content, f.read())
+        os.remove(file_name)
+        # do it again with the file now open
+        response = Mock()
+        response.headers.get.return_value = 'filename={}'.format('orig_file_name')
+        response.raw.read.side_effect = file_chunks
+        basews_mock.return_value.get.return_value = response
+        with open(file_name, 'w') as f:
+            client.get_file('TEST', 'afile', file=f)
+        with open(file_name, 'r') as f:
+            self.assertEquals(expected_content, f.read())
+        os.remove(file_name)
 
-    # patch sleep to stop the test from sleeping and slowing down execution
-    @patch('cadcutils.net.ws.time.sleep', MagicMock(), create=True)
-    @patch('cadcutils.net.ws.open', MagicMock(), create=True)
-    @patch('cadcutils.net.ws.Session.send')
-    def test_get_observation(self, mock_get):
-        collection = 'cfht'
-        observation_id = '7000000o'
-        service_url = 'www.cadc.nrc.ca/caom2repo'
-        obs = SimpleObservation(collection, observation_id)
-        writer = ObservationWriter()
-        ibuffer = StringIO()
-        writer.write(obs, ibuffer)
-        response = MagicMock()
-        response.status_code = 200
-        response.content = ibuffer.getvalue()
-        mock_get.return_value = response
-        ibuffer.seek(0)  # reposition the buffer for reading
-        visitor = CAOM2RepoClient(host=service_url)
-        self.assertEquals(obs, visitor.get_observation(collection, observation_id))
-        
-        # signal problems
-        http_error = requests.HTTPError()
-        response.status_code = 500
-        http_error.response = response
-        response.raise_for_status.side_effect = [http_error]
-        with self.assertRaises(requests.HTTPError):
-            visitor.get_observation(collection, observation_id)
-            
-        # temporary transient errors
-        http_error = requests.HTTPError()
-        response.status_code = 503
-        http_error.response = response
-        response.raise_for_status.side_effect = [http_error, None]
-        visitor.get_observation(collection, observation_id)
+        # test a get with decompress
+        file_name = 'bfile.txt'
+        file_content = 'ABCDEFGH12345'
+        file_chunks = [file_content[i:i+5] for i in xrange(0, len(file_content), 5)]
+        file_chunks.append('') # last chunk is empty
+        response = Mock()
+        response.headers.get.return_value = 'filename={}.gz'.format(file_name)
+        response.iter_content.side_effect = file_chunks
+        basews_mock.return_value.get.return_value = response
+        client = CadcDataClient(auth.Subject())
+        client.get_file('TEST', 'afile', decompress=True)
+        with open(file_name, 'r') as f:
+            self.assertEquals(file_content, f.read())
+        os.remove(file_name)
 
-        # permanent transient errors
-        http_error = requests.HTTPError()
-        response.status_code = 503
-        http_error.response = response
+        # test process_bytes and send the content to /dev/null after
+        def concatenate_chunks(chunk):
+            global mycontent
+            mycontent = '{}{}'.format(mycontent, chunk)
+        file_name = 'bfile.txt'
+        file_content = 'ABCDEFGH12345'
+        file_chunks = [file_content[i:i+5] for i in xrange(0, len(file_content), 5)]
+        file_chunks.append('') # last chunk is empty
+        response = Mock()
+        response.headers.get.return_value = 'filename={}.gz'.format(file_name)
+        response.iter_content.side_effect = file_chunks
+        basews_mock.return_value.get.return_value = response
+        client = CadcDataClient(auth.Subject())
+        client.get_file('TEST', 'afile', decompress=True, file='/dev/null',
+                        process_bytes=concatenate_chunks)
+        self.assertEquals(file_content, mycontent)
 
-        def raise_error(): raise http_error
-        response.raise_for_status.side_effect = raise_error
-        with self.assertRaises(requests.HTTPError):
-            visitor.get_observation(collection, observation_id)
+        # test get fhead
+        response = Mock()
+        response.headers.get.return_value = 'filename={}.gz'.format(file_name)
+        response.iter_content.side_effect = file_chunks
+        get_mock = Mock(return_value=response)
+        basews_mock.return_value.get = get_mock
+        client.get_file('TEST', 'getfile', decompress=True, wcs=True)
+        get_mock.assert_called_with('/TEST/getfile', params={'wcs': True}, stream=True)
+        response.iter_content.side_effect = file_chunks
+        get_mock.reset_mock()
+        client.get_file('TEST', 'getfile', decompress=True, fhead=True)
+        get_mock.assert_called_with('/TEST/getfile', params={'fhead': True}, stream=True)
+        response.iter_content.side_effect = file_chunks
+        get_mock.reset_mock()
+        client.get_file('TEST', 'getfile', decompress=True, cutout='[1:1]')
+        get_mock.assert_called_with('/TEST/getfile', params={'cutout': '[1:1]'}, stream=True)
 
-    # patch sleep to stop the test from sleeping and slowing down execution
-    @patch('cadcutils.net.ws.time.sleep', MagicMock(), create=True)
-    @patch('cadcutils.net.ws.open', MagicMock(), create=True)
-    @patch('caom2repo.core.net.BaseWsClient.get')
-    def test_get_observations(self, mock_get):
-        # This is almost similar to the previous test except that it gets
-        # observations matching a collection and start/end criteria
-        # Also, patch the CAOM2RepoClient now.
 
-        response = MagicMock()
-        response.status_code = 200
-        last_datetime = '2000-10-10T12:30:00.333'
-        response.content = '700000o,2000-10-10T12:20:11.123\n700001o,' +\
-            last_datetime
-        mock_get.return_value = response
-        
-        visitor = CAOM2RepoClient()
-        end_date = datetime.strptime(last_datetime, DATE_FORMAT)
-        
-        expect_observations = ['700000o', '700001o']
-        self.assertEquals(expect_observations, visitor._get_observations('cfht'))
-        self.assertEquals(end_date, visitor._start)
-        mock_get.assert_called_once_with('cfht', params={'MAXREC': core.BATCH_SIZE})
+        # test a put
+        file_name = '/tmp/putfile.txt'
+        file_content = 'ABCDEFGH12345'
+        # write the file
+        with open(file_name, 'w') as f:
+            f.write(file_content)
+        put_mock = Mock()
+        basews_mock.return_value.put = put_mock
+        client.put_file('TEST', 'putfile', file_name)
+        put_mock.assert_called_with('/TEST/putfile', data=ANY, headers={})
 
-        mock_get.reset_mock()
-        visitor._get_observations('cfht', end=datetime.strptime('2000-11-11', '%Y-%m-%d'))
-        mock_get.assert_called_once_with('cfht', params={'END': '2000-11-11T00:00:00.000000',
-                                                         'MAXREC': core.BATCH_SIZE})
+        # specify an archive stream
+        client.put_file('TEST', 'putfile', file_name, archive_stream='default')
+        put_mock.assert_called_with('/TEST/putfile', data=ANY, headers={'X-CADC-Stream':'default'})
+        os.remove(file_name)
 
-        mock_get.reset_mock()
-        visitor._get_observations('cfht',
-                                  start=datetime.strptime('2000-11-11', '%Y-%m-%d'),
-                                  end=datetime.strptime('2000-11-12', '%Y-%m-%d'))
-        mock_get.assert_called_once_with('cfht', params={'START': '2000-11-11T00:00:00.000000',
-                                                         'END': '2000-11-12T00:00:00.000000',
-                                                         'MAXREC': core.BATCH_SIZE})
+        # test an info
+        file_id ='myfile'
+        file_name = 'myfile.txt'
+        archive = 'TEST'
+        size = '123'
+        md5sum = '0x123'
+        type = 'txt'
+        encoding = 'gzip'
+        lastmod = '11/11/11T11:11:11.000'
+        usize = '1234'
+        umd5sum = '0x1234'
 
-    # patch sleep to stop the test from sleeping and slowing down execution
-    @patch('cadcutils.net.ws.time.sleep', MagicMock(), create=True)
-    @patch('cadcutils.net.ws.auth.get_user_password', Mock(return_value=('usr', 'passwd')))
-    @patch('cadcutils.net.ws.Session.send')
-    def test_post_observation(self, mock_conn):
-        collection = 'cfht'
-        observation_id = '7000000o'
-        service = 'caom2repo'
-        service_url = 'www.cadc.nrc.ca'
-
-        obs = SimpleObservation(collection, observation_id)
-        visitor = CAOM2RepoClient(anon=False, host=service_url)
-        response = MagicMock()
-        response.status = 200
-        mock_conn.return_value = response
-        iobuffer = StringIO()
-        ObservationWriter().write(obs, iobuffer)
-        obsxml = iobuffer.getvalue()
-        response.content = obsxml
-
-        visitor.post_observation(obs)
-        self.assertEqual('POST', mock_conn.call_args[0][0].method)
-        self.assertEqual('/{}/auth/{}/{}'.format(service, collection, observation_id),
-                         mock_conn.call_args[0][0].path_url)
-        self.assertEqual('application/xml', mock_conn.call_args[0][0].headers['Content-Type'])
-        self.assertEqual(obsxml, mock_conn.call_args[0][0].body)
-
-        # signal problems
-        http_error = requests.HTTPError()
-        response.status_code = 500
-        http_error.response = response
-        response.raise_for_status.side_effect = [http_error]
-        with self.assertRaises(requests.HTTPError):
-            visitor.post_observation(obs)
-
-        # temporary transient errors
-        http_error = requests.HTTPError()
-        response.status_code = 503
-        http_error.response = response
-        response.raise_for_status.side_effect = [http_error, None]
-        visitor.post_observation(obs)
-
-        # permanent transient errors
-        http_error = requests.HTTPError()
-        response.status_code = 503
-        http_error.response = response
-
-        def raise_error(): raise http_error
-        response.raise_for_status.side_effect = raise_error
-        with self.assertRaises(requests.HTTPError):
-            visitor.post_observation(obs)
-
-    # patch sleep to stop the test from sleeping and slowing down execution
-    @patch('cadcutils.net.ws.time.sleep', MagicMock(), create=True)
-    @patch('cadcutils.net.ws.Session.send')
-    def test_put_observation(self, mock_conn):
-        collection = 'cfht'
-        observation_id = '7000000o'
-        service = 'caom2repo'
-        service_url = 'www.cadc.nrc.ca'
-
-        obs = SimpleObservation(collection, observation_id)
-        visitor = CAOM2RepoClient(cert_file='somefile.pem', host=service_url)
-        response = MagicMock()
-        response.status = 200
-        mock_conn.return_value = response
-        iobuffer = StringIO()
-        ObservationWriter().write(obs, iobuffer)
-        obsxml = iobuffer.getvalue()
-        response.content = obsxml
-
-        visitor.put_observation(obs)
-        self.assertEqual('PUT', mock_conn.call_args[0][0].method)
-        self.assertEqual('/{}/{}/{}'.format(service, collection, observation_id),
-                         mock_conn.call_args[0][0].path_url)
-        self.assertEqual('application/xml', mock_conn.call_args[0][0].headers['Content-Type'])
-        self.assertEqual(obsxml, mock_conn.call_args[0][0].body)
-
-        # signal problems
-        http_error = requests.HTTPError()
-        response.status_code = 500
-        http_error.response = response
-        response.raise_for_status.side_effect = [http_error]
-        with self.assertRaises(requests.HTTPError):
-            visitor.put_observation(obs)
-
-        # temporary transient errors
-        http_error = requests.HTTPError()
-        response.status_code = 503
-        http_error.response = response
-        response.raise_for_status.side_effect = [http_error, None]
-        visitor.put_observation(obs)
-
-        # permanent transient errors
-        http_error = requests.HTTPError()
-        response.status_code = 503
-        http_error.response = response
-
-        def raise_error(): raise http_error
-
-        response.raise_for_status.side_effect = raise_error
-        with self.assertRaises(requests.HTTPError):
-            visitor.put_observation(obs)
-
-    # patch sleep to stop the test from sleeping and slowing down execution
-    @patch('cadcutils.net.ws.time.sleep', MagicMock(), create=True)
-    @patch('cadcutils.net.ws.Session.send')
-    def test_delete_observation(self, mock_conn):
-        collection = 'cfht'
-        observation_id = '7000000o'
-        service_url = 'www.cadc.nrc.ca/caom2repo'
-
-        obs = SimpleObservation(collection, observation_id)
-        visitor = CAOM2RepoClient(host=service_url)
-        response = MagicMock()
-        response.status = 200
-        mock_conn.return_value = response
-
-        visitor.delete_observation(collection, observation_id)
-        self.assertEqual('DELETE', mock_conn.call_args[0][0].method)
-
-        # signal problems
-        http_error = requests.HTTPError()
-        response.status_code = 500
-        http_error.response = response
-        response.raise_for_status.side_effect = [http_error]
-        with self.assertRaises(requests.HTTPError):
-            visitor.delete_observation(collection, observation_id)
-
-        # temporary transient errors
-        http_error = requests.HTTPError()
-        response.status_code = 503
-        http_error.response = response
-        response.raise_for_status.side_effect = [http_error, None]
-        visitor.delete_observation(collection, observation_id)
-
-        # permanent transient errors
-        http_error = requests.HTTPError()
-        response.status_code = 503
-        http_error.response = response
-
-        def raise_error(): raise http_error
-
-        response.raise_for_status.side_effect = raise_error
-        with self.assertRaises(requests.HTTPError):
-            visitor.delete_observation(collection, observation_id)
-
-    def test_process(self):
-        core.BATCH_SIZE = 3  # size of the batch is 3
-        obs = [['a', 'b', 'c'], ['d'], []]
-        visitor = CAOM2RepoClient()
-        visitor.get_observation = MagicMock(return_value=MagicMock(spec=SimpleObservation))
-        visitor.post_observation = MagicMock()
-        visitor._get_observations = MagicMock(side_effect=obs)
-
-        self.assertEquals(4, visitor.visit(os.path.join(
-                THIS_DIR, 'passplugin.py'), 'cfht'))
-
-        obs = [['a', 'b', 'c'], ['d', 'e', 'f'], []]
-        visitor._get_observations = MagicMock(side_effect=obs)
-        self.assertEquals(6, visitor.visit(os.path.join(
-                THIS_DIR, 'passplugin.py'), 'cfht'))
-
-    @patch('caom2repo.core.CAOM2RepoClient')
-    def test_main(self, client_mock):
-        collection = 'cfht'
-        observation_id = '7000000o'
-        service = 'caom2repo'
-        ifile = '/tmp/inputobs'
-
-        obs = SimpleObservation(collection, observation_id)
-
-        # test create
-        with open(ifile, 'w') as infile:
-            ObservationWriter().write(obs, infile)
-        sys.argv = ["caom2tools", "create", ifile]
-        core.main()
-        client_mock.return_value.put_observation.assert_called_with(obs)
-
-        # test update
-        sys.argv = ["caom2tools", "update", ifile]
-        core.main()
-        client_mock.return_value.post_observation.assert_called_with(obs)
-
-        # test read
-        sys.argv = ["caom2tools", "read", "--collection", collection, observation_id]
-        client_mock.return_value.get_observation.return_value = obs
-        core.main()
-        client_mock.return_value.get_observation.assert_called_with(collection, observation_id)
-        # repeat with output argument
-        sys.argv = ["caom2tools", "read", "--collection", collection, "--output", ifile, observation_id]
-        client_mock.return_value.get_observation.return_value = obs
-        core.main()
-        client_mock.return_value.get_observation.assert_called_with(collection, observation_id)
-        os.remove(ifile)
-
-        # test delete
-        sys.argv = ["caom2tools", "delete", "--collection", collection, observation_id]
-        core.main()
-        client_mock.return_value.delete_observation.assert_called_with(collection=collection,
-                                                                       observation_id=observation_id)
-
-        # test visit
-        # get the absolute path to be able to run the tests with the astropy frameworks
-        plugin_file = THIS_DIR + "/passplugin.py"
-        sys.argv = ["caom2tools", "visit", "--plugin", plugin_file, "--start", "2012-01-01T11:22:33.44",
-                    "--end", "2013-01-01T11:33:22.443", collection]
-        with open(plugin_file, 'r') as infile:
-            core.main()
-            client_mock.return_value.visit.assert_called_with(
-                ANY, collection,
-                start=util.str2ivoa("2012-01-01T11:22:33.44"),
-                end=util.str2ivoa("2013-01-01T11:33:22.443"))
+        h = {}
+        h['Content-Disposition'] = 'inline; filename={}'.format(file_name)
+        h['Content-Length'] = size
+        h['Content-MD5'] = md5sum
+        h['Content-Type'] = type
+        h['Content-Encoding'] = encoding
+        h['Last-Modified'] = lastmod
+        h['X-Uncompressed-Length'] = usize
+        h['X-Uncompressed-MD5'] = umd5sum
+        response = Mock()
+        response.headers = h
+        basews_mock.return_value.head.return_value = response
+        info = client.get_file_info('TEST', 'myfile')
+        self.assertEqual(file_id, info['id'])
+        self.assertEqual(archive, info['archive'])
+        self.assertEqual(file_name, info['name'])
+        self.assertEqual(size, info['size'])
+        self.assertEqual(md5sum, info['md5sum'])
+        self.assertEqual(type, info['type'])
+        self.assertEqual(encoding, info['encoding'])
+        self.assertEqual(lastmod, info['lastmod'])
+        self.assertEqual(usize, info['usize'])
+        self.assertEqual(umd5sum, info['umd5sum'])
 
     @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
                                          MyExitError, MyExitError, MyExitError]))
     def test_help(self):
         """ Tests the helper displays for commands and subcommands in main"""
 
-        # expected helper messages
-        usage =\
-"""usage: caom2-repo-client [-h] [--certfile CERTFILE] [--anonymous]
-                         [--host HOST] [--resourceID RESOURCEID] [--verbose]
-                         [--debug] [--quiet] [--version]
-                         {create,read,update,delete,visit} ...
+        #help
+        usage = \
+'''usage: cadc-data [-h] {get,put,info} ...
 
-Client for a CAOM2 repo. In addition to CRUD (Create, Read, Update and Delete) operations it also implements a visitor operation that allows for updating multiple observations in a collection
+Client for accessing the data Web Service at the Canadian Astronomy Data Centre (www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data)
 
 positional arguments:
-  {create,read,update,delete,visit}
-    create              Create a new observation
-    read                Read an existing observation
-    update              Update an existing observation
-    delete              Delete an existing observation
-    visit               Visit observations in a collection
+  {get,put,info}  Supported commands. Use the -h|--help argument of a command
+                  for more details
+    get           Retrieve files from a CADC archive
+    put           Upload files into a CADC archive
+    info          Get information regarding files in a CADC archive
 
 optional arguments:
-  -h, --help            show this help message and exit
-  --certfile CERTFILE   location of your CADC certificate file (default: $HOME/.ssl/cadcproxy.pem, otherwise uses $HOME/.netrc for name/password)
-  --anonymous           Force anonymous connection
-  --host HOST           Base hostname for services - used mainly for testing (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  --resourceID RESOURCEID
-                        resource identifier (default ivo://cadc.nrc.ca/caom2repo)
-  --verbose             verbose messages
-  --debug               debug messages
-  --quiet               run quietly
-  --version             show program's version number and exit
-"""
+  -h, --help      show this help message and exit
+'''
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            sys.argv = ['cadc-data', '--help']
+            with self.assertRaises(MyExitError):
+                main()
+            self.assertEqual(usage, stdout_mock.getvalue())
 
-        create_usage =\
-"""usage: caom2-repo-client create [-h] [--certfile CERTFILE] [--anonymous]
-                                [--host HOST] [--resourceID RESOURCEID]
-                                [--verbose] [--debug] [--quiet] [--version]
-                                <new observation file>
+        # get -h
+        usage = \
+'''usage: cadc-data get [-h] [-V]
+                     [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                     [--host HOST] [--resourceID RESOURCEID] [-d | -q | -v] -a
+                     ARCHIVE [-o OUTPUT] [--cutout CUTOUT] [-de] [--wcs]
+                     [--fhead]
+                     fileID [fileID ...]
 
-Create a new observation
+Retrieve files from a CADC archive
 
 positional arguments:
-  <new observation file>
+  fileID                The ID of the file in the archive
 
 optional arguments:
+  -a, --archive ARCHIVE
+                        CADC archive
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  --cutout CUTOUT       Perform one or multiple cutout operations as specified
+                        by the argument
+  -d, --debug           debug messages
+  -de, --decompress     Decompress the data (gzip only)
+  --fhead               Return the FITS header information
   -h, --help            show this help message and exit
-  --certfile CERTFILE   location of your CADC certificate file (default:
-                        $HOME/.ssl/cadcproxy.pem, otherwise uses $HOME/.netrc
-                        for name/password)
-  --anonymous           Force anonymous connection
   --host HOST           Base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    Use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -o, --output OUTPUT   Sspace-separated list of destination files (quotes
+                        required for multiple elements)
+  -q, --quiet           run quietly
   --resourceID RESOURCEID
-                        resource identifier (default
-                        ivo://cadc.nrc.ca/caom2repo)
-  --verbose             verbose messages
-  --debug               debug messages
-  --quiet               run quietly
-  --version             show program's version number and exit
-"""
+                        resource identifier (default ivo://cadc.nrc.ca/data)
+  -u, --user USER       Name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+  -V, --version         show program's version number and exit
+  --wcs                 Return the World Coordinate System (WCS) information
+'''
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            sys.argv = ['cadc-data', 'get', '--help']
+            with self.assertRaises(MyExitError):
+                main()
+            self.assertEqual(usage, stdout_mock.getvalue())
 
-        read_usage =\
-"""usage: caom2-repo-client read [-h] [--certfile CERTFILE] [--anonymous]
-                              [--host HOST] [--resourceID RESOURCEID]
-                              [--verbose] [--debug] [--quiet] [--version]
-                              --collection <collection>
-                              [--output <destination file>]
-                              <observation>
+        # put -h
+        usage = \
+'''usage: cadc-data put [-h] [-V]
+                     [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                     [--host HOST] [--resourceID RESOURCEID] [-d | -q | -v] -a
+                     ARCHIVE [-as ARCHIVE_STREAM] [-c] [--fileIDs FILEIDS]
+                     source [source ...]
 
-Read an existing observation
+Upload files into a CADC archive
 
 positional arguments:
-  <observation>
+  source                File or directory containing the files to be put
 
 optional arguments:
+  -a, --archive ARCHIVE
+                        CADC archive
+  -as, --archive-stream ARCHIVE_STREAM
+                        Specific archive stream to add the file to
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -c, --compress        gzip compress the data
+  -d, --debug           debug messages
+  --fileIDs FILEIDS     Space-separated list of file IDs to use (quotes
+                        required for multiple elements)
   -h, --help            show this help message and exit
-  --certfile CERTFILE   location of your CADC certificate file (default:
-                        $HOME/.ssl/cadcproxy.pem, otherwise uses $HOME/.netrc
-                        for name/password)
-  --anonymous           Force anonymous connection
   --host HOST           Base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    Use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -q, --quiet           run quietly
   --resourceID RESOURCEID
-                        resource identifier (default
-                        ivo://cadc.nrc.ca/caom2repo)
-  --verbose             verbose messages
-  --debug               debug messages
-  --quiet               run quietly
-  --version             show program's version number and exit
-  --collection <collection>
-  --output <destination file>, -o <destination file>
-"""
+                        resource identifier (default ivo://cadc.nrc.ca/data)
+  -u, --user USER       Name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+  -V, --version         show program's version number and exit
+'''
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            sys.argv = ['cadc-data', 'put', '-h']
+            with self.assertRaises(MyExitError):
+                main()
+            self.assertEqual(usage, stdout_mock.getvalue())
 
-        update_usage =\
-"""usage: caom2-repo-client update [-h] [--certfile CERTFILE] [--anonymous]
-                                [--host HOST] [--resourceID RESOURCEID]
-                                [--verbose] [--debug] [--quiet] [--version]
-                                <observation file>
+        # info -h
+        usage = \
+'''usage: cadc-data info [-h] [-V]
+                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                      [--host HOST] [--resourceID RESOURCEID] [-d | -q | -v]
+                      -a ARCHIVE
+                      fileID [fileID ...]
 
-Update an existing observation
+Get information regarding files in a CADC archive on the form:
+File id:
+	 -name
+	 -size
+	 -md5sum
+	 -encoding
+	 -type
+	 -usize
+	 -umd5sum
+	 -lastmod
 
 positional arguments:
-  <observation file>
+  fileID                The ID of the file in the archive
 
 optional arguments:
+  -a, --archive ARCHIVE
+                        CADC archive
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -d, --debug           debug messages
   -h, --help            show this help message and exit
-  --certfile CERTFILE   location of your CADC certificate file (default:
-                        $HOME/.ssl/cadcproxy.pem, otherwise uses $HOME/.netrc
-                        for name/password)
-  --anonymous           Force anonymous connection
   --host HOST           Base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    Use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -q, --quiet           run quietly
   --resourceID RESOURCEID
-                        resource identifier (default
-                        ivo://cadc.nrc.ca/caom2repo)
-  --verbose             verbose messages
-  --debug               debug messages
-  --quiet               run quietly
-  --version             show program's version number and exit
-"""
-
-        delete_usage =\
-"""usage: caom2-repo-client delete [-h] [--certfile CERTFILE] [--anonymous]
-                                [--host HOST] [--resourceID RESOURCEID]
-                                [--verbose] [--debug] [--quiet] [--version]
-                                --collection <collection>
-                                <ID of observation>
-
-Delete an existing observation
-
-positional arguments:
-  <ID of observation>
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --certfile CERTFILE   location of your CADC certificate file (default:
-                        $HOME/.ssl/cadcproxy.pem, otherwise uses $HOME/.netrc
-                        for name/password)
-  --anonymous           Force anonymous connection
-  --host HOST           Base hostname for services - used mainly for testing
-                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  --resourceID RESOURCEID
-                        resource identifier (default
-                        ivo://cadc.nrc.ca/caom2repo)
-  --verbose             verbose messages
-  --debug               debug messages
-  --quiet               run quietly
-  --version             show program's version number and exit
-  --collection <collection>
-"""
-
-        visit_usage =\
-"""usage: caom2-repo-client visit [-h] [--certfile CERTFILE] [--anonymous]
-                               [--host HOST] [--resourceID RESOURCEID]
-                               [--verbose] [--debug] [--quiet] [--version]
-                               --plugin <pluginClassFile>
-                               [--start <datetime start point>]
-                               [--end <datetime end point>]
-                               [--retries <number of retries>]
-                               [-s <CAOM2 service URL>]
-                               <datacollection>
-
-Visit observations in a collection
-
-positional arguments:
-  <datacollection>      data collection in CAOM2 repo
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --certfile CERTFILE   location of your CADC certificate file (default: $HOME/.ssl/cadcproxy.pem, otherwise uses $HOME/.netrc for name/password)
-  --anonymous           Force anonymous connection
-  --host HOST           Base hostname for services - used mainly for testing (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  --resourceID RESOURCEID
-                        resource identifier (default ivo://cadc.nrc.ca/caom2repo)
-  --verbose             verbose messages
-  --debug               debug messages
-  --quiet               run quietly
-  --version             show program's version number and exit
-  --plugin <pluginClassFile>
-                        Plugin class to update each observation
-  --start <datetime start point>
-                        oldest dataset to visit (UTC %Y-%m-%d format)
-  --end <datetime end point>
-                        earliest dataset to visit (UTC %Y-%m-%d format)
-  --retries <number of retries>
-                        number of tries with transient server errors
-  -s <CAOM2 service URL>, --server <CAOM2 service URL>
-                        URL of the CAOM2 repo server
-
-Minimum plugin file format:
-----
-   from caom2.caom2_observation import Observation
-
-   class ObservationUpdater:
-
-    def update(self, observation):
-        assert isinstance(observation, Observation), (
-            'observation {} is not an Observation'.format(observation))
-        # custom code to update the observation
-----
-"""
-
-        self.maxDiff = None
-        # --help
+                        resource identifier (default ivo://cadc.nrc.ca/data)
+  -u, --user USER       Name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+  -V, --version         show program's version number and exit
+'''
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ["caom2-repo-client", "--help"]
+            sys.argv = ['cadc-data', 'info', '--help']
             with self.assertRaises(MyExitError):
-                core.main()
-        #print(stdout_mock.getvalue())
-        self.assertEqual(usage, stdout_mock.getvalue())
-
-        # create --help
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ["caom2-repo-client", "create", "--help"]
-            with self.assertRaises(MyExitError):
-                core.main()
-        #print(stdout_mock.getvalue())
-        self.assertEqual(create_usage, stdout_mock.getvalue())
-
-        # read --help
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ["caom2-repo-client", "read", "--help"]
-            with self.assertRaises(MyExitError):
-                core.main()
-        #print(stdout_mock.getvalue())
-        self.assertEqual(read_usage, stdout_mock.getvalue())
-
-        # update --help
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ["caom2-repo-client", "update", "--help"]
-            with self.assertRaises(MyExitError):
-                core.main()
-        #print(stdout_mock.getvalue())
-        self.assertEqual(update_usage, stdout_mock.getvalue())
-
-        # delete --help
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ["caom2-repo-client", "delete", "--help"]
-            with self.assertRaises(MyExitError):
-                core.main()
-        #print(stdout_mock.getvalue())
-        self.assertEqual(delete_usage, stdout_mock.getvalue())
-
-        # visit --help
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ["caom2-repo-client", "visit", "--help"]
-            with self.assertRaises(MyExitError):
-                core.main()
-        #print(stdout_mock.getvalue())
-        self.assertEqual(visit_usage, stdout_mock.getvalue())
+                main()
+            self.assertEqual(usage, stdout_mock.getvalue())

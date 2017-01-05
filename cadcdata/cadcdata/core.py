@@ -185,12 +185,12 @@ class CadcDataClient:
                 file.write(chunk)
                 chunk = response.raw.read(READ_BLOCK_SIZE)
         else:
-            for chunk in response.iter_content(READ_BLOCK_SIZE):
-                    if chunk is None:
-                        return
-                    if process_bytes is not None:
-                        process_bytes(chunk)
-                    file.write(chunk)
+            chunk = response.iter_content(READ_BLOCK_SIZE)
+            while len(chunk) > 0:
+                if process_bytes is not None:
+                    process_bytes(chunk)
+                file.write(chunk)
+                chunk = response.iter_content(READ_BLOCK_SIZE)
 
 
     def put_file(self, archive, file_id, file, archive_stream=None, replace=False):
