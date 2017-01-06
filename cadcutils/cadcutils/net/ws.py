@@ -313,7 +313,7 @@ class RetrySession(Session):
             while num_retries < MAX_NUM_RETRIES:
                 try:
                     response = super(RetrySession, self).send(request, **kwargs)
-                    response.raise_for_status()
+                    self.check_status(response)
                     return response
                 except requests.HTTPError as e:
                     if e.response.status_code not in self.retry_errors:
@@ -346,5 +346,33 @@ class RetrySession(Session):
             raise current_error
         else:
             response = super(RetrySession, self).send(request, **kwargs)
-            response.raise_for_status()
+            self.check_status(response)
             return response
+
+
+    def check_status(self, response):
+        """
+        Check the response status. Maps the application related requests error status into Exceptions
+        and raises the others
+        :param response: response
+        :return:
+        """
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as e:
+            if e.response.status_code == requests.codes.not_found:
+                raise exceptions.NotFoundException(orig_exception=e)
+            elif e.response.status_code == requests.codes.unauthorized:
+                raise exceptions.UnauthorizedException(orig_exception=e)
+            elif e.response.status_code == requests.codes.forbidden:
+                raise exceptions.ForbiddenException(orig_exception=e)
+            elif e.response.status_code == requests.codes.bad_request:
+                raise exceptions.BadRequestException(orig_exception=e)
+            elif e.response.status_code == requests.codes.conflict:
+                raise exceptions.AlreadyExistsException(orig_exception=e)
+            elif e.response.status_code == requests.codes.internal_server_error:
+                raise exceptions.InternalServerException(orig_exception=e)
+            elif e.response.status_code in self.retry_errors:
+                raise e
+            else:
+                raise exceptions.UnexpectedException(orig_exception=e)

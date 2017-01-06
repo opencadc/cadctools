@@ -73,6 +73,8 @@ import copy
 import os
 import sys
 import unittest
+import logging
+import shutil
 # TODO to be changed to io.StringIO when caom2 is prepared for python3
 from StringIO import StringIO
 from datetime import datetime
@@ -80,8 +82,8 @@ import gzip
 import requests
 from cadcutils.net import auth
 from cadcdata import CadcDataClient
-from cadcdata.core import main
-from mock import Mock, patch, MagicMock, ANY
+from cadcdata.core import main_app
+from mock import Mock, patch, MagicMock, ANY, call
 
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -250,7 +252,7 @@ optional arguments:
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             sys.argv = ['cadc-data', '--help']
             with self.assertRaises(MyExitError):
-                main()
+                main_app()
             self.assertEqual(usage, stdout_mock.getvalue())
 
         # get -h
@@ -283,7 +285,7 @@ optional arguments:
   -n                    Use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
-  -o, --output OUTPUT   Sspace-separated list of destination files (quotes
+  -o, --output OUTPUT   Space-separated list of destination files (quotes
                         required for multiple elements)
   -q, --quiet           run quietly
   --resourceID RESOURCEID
@@ -297,7 +299,7 @@ optional arguments:
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             sys.argv = ['cadc-data', 'get', '--help']
             with self.assertRaises(MyExitError):
-                main()
+                main_app()
             self.assertEqual(usage, stdout_mock.getvalue())
 
         # put -h
@@ -305,7 +307,7 @@ optional arguments:
 '''usage: cadc-data put [-h] [-V]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                      [--host HOST] [--resourceID RESOURCEID] [-d | -q | -v] -a
-                     ARCHIVE [-as ARCHIVE_STREAM] [-c] [--fileIDs FILEIDS]
+                     ARCHIVE [-as ARCHIVE_STREAM] [-c] [--fileID FILEID]
                      source [source ...]
 
 Upload files into a CADC archive
@@ -322,8 +324,8 @@ optional arguments:
                         authentication (unencrypted, in PEM format)
   -c, --compress        gzip compress the data
   -d, --debug           debug messages
-  --fileIDs FILEIDS     Space-separated list of file IDs to use (quotes
-                        required for multiple elements)
+  --fileID FILEID       file ID to use for single source (not to be used with
+                        multiple sources)
   -h, --help            show this help message and exit
   --host HOST           Base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
@@ -341,7 +343,7 @@ optional arguments:
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             sys.argv = ['cadc-data', 'put', '-h']
             with self.assertRaises(MyExitError):
-                main()
+                main_app()
             self.assertEqual(usage, stdout_mock.getvalue())
 
         # info -h
@@ -389,5 +391,105 @@ optional arguments:
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             sys.argv = ['cadc-data', 'info', '--help']
             with self.assertRaises(MyExitError):
-                main()
+                main_app()
             self.assertEqual(usage, stdout_mock.getvalue())
+
+    @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
+                                         MyExitError, MyExitError, MyExitError]))
+    @patch('cadcdata.core.CadcDataClient.put_file')
+    @patch('cadcdata.core.CadcDataClient.get_file_info')
+    @patch('cadcdata.core.CadcDataClient.get_file')
+    def test_main(self, get_mock, info_mock, put_mock):
+        sys.argv = ['cadc-data', 'get', '-a', 'TEST', 'fileid1', 'fileid2', 'fileid3']
+        main_app()
+        calls = [call('TEST', 'fileid1', None, cutout=None, decompress=False, fhead=False, wcs=False),
+                 call('TEST', 'fileid2', None, cutout=None, decompress=False, fhead=False, wcs=False),
+                 call('TEST', 'fileid3', None, cutout=None, decompress=False, fhead=False, wcs=False)]
+        get_mock.assert_has_calls(calls)
+
+        #test with file names
+        get_mock.reset_mock()
+        sys.argv = ['cadc-data', 'get', '-a', 'TEST', '-o', 'file1.txt file2.txt', 'fileid1', 'fileid2']
+        main_app()
+        calls = [call('TEST', 'fileid1', 'file1.txt', cutout=None, decompress=False, fhead=False, wcs=False),
+                 call('TEST', 'fileid2', 'file2.txt', cutout=None, decompress=False, fhead=False, wcs=False)]
+        get_mock.assert_has_calls(calls)
+
+        # number of file names does not match the number of file ids. logger displays an error
+        get_mock.reset_mock()
+        sys.argv = ['cadc-data', 'get', '-a', 'TEST', '-o', 'file1.txt', 'fileid1', 'fileid2']
+        b = StringIO()
+        logger = logging.getLogger('cadc-data')
+        # capture the log message in a StreamHandler
+        logger.addHandler(logging.StreamHandler(b))
+        with self.assertRaises(MyExitError):
+            main_app()
+        self.assertTrue('Different size of destination files list' in b.getvalue())
+
+        # test info
+        info_mock.return_value = {'id':'file1', 'archive':'TEST', 'name':'file1.txt.gz',
+                                  'size':'5', 'md5sum':'0x33', 'type':'text', 'encoding':'gzip',
+                                  'lastmod' : '10/10/10T10:10:10.000', 'usize':'50', 'umd5sum':'0x234'}
+        sys.argv = ['cadc-data', 'info', '-a', 'TEST', 'fileid1']
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            main_app()
+        expected = \
+'''File fileid1:
+	    archive: TEST
+	   encoding: gzip
+	         id: file1
+	    lastmod: 10/10/10T10:10:10.000
+	     md5sum: 0x33
+	       name: file1.txt.gz
+	       size: 5
+	       type: text
+	    umd5sum: 0x234
+	      usize: 50
+'''
+        self.assertEqual(expected, stdout_mock.getvalue())
+
+        #test put directory
+        #create a file structure of files to put
+        put_dir = '/tmp/put_dir'
+        put_subdir = '{}/somedir'.format(put_dir)
+        file1id = 'file1'
+        file2id =  'file2'
+        if os.path.exists(put_dir):
+            shutil.rmtree(put_dir)
+        os.makedirs(put_dir)
+        os.makedirs(put_subdir)
+        with open(os.path.join(put_dir, '{}.txt'.format(file1id)), 'w') as f:
+            f.write('TEST FILE1')
+        with open(os.path.join(put_dir, '{}.txt'.format(file2id)), 'w') as f:
+            f.write('TEST FILE2')
+        #extra file that is not going to be put because it resides in a subdirectory
+        with open(os.path.join(put_subdir, 'file3.txt'), 'w') as f:
+            f.write('TEST FILE3')
+
+        sys.argv = ['cadc-data', 'put', '-a', 'TEST', put_dir]
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            main_app()
+        calls = [call('TEST', 'file2', '/tmp/put_dir/file2.txt', archive_stream=None),
+                 call('TEST', 'file1', '/tmp/put_dir/file1.txt', archive_stream=None)]
+        put_mock.assert_has_calls(calls, any_order=True)
+        # number of file names does not match the number of file ids. logger displays an error
+        get_mock.reset_mock()
+        sys.argv = ['cadc-data', 'get', '-a', 'TEST', '-o', 'file1.txt', 'fileid1', 'fileid2']
+        b = StringIO()
+        logger = logging.getLogger('cadc-data')
+        # capture the log message in a StreamHandler
+        logger.addHandler(logging.StreamHandler(b))
+        with self.assertRaises(MyExitError):
+            main_app()
+        self.assertTrue('Different size of destination files list' in b.getvalue())
+
+        #repeat test specifying the fileIDs this time
+        put_mock.reset_mock()
+        sys.argv = ['cadc-data', 'put', '-a', 'TEST', '--fileID', 'fileID1',
+                    '-as', 'default', os.path.join(put_dir, '{}.txt'.format(file1id))]
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            main_app()
+        put_mock.assert_called_with('TEST', 'fileID1', '/tmp/put_dir/file1.txt', archive_stream='default')
+
+        #cleanup
+        shutil.rmtree(put_dir)

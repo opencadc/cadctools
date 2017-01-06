@@ -79,8 +79,7 @@ import sys
 from StringIO import StringIO
 from datetime import datetime
 
-from cadcutils import net
-from cadcutils import util
+from cadcutils import net, util, exceptions
 from caom2.obs_reader_writer import ObservationReader, ObservationWriter
 from caom2.version import version as caom2_version
 from six.moves.urllib.parse import urlparse
@@ -101,9 +100,13 @@ APP_NAME = 'cadc-data'
 
 READ_BLOCK_SIZE=8*1024
 
+logger = logging.getLogger(APP_NAME)
+
 class CadcDataClient:
 
     """Class to access CADC archival data."""
+
+    logger = logging.getLogger('CadcDataClient')
 
     def __init__(self, subject, resource_id=DEFAULT_RESOURCE_ID, host=None):
         """
@@ -124,7 +127,7 @@ class CadcDataClient:
 
         self._repo_client = net.BaseWsClient(resource_id, subject,
                                              agent, retry=True, host=self.host)
-        logging.info('Service URL: {}'.format(self._repo_client.base_url))
+        self.logger.info('Service URL: {}'.format(self._repo_client.base_url))
 
 
     def get_file(self, archive, file_id, file=None, decompress=False,
@@ -151,7 +154,7 @@ class CadcDataClient:
             params['wcs'] = wcs
         if cutout:
             params['cutout'] = cutout
-        logging.debug('GET '.format(resource))
+        self.logger.debug('GET '.format(resource))
         response = self._repo_client.get(resource, stream=True, params=params)
         if file is not None:
             if not hasattr(file, 'read'):
@@ -169,10 +172,10 @@ class CadcDataClient:
                     file = content[9:]
             if file.endswith('gz') and decompress:
                 file = os.path.splitext(file)[0]
-            logging.debug('Using content disposition file name: {}'.format(file))
+            self.logger.debug('Using content disposition file name: {}'.format(file))
             with open(file, 'w') as f:
                 self._save_bytes(response, f, decompress, process_bytes)
-        logging.debug('Successfully saved file\n')
+        self.logger.debug('Successfully saved file\n')
 
 
     def _save_bytes(self, response, file, decompress=False, process_bytes=None):
@@ -193,25 +196,24 @@ class CadcDataClient:
                 chunk = response.iter_content(READ_BLOCK_SIZE)
 
 
-    def put_file(self, archive, file_id, file, archive_stream=None, replace=False):
+    def put_file(self, archive, file_id, file, archive_stream=None):
         """
         Puts a file into the archive storage
         :param archive: name of the archive
         :param file_id: ID of file in the archive storage
         :param file: location of the source file
         :param archive_stream: specific archive stream
-        :param replace: True if this a replacement of an existing file, False otherwise
         """
         assert archive is not None
         assert file_id is not None
         resource = '/{}/{}'.format(archive, file_id)
-        logging.debug('PUT {}'.format(resource))
+        self.logger.debug('PUT {}'.format(resource))
         headers = {}
         if archive_stream is not None:
             headers[ARCHIVE_STREAM_HTTP_HEADER] = str(archive_stream)
         with open(file, 'rb') as f:
             self._repo_client.put(resource, headers=headers, data=f)
-        logging.debug('Successfully updated file\n')
+        self.logger.debug('Successfully updated file\n')
 
 
     def get_file_info(self, archive, file_id):
@@ -224,26 +226,35 @@ class CadcDataClient:
         assert archive is not None
         assert file_id is not None
         resource = '/{}/{}'.format(archive, file_id)
-        logging.debug('HEAD {}'.format(resource))
+        self.logger.debug('HEAD {}'.format(resource))
         response = self._repo_client.head(resource)
         h = response.headers
         file_info = {}
         file_info['id'] = file_id
         file_info['archive'] = archive
-        file_info['name'] = h['Content-Disposition'][17:] #remove 'inline; filename=' from file name
-        file_info['size'] = h['Content-Length']
-        file_info['md5sum'] = h['Content-MD5']
-        file_info['type'] = h['Content-Type']
-        file_info['encoding'] = h['Content-Encoding']
-        file_info['lastmod'] = h['Last-Modified']
-        file_info['usize'] = h['X-Uncompressed-Length']
-        file_info['umd5sum'] = h['X-Uncompressed-MD5']
+        file_info['name'] = h.get('Content-Disposition', '').replace('inline; filename=', '')
+        file_info['size'] = h.get('Content-Length', None)
+        file_info['md5sum'] = h.get('Content-MD5', None)
+        file_info['type'] = h.get('Content-Type', None)
+        file_info['encoding'] = h.get('Content-Encoding', None)
+        file_info['lastmod'] = h.get('Last-Modified', None)
+        file_info['usize'] = h.get('X-Uncompressed-Length', None)
+        file_info['umd5sum'] = h.get('X-Uncompressed-MD5', None)
         #TODOfile_info['ingest_date'] = h[?]
-        logging.debug("File info: {}".format(file_info))
+        self.logger.debug("File info: {}".format(file_info))
         return file_info
 
+def handle_error(msg, exit=True):
+    """
+    Prints error message and exit (by default)
+    :param msg: error message to print
+    :return:
+    """
+    logger.error(msg)
+    if exit:
+        sys.exit(-1) #TODO use different error codes?
 
-def main():
+def main_app():
 
     parser = util.get_base_parser(version=version.version, default_resource_id=DEFAULT_RESOURCE_ID)
 
@@ -258,7 +269,7 @@ def main():
                                           help='Retrieve files from a CADC archive')
     get_parser.add_argument('-a', '--archive', help='CADC archive', required=True)
     get_parser.add_argument('-o', '--output',
-                            help='Sspace-separated list of destination files (quotes required for multiple elements)',
+                            help='Space-separated list of destination files (quotes required for multiple elements)',
                             required=False)
     get_parser.add_argument('--cutout', help='Perform one or multiple cutout operations as specified by the argument',
                             required=False)
@@ -278,8 +289,8 @@ def main():
                             required=False)
     put_parser.add_argument('-c', '--compress', help='gzip compress the data',
                             action='store_true', required=False)
-    put_parser.add_argument('--fileIDs',
-                            help='Space-separated list of file IDs to use (quotes required for multiple elements)',
+    put_parser.add_argument('--fileID',
+                            help='file ID to use for single source (not to be used with multiple sources)',
                             required=False)
     put_parser.add_argument('source',
                             help='File or directory containing the files to be put', nargs='+')
@@ -316,67 +327,92 @@ def main():
     args = parser.parse_args()
     if args.verbose:
         logging.basicConfig(level=logging.INFO)
-    if args.debug:
+    elif args.debug:
         logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.WARN)
 
     subject = net.Subject.get_subject(args)
 
     client = CadcDataClient(subject, args.resourceID, host=args.host)
-    if args.cmd == 'get':
-        logging.info('get')
-        archive = args.archive
-        file_ids = args.fileID
-        if args.output is not None:
-            files = args.output.split()
-            if len(files) != len(file_ids):
-                print('{}: error: Different size of destination files list ({}) and list of file IDs ({})'.
-                              format(APP_NAME, files, file_ids))
-                sys.exit(2)
-            for f, fid in list(zip(files, file_ids)):
-                with open(f, 'w') as dest:
-                    client.get_file(archive, fid, dest, decompress=args.decompress,
-                                    fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
+    try:
+        if args.cmd == 'get':
+            logger.info('get')
+            archive = args.archive
+            file_ids = args.fileID
+            if args.output is not None:
+                files = args.output.split()
+                if len(files) != len(file_ids):
+                    handle_error('Different size of destination files list ({}) and list of file IDs ({})'.
+                                  format(files, file_ids))
+                for f, fid in list(zip(files, file_ids)):
+                    try:
+                        client.get_file(archive, fid, f, decompress=args.decompress,
+                                     fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
+                    except exceptions.NotFoundException as e:
+                        handle_error('File ID {} not found'.format(fid), exit=False)
+            else:
+                for fid in file_ids:
+                    try:
+                        client.get_file(archive, fid, None, decompress=args.decompress,
+                                        fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
+                    except exceptions.NotFoundException as e:
+                        handle_error('File ID {} not found'.format(fid), exit=False)
+        elif args.cmd == 'info':
+            logger.info('info')
+            archive = args.archive
+            for file_id in args.fileID:
+                try:
+                    file_info = client.get_file_info(archive, file_id)
+                except exceptions.NotFoundException as e:
+                    handle_error('File ID {} not found'.format(file_id), exit=False)
+                    continue
+                print('File {}:'.format(file_id))
+                for field in sorted(file_info):
+                    print('\t {:>10}: {}'.format(field, file_info[field]))
         else:
-            for fid in file_ids:
-                client.get_file(archive, fid, None, decompress=args.decompress,
-                                fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
-    elif args.cmd == 'info':
-        logging.info('info')
-        archive = args.archive
-        for file_id in args.fileID:
-            file_info = client.get_file_info(archive, file_id)
-            print('File {}:'.format(file_id))
-            for field in sorted(file_info):
-                print('\t {:>10}: {}'.format(field, file_info[field]))
-    else:
-        logging.info('put')
-        archive = args.archive
-        sources = args.source
-        files = []
-        for file in sources:
-            if os.path.isfile(file):
-                files.append(file)
-            elif os.path.isdir(file):
-                for f in os.listdir(file):
-                    if os.path.isfile(os.path.join(file, f)):
-                        files.append(os.path.join(file, f))
-                    else:
-                        logging.warn('{} not added to the list of files to put'.format(f))
-        logging.debug('Files to pu: {}'.format(files))
-        file_ids = None
-        if args.fileIDs is not None:
-            file_ids = args.fileIDs.split()
-            if len(file_ids) != len(files):
-                print('{}: error: Different size of file ID list ({}) and list of files to put ({})'.
-                              format(APP_NAME, file_ids, files))
-            for file, file_id in list(zip(files, file_ids)):
-                client.put_file(archive, file_id, file)
-        else:
-            for file in files:
-                client.put_file(archive, os.path.basename(file).split('.')[0], file)
+            logger.info('put')
+            archive = args.archive
+            sources = args.source
 
-    logging.info("DONE")
+            files = []
+            for file in sources:
+                if os.path.isfile(file):
+                    files.append(file)
+                elif os.path.isdir(file):
+                    for f in os.listdir(file):
+                        if os.path.isfile(os.path.join(file, f)):
+                            files.append(os.path.join(file, f))
+                        else:
+                            logger.warn('{} not added to the list of files to put'.format(f))
+            logger.debug('Files to put: {}'.format(files))
+            file_ids = []
+            if args.fileID is not None:
+                if len(file_ids) > 1:
+                    handle_error('Cannot use fileID argument with multiple source files')
+                else:
+                    file_ids.append(args.fileID)
+            else:
+                # create the list of file_ids
+                for file in files:
+                    file_ids.append(os.path.basename(file).split('.')[0])
+
+            for file, file_id in list(zip(files, file_ids)):
+                client.put_file(archive, file_id, file, archive_stream=args.archive_stream)
+    except exceptions.UnauthorizedException as e:
+        if subject.anon:
+            handle_error('Operation cannot be performed anonymously. '
+                         'Use one of the available methods to authenticate')
+        else:
+            handle_error('Unexpected authentication problem')
+    except exceptions.ForbiddenException as e:
+        handle_error('Unauthorized to perform operation')
+    except exceptions.UnexpectedException as e:
+        logger.debug(e.orig_exception)
+        handle_error('Unexpected server error')
+
+    logger.info("DONE")
 
 #TODO remove
 if __name__ == '__main__':
-    main()
+    main_app()

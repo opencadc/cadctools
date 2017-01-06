@@ -154,9 +154,7 @@ class Subject:
             else:
                 sys.stdout.write("Password for {}@{}: ".format(self.username, realm))
                 self.hosts_auth[realm] = (self.username, getpass.getpass().strip('\n'))
-                return (self.hosts_auth[realm])
-        logging.warn('')
-        return None
+                return self.hosts_auth[realm]
 
 
 def get_cert(cert_server=None, user=None,
@@ -205,12 +203,12 @@ def get_user_password(realm, username=None):
     if username is None:
         if os.access(os.path.join(os.environ.get('HOME', '/'), ".netrc"), os.R_OK):
             auth = netrclib.netrc().authenticators(realm)
-            return (auth[0], auth[2])
+            return auth[0], auth[2]
         else:
             return False
     else:
         sys.stdout.write("Password for {}: ".format(username))
-        return(username, getpass.getpass().strip('\n'))
+        return username, getpass.getpass().strip('\n')
 
 
 def get_cert_main():
