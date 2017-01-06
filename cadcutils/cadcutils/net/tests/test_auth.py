@@ -93,7 +93,7 @@ class TestAuth(unittest.TestCase):
     @patch('cadcutils.net.auth.netrclib')
     def test_user_password(self, netrc_mock, getpass_mock):
         """ Test get-cert functionality """
-
+        self.maxDiff = None #Display the entire difference
         # .netrc first
         netrc_mock.netrc.return_value.authenticators.return_value = ['usr', 'account', 'passwd']
         realm = "www.canfar.phys.uvic.ca"
