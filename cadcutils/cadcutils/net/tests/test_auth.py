@@ -173,7 +173,7 @@ optional arguments:
   -h, --help            show this help message and exit
   --cert-filename CERT_FILENAME
                         Filesystem location to store the proxy certificate.
-                        (default: /home/NSIV/cadc/adriand/.ssl/cadcproxy.pem)
+                        (default: {})
   --cert-server CERT_SERVER
                         Certificate server network address. (default:
                         www.canfar.phys.uvic.ca)
