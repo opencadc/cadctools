@@ -275,8 +275,8 @@ optional arguments:
                         CADC archive
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
-  --cutout CUTOUT       Perform one or multiple cutout operations as specified
-                        by the argument
+  --cutout CUTOUT       Specify one or multiple extension and/or pixel range
+                        cutout operations to be performed. Use cfitsio syntax
   -d, --debug           debug messages
   -de, --decompress     Decompress the data (gzip only)
   --fhead               Return the FITS header information

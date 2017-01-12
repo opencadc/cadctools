@@ -285,7 +285,8 @@ def main_app():
     get_parser.add_argument('-o', '--output',
                             help='Space-separated list of destination files (quotes required for multiple elements)',
                             required=False)
-    get_parser.add_argument('--cutout', help='Perform one or multiple cutout operations as specified by the argument',
+    get_parser.add_argument('--cutout', help=('Specify one or multiple extension and/or pixel range cutout '
+                                              'operations to be performed. Use cfitsio syntax'),
                             required=False)
     get_parser.add_argument('-de','--decompress', help='Decompress the data (gzip only)',
                             action='store_true', required=False)
