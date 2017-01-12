@@ -82,7 +82,6 @@ class TestWs(unittest.TestCase):
 
     """Class for testing the webservie client"""
     @patch('cadcutils.net.ws.os.path.isfile', Mock())
-    @patch('cadcutils.net.ws.auth.get_user_password', Mock(return_value=('usr', 'passwd')))
     @patch('cadcutils.net.auth.netrclib')
     @patch('cadcutils.net.ws.RetrySession.put')
     @patch('cadcutils.net.ws.RetrySession.head')
@@ -210,7 +209,7 @@ class TestWs(unittest.TestCase):
         head_mock.reset_mock()
         host = 'caom2workshop.canfar.net'
         subject = auth.Subject(netrc=True)
-        subject.hosts_auth[host] = ('auser', 'apasswd')
+        subject._hosts_auth[host] = ('auser', 'apasswd')
         client = ws.BaseWsClient(resource_id, subject, 'TestApp', retry=False, host=host)
         base_url = 'http://{}{}/auth-observations'.format(host, resource_uri.path)
         resource_url = '{}/{}'.format(base_url, resource)

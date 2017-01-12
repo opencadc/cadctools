@@ -68,8 +68,9 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 __all__ = ['UnauthorizedException']
 
+
 class UnauthorizedException(Exception):
-    """Raised when the user is not allowed to perform an action unless correctly authenticated.
+    """User requires authentication to perform the requested action.
     Attributes:
         msg  -- explanation of why the specific transition is not allowed
     """
@@ -79,7 +80,7 @@ class UnauthorizedException(Exception):
 
 
 class ForbiddenException(Exception):
-    """Raised when the user is not authorized to perform an action.
+    """Authenticated user is not authorized to perform an action.
     Attributes:
         msg  -- explanation of why the specific transition is not allowed
     """
@@ -89,7 +90,7 @@ class ForbiddenException(Exception):
 
 
 class NotFoundException(Exception):
-    """Raised when resource not found.
+    """Resource not found.
     Attributes:
         msg
     """
@@ -99,7 +100,7 @@ class NotFoundException(Exception):
 
 
 class BadRequestException(Exception):
-    """Raised when and operation is not permitted or the argument is illegal
+    """Operation is not permitted or the argument is illegal
     Attributes:
         msg
     """
@@ -109,7 +110,7 @@ class BadRequestException(Exception):
 
 
 class AlreadyExistsException(Exception):
-    """Raised when resource already exists
+    """Resource already exists
     Attributes:
         msg
     """
@@ -119,7 +120,7 @@ class AlreadyExistsException(Exception):
 
 
 class ByteLimitException(Exception):
-    """Raised when request is too large
+    """Request is too large
     Attributes:
         msg
     """
@@ -129,7 +130,7 @@ class ByteLimitException(Exception):
 
 
 class InternalServerException(Exception):
-    """Raised when the server encounters an internal error
+    """Server encounters an internal error
     Attributes:
         msg
     """
@@ -139,7 +140,7 @@ class InternalServerException(Exception):
 
 
 class UnexpectedException(Exception):
-    """Raised when encountered an unexpected error
+    """Unexpected error
     Attributes:
         msg
     """

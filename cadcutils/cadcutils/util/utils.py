@@ -231,7 +231,7 @@ class SingleMetavarHelpFormatter(RawDescriptionHelpFormatter):
         super(SingleMetavarHelpFormatter, self).add_arguments(actions)
 
 
-class _AugmentAction():
+class _AugmentAction(object):
     """
     This automatically adds parents and the formatter class when a new subparser is
     created in the client code

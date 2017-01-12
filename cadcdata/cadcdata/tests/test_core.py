@@ -107,10 +107,10 @@ class TestCadcDataClient(unittest.TestCase):
         file_chunks = ['aaaa', 'bbbb', '']
         response = Mock()
         response.headers.get.return_value = 'filename={}'.format('orig_file_name')
-        response.raw.read.side_effect = file_chunks
+        response.raw.read.return_value = iter(file_chunks) #read returns an iter
         basews_mock.return_value.get.return_value = response
         client = CadcDataClient(auth.Subject())
-        client.get_file('TEST', 'afile', file=file_name)
+        client.get_file('TEST', 'afile', destination=file_name)
         expected_content = ''.join(file_chunks)
         with open(file_name, 'r') as f:
             self.assertEquals(expected_content, f.read())
@@ -118,10 +118,10 @@ class TestCadcDataClient(unittest.TestCase):
         # do it again with the file now open
         response = Mock()
         response.headers.get.return_value = 'filename={}'.format('orig_file_name')
-        response.raw.read.side_effect = file_chunks
+        response.raw.read.return_value = iter(file_chunks)
         basews_mock.return_value.get.return_value = response
         with open(file_name, 'w') as f:
-            client.get_file('TEST', 'afile', file=f)
+            client.get_file('TEST', 'afile', destination=f)
         with open(file_name, 'r') as f:
             self.assertEquals(expected_content, f.read())
         os.remove(file_name)
@@ -133,7 +133,7 @@ class TestCadcDataClient(unittest.TestCase):
         file_chunks.append('') # last chunk is empty
         response = Mock()
         response.headers.get.return_value = 'filename={}.gz'.format(file_name)
-        response.iter_content.side_effect = file_chunks
+        response.iter_content.return_value = iter(file_chunks)
         basews_mock.return_value.get.return_value = response
         client = CadcDataClient(auth.Subject())
         client.get_file('TEST', 'afile', decompress=True)
@@ -151,29 +151,30 @@ class TestCadcDataClient(unittest.TestCase):
         file_chunks.append('') # last chunk is empty
         response = Mock()
         response.headers.get.return_value = 'filename={}.gz'.format(file_name)
-        response.iter_content.side_effect = file_chunks
+        response.iter_content.return_value = iter(file_chunks)
         basews_mock.return_value.get.return_value = response
         client = CadcDataClient(auth.Subject())
-        client.get_file('TEST', 'afile', decompress=True, file='/dev/null',
+        client.logger.setLevel(logging.INFO)
+        client.get_file('TEST', 'afile', decompress=True, destination='/dev/null',
                         process_bytes=concatenate_chunks)
         self.assertEquals(file_content, mycontent)
 
         # test get fhead
         response = Mock()
         response.headers.get.return_value = 'filename={}.gz'.format(file_name)
-        response.iter_content.side_effect = file_chunks
+        response.iter_content.return_value = iter(file_chunks)
         get_mock = Mock(return_value=response)
         basews_mock.return_value.get = get_mock
         client.get_file('TEST', 'getfile', decompress=True, wcs=True)
-        get_mock.assert_called_with('/TEST/getfile', params={'wcs': True}, stream=True)
-        response.iter_content.side_effect = file_chunks
+        get_mock.assert_called_with('TEST/getfile', params={'wcs': True}, stream=True)
+        response.iter_content.return_value = iter(file_chunks)
         get_mock.reset_mock()
         client.get_file('TEST', 'getfile', decompress=True, fhead=True)
-        get_mock.assert_called_with('/TEST/getfile', params={'fhead': True}, stream=True)
-        response.iter_content.side_effect = file_chunks
+        get_mock.assert_called_with('TEST/getfile', params={'fhead': True}, stream=True)
+        response.iter_content.return_value = iter(file_chunks)
         get_mock.reset_mock()
         client.get_file('TEST', 'getfile', decompress=True, cutout='[1:1]')
-        get_mock.assert_called_with('/TEST/getfile', params={'cutout': '[1:1]'}, stream=True)
+        get_mock.assert_called_with('TEST/getfile', params={'cutout': '[1:1]'}, stream=True)
 
 
         # test a put
@@ -185,11 +186,11 @@ class TestCadcDataClient(unittest.TestCase):
         put_mock = Mock()
         basews_mock.return_value.put = put_mock
         client.put_file('TEST', 'putfile', file_name)
-        put_mock.assert_called_with('/TEST/putfile', data=ANY, headers={})
+        put_mock.assert_called_with('TEST/putfile', data=ANY, headers={})
 
         # specify an archive stream
         client.put_file('TEST', 'putfile', file_name, archive_stream='default')
-        put_mock.assert_called_with('/TEST/putfile', data=ANY, headers={'X-CADC-Stream':'default'})
+        put_mock.assert_called_with('TEST/putfile', data=ANY, headers={'X-CADC-Stream':'default'})
         os.remove(file_name)
 
         # test an info

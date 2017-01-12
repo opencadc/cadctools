@@ -76,6 +76,8 @@ import logging
 import os
 import os.path
 import sys
+import time
+from clint.textui import progress
 from StringIO import StringIO
 from datetime import datetime
 
@@ -83,7 +85,6 @@ from cadcutils import net, util, exceptions
 from caom2.obs_reader_writer import ObservationReader, ObservationWriter
 from caom2.version import version as caom2_version
 from six.moves.urllib.parse import urlparse
-import zlib
 
 # from . import version as caom2repo_version
 from cadcdata import version
@@ -102,7 +103,7 @@ READ_BLOCK_SIZE=8*1024
 
 logger = logging.getLogger(APP_NAME)
 
-class CadcDataClient:
+class CadcDataClient(object):
 
     """Class to access CADC archival data."""
 
@@ -110,7 +111,7 @@ class CadcDataClient:
 
     def __init__(self, subject, resource_id=DEFAULT_RESOURCE_ID, host=None):
         """
-        Instance of a CAOM2RepoClient
+        Instance of a CadcDataClient
         :param subject: the subject(user) performing the action
         :type subject: Subject
         :param resource_id: The identifier of the service resource (e.g 'ivo://cadc.nrc.ca/data')
@@ -123,30 +124,31 @@ class CadcDataClient:
         resource_url = urlparse(resource_id)
         self.host = host
 
-        agent = "cadc-data-client/{}".format(version.version)
+        agent = "{}/{}".format(APP_NAME, version.version)
 
-        self._repo_client = net.BaseWsClient(resource_id, subject,
+        self._data_client = net.BaseWsClient(resource_id, subject,
                                              agent, retry=True, host=self.host)
-        self.logger.info('Service URL: {}'.format(self._repo_client.base_url))
+        self.logger.info('Service URL: {}'.format(self._data_client.base_url))
 
 
-    def get_file(self, archive, file_id, file=None, decompress=False,
+    def get_file(self, archive, file_id, destination=None, decompress=False,
                  cutout=None, fhead=False, wcs=False, process_bytes=None):
         """
         Get a file from an archive. The entire file is delivered unless the cutout argument
          is present specifying a cutout to extract from the file.
         :param archive: name of the archive containing the file
         :param file_id: the ID of the file to retrieve
-        :param file: file to save data to (file or file_name). If None, it uses the response
-        content disposition to determine the name of the destination file
-        :param cutout: perform cutout operation on the file before the result is delivered
+        :param destination: file to save data to (file, file_name, stream or anything
+        that supports open/close and write). If None, the file is saved localy with the
+        name provided by the content disposion received from the service.
+        :param cutout: the arguments of cutout operation to be performed by the service
         :param wcs: True if the wcs is to be included with the file
         :param process_bytes: function to be applied to the received bytes
         :return: the data stream object
         """
         assert archive is not None
         assert file_id is not None
-        resource = '/{}/{}'.format(archive, file_id)
+        resource = '{}/{}'.format(archive, file_id)
         params = {}
         if fhead:
             params['fhead'] = fhead
@@ -155,46 +157,55 @@ class CadcDataClient:
         if cutout:
             params['cutout'] = cutout
         self.logger.debug('GET '.format(resource))
-        response = self._repo_client.get(resource, stream=True, params=params)
-        if file is not None:
-            if not hasattr(file, 'read'):
-                # got a file name?
-                with open(file, 'w') as f:
-                    self._save_bytes(response, f, decompress, process_bytes)
+        response = self._data_client.get(resource, stream=True, params=params)
+        if destination is not None:
+            if not hasattr(destination, 'read'):
+                # got a destination name?
+                with open(destination, 'wb') as f:
+                    self._save_bytes(response, f, resource,
+                                     decompress=decompress, process_bytes=process_bytes)
             else:
-                self._save_bytes(response, file, decompress, process_bytes)
+                self._save_bytes(response, destination, resource,
+                                 decompress=decompress, process_bytes=process_bytes)
         else:
-            # get the file name from the content disposition
+            # get the destination name from the content disposition
             content_disp = response.headers.get('content-disposition', '')
-            file = file_id
+            destination = file_id
             for content in content_disp.split():
                 if 'filename=' in content:
-                    file = content[9:]
-            if file.endswith('gz') and decompress:
-                file = os.path.splitext(file)[0]
-            self.logger.debug('Using content disposition file name: {}'.format(file))
-            with open(file, 'w') as f:
-                self._save_bytes(response, f, decompress, process_bytes)
-        self.logger.debug('Successfully saved file\n')
+                    destination = content[9:]
+            if destination.endswith('gz') and decompress:
+                destination = os.path.splitext(destination)[0]
+            self.logger.debug('Using content disposition destination name: {}'.format(destination))
+            with open(destination, 'w') as f:
+                self._save_bytes(response, f, resource,
+                                 decompress=decompress, process_bytes=process_bytes)
 
-
-    def _save_bytes(self, response, file, decompress=False, process_bytes=None):
+    def _save_bytes(self, response, file, resource, decompress=False, process_bytes=None):
         # requests automatically decompresses the data. Tell it to do it only if it had to
+        total_length = 0
+        try:
+            total_length = int(response.headers.get('content-length'))
+        except ValueError as e:
+            pass
         if not decompress:
-            chunk = response.raw.read(READ_BLOCK_SIZE)
-            while len(chunk) > 0:
-                if process_bytes is not None:
-                    process_bytes(chunk)
-                file.write(chunk)
-                chunk = response.raw.read(READ_BLOCK_SIZE)
+            reader = response.raw.read
         else:
-            chunk = response.iter_content(READ_BLOCK_SIZE)
-            while len(chunk) > 0:
-                if process_bytes is not None:
-                    process_bytes(chunk)
-                file.write(chunk)
-                chunk = response.iter_content(READ_BLOCK_SIZE)
-
+            reader = response.iter_content
+        if self.logger.isEnabledFor(logging.INFO):
+            chunks = progress.bar(reader(READ_BLOCK_SIZE),
+                      expected_size=(total_length / READ_BLOCK_SIZE) + 1)
+        else:
+            chunks = reader(chunk_size=READ_BLOCK_SIZE)
+        start = time.time()
+        for chunk in chunks:
+            if process_bytes is not None:
+                process_bytes(chunk)
+            file.write(chunk)
+            file.flush()
+        duration = time.time() - start
+        self.logger.info('Successfully downloaded archive/fileID {} in {}s (avg. speed: {}Mb/s)'.format(
+            resource, int(duration), round(total_length/1024/1024/duration, 2)))
 
     def put_file(self, archive, file_id, file, archive_stream=None):
         """
@@ -206,13 +217,13 @@ class CadcDataClient:
         """
         assert archive is not None
         assert file_id is not None
-        resource = '/{}/{}'.format(archive, file_id)
+        resource = '{}/{}'.format(archive, file_id)
         self.logger.debug('PUT {}'.format(resource))
         headers = {}
         if archive_stream is not None:
             headers[ARCHIVE_STREAM_HTTP_HEADER] = str(archive_stream)
         with open(file, 'rb') as f:
-            self._repo_client.put(resource, headers=headers, data=f)
+            self._data_client.put(resource, headers=headers, data=f)
         self.logger.debug('Successfully updated file\n')
 
 
@@ -227,19 +238,22 @@ class CadcDataClient:
         assert file_id is not None
         resource = '/{}/{}'.format(archive, file_id)
         self.logger.debug('HEAD {}'.format(resource))
-        response = self._repo_client.head(resource)
+        response = self._data_client.head(resource)
         h = response.headers
+        hmap = {'name':'Content-Disposition',
+                'size':'Content-Length',
+                'md5sum':'Content-MD5',
+                'type':'Content-Type',
+                'encoding':'Content-Encoding',
+                'lastmod':'Last-Modified',
+                'usize':'X-Uncompressed-Length',
+                'umd5sum':'X-Uncompressed-MD5'}
         file_info = {}
         file_info['id'] = file_id
         file_info['archive'] = archive
-        file_info['name'] = h.get('Content-Disposition', '').replace('inline; filename=', '')
-        file_info['size'] = h.get('Content-Length', None)
-        file_info['md5sum'] = h.get('Content-MD5', None)
-        file_info['type'] = h.get('Content-Type', None)
-        file_info['encoding'] = h.get('Content-Encoding', None)
-        file_info['lastmod'] = h.get('Last-Modified', None)
-        file_info['usize'] = h.get('X-Uncompressed-Length', None)
-        file_info['umd5sum'] = h.get('X-Uncompressed-MD5', None)
+        for key in hmap:
+            file_info[key] = h.get(hmap[key], None)
+        file_info['name'] = file_info['name'].replace('inline; filename=', '')
         #TODOfile_info['ingest_date'] = h[?]
         self.logger.debug("File info: {}".format(file_info))
         return file_info
@@ -332,7 +346,7 @@ def main_app():
     else:
         logging.basicConfig(level=logging.WARN)
 
-    subject = net.Subject.get_subject(args)
+    subject = net.Subject.from_cmd_line_args(args)
 
     client = CadcDataClient(subject, args.resourceID, host=args.host)
     try:

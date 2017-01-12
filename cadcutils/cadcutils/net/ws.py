@@ -157,7 +157,7 @@ class BaseWsClient(object):
         if self.host is None:
             self.host = url.netloc
         else:
-            self.host.strip('/')
+            self.host = self.host.strip('/')
 
         # Unless the caller specifically requests an anonymous client,
         # check first for a certificate, then an externally created
