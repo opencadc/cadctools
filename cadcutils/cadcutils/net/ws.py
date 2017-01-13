@@ -72,6 +72,7 @@ import os
 import sys
 import time
 import platform
+from six.moves.urllib.parse import urlparse
 
 import requests
 from requests import Session
@@ -206,7 +207,9 @@ class BaseWsClient(object):
             401: exceptions.UnauthorizedException()}
 
     def post(self, resource=None, **kwargs):
-        """Wrapper for POST so that we use this client's session"""
+        """Wrapper for POST so that we use this client's session
+        TODO: change argument resource to feature and add path argument to all the functions
+        """
         return self._get_session().post(self._get_url(resource), **kwargs)
 
     def put(self, resource=None, **kwargs):
@@ -228,6 +231,13 @@ class BaseWsClient(object):
     def _get_url(self, resource):
         if resource is None:
             return self.base_url
+        # try to determine if it is a full url, in which case just return it
+        url = urlparse(resource)
+        if len(url.scheme) > 0:
+            return resource
+        #TODO remove this in reg story
+        if resource == 'transfer':
+            return '{}/{}'.format(self.base_url.replace('pub', ''), resource)
 
         if str(resource).startswith('/'):
             return self.base_url + str(resource)
@@ -317,7 +327,7 @@ class RetrySession(Session):
                     return response
                 except requests.HTTPError as e:
                     if e.response.status_code not in self.retry_errors:
-                        raise e
+                        raise exceptions.HttpException(e)
                     current_error = e
                     if e.response.status_code == requests.codes.unavailable:
                         # is there a delay from the server (Retry-After)?
@@ -338,12 +348,12 @@ class RetrySession(Session):
                     self.logger.debug("Caught exception: {0}".format(ce))
                     if ce.errno != 104:
                         # Only continue trying on a reset by peer error.
-                        raise ce
+                        raise exceptions.HttpException(ce)
                 self.logger.warn("Resending request in {}s ...".format(current_delay))
                 time.sleep(current_delay)
                 num_retries += 1
                 current_delay = min(current_delay*2, MAX_RETRY_DELAY)
-            raise current_error
+            raise exceptions.HttpException(current_error)
         else:
             response = super(RetrySession, self).send(request, **kwargs)
             self.check_status(response)

@@ -77,16 +77,16 @@ import os
 import os.path
 import sys
 import time
+import socket
 from clint.textui import progress
 from StringIO import StringIO
 from datetime import datetime
 
 from cadcutils import net, util, exceptions
-from caom2.obs_reader_writer import ObservationReader, ObservationWriter
-from caom2.version import version as caom2_version
+from cadcdata.transfer import Transfer, TransferReader, TransferReaderError, \
+    TransferWriter, TransferWriterError
 from six.moves.urllib.parse import urlparse
 
-# from . import version as caom2repo_version
 from cadcdata import version
 
 __all__ = ['CadcDataClient']
@@ -119,6 +119,8 @@ class CadcDataClient(object):
         """
 
         self.resource_id = resource_id
+        self._transfer_writer = TransferWriter()
+        self._transfer_reader = TransferReader()
 
         # TODO This is just a temporary hack to be replaced with proper registry lookup functionaliy
         resource_url = urlparse(resource_id)
@@ -157,29 +159,53 @@ class CadcDataClient(object):
         if cutout:
             params['cutout'] = cutout
         self.logger.debug('GET '.format(resource))
-        response = self._data_client.get(resource, stream=True, params=params)
-        if destination is not None:
-            if not hasattr(destination, 'read'):
-                # got a destination name?
-                with open(destination, 'wb') as f:
-                    self._save_bytes(response, f, resource,
-                                     decompress=decompress, process_bytes=process_bytes)
-            else:
-                self._save_bytes(response, destination, resource,
-                                 decompress=decompress, process_bytes=process_bytes)
-        else:
-            # get the destination name from the content disposition
-            content_disp = response.headers.get('content-disposition', '')
-            destination = file_id
-            for content in content_disp.split():
-                if 'filename=' in content:
-                    destination = content[9:]
-            if destination.endswith('gz') and decompress:
-                destination = os.path.splitext(destination)[0]
-            self.logger.debug('Using content disposition destination name: {}'.format(destination))
-            with open(destination, 'w') as f:
-                self._save_bytes(response, f, resource,
-                                 decompress=decompress, process_bytes=process_bytes)
+
+        protocols = self._get_transfer_protocols(archive, file_id)
+        if len(protocols) == 0:
+            raise exceptions.HttpException('No URLs available to access data')
+
+        # get the list of transfer points
+        for protocol in protocols:
+            url = protocol.endpoint
+            if url is None:
+                self.logger.debug(
+                    'No endpoint for URI, skipping.')
+                continue
+            self.logger.debug('GET from URL {}'.format(url))
+            try:
+                response = self._data_client.get(url, stream=True, params=params)
+
+                if destination is not None:
+                    if not hasattr(destination, 'read'):
+                        # got a destination name?
+                        with open(destination, 'wb') as f:
+                            self._save_bytes(response, f, resource,
+                                             decompress=decompress, process_bytes=process_bytes)
+                    else:
+                        self._save_bytes(response, destination, resource,
+                                         decompress=decompress, process_bytes=process_bytes)
+                else:
+                    # get the destination name from the content disposition
+                    content_disp = response.headers.get('content-disposition', '')
+                    destination = file_id
+                    for content in content_disp.split():
+                        if 'filename=' in content:
+                            destination = content[9:]
+                    if destination.endswith('gz') and decompress:
+                        destination = os.path.splitext(destination)[0]
+                    self.logger.debug('Using content disposition destination name: {}'.
+                                      format(destination))
+                    with open(destination, 'w') as f:
+                        self._save_bytes(response, f, resource,
+                                         decompress=decompress, process_bytes=process_bytes)
+                return
+            except (exceptions.HttpException, socket.timeout) as e:
+                # try a different URL
+                self.logger.info('WARN: Cannot retrieve data from {}. Exception: {}'.
+                                 format(url, e))
+                self.logger.warn('Try the next URL')
+                continue
+        raise exceptions.HttpException('Unable to download data from any of the available URLs')
 
     def _save_bytes(self, response, file, resource, decompress=False, process_bytes=None):
         # requests automatically decompresses the data. Tell it to do it only if it had to
@@ -217,15 +243,45 @@ class CadcDataClient(object):
         """
         assert archive is not None
         assert file_id is not None
+
+        # We actually raise an exception here since the web
+        # service will normally respond with a 200 for an
+        # anonymous put, though not provide any endpoints.
+        if self._data_client.subject.anon:
+            raise exceptions.UnauthorizedException('Must be authenticated to put data')
+
         resource = '{}/{}'.format(archive, file_id)
         self.logger.debug('PUT {}'.format(resource))
         headers = {}
         if archive_stream is not None:
             headers[ARCHIVE_STREAM_HTTP_HEADER] = str(archive_stream)
-        with open(file, 'rb') as f:
-            self._data_client.put(resource, headers=headers, data=f)
-        self.logger.debug('Successfully updated file\n')
 
+        protocols = self._get_transfer_protocols(archive, file_id, is_get=False,
+                                                 headers=headers)
+        if len(protocols) == 0:
+            raise exceptions.HttpException('No URLs available to put data to')
+
+        # get the list of transfer points
+        for protocol in protocols:
+            url = protocol.endpoint
+            if url is None:
+                self.logger.debug(
+                    'No endpoint for URI, skipping.')
+                continue
+            self.logger.debug('PUT to URL {}'.format(url))
+
+            try:
+                with open(file, 'rb') as f:
+                    self._data_client.put(resource, headers=headers, data=f)
+                self.logger.debug('Successfully updated file\n')
+                return
+            except (exceptions.HttpException, socket.timeout) as e:
+                # try a different URL
+                self.logger.info('WARN: Cannot put data to {}. Exception: {}'.
+                                 format(url, e))
+                self.logger.warn('Try the next URL')
+                continue
+        raise exceptions.HttpException('Unable to put data from any of the available URLs')
 
     def get_file_info(self, archive, file_id):
         """
@@ -257,6 +313,34 @@ class CadcDataClient(object):
         #TODOfile_info['ingest_date'] = h[?]
         self.logger.debug("File info: {}".format(file_info))
         return file_info
+
+    def _get_transfer_protocols(self, archive, file_id, is_get=True, headers={}):
+        uri_transfer = 'ad:{}/{}'.format(archive, file_id)
+        # Direction-dependent setup
+        if is_get:
+            dir_str = 'from'
+            tran = Transfer(uri_transfer, 'pullFromVoSpace')
+        else:
+            dir_str = 'to'
+            tran = Transfer(uri_transfer, 'pushToVoSpace')
+
+        # obtain list of endpoints by sending a transfer document and
+        # looking at the URLs in the returned document
+        request_xml = self._transfer_writer.write(tran)
+        h = headers
+        h['Content-Type'] = 'text/xml'
+        logger.debug(request_xml)
+        response = self._data_client.post(resource='transfer', data=request_xml,
+                                    headers=h)
+        response_str = response.text.encode('utf-8')
+
+        self.logger.debug('POST had {} redirects'.format(len(response.history)))
+        self.logger.debug('Response code: {}, URL: {}'.format(
+                          response.status_code, response.url))
+        self.logger.debug('Full XML response:\n{}'.format(response_str))
+
+        tran = self._transfer_reader.read(response_str)
+        return tran.protocols
 
 def handle_error(msg, exit=True):
     """

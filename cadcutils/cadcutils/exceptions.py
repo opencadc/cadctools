@@ -69,7 +69,17 @@ from __future__ import (absolute_import, division, print_function,
 __all__ = ['UnauthorizedException']
 
 
-class UnauthorizedException(Exception):
+class HttpException(Exception):
+    """
+    Generic HTTP exception that is the base class of all the other
+    HTTP related exceptions
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        self.msg = msg
+        self.orig_exception = orig_exception
+
+
+class UnauthorizedException(HttpException):
     """User requires authentication to perform the requested action.
     Attributes:
         msg  -- explanation of why the specific transition is not allowed
@@ -79,7 +89,7 @@ class UnauthorizedException(Exception):
         self.orig_exception = orig_exception
 
 
-class ForbiddenException(Exception):
+class ForbiddenException(HttpException):
     """Authenticated user is not authorized to perform an action.
     Attributes:
         msg  -- explanation of why the specific transition is not allowed
@@ -89,7 +99,7 @@ class ForbiddenException(Exception):
         self.orig_exception = orig_exception
 
 
-class NotFoundException(Exception):
+class NotFoundException(HttpException):
     """Resource not found.
     Attributes:
         msg
@@ -99,7 +109,7 @@ class NotFoundException(Exception):
         self.orig_exception = orig_exception
 
 
-class BadRequestException(Exception):
+class BadRequestException(HttpException):
     """Operation is not permitted or the argument is illegal
     Attributes:
         msg
@@ -109,7 +119,7 @@ class BadRequestException(Exception):
         self.orig_exception = orig_exception
 
 
-class AlreadyExistsException(Exception):
+class AlreadyExistsException(HttpException):
     """Resource already exists
     Attributes:
         msg
@@ -119,7 +129,7 @@ class AlreadyExistsException(Exception):
         self.orig_exception = orig_exception
 
 
-class ByteLimitException(Exception):
+class ByteLimitException(HttpException):
     """Request is too large
     Attributes:
         msg
@@ -129,7 +139,7 @@ class ByteLimitException(Exception):
         self.orig_exception = orig_exception
 
 
-class InternalServerException(Exception):
+class InternalServerException(HttpException):
     """Server encounters an internal error
     Attributes:
         msg
@@ -139,7 +149,7 @@ class InternalServerException(Exception):
         self.orig_exception = orig_exception
 
 
-class UnexpectedException(Exception):
+class UnexpectedException(HttpException):
     """Unexpected error
     Attributes:
         msg

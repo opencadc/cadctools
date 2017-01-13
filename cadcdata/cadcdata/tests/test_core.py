@@ -81,6 +81,8 @@ from datetime import datetime
 import gzip
 import requests
 from cadcutils.net import auth
+from cadcutils import exceptions
+from cadcdata import transfer
 from cadcdata import CadcDataClient
 from cadcdata.core import main_app
 from mock import Mock, patch, MagicMock, ANY, call
@@ -101,7 +103,8 @@ class TestCadcDataClient(unittest.TestCase):
     """Test the CadcDataClient class"""
 
     @patch('cadcdata.core.net.BaseWsClient')
-    def test_get_file(self, basews_mock):
+    @patch('cadcdata.core.TransferReader')
+    def test_get_file(self, trans_reader_mock, basews_mock):
         # test a simple get - no decompress
         file_name = '/tmp/afile.txt'
         file_chunks = ['aaaa', 'bbbb', '']
@@ -110,6 +113,14 @@ class TestCadcDataClient(unittest.TestCase):
         response.raw.read.return_value = iter(file_chunks) #read returns an iter
         basews_mock.return_value.get.return_value = response
         client = CadcDataClient(auth.Subject())
+        with self.assertRaises(exceptions.HttpException):
+            # no URLs returned in the transfer negotiations
+            client.get_file('TEST', 'afile', destination=file_name)
+        t = transfer.Transfer('ad:TEST/afile', 'pullFromVoSpace')
+        p = transfer.Protocol
+        p.endpoint = Mock()
+        t.protocols = [p]
+        trans_reader_mock.return_value.read.return_value = t
         client.get_file('TEST', 'afile', destination=file_name)
         expected_content = ''.join(file_chunks)
         with open(file_name, 'r') as f:
@@ -165,17 +176,21 @@ class TestCadcDataClient(unittest.TestCase):
         response.iter_content.return_value = iter(file_chunks)
         get_mock = Mock(return_value=response)
         basews_mock.return_value.get = get_mock
+        fileid = 'getfile'
+        archive = 'TEST'
+        p = MagicMock()
+        p.endpoint = 'http://someurl/transfer/{}/{}'.format(archive, fileid)
+        t.protocols = [p]
         client.get_file('TEST', 'getfile', decompress=True, wcs=True)
-        get_mock.assert_called_with('TEST/getfile', params={'wcs': True}, stream=True)
+        get_mock.assert_called_with(p.endpoint, params={'wcs': True}, stream=True)
         response.iter_content.return_value = iter(file_chunks)
         get_mock.reset_mock()
         client.get_file('TEST', 'getfile', decompress=True, fhead=True)
-        get_mock.assert_called_with('TEST/getfile', params={'fhead': True}, stream=True)
+        get_mock.assert_called_with(p.endpoint, params={'fhead': True}, stream=True)
         response.iter_content.return_value = iter(file_chunks)
         get_mock.reset_mock()
         client.get_file('TEST', 'getfile', decompress=True, cutout='[1:1]')
-        get_mock.assert_called_with('TEST/getfile', params={'cutout': '[1:1]'}, stream=True)
-
+        get_mock.assert_called_with(p.endpoint, params={'cutout': '[1:1]'}, stream=True)
 
         # test a put
         file_name = '/tmp/putfile.txt'
@@ -185,6 +200,9 @@ class TestCadcDataClient(unittest.TestCase):
             f.write(file_content)
         put_mock = Mock()
         basews_mock.return_value.put = put_mock
+        with self.assertRaises(exceptions.UnauthorizedException):
+            client.put_file('TEST', 'putfile', file_name)
+        client._data_client.subject.anon = False # authenticate the user
         client.put_file('TEST', 'putfile', file_name)
         put_mock.assert_called_with('TEST/putfile', data=ANY, headers={})
 

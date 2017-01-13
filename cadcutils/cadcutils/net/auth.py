@@ -188,7 +188,6 @@ class Subject(object):
                 return self._hosts_auth[realm]
             sys.stdout.write("Password for {}@{}: ".format(self.username, realm))
             self._hosts_auth[realm] = (self.username, getpass.getpass().strip('\n'))
-            self._hosts_auth[realm] = (self.username, getpass.getpass().strip('\n'))
             return self._hosts_auth[realm]
 
 

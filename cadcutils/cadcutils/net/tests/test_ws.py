@@ -76,6 +76,7 @@ from six.moves.urllib.parse import urlparse
 
 from cadcutils.net import ws, auth
 from cadcutils.net.ws import DEFAULT_RETRY_DELAY, MAX_RETRY_DELAY, MAX_NUM_RETRIES, SERVICE_RETRY
+from cadcutils import exceptions
 
 
 class TestWs(unittest.TestCase):
@@ -320,7 +321,7 @@ class TestRetrySession(unittest.TestCase):
             http_errors.append(ce)
             i += 1
         send_mock.side_effect = http_errors
-        with self.assertRaises(requests.ConnectionError):
+        with self.assertRaises(exceptions.HttpException):
             rs.send(request)
 
         # return the connection error other than 104 - connection reset by peer
@@ -330,7 +331,7 @@ class TestRetrySession(unittest.TestCase):
         ce = requests.exceptions.ConnectionError()  # connection error that triggers retries
         ce.errno = 105
         send_mock.side_effect = ce
-        with self.assertRaises(requests.ConnectionError):
+        with self.assertRaises(exceptions.HttpException):
             rs.send(request)
 
         # return HttpError 503 with Retry-After
@@ -389,7 +390,7 @@ class TestRetrySession(unittest.TestCase):
         he.response = requests.Response()
         he.response.status_code = requests.codes.internal_server_error
         send_mock.side_effect = he
-        with self.assertRaises(requests.HTTPError):
+        with self.assertRaises(exceptions.HttpException):
             rs.send(request)
 
 # TODO By default, internet tests fail. They only succeed when test with --remote-data flag.
