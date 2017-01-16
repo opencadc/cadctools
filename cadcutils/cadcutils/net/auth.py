@@ -69,23 +69,135 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import getpass
-import netrc
+import netrc as netrclib
 import argparse
 import os
 import signal
 import sys
 import requests
+import logging
 
 CERT_ENDPOINT = "/cred/proxyCert"
 CERT_SERVER = "www.canfar.phys.uvic.ca"
 
-__all__ = ['get_cert', 'get_user_password']
+__all__ = ['get_cert', 'Subject']
 
 
-def get_cert(cert_server=None,
+class Subject(object):
+    """
+    Class that stores user authentication information. For now, it includes: username,
+        X509 certificate file or netrc file that stores user/password.
+    """
+
+    def __init__(self, username=None, certificate=None, netrc=False):
+        """
+            The subject is anonymous if neither of this arguments is set
+        :param username: user name
+        :param certificate: name of the X509 certificate file
+        :param netrc: use information from .netrc. Value can be True (use default $HOME/.netrc)
+                    or the name of the netrc file to use.
+        """
+        self.logger = logging.getLogger('Subject')
+        self.username = username
+        self._hosts_auth = {}
+        self._certificate = None
+        self.certificate = certificate
+        self._netrc = None
+        self.netrc = netrc
+
+
+    @property
+    def certificate(self):
+        """
+        X509 certificate associated with the subject
+        :return: name of the X509 certificate file
+        """
+        return self._certificate
+
+    @certificate.setter
+    def certificate(self, value):
+        if value is not None:
+            assert value is not '' and os.path.isfile(value)
+            self._certificate = value
+
+    @property
+    def netrc(self):
+        """
+        netrc file containing user/passwds credentials (if used by subject)
+        :return: Name of netrc file
+        """
+        return self._netrc
+
+    @netrc.setter
+    def netrc(self, value):
+        if value is not False:
+            hosts = netrclib.netrc(value if value is not True else None).hosts
+            if value is True:
+                self._netrc = os.path.join(os.environ['HOME'], ".netrc")
+            else:
+                self._netrc = value
+            for host_name in hosts:
+                self._hosts_auth[host_name] = (hosts[host_name][0], hosts[host_name][2])
+
+    @property
+    def anon(self):
+        """
+        Is this an anonymous subject (has no authentication means)?
+        :return:
+        """
+        return (self.certificate is None) and (self.netrc is None) \
+        and (self.username is None)
+
+    @staticmethod
+    def from_cmd_line_args(args):
+        """
+        Instantiates a subject based on attributes of a command line. It works with the base parser in cadcutils.
+        and uses the following command line arguments:
+            args.user: username
+            args.cert: x509 certificate location
+            args.n: use netrc files for authentication info
+            args.netrc_file: use this netrc file for authentication info
+        :param args: argparse command line arguments
+        :return: corresponding subject
+        """
+        return Subject(username=args.user, certificate=args.cert,
+                       netrc=(args.netrc_file if args.netrc_file is not None else args.n))
+
+    def get_auth(self, realm):
+        """
+        Returns a user/password touple for the given realm. Note that this function prompts for the
+        password on stdout when the username of the subject is known but no correponding password can be found
+
+        :param realm: realm for the authentication
+        :return: (username, password) touple or None if subject is anonymous or password not found.
+        """
+        if self.anon:
+            return None
+        if self.username is None:
+            if realm in self._hosts_auth:
+                return self._hosts_auth[realm]
+            else:
+                msg = 'No user/password for {}'.format(realm)
+                if self.netrc is not False:
+                    msg = '{} in {}'.format(msg, self.netrc if self.netrc is not True else '$HOME/.netrc')
+                self.logger.error(msg)
+                return None
+        else:
+            if realm in self._hosts_auth \
+                    and self.username == self._hosts_auth[realm][0]:
+                return self._hosts_auth[realm]
+            sys.stdout.write("Password for {}@{}: ".format(self.username, realm))
+            self._hosts_auth[realm] = (self.username, getpass.getpass().strip('\n'))
+            return self._hosts_auth[realm]
+
+
+def get_cert(subject, cert_server=None,
              cert_endpoint=None, **kwargs):
-    """Access the cadc certificate server.
+    """Access the CADC Certificate Delegation Protocol (CDP) server and retrieve
+       a X509 proxy certificate.
 
+    :param: subject: subject performing the action
+    :ptype: cadcutils.subject
     :param cert_server: the http server that will provide the certificate
     :ptype cert_server: str
     :param cert_endpoint: the endpoint on the server where the certificate service is
@@ -99,35 +211,17 @@ def get_cert(cert_server=None,
 
     cert_server = cert_server is None and CERT_SERVER or cert_server
     cert_endpoint = cert_endpoint is None and CERT_ENDPOINT or cert_endpoint
+    if subject.username is None:
+        sys.stdout.write("CADC user ID: ")
+        subject.username = sys.stdin.readline().strip('\n')
 
-    username, passwd = get_user_password(cert_server)
+    username, passwd = subject.get_auth(cert_server)
 
     url = "http://{0}/{1}".format(cert_server, cert_endpoint)
     resp = requests.get(url, params=kwargs, auth=(username, passwd))
     resp.raise_for_status()
+    logging.getLogger('get_Cert').debug('Saved user {} certificate'.format(username))
     return resp.content
-
-
-def get_user_password(realm):
-    """"Gett the username/password for realm from .netrc file or prompt the user
-
-    :param realm: the server realm this user/password combination is for
-    :ptype realm: str
-    :return (username, password)
-    """
-    if os.access(os.path.join(os.environ.get('HOME', '/'), ".netrc"), os.R_OK):
-        auth = netrc.netrc().authenticators(realm)
-    else:
-        auth = False
-    if not auth:
-        sys.stdout.write("{0} Username: ".format(realm))
-        username = sys.stdin.readline().strip('\n')
-        password = getpass.getpass().strip('\n')
-    else:
-        username = auth[0]
-        password = auth[2]
-    return username, password
-
 
 def get_cert_main():
     """ Client to download an X509 certificate and save it in users home directory"""
@@ -145,13 +239,15 @@ def get_cert_main():
                                                   ".netrc  matching the realm {0}, the user is prompted for a username "
                                                   "and password if no entry is found.".format(CERT_SERVER)))
 
-    parser.add_argument('--daysValid', type=int, default=10, help='Number of days the certificate should be valid.')
     parser.add_argument('--cert-filename',
                         default=os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'),
                         help="Filesystem location to store the proxy certificate.")
     parser.add_argument('--cert-server',
                         default=CERT_SERVER,
                         help="Certificate server network address.")
+    parser.add_argument('--daysValid', type=int, default=10, help='Number of days the certificate should be valid.')
+    parser.add_argument('-u', '--user', type=str, help='CADC user ID associated with the certificate',
+                        required=False)
 
     args = parser.parse_args()
 
@@ -171,10 +267,8 @@ def get_cert_main():
     retry = True
     while retry:
         try:
-            # if args.cert_filename is None:
-            #    cert_filename = os.path.join(os.getenv("HOME", "/tmp"), ".ssl/cadcproxy.pem")
-
-            cert = get_cert(cert_server=args.cert_server,
+            subject = Subject(netrc=True, username=args.user)
+            cert = get_cert(subject, cert_server=args.cert_server,
                             daysValid=args.daysValid)
             with open(args.cert_filename, 'w') as w:
                 w.write(cert)

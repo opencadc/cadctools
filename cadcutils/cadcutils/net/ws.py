@@ -68,7 +68,6 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
-import os
 import sys
 import time
 import platform
@@ -78,7 +77,6 @@ from requests import Session
 from six.moves.urllib.parse import urlparse
 
 from cadcutils import exceptions
-from . import auth
 from .. import version as cadctools_version
 
 __all__ = ['BaseWsClient']
@@ -100,14 +98,15 @@ except:
 class BaseWsClient(object):
     """Web Service client primarily for CADC services"""
 
-    def __init__(self, resource_id, agent, anon=True, cert_file=None, retry=True, host=None):
+    def __init__(self, resource_id, subject, agent, retry=True, host=None):
         """
         Client constructor
-        :param anon  -- anonymous access or not. If not anonymous and
-        cert_file present, use it otherwise use basic authentication
-        :param agent -- Name of the agent (application) that accesses the service
-        :param cert_file -- location of the X509 certificate file.
         :param resource_id -- ID of the resource being accessed (URI format)
+        :param subject -- The subject that is using the service
+        :type subject: cadcutil.auth.Subject
+        :param agent -- Name of the agent (application) that accesses the service
+        :type agent: Subject
+        :param retry -- True if the client retries on transient errors False otherwise
         :param host -- override the name of the host the service is running on (for testing purposes)
 
         """
@@ -120,9 +119,7 @@ class BaseWsClient(object):
             raise ValueError('agent is None or empty string')
 
         self._session = None
-        self.certificate_file_location = None
-        self.basic_auth = None
-        self.anon = None
+        self.subject = subject
         self.retry = retry
         self.host = host
 
@@ -140,7 +137,7 @@ class BaseWsClient(object):
         self.system_info = "{}/{}".format(platform.system(), platform.version())
         o_s = sys.platform
         if o_s.lower().startswith('linux'):
-            distname, version, id = platform.linux_distribution()
+            distname, version, osid = platform.linux_distribution()
             self.os_info = "{} {}".format(distname, version)
         elif o_s == "darwin":
             release, version, machine = platform.mac_ver()
@@ -158,29 +155,11 @@ class BaseWsClient(object):
         if self.host is None:
             self.host = url.netloc
         else:
-            self.host.strip('/')
+            self.host = self.host.strip('/')
 
         # Unless the caller specifically requests an anonymous client,
         # check first for a certificate, then an externally created
         # HTTPBasicAuth object, and finally a name+password in .netrc.
-        # TODO this should be read from the capabilities of the service
-        if not anon:
-            if (cert_file is not None) and (cert_file is not ''):
-                if os.path.isfile(cert_file):
-                    self.certificate_file_location = cert_file
-                else:
-                    logging.warn("Unable to open supplied certfile ({}). Ignoring."
-                                 .format(cert_file))
-            else:
-                self.basic_auth = auth.get_user_password(self.host)
-        else:
-            self.anon = True
-
-        self.logger.debug(
-            "Client anonymous: {}, certfile: {}, name: {}".format(
-                str(self.anon), str(self.certificate_file_location),
-                str((self.basic_auth is not None) and (self.basic_auth[0]))))
-
         # TODO The service URL needs to be discoverable based on the URI/URL of the service with the
         # following steps:
         # 1. Download the configuration of services at the service provider and get the URL for the capabilities
@@ -193,15 +172,15 @@ class BaseWsClient(object):
         # Clients will probably append a specific service
         if self.service == u'sc2repo':
             self.base_url = '{}://{}/{}/{}'.format(
-                'https' if self.certificate_file_location is not None else 'http',
+                'https' if self.subject.certificate is not None else 'http',
                 self.host, self.service,
-                'auth-observations' if self.basic_auth is not None else 'observations')
+                'auth-observations' if self.subject.get_auth(host) is not None else 'observations')
         else:
-            if self.anon:
+            if self.subject.anon:
                 self.protocol = 'http'
-                self.base_url = '{}://{}/{}'.format(self.protocol, self.host, self.service)
+                self.base_url = '{}://{}/{}/pub'.format(self.protocol, self.host, self.service)
             else:
-                if self.certificate_file_location:
+                if self.subject.certificate:
                     self.protocol = 'https'
                     self.base_url = '{}://{}/{}/pub'.format(self.protocol, self.host, self.service)
                 else:
@@ -225,7 +204,9 @@ class BaseWsClient(object):
             401: exceptions.UnauthorizedException()}
 
     def post(self, resource=None, **kwargs):
-        """Wrapper for POST so that we use this client's session"""
+        """Wrapper for POST so that we use this client's session
+        TODO: change argument resource to feature and add path argument to all the functions
+        """
         return self._get_session().post(self._get_url(resource), **kwargs)
 
     def put(self, resource=None, **kwargs):
@@ -247,6 +228,13 @@ class BaseWsClient(object):
     def _get_url(self, resource):
         if resource is None:
             return self.base_url
+        # try to determine if it is a full url, in which case just return it
+        url = urlparse(resource)
+        if len(url.scheme) > 0:
+            return resource
+        # TODO remove this in reg story
+        if resource == 'transfer':
+            return '{}/{}'.format(self.base_url.replace('pub', ''), resource)
 
         if str(resource).startswith('/'):
             return self.base_url + str(resource)
@@ -261,11 +249,11 @@ class BaseWsClient(object):
         if self._session is None:
             self.logger.debug('Creating session.')
             self._session = RetrySession(self.retry)
-            if self.certificate_file_location is not None:
-                self._session.cert = (self.certificate_file_location, self.certificate_file_location)
+            if self.subject.certificate is not None:
+                self._session.cert = (self.subject.certificate, self.subject.certificate)
             else:
-                if self.basic_auth is not None:
-                    self._session.auth = self.basic_auth
+                if self.subject.get_auth(self.host) is not None:
+                    self._session.auth = self.subject.get_auth(self.host)
 
         user_agent = "{} {} {} {} ({})".format(self.agent, self.package_info, self.python_info,
                                                self.system_info, self.os_info)
@@ -332,11 +320,11 @@ class RetrySession(Session):
             while num_retries < MAX_NUM_RETRIES:
                 try:
                     response = super(RetrySession, self).send(request, **kwargs)
-                    response.raise_for_status()
+                    self.check_status(response)
                     return response
                 except requests.HTTPError as e:
                     if e.response.status_code not in self.retry_errors:
-                        raise e
+                        raise exceptions.HttpException(e)
                     current_error = e
                     if e.response.status_code == requests.codes.unavailable:
                         # is there a delay from the server (Retry-After)?
@@ -357,13 +345,40 @@ class RetrySession(Session):
                     self.logger.debug("Caught exception: {0}".format(ce))
                     if ce.errno != 104:
                         # Only continue trying on a reset by peer error.
-                        raise ce
+                        raise exceptions.HttpException(ce)
                 self.logger.warn("Resending request in {}s ...".format(current_delay))
                 time.sleep(current_delay)
                 num_retries += 1
                 current_delay = min(current_delay*2, MAX_RETRY_DELAY)
-            raise current_error
+            raise exceptions.HttpException(current_error)
         else:
             response = super(RetrySession, self).send(request, **kwargs)
-            response.raise_for_status()
+            self.check_status(response)
             return response
+
+    def check_status(self, response):
+        """
+        Check the response status. Maps the application related requests error status into Exceptions
+        and raises the others
+        :param response: response
+        :return:
+        """
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as e:
+            if e.response.status_code == requests.codes.not_found:
+                raise exceptions.NotFoundException(orig_exception=e)
+            elif e.response.status_code == requests.codes.unauthorized:
+                raise exceptions.UnauthorizedException(orig_exception=e)
+            elif e.response.status_code == requests.codes.forbidden:
+                raise exceptions.ForbiddenException(orig_exception=e)
+            elif e.response.status_code == requests.codes.bad_request:
+                raise exceptions.BadRequestException(orig_exception=e)
+            elif e.response.status_code == requests.codes.conflict:
+                raise exceptions.AlreadyExistsException(orig_exception=e)
+            elif e.response.status_code == requests.codes.internal_server_error:
+                raise exceptions.InternalServerException(orig_exception=e)
+            elif e.response.status_code in self.retry_errors:
+                raise e
+            else:
+                raise exceptions.UnexpectedException(orig_exception=e)

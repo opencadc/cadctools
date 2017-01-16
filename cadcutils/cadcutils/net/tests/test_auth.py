@@ -76,6 +76,7 @@ from mock import Mock, patch, mock_open
 from six import StringIO
 
 from cadcutils.net import auth
+from cadcutils.util import get_base_parser
 
 
 class MyExitError(Exception):
@@ -86,39 +87,11 @@ class TestAuth(unittest.TestCase):
 
     """ Class for testing networking authorization functionality """
 
-    @patch('cadcutils.net.auth.os', Mock())
-    @patch('cadcutils.net.auth.sys.stdout', Mock())
-    @patch('cadcutils.net.auth.getpass')
-    @patch('cadcutils.net.auth.sys.stdin')
-    @patch('cadcutils.net.auth.netrc')
-    def test_user_password(self, netrc_mock, stdin_mock, getpass_mock):
-        """ Test get-cert functionality """
-
-        # .netrc first
-        netrc_mock.netrc.return_value.authenticators.return_value = ['usr', 'account', 'passwd']
-        realm = "www.canfar.phys.uvic.ca"
-        self.assertEqual(('usr', 'passwd'), auth.get_user_password(realm))
-
-        # prompt
-        netrc_mock.netrc.return_value.authenticators.return_value = False
-        stdin_mock.readline.return_value = 'promptusr\n'
-        getpass_mock.getpass.return_value = 'promptpasswd\n'
-        self.assertEqual(('promptusr', 'promptpasswd'), auth.get_user_password(realm))
-
-    @patch('cadcutils.net.auth.get_user_password', Mock(return_value=['usr', 'passwd']))
-    @patch('cadcutils.net.auth.requests')
-    def test_get_cert(self, requests_mock):
-        """ Test get_cert functionality """
-        response = Mock()
-        response.content = 'CERT CONTENT'
-        requests_mock.get.return_value = response
-
-        self.assertEqual(response.content, auth.get_cert())
 
     @patch('cadcutils.net.auth.get_cert', Mock(return_value='CERTVALUE'))
     @patch('sys.exit', Mock(side_effect=[MyExitError]))
     def test_get_cert_main(self):
-        """ Test the help option of the cadc-get-cert app """
+        """ Test the cert_main function """
 
         value = "CERTVALUE"
 
@@ -127,7 +100,7 @@ class TestAuth(unittest.TestCase):
         with patch('six.moves.builtins.open', m, create=True):
             sys.argv = ["cadc-get-cert"]
             auth.get_cert_main()
-        m.assert_called_once_with(os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'), 'w')
+        m.assert_called_with(os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'), 'w')
         handle = m()
         handle.write.assert_called_once_with(value)
 
@@ -159,9 +132,9 @@ Expected /tmp/testcertfile to be a directory.
         """ Test the help option of the cadc-get-cert app """
 
         usage =\
-"""usage: cadc-get-cert [-h] [--daysValid DAYSVALID]
-                     [--cert-filename CERT_FILENAME]
-                     [--cert-server CERT_SERVER]
+"""usage: cadc-get-cert [-h] [--cert-filename CERT_FILENAME]
+                     [--cert-server CERT_SERVER] [--daysValid DAYSVALID]
+                     [-u USER]
 
 Retrieve a security certificate for interaction with a Web service such as
 VOSpace. Certificate will be valid for daysValid and stored as local file
@@ -171,19 +144,86 @@ no entry is found.
 
 optional arguments:
   -h, --help            show this help message and exit
-  --daysValid DAYSVALID
-                        Number of days the certificate should be valid.
-                        (default: 10)
   --cert-filename CERT_FILENAME
                         Filesystem location to store the proxy certificate.
                         (default: {})
   --cert-server CERT_SERVER
                         Certificate server network address. (default:
                         www.canfar.phys.uvic.ca)
+  --daysValid DAYSVALID
+                        Number of days the certificate should be valid.
+                        (default: 10)
+  -u USER, --user USER  CADC user ID associated with the certificate (default:
+                        None)
 """.format(os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'))
         # --help
+        self.maxDiff = None  # Display the entire difference
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             sys.argv = ["cadc-get-cert", "--help"]
             with self.assertRaises(MyExitError):
                 auth.get_cert_main()
             self.assertEqual(usage, stdout_mock.getvalue())
+
+    @patch('cadcutils.net.auth.os')
+    def testSubject(self, os_mock):
+        # anon subject
+        subject = auth.Subject()
+        self.assertTrue(subject.anon)
+        self.assertEquals(None, subject.certificate)
+        self.assertEquals({}, subject._hosts_auth)
+        self.assertEquals(None, subject.get_auth('realm1'))
+
+        # cert subject
+        cert = 'somecert'
+        subject = auth.Subject(certificate=cert)
+        self.assertFalse(subject.anon)
+        self.assertEquals(cert, subject.certificate)
+        self.assertEquals({}, subject._hosts_auth)
+        self.assertEquals(None, subject.get_auth('realm1'))
+
+        # empty netrc subject
+        m = mock_open()
+        with patch('__builtin__.open', m, create=True):
+            subject = auth.Subject(netrc='somefile')
+        self.assertFalse(subject.anon)
+        self.assertEquals(None, subject.certificate)
+        self.assertEquals({}, subject._hosts_auth)
+        self.assertEquals(None, subject.get_auth('realm1'))
+
+        # netrc with content
+        netrc_content = {'realm1':('user1', None, 'pass1'), 'realm2':('user1', None, 'pass2')}
+        expected_host_auth = {'realm1':('user1', 'pass1'), 'realm2':('user1', 'pass2')}
+        os_mock.path.join.return_value = '/home/myhome/.netrc'
+        with patch('cadcutils.net.auth.netrclib') as netrclib_mock:
+            netrclib_mock.netrc.return_value.hosts = netrc_content
+            subject = auth.Subject(netrc=True)
+        self.assertFalse(subject.anon)
+        self.assertEquals(None, subject.certificate)
+        self.assertEquals('/home/myhome/.netrc', subject.netrc)
+        self.assertEquals(expected_host_auth, subject._hosts_auth)
+        self.assertEquals(('user1', 'pass1'), subject.get_auth('realm1'))
+        self.assertEquals(('user1', 'pass2'), subject.get_auth('realm2'))
+        self.assertEquals(None, subject.get_auth('realm3'))
+
+        # subject with username
+        username = 'user1'
+        passwd = 'passwd1'
+        subject = auth.Subject(username=username)
+        self.assertFalse(subject.anon)
+        self.assertEquals(None, subject.certificate)
+        self.assertEquals({}, subject._hosts_auth)
+        with patch('cadcutils.net.auth.getpass') as getpass_mock:
+            getpass_mock.getpass.return_value = passwd
+            self.assertEquals((username, passwd), subject.get_auth('realm1'))
+
+
+        parser = get_base_parser(subparsers=False)
+        args = parser.parse_args(['--resourceID', 'blah'])
+        subject = auth.Subject.from_cmd_line_args(args)
+        self.assertTrue(subject.anon)
+
+        sys.argv = ['cadc-client', '--resourceID', 'blah', '--cert', 'mycert.pem']
+        args = parser.parse_args()
+        subject = auth.Subject.from_cmd_line_args(args)
+        self.assertFalse(subject.anon)
+        self.assertEquals('mycert.pem', subject.certificate)

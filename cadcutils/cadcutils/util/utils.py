@@ -70,12 +70,13 @@ import logging
 import os
 import sys
 import inspect
-from argparse import ArgumentParser
+from argparse import ArgumentParser, HelpFormatter, RawDescriptionHelpFormatter
 from datetime import datetime
 from six.moves.urllib.parse import urlparse
+from operator import attrgetter
 
 __all__ = ['IVOA_DATE_FORMAT', 'date2ivoa', 'str2ivoa',
-           'get_logger', 'get_log_level','get_base_parser']
+           'get_logger', 'get_log_level', 'get_base_parser']
 
 # TODO both these are very bad, implement more sensibly
 IVOA_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
@@ -122,7 +123,7 @@ def get_logger(namespace=None, log_level=logging.ERROR):
         frm = inspect.stack()[1]
         mod = inspect.getmodule(frm[0])
         if mod is None:
-            namespace =__name__
+            namespace = __name__
         else:
             namespace = mod.__name__ 
     
@@ -172,43 +173,155 @@ def parse_resource_id(resource_id):
     return resource_id
 
 
-def get_base_parser(version=None, usecert=True, default_resource_id=None):
-    """
-    An ArgumentParser with some common things most CADC clients will want.
 
+############################################################################################
+# Common command line options and customized of format
+############################################################################################
+
+class SingleMetavarHelpFormatter(RawDescriptionHelpFormatter):
+    """
+    Class the customizes the argparse help formatter. It does 2 things:
+        - the display of an option with short and long format is shorter
+            e.g '-o, --output OUTPUT' instead of the default '-o OUTPUT, --output OUTPUT'
+        - options are sorted in alphabetical order in command line usage
+    """
+    def _format_action_invocation(self, action):
+        """
+        Customized version of the function in HelpFormatter to shorten the display of
+        option with long and short options
+        :param action:
+        :return:
+        """
+        if not action.option_strings:
+            metavar, = self._metavar_formatter(action, action.dest)(1)
+            return metavar
+
+        else:
+            parts = []
+
+            # if the Optional doesn't take a value, format is:
+            #    -s, --long
+            if action.nargs == 0:
+                parts.extend(action.option_strings)
+
+            # if the Optional takes a value, format is:
+            #    -s ARGS, --long ARGS
+            else:
+                default = action.dest.upper()
+                args_string = self._format_args(action, default)
+
+                ## THIS IS THE PART REPLACED
+                #~ for option_string in action.option_strings:
+                    #~ parts.append('%s %s' % (option_string, args_string)) ### this is change
+                ## /SECTION REPLACED
+
+                ## NEW CODE:
+                parts.extend(action.option_strings)
+                parts[-1] += ' %s' % args_string
+                ## /NEW CODE
+            return ', '.join(parts)
+
+    def add_arguments(self, actions):
+        """
+        Customized version to sort options in alphabetical order before displaying them
+        :param actions:
+        :return:
+        """
+        actions = sorted(actions, key=attrgetter('dest'))
+        super(SingleMetavarHelpFormatter, self).add_arguments(actions)
+
+
+class _AugmentAction(object):
+    """
+    This automatically adds parents and the formatter class when a new subparser is
+    created in the client code
+    """
+
+    def __init__(self, parser, action):
+        self.action = action
+        self.parser = parser
+
+    def add_parser(self, name, **kwargs):
+        kwargs['parents'] = [self.parser]
+        kwargs['formatter_class'] = SingleMetavarHelpFormatter
+        return self.action.add_parser(name, **kwargs)
+
+
+class _CustomArgParser(ArgumentParser):
+    """
+    Custom arg parses to sort options in alphabetical order before displaying them
+    """
+    def __init__(self, subparsers=True, common_parser=None, **kwargs):
+        self.common_parser = common_parser
+        self.subparsers = subparsers
+        self._subparsers_added = False
+        self.kwargs = kwargs
+        kwargs['formatter_class'] = SingleMetavarHelpFormatter
+        if not self.subparsers:
+            super(_CustomArgParser, self).__init__(parents=[common_parser], **kwargs)
+        else:
+            super(_CustomArgParser, self).__init__(**kwargs)
+
+    def add_subparsers(self, **kwargs):
+        if not self.subparsers:
+            raise RuntimeError('Parser created to run without subparsers')
+        self._subparsers_added = True
+        return _AugmentAction(self.common_parser,
+                        super(_CustomArgParser, self).add_subparsers(**kwargs))
+
+    def parse_args(self, args=None, namespace=None):
+         if self.subparsers and not self._subparsers_added:
+              raise RuntimeError('No subparsers added. Change the parsers flag?')
+         return super(_CustomArgParser, self).parse_args(args=args, namespace=namespace)
+
+
+
+def get_base_parser(subparsers=True, version=None, usecert=True, default_resource_id=None):
+    """
+    An ArgumentParser with some common things most CADC clients will want. There are two
+    modes to use this parser: with or without subparsers. With supbarsers (subparsers=True),
+    separate subparsers are created for each subcommand and the common CADC options show
+    up in each subcommand (and not on the parent parser). Without subparsers (subparsers=False)
+    the common options are automatically added to the base parser.
+
+    :param subparsers: True if the parser will use subparsers (subcommands) otherwise False
     :param version: A version number if desired.
-    :param usecert: If True add '--certfile' argument.
+    :param usecert: If True add '--cert' argument.
     :param default_resource_id: default resource identifier to use
     :return: An ArgumentParser instance.
     """
-    parser = ArgumentParser(add_help=False)
-    if usecert:
-        parser.add_argument('--certfile', type=str,
-                            help="location of your CADC certificate "
-                            + "file (default: $HOME/.ssl/cadcproxy.pem, " +
-                            "otherwise uses $HOME/.netrc for name/password)",
-                            default=os.path.join(os.getenv("HOME", "."),
-                                                 ".ssl/cadcproxy.pem"))
-    parser.add_argument('--anonymous', action="store_true",
-                        help='Force anonymous connection')
-    parser.add_argument('--host', help="Base hostname for services - used mainly for testing " +
-                                       "(default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)",
-                        default='www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')
-    if default_resource_id is None:
-        parser.add_argument('--resourceID', type=urlparse, required=True,
-                            help="resource identifier (e.g. ivo://cadc.nrc.ca/caom2repo")
-    else:
-        parser.add_argument('--resourceID', type=parse_resource_id,
-                            default = default_resource_id,
-                            help="resource identifier (default {})".format(default_resource_id))
-    parser.add_argument('--verbose', action="store_true",
-                        help='verbose messages')
-    parser.add_argument('--debug', action="store_true",
-                        help='debug messages')
-    parser.add_argument('--quiet', action="store_true",
-                        help='run quietly')
+    cparser = ArgumentParser(add_help=False, formatter_class=SingleMetavarHelpFormatter)
 
     if version is not None:
-        parser.add_argument('--version', action='version', version=version)
+        cparser.add_argument('-V', '--version', action='version', version=version)
+    auth_group = cparser.add_mutually_exclusive_group()
+    if usecert:
+        auth_group.add_argument('--cert', type=str,
+                            help='location of your X509 certificate to use for authentication ' +
+                            '(unencrypted, in PEM format)')
+    auth_group.add_argument('-n', action='store_true', help='Use .netrc in $HOME for authentication')
+    auth_group.add_argument('--netrc-file', help='netrc file to use for authentication')
+    auth_group.add_argument('-u', '--user', help='Name of user to authenticate. ' +
+                             'Note: application prompts for the corresponding password!')
+    cparser.add_argument('--host',
+                        help='Base hostname for services - used mainly for testing ' +
+                                       '(default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)',
+                        default='www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')
+    if default_resource_id is None:
+        cparser.add_argument('--resourceID',
+                            type=urlparse, required=True,
+                            help='resource identifier (e.g. ivo://cadc.nrc.ca/service')
+    else:
+        cparser.add_argument('--resourceID',type=parse_resource_id,
+                            default = default_resource_id,
+                            help='resource identifier (default {})'.format(default_resource_id))
+    log_group = cparser.add_mutually_exclusive_group()
+    log_group.add_argument('-d', '--debug', action='store_true',
+                        help='debug messages')
+    log_group.add_argument('-q', '--quiet', action='store_true',
+                        help='run quietly')
+    log_group.add_argument('-v', '--verbose', action='store_true',
+                        help='verbose messages')
 
-    return parser
+    argparser = _CustomArgParser(subparsers=subparsers, common_parser=cparser)
+    return argparser

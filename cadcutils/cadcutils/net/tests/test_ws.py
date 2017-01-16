@@ -74,37 +74,37 @@ import requests
 from mock import Mock, patch, call
 from six.moves.urllib.parse import urlparse
 
-from cadcutils.net import ws
+from cadcutils.net import ws, auth
 from cadcutils.net.ws import DEFAULT_RETRY_DELAY, MAX_RETRY_DELAY, MAX_NUM_RETRIES, SERVICE_RETRY
+from cadcutils import exceptions
 
 
 class TestWs(unittest.TestCase):
 
     """Class for testing the webservie client"""
-    @patch('cadcutils.net.ws.os.path.isfile', Mock())
-    @patch('cadcutils.net.ws.auth.get_user_password', Mock(return_value=('usr', 'passwd')))
+    @patch('cadcutils.net.auth.os.path.isfile', Mock())
+    @patch('cadcutils.net.auth.netrclib')
     @patch('cadcutils.net.ws.RetrySession.put')
     @patch('cadcutils.net.ws.RetrySession.head')
     @patch('cadcutils.net.ws.RetrySession.delete')
     @patch('cadcutils.net.ws.RetrySession.get')
     @patch('cadcutils.net.ws.RetrySession.post')
-    def test_ops(self, post_mock, get_mock, delete_mock, head_mock, put_mock):
+    def test_ops(self, post_mock, get_mock, delete_mock, head_mock, put_mock, netrclib_mock):
+        anon_subject = auth.Subject()
         with self.assertRaises(ValueError):
-            ws.BaseWsClient(None, "TestApp")
+            ws.BaseWsClient(None, anon_subject, "TestApp")
         resource = 'aresource'
         service = 'myservice'
         resource_id = 'ivo://www.canfar.phys.uvic.ca/{}'.format(service)
         # test anonymous access
-        client = ws.BaseWsClient(resource_id, 'TestApp')
+        client = ws.BaseWsClient(resource_id, anon_subject, 'TestApp')
         resource_uri = urlparse(resource_id)
-        base_url = 'http://{}{}'.format(resource_uri.netloc, resource_uri.path)
+        base_url = 'http://{}{}/pub'.format(resource_uri.netloc, resource_uri.path)
         resource_url = '{}/{}'.format(base_url, resource)
-        self.assertTrue(client.anon)
+        self.assertEquals(anon_subject, client.subject)
         self.assertTrue(client.retry)
         self.assertEqual(base_url, client.base_url)
         self.assertEqual('TestApp', client.agent)
-        self.assertEqual(None, client.certificate_file_location)
-        self.assertEqual(None, client.basic_auth)
         self.assertTrue(client.retry)
         self.assertEquals(None, client._session)  # lazy initialization
         client.get(resource)
@@ -127,15 +127,13 @@ class TestWs(unittest.TestCase):
         delete_mock.reset_mock()
         head_mock.reset_mock()
         host = 'www.different.org'
-        client = ws.BaseWsClient(resource_id, 'TestApp', anon=False, retry=False, host=host)
-        self.assertFalse(client.anon)
-        self.assertEquals(('usr', 'passwd'), client.basic_auth)  # as per the get_user_password patch
+        subject = auth.Subject(netrc='somecert')
+        client = ws.BaseWsClient(resource_id, subject, 'TestApp', retry=False, host=host)
         base_url = 'http://{}{}/auth'.format(host, resource_uri.path)
         resource_url = '{}/{}'.format(base_url, resource)
         self.assertEquals(base_url, client.base_url)
         self.assertEquals('TestApp', client.agent)
         self.assertFalse(client.retry)
-        self.assertEqual(None, client.certificate_file_location)
         client.get(resource)
         get_mock.assert_called_with(resource_url, params=None)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
@@ -156,15 +154,13 @@ class TestWs(unittest.TestCase):
         delete_mock.reset_mock()
         head_mock.reset_mock()
         certfile = 'some/certfile.pem'
-        client = ws.BaseWsClient(resource_id, 'TestApp', anon=False, cert_file=certfile)
-        self.assertFalse(client.anon)
-        self.assertEquals(None, client.basic_auth)
+        subject = auth.Subject(certificate=certfile)
+        client = ws.BaseWsClient(resource_id, subject, 'TestApp')
         base_url = 'https://{}{}/pub'.format(resource_uri.netloc, resource_uri.path)
         resource_url = '{}/{}'.format(base_url, resource)
         self.assertEquals(base_url, client.base_url)
         self.assertEquals('TestApp', client.agent)
         self.assertTrue(client.retry)
-        self.assertEqual(certfile, client.certificate_file_location)
         client.get(resource)
         get_mock.assert_called_with(resource_url, params=None)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
@@ -184,16 +180,13 @@ class TestWs(unittest.TestCase):
         service = 'sc2repo'
         resource_id = 'ivo://www.canfar.phys.uvic.ca/{}'.format(service)
         # test anonymous access
-        client = ws.BaseWsClient(resource_id, 'TestApp')
+        client = ws.BaseWsClient(resource_id, auth.Subject(), 'TestApp')
         resource_uri = urlparse(resource_id)
         base_url = 'http://{}{}/observations'.format(resource_uri.netloc, resource_uri.path)
         resource_url = '{}/{}'.format(base_url, resource)
-        self.assertTrue(client.anon)
         self.assertTrue(client.retry)
         self.assertEqual(base_url, client.base_url)
         self.assertEqual('TestApp', client.agent)
-        self.assertEqual(None, client.certificate_file_location)
-        self.assertEqual(None, client.basic_auth)
         self.assertTrue(client.retry)
         self.assertEquals(None, client._session)  # lazy initialization
         client.get(resource)
@@ -216,15 +209,14 @@ class TestWs(unittest.TestCase):
         delete_mock.reset_mock()
         head_mock.reset_mock()
         host = 'caom2workshop.canfar.net'
-        client = ws.BaseWsClient(resource_id, 'TestApp', anon=False, retry=False, host=host)
-        self.assertFalse(client.anon)
-        self.assertEquals(('usr', 'passwd'), client.basic_auth)  # as per the get_user_password patch
+        subject = auth.Subject(netrc=True)
+        subject._hosts_auth[host] = ('auser', 'apasswd')
+        client = ws.BaseWsClient(resource_id, subject, 'TestApp', retry=False, host=host)
         base_url = 'http://{}{}/auth-observations'.format(host, resource_uri.path)
         resource_url = '{}/{}'.format(base_url, resource)
         self.assertEquals(base_url, client.base_url)
         self.assertEquals('TestApp', client.agent)
         self.assertFalse(client.retry)
-        self.assertEqual(None, client.certificate_file_location)
         client.get(resource)
         get_mock.assert_called_with(resource_url, params=None)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
@@ -245,15 +237,12 @@ class TestWs(unittest.TestCase):
         delete_mock.reset_mock()
         head_mock.reset_mock()
         certfile = 'some/certfile.pem'
-        client = ws.BaseWsClient(resource_id, 'TestApp', anon=False, cert_file=certfile)
-        self.assertFalse(client.anon)
-        self.assertEquals(None, client.basic_auth)
+        client = ws.BaseWsClient(resource_id, auth.Subject(certificate=certfile), 'TestApp')
         base_url = 'https://{}{}/observations'.format(resource_uri.netloc, resource_uri.path)
         resource_url = '{}/{}'.format(base_url, resource)
         self.assertEquals(base_url, client.base_url)
         self.assertEquals('TestApp', client.agent)
         self.assertTrue(client.retry)
-        self.assertEqual(certfile, client.certificate_file_location)
         client.get(resource)
         get_mock.assert_called_with(resource_url, params=None)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
@@ -332,7 +321,7 @@ class TestRetrySession(unittest.TestCase):
             http_errors.append(ce)
             i += 1
         send_mock.side_effect = http_errors
-        with self.assertRaises(requests.ConnectionError):
+        with self.assertRaises(exceptions.HttpException):
             rs.send(request)
 
         # return the connection error other than 104 - connection reset by peer
@@ -342,7 +331,7 @@ class TestRetrySession(unittest.TestCase):
         ce = requests.exceptions.ConnectionError()  # connection error that triggers retries
         ce.errno = 105
         send_mock.side_effect = ce
-        with self.assertRaises(requests.ConnectionError):
+        with self.assertRaises(exceptions.HttpException):
             rs.send(request)
 
         # return HttpError 503 with Retry-After
@@ -401,7 +390,7 @@ class TestRetrySession(unittest.TestCase):
         he.response = requests.Response()
         he.response.status_code = requests.codes.internal_server_error
         send_mock.side_effect = he
-        with self.assertRaises(requests.HTTPError):
+        with self.assertRaises(exceptions.HttpException):
             rs.send(request)
 
 # TODO By default, internet tests fail. They only succeed when test with --remote-data flag.

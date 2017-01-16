@@ -68,11 +68,92 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 __all__ = ['UnauthorizedException']
 
-class UnauthorizedException(Exception):
-    """Raised when the user is not allowed to perform an action.
+
+class HttpException(Exception):
+    """
+    Generic HTTP exception that is the base class of all the other
+    HTTP related exceptions
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        self.msg = msg
+        self.orig_exception = orig_exception
+
+
+class UnauthorizedException(HttpException):
+    """User requires authentication to perform the requested action.
     Attributes:
         msg  -- explanation of why the specific transition is not allowed
     """
-
-    def __init__(self, msg=None):
+    def __init__(self, msg=None, orig_exception=None):
         self.msg = msg
+        self.orig_exception = orig_exception
+
+
+class ForbiddenException(HttpException):
+    """Authenticated user is not authorized to perform an action.
+    Attributes:
+        msg  -- explanation of why the specific transition is not allowed
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        self.msg = msg
+        self.orig_exception = orig_exception
+
+
+class NotFoundException(HttpException):
+    """Resource not found.
+    Attributes:
+        msg
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        self.msg = msg
+        self.orig_exception = orig_exception
+
+
+class BadRequestException(HttpException):
+    """Operation is not permitted or the argument is illegal
+    Attributes:
+        msg
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        self.msg = msg
+        self.orig_exception = orig_exception
+
+
+class AlreadyExistsException(HttpException):
+    """Resource already exists
+    Attributes:
+        msg
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        self.msg = msgid
+        self.orig_exception = orig_exception
+
+
+class ByteLimitException(HttpException):
+    """Request is too large
+    Attributes:
+        msg
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        self.msg = msg
+        self.orig_exception = orig_exception
+
+
+class InternalServerException(HttpException):
+    """Server encounters an internal error
+    Attributes:
+        msg
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        self.msg = msg
+        self.orig_exception = orig_exception
+
+
+class UnexpectedException(HttpException):
+    """Unexpected error
+    Attributes:
+        msg
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        self.msg = msg
+        self.orig_exception = orig_exception
