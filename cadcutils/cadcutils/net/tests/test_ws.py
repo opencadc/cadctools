@@ -82,7 +82,7 @@ from cadcutils import exceptions
 class TestWs(unittest.TestCase):
 
     """Class for testing the webservie client"""
-    @patch('cadcutils.net.ws.os.path.isfile', Mock())
+    @patch('cadcutils.net.auth.os.path.isfile', Mock())
     @patch('cadcutils.net.auth.netrclib')
     @patch('cadcutils.net.ws.RetrySession.put')
     @patch('cadcutils.net.ws.RetrySession.head')

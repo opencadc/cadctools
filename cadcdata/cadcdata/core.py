@@ -327,7 +327,7 @@ class CadcDataClient(object):
         # obtain list of endpoints by sending a transfer document and
         # looking at the URLs in the returned document
         request_xml = self._transfer_writer.write(tran)
-        h = headers
+        h = headers.copy()
         h['Content-Type'] = 'text/xml'
         logger.debug(request_xml)
         response = self._data_client.post(resource='transfer', data=request_xml,
@@ -511,7 +511,3 @@ def main_app():
         handle_error('Unexpected server error')
 
     logger.info("DONE")
-
-#TODO remove
-if __name__ == '__main__':
-    main_app()

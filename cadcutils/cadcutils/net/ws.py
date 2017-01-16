@@ -68,18 +68,15 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
-import os
 import sys
 import time
 import platform
-from six.moves.urllib.parse import urlparse
 
 import requests
 from requests import Session
 from six.moves.urllib.parse import urlparse
 
 from cadcutils import exceptions
-from . import auth
 from .. import version as cadctools_version
 
 __all__ = ['BaseWsClient']
@@ -104,12 +101,12 @@ class BaseWsClient(object):
     def __init__(self, resource_id, subject, agent, retry=True, host=None):
         """
         Client constructor
-        :param anon  -- anonymous access or not. If not anonymous and
-        cert_file present, use it otherwise use basic authentication
+        :param resource_id -- ID of the resource being accessed (URI format)
+        :param subject -- The subject that is using the service
+        :type subject: cadcutil.auth.Subject
         :param agent -- Name of the agent (application) that accesses the service
         :type agent: Subject
-        :param subject -- The subject that is using the service
-        :param resource_id -- ID of the resource being accessed (URI format)
+        :param retry -- True if the client retries on transient errors False otherwise
         :param host -- override the name of the host the service is running on (for testing purposes)
 
         """
@@ -140,7 +137,7 @@ class BaseWsClient(object):
         self.system_info = "{}/{}".format(platform.system(), platform.version())
         o_s = sys.platform
         if o_s.lower().startswith('linux'):
-            distname, version, id = platform.linux_distribution()
+            distname, version, osid = platform.linux_distribution()
             self.os_info = "{} {}".format(distname, version)
         elif o_s == "darwin":
             release, version, machine = platform.mac_ver()
@@ -235,7 +232,7 @@ class BaseWsClient(object):
         url = urlparse(resource)
         if len(url.scheme) > 0:
             return resource
-        #TODO remove this in reg story
+        # TODO remove this in reg story
         if resource == 'transfer':
             return '{}/{}'.format(self.base_url.replace('pub', ''), resource)
 
@@ -358,7 +355,6 @@ class RetrySession(Session):
             response = super(RetrySession, self).send(request, **kwargs)
             self.check_status(response)
             return response
-
 
     def check_status(self, response):
         """

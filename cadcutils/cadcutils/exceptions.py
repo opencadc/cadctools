@@ -125,7 +125,7 @@ class AlreadyExistsException(HttpException):
         msg
     """
     def __init__(self, msg=None, orig_exception=None):
-        self.msg = msg
+        self.msg = msgid
         self.orig_exception = orig_exception
 
 
