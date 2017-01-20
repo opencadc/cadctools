@@ -75,8 +75,8 @@ import sys
 import unittest
 import logging
 import shutil
-# TODO to be changed to io.StringIO when caom2 is prepared for python3
-from StringIO import StringIO
+
+from six import StringIO
 from datetime import datetime
 import gzip
 import requests

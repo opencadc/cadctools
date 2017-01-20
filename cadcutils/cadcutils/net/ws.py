@@ -120,6 +120,7 @@ class BaseWsClient(object):
 
         self._session = None
         self.subject = subject
+        self.resource_id = resource_id
         self.retry = retry
         self.host = host
 

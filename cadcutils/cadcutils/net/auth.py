@@ -82,6 +82,10 @@ CERT_SERVER = "www.canfar.phys.uvic.ca"
 
 __all__ = ['get_cert', 'Subject']
 
+# these are the security methods currently supported
+SECURITY_METHODS_IDS = {'anon':None,
+                        'certificate':'ivo://ivoa.net/sso#tls-with-certificate',
+                        'basic':'http://www.w3.org/Protocols/HTTP/1.0/spec.html#BasicAA'}
 
 class Subject(object):
     """
@@ -189,6 +193,22 @@ class Subject(object):
             sys.stdout.write("Password for {}@{}: ".format(self.username, realm))
             self._hosts_auth[realm] = (self.username, getpass.getpass().strip('\n'))
             return self._hosts_auth[realm]
+
+    def get_security_method(self):
+        """
+        returns a security method ID that this subject is authentication for. When the subject has
+        multiple authentication methods available, the security method is the first encountered in this list:
+            - certificate
+            - basic
+            - anon
+        :return: a security method ID
+        """
+        if self.certificate is not None:
+            return SECURITY_METHODS_IDS['certificate']
+        elif self.netrc is not None:
+            return SECURITY_METHODS_IDS['basic']
+        else:
+            return SECURITY_METHODS_IDS['anon']
 
 
 def get_cert(subject, cert_server=None,

@@ -111,7 +111,7 @@ class TestAuth(unittest.TestCase):
         except OSError as ex:
             pass
         sys.argv = ["cadc-get-cert", "--cert-filename", certfile]
-        auth.get_cert_main()
+        self.assertEquals(None, auth.get_cert_main())
         with open(certfile, 'r') as f:
             self.assertEqual(value, f.read())
 
@@ -183,7 +183,7 @@ optional arguments:
 
         # empty netrc subject
         m = mock_open()
-        with patch('__builtin__.open', m, create=True):
+        with patch('six.moves.builtins.open', m, create=True):
             subject = auth.Subject(netrc='somefile')
         self.assertFalse(subject.anon)
         self.assertEquals(None, subject.certificate)
