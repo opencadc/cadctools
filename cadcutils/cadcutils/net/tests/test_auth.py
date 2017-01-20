@@ -98,7 +98,7 @@ class TestAuth(unittest.TestCase):
         # get certificate default location
         m = mock_open()
         with patch('six.moves.builtins.open', m, create=True):
-            sys.argv = ["cadc-get-cert"]
+            sys.argv = ["cadc-get-cert", "-u", "me"]
             auth.get_cert_main()
         m.assert_called_with(os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'), 'w')
         handle = m()
@@ -110,8 +110,8 @@ class TestAuth(unittest.TestCase):
             os.remove(certfile)
         except OSError as ex:
             pass
-        sys.argv = ["cadc-get-cert", "--cert-filename", certfile]
-        auth.get_cert_main()
+        sys.argv = ["cadc-get-cert", "--user", "me", "--cert-filename", certfile]
+        self.assertEquals(None, auth.get_cert_main())
         with open(certfile, 'r') as f:
             self.assertEqual(value, f.read())
 
@@ -119,7 +119,7 @@ class TestAuth(unittest.TestCase):
         errmsg = """[Errno 17] File exists: '{}' : {}
 Expected /tmp/testcertfile to be a directory.
 """.format(certfile, certfile)
-        sys.argv = ["cadc-get-cert", "--cert-filename", certfile + "/cert"]
+        sys.argv = ["cadc-get-cert", "-u", "me", "--cert-filename", certfile + "/cert"]
         with self.assertRaises(MyExitError):
             with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
                 auth.get_cert_main()
@@ -133,8 +133,8 @@ Expected /tmp/testcertfile to be a directory.
 
         usage =\
 """usage: cadc-get-cert [-h] [--cert-filename CERT_FILENAME]
-                     [--cert-server CERT_SERVER] [--daysValid DAYSVALID]
-                     [-u USER]
+                     [--cert-server CERT_SERVER] [--daysValid DAYSVALID] -u
+                     USER
 
 Retrieve a security certificate for interaction with a Web service such as
 VOSpace. Certificate will be valid for daysValid and stored as local file
@@ -183,7 +183,7 @@ optional arguments:
 
         # empty netrc subject
         m = mock_open()
-        with patch('__builtin__.open', m, create=True):
+        with patch('six.moves.builtins.open', m, create=True):
             subject = auth.Subject(netrc='somefile')
         self.assertFalse(subject.anon)
         self.assertEquals(None, subject.certificate)

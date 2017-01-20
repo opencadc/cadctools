@@ -247,7 +247,7 @@ def get_cert_main():
                         help="Certificate server network address.")
     parser.add_argument('--daysValid', type=int, default=10, help='Number of days the certificate should be valid.')
     parser.add_argument('-u', '--user', type=str, help='CADC user ID associated with the certificate',
-                        required=False)
+                        required=True)
 
     args = parser.parse_args()
 
@@ -267,7 +267,7 @@ def get_cert_main():
     retry = True
     while retry:
         try:
-            subject = Subject(netrc=True, username=args.user)
+            subject = Subject(netrc=False, username=args.user)
             cert = get_cert(subject, cert_server=args.cert_server,
                             daysValid=args.daysValid)
             with open(args.cert_filename, 'w') as w:
