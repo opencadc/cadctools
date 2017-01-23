@@ -68,127 +68,12 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
-import time
-import os
 from lxml import etree
 
 from six.moves.urllib.parse import urlparse
-from cadcutils.net import ws, auth
-from cadcutils import exceptions
-
-BOOTSTRAP_REGISTRY = 'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-_caps'
-CACHE_REFRESH_INTERVAL = 10*60
-CACHE_LOCATION = os.path.join(os.path.expanduser("~"), '.config', 'cadc-registry')
-REGISTRY_FILE = 'resource-caps'
-
 
 # nothing for public consumption
 __all__ = []
-
-
-class WsCapabilities(object):
-    """
-    Contains the capabilities of Web Services. The most useful function is get_access_url that
-    returns the url corresponding to a feature of a Web Service
-    """
-
-    def __init__(self, ws_client):
-        self.logger = logging.getLogger('WsCapabilities')
-        self.ws = ws_client
-        if not os.path.isdir(CACHE_LOCATION):
-            os.makedirs(CACHE_LOCATION)
-
-        # check the registry file in cache if it requires a refresh
-        self.reg_file = os.path.join(CACHE_LOCATION, REGISTRY_FILE)
-        resource_id = urlparse(ws_client.resource_id)
-        self.caps_file = os.path.join(CACHE_LOCATION, resource_id.netloc, resource_id.path.strip('/'))
-        self.last_regtime = 0
-        self.last_capstime = 0
-        self._caps_reader = CapabilitiesReader()
-        self.caps_urls = {}
-        self.features = {}
-
-    def get_access_url(self, feature, security_method=False):
-        """
-        Returns the access URL corresponding to a feature and the authentication information associated
-        with the subject that created the Web Service client
-        :param feature: Web Service feature
-        :param security_method: use this security method
-        :return: corresponding access URL
-        """
-        if (time.time() - self.last_capstime) > CACHE_REFRESH_INTERVAL:
-            if self.last_capstime == 0:
-                # startup
-                try:
-                    self.last_capstime = os.path.getmtime(self.caps_file)
-                except OSError:
-                    # cannot read the cache file for whatever reason
-                    pass
-            caps = self._get_content(self.caps_file, self._get_capability_url(), self.last_capstime)
-            if (time.time() - self.last_capstime) > CACHE_REFRESH_INTERVAL:
-                self.last_capstime = time.time()
-            self.capabilities = self._caps_reader.parsexml(caps)
-        sm = security_method
-        if sm is False:
-            sm = self.ws.subject.get_security_method()
-        return self.capabilities.get_access_url(feature, sm)
-
-    def _get_content(self, resource_file, url, last_accessed):
-        """
-         Return content from a local cache file if information is recent (it was accessed
-         less than CACHE_REFRESH_INTERVAL seconds ago). If not, it updates the cache
-         from the provided url before returning the content.
-        """
-        content = None
-        if (time.time() - last_accessed) < CACHE_REFRESH_INTERVAL:
-            # get reg information from the cached file
-            self.logger.debug('Read cached content of {}'.format(resource_file))
-            try:
-                with open(resource_file, 'r') as f:
-                    content = f.read()
-            except Exception as e:
-                # will download it
-                pass
-
-        if content is None:
-            # get information from the bootstrap registry
-            try:
-                content = self.ws.get(url).content
-                with open(resource_file, 'wb') as f:
-                    f.write(content)
-            except exceptions.HttpException:
-                # problems with the bootstrap registry. Try to use the old local one
-                # regardless of how old it is
-                with open(resource_file, 'r') as f:
-                    content = f.read()
-        if content is None:
-            raise RuntimeError("Cannot get the registry info from either local or remote source")
-        return content
-
-    def _get_capability_url(self):
-        """
-        Parses the registry information and returns the url of the capabilities feature
-        of the Web Service
-        :return: URL to the capabilities feature
-        """
-        if (time.time() - self.last_regtime) > CACHE_REFRESH_INTERVAL:
-            if self.last_regtime == 0:
-                # startup
-                try:
-                    self.last_regtime = os.path.getmtime(self.reg_file)
-                except OSError:
-                    # cannot read the cache file for whatever reason
-                    pass
-            reg = self._get_content(self.reg_file, BOOTSTRAP_REGISTRY, self.last_regtime)
-            self.caps_urls = {}
-            if (time.time() - self.last_regtime) > CACHE_REFRESH_INTERVAL:
-                self.last_regtime = time.time()
-            # parse it
-            for line in reg.split('\n'):
-                if not line.startswith('#') and (len(line) > 0):
-                    feature, url = line.split('=')
-                    self.caps_urls[feature.strip()] = url.strip()
-        return self.caps_urls[self.ws.resource_id]
 
 
 class Capabilities(object):
@@ -234,6 +119,7 @@ def check_valid_url(url_str):
        (len(url.netloc) == 0) or\
        (len(url.path) == 0):
         raise ValueError('Invalid URL: {}'.format(url_str))
+
 
 class Capability(object):
     """
@@ -323,14 +209,3 @@ class CapabilitiesReader(object):
         if len(caps._caps) == 0:
             raise ValueError('Error parsing capabilities document: No capabilities found')
         return caps
-
-
-#TODO remove
-def main():
-    client = ws.BaseWsClient('ivo://cadc.nrc.ca/data', auth.Subject(netrc='/home/NSIV/cadc/adriand/.netrc'), 'agent')
-    capabilities = WsCapabilities(client)
-    print(capabilities.get_access_url('vos://cadc.nrc.ca~vospace/CADC/std/archive#file-1.0'))
-
-
-if __name__ == '__main__':
-    main()

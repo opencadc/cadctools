@@ -71,6 +71,7 @@ import logging
 import sys
 import time
 import platform
+import os
 
 import requests
 from requests import Session
@@ -78,6 +79,7 @@ from six.moves.urllib.parse import urlparse
 
 from cadcutils import exceptions
 from .. import version as cadctools_version
+from . import wscapabilities
 
 __all__ = ['BaseWsClient']
 
@@ -114,7 +116,7 @@ class BaseWsClient(object):
         self.logger = logging.getLogger('BaseWsClient')
 
         if resource_id is None:
-            raise ValueError("No resource ID provided")
+            raise ValueError('No resource ID provided')
         if agent is None or not agent:
             raise ValueError('agent is None or empty string')
 
@@ -147,47 +149,8 @@ class BaseWsClient(object):
             release, version, csd, ptype = platform.win32_ver()
             self.os_info = "{} {}".format(release, version)
 
-        # Determine the name of the caom2repo service and host
-        # TODO this should be discoverable
-        url = urlparse(resource_id)
-        if len(url.path) < 2 or len(url.scheme) < 2 or len(url.netloc) < 2:
-            raise ValueError("Invalid resource ID {}".format(resource_id))
-        self.service = url.path.strip('/')
-        if self.host is None:
-            self.host = url.netloc
-        else:
-            self.host = self.host.strip('/')
-
-        # Unless the caller specifically requests an anonymous client,
-        # check first for a certificate, then an externally created
-        # HTTPBasicAuth object, and finally a name+password in .netrc.
-        # TODO The service URL needs to be discoverable based on the URI/URL of the service with the
-        # following steps:
-        # 1. Download the configuration of services at the service provider and get the URL for the capabilities
-        #    resource of the service (This is not yet implemented at the CADC)
-        # 2. Check the capabilities of the service to determine the protocol and the URL of the end points of the
-        #    service
-        # This will eventually replace the hardcoded code below.
-
-        # Base URL for web services.
-        # Clients will probably append a specific service
-        if self.service == u'sc2repo':
-            self.base_url = '{}://{}/{}/{}'.format(
-                'https' if self.subject.certificate is not None else 'http',
-                self.host, self.service,
-                'auth-observations' if self.subject.get_auth(host) is not None else 'observations')
-        else:
-            if self.subject.anon:
-                self.protocol = 'http'
-                self.base_url = '{}://{}/{}/pub'.format(self.protocol, self.host, self.service)
-            else:
-                if self.subject.certificate:
-                    self.protocol = 'https'
-                    self.base_url = '{}://{}/{}/pub'.format(self.protocol, self.host, self.service)
-                else:
-                    # For both anonymous and name/password authentication
-                    self.protocol = 'http'
-                    self.base_url = '{}://{}/{}/auth'.format(self.protocol, self.host, self.service)
+        # build the corresponding capabilities instance
+        self.caps = WsCapabilities(self)
 
         # Clients should add entries to this dict for specialized
         # conversion of HTTP error codes into particular exceptions.
@@ -227,20 +190,20 @@ class BaseWsClient(object):
         return self._get_session().head(self._get_url(resource), **kwargs)
 
     def _get_url(self, resource):
-        if resource is None:
-            return self.base_url
-        # try to determine if it is a full url, in which case just return it
-        url = urlparse(resource)
-        if len(url.scheme) > 0:
-            return resource
-        # TODO remove this in reg story
-        if resource == 'transfer':
-            return '{}/{}'.format(self.base_url.replace('pub', ''), resource)
-
-        if str(resource).startswith('/'):
-            return self.base_url + str(resource)
+        if type(resource) is tuple:
+            # this is WS feature / path request
+            path = ''
+            if resource[1] is not None:
+                path = resource[1].strip('/')
+            url = '{}/{}'.format(self.caps.get_access_url(resource[0]), path)
+            self.logger.debug('Resolved URL: {}'.format(url))
+            return url
         else:
-            return self.base_url + '/' + str(resource)
+            # assume this is url.
+            resource_url = urlparse(resource)
+            if resource_url.scheme not in ['http', 'https']:
+                raise ValueError('Incorrect resource URL: {}'.format(resource))
+            return resource
 
     def _get_session(self):
         # Note that the cert goes into the adapter, but we can also
@@ -383,3 +346,113 @@ class RetrySession(Session):
                 raise e
             else:
                 raise exceptions.UnexpectedException(orig_exception=e)
+
+
+BOOTSTRAP_REGISTRY = 'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-caps'
+CACHE_REFRESH_INTERVAL = 10*60
+CACHE_LOCATION = os.path.join(os.path.expanduser("~"), '.config', 'cadc-registry')
+REGISTRY_FILE = 'resource-caps'
+
+class WsCapabilities(object):
+    """
+    Contains the capabilities of Web Services. The most useful function is get_access_url that
+    returns the url corresponding to a feature of a Web Service
+    """
+
+    def __init__(self, ws_client):
+        self.logger = logging.getLogger('WsCapabilities')
+        self.ws = ws_client
+        if not os.path.isdir(CACHE_LOCATION):
+            os.makedirs(CACHE_LOCATION)
+
+        # check the registry file in cache if it requires a refresh
+        self.reg_file = os.path.join(CACHE_LOCATION, REGISTRY_FILE)
+        resource_id = urlparse(ws_client.resource_id)
+        self.caps_file = os.path.join(CACHE_LOCATION, resource_id.netloc, resource_id.path.strip('/'))
+        self.last_regtime = 0
+        self.last_capstime = 0
+        self._caps_reader = wscapabilities.CapabilitiesReader()
+        self.caps_urls = {}
+        self.features = {}
+
+    def get_access_url(self, feature, security_method=False):
+        """
+        Returns the access URL corresponding to a feature and the authentication information associated
+        with the subject that created the Web Service client
+        :param feature: Web Service feature
+        :param security_method: use this security method
+        :return: corresponding access URL
+        """
+        if (time.time() - self.last_capstime) > CACHE_REFRESH_INTERVAL:
+            if self.last_capstime == 0:
+                # startup
+                try:
+                    self.last_capstime = os.path.getmtime(self.caps_file)
+                except OSError:
+                    # cannot read the cache file for whatever reason
+                    pass
+            caps = self._get_content(self.caps_file, self._get_capability_url(), self.last_capstime)
+            if (time.time() - self.last_capstime) > CACHE_REFRESH_INTERVAL:
+                self.last_capstime = time.time()
+            self.capabilities = self._caps_reader.parsexml(caps)
+        sm = security_method
+        if sm is False:
+            sm = self.ws.subject.get_security_method()
+        return self.capabilities.get_access_url(feature, sm)
+
+    def _get_content(self, resource_file, url, last_accessed):
+        """
+         Return content from a local cache file if information is recent (it was accessed
+         less than CACHE_REFRESH_INTERVAL seconds ago). If not, it updates the cache
+         from the provided url before returning the content.
+        """
+        content = None
+        if (time.time() - last_accessed) < CACHE_REFRESH_INTERVAL:
+            # get reg information from the cached file
+            self.logger.debug('Read cached content of {}'.format(resource_file))
+            try:
+                with open(resource_file, 'r') as f:
+                    content = f.read()
+            except Exception as e:
+                # will download it
+                pass
+
+        if content is None:
+            # get information from the bootstrap registry
+            try:
+                content = self.ws.get(url).content
+                with open(resource_file, 'wb') as f:
+                    f.write(content)
+            except exceptions.HttpException:
+                # problems with the bootstrap registry. Try to use the old local one
+                # regardless of how old it is
+                with open(resource_file, 'r') as f:
+                    content = f.read()
+        if content is None:
+            raise RuntimeError("Cannot get the registry info from either local or remote source")
+        return content
+
+    def _get_capability_url(self):
+        """
+        Parses the registry information and returns the url of the capabilities feature
+        of the Web Service
+        :return: URL to the capabilities feature
+        """
+        if (time.time() - self.last_regtime) > CACHE_REFRESH_INTERVAL:
+            if self.last_regtime == 0:
+                # startup
+                try:
+                    self.last_regtime = os.path.getmtime(self.reg_file)
+                except OSError:
+                    # cannot read the cache file for whatever reason
+                    pass
+            reg = self._get_content(self.reg_file, BOOTSTRAP_REGISTRY, self.last_regtime)
+            self.caps_urls = {}
+            if (time.time() - self.last_regtime) > CACHE_REFRESH_INTERVAL:
+                self.last_regtime = time.time()
+            # parse it
+            for line in reg.split('\n'):
+                if not line.startswith('#') and (len(line) > 0):
+                    feature, url = line.split('=')
+                    self.caps_urls[feature.strip()] = url.strip()
+        return self.caps_urls[self.ws.resource_id]

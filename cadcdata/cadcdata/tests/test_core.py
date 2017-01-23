@@ -203,12 +203,18 @@ class TestCadcDataClient(unittest.TestCase):
         with self.assertRaises(exceptions.UnauthorizedException):
             client.put_file('TEST', 'putfile', file_name)
         client._data_client.subject.anon = False # authenticate the user
+        transf_end_point = 'http://test.ca/endpoint'
+        def mock_get_trans_protocols(archive, file_id, is_get, headers):
+            protocol = Mock()
+            protocol.endpoint = transf_end_point
+            return [protocol]
+        client._get_transfer_protocols = mock_get_trans_protocols
         client.put_file('TEST', 'putfile', file_name)
-        put_mock.assert_called_with('TEST/putfile', data=ANY, headers={})
+        put_mock.assert_called_with(transf_end_point, data=ANY, headers={})
 
         # specify an archive stream
         client.put_file('TEST', 'putfile', file_name, archive_stream='default')
-        put_mock.assert_called_with('TEST/putfile', data=ANY, headers={'X-CADC-Stream':'default'})
+        put_mock.assert_called_with(transf_end_point, data=ANY, headers={'X-CADC-Stream':'default'})
         os.remove(file_name)
 
         # test an info

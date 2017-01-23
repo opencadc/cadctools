@@ -93,9 +93,13 @@ __all__ = ['CadcDataClient']
 
 # TODO replace with SERVICE_URI when server supports it
 SERVICE_URL = 'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/'
+CADC_AD_CAPABILITY_ID="vos://cadc.nrc.ca~vospace/CADC/std/archive#file-1.0"
 # IVOA dateformat
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
+# resource ID for info
 DEFAULT_RESOURCE_ID = 'ivo://cadc.nrc.ca/data'
+# resource ID for negotiating the transfer
+TRANSFER_RESOURCE_ID = 'ivo://ivoa.net/std/VOSpace#sync-2.1'
 ARCHIVE_STREAM_HTTP_HEADER = 'X-CADC-Stream'
 APP_NAME = 'cadc-data'
 
@@ -130,7 +134,6 @@ class CadcDataClient(object):
 
         self._data_client = net.BaseWsClient(resource_id, subject,
                                              agent, retry=True, host=self.host)
-        self.logger.info('Service URL: {}'.format(self._data_client.base_url))
 
 
     def get_file(self, archive, file_id, destination=None, decompress=False,
@@ -150,7 +153,6 @@ class CadcDataClient(object):
         """
         assert archive is not None
         assert file_id is not None
-        resource = '{}/{}'.format(archive, file_id)
         params = {}
         if fhead:
             params['fhead'] = fhead
@@ -158,8 +160,8 @@ class CadcDataClient(object):
             params['wcs'] = wcs
         if cutout:
             params['cutout'] = cutout
-        self.logger.debug('GET '.format(resource))
-
+        self.logger.debug('GET {}/{}'.format(archive, file_id))
+        #TODO negotiate transfer even for fhead or wcs?
         protocols = self._get_transfer_protocols(archive, file_id)
         if len(protocols) == 0:
             raise exceptions.HttpException('No URLs available to access data')
@@ -179,10 +181,10 @@ class CadcDataClient(object):
                     if not hasattr(destination, 'read'):
                         # got a destination name?
                         with open(destination, 'wb') as f:
-                            self._save_bytes(response, f, resource,
+                            self._save_bytes(response, f, url,
                                              decompress=decompress, process_bytes=process_bytes)
                     else:
-                        self._save_bytes(response, destination, resource,
+                        self._save_bytes(response, destination, url,
                                          decompress=decompress, process_bytes=process_bytes)
                 else:
                     # get the destination name from the content disposition
@@ -196,7 +198,7 @@ class CadcDataClient(object):
                     self.logger.debug('Using content disposition destination name: {}'.
                                       format(destination))
                     with open(destination, 'w') as f:
-                        self._save_bytes(response, f, resource,
+                        self._save_bytes(response, f, url,
                                          decompress=decompress, process_bytes=process_bytes)
                 return
             except (exceptions.HttpException, socket.timeout) as e:
@@ -250,8 +252,7 @@ class CadcDataClient(object):
         if self._data_client.subject.anon:
             raise exceptions.UnauthorizedException('Must be authenticated to put data')
 
-        resource = '{}/{}'.format(archive, file_id)
-        self.logger.debug('PUT {}'.format(resource))
+        self.logger.debug('PUT {}/{}'.format(archive, file_id))
         headers = {}
         if archive_stream is not None:
             headers[ARCHIVE_STREAM_HTTP_HEADER] = str(archive_stream)
@@ -272,7 +273,7 @@ class CadcDataClient(object):
 
             try:
                 with open(file, 'rb') as f:
-                    self._data_client.put(resource, headers=headers, data=f)
+                    self._data_client.put(url, headers=headers, data=f)
                 self.logger.debug('Successfully updated file\n')
                 return
             except (exceptions.HttpException, socket.timeout) as e:
@@ -292,7 +293,7 @@ class CadcDataClient(object):
         """
         assert archive is not None
         assert file_id is not None
-        resource = '/{}/{}'.format(archive, file_id)
+        resource = (CADC_AD_CAPABILITY_ID, '{}/{}'.format(archive, file_id))
         self.logger.debug('HEAD {}'.format(resource))
         response = self._data_client.head(resource)
         h = response.headers
@@ -330,8 +331,8 @@ class CadcDataClient(object):
         h = headers.copy()
         h['Content-Type'] = 'text/xml'
         logger.debug(request_xml)
-        response = self._data_client.post(resource='transfer', data=request_xml,
-                                    headers=h)
+        response = self._data_client.post(resource=(TRANSFER_RESOURCE_ID, None),
+                                          data=request_xml, headers=h)
         response_str = response.text.encode('utf-8')
 
         self.logger.debug('POST had {} redirects'.format(len(response.history)))
@@ -511,3 +512,7 @@ def main_app():
         handle_error('Unexpected server error')
 
     logger.info("DONE")
+
+
+if __name__ == '__main__':
+    main_app()
