@@ -89,6 +89,7 @@ DEFAULT_RETRY_DELAY = 30  # start delay between retries when Try_After not sent 
 MAX_NUM_RETRIES = 6
 
 SERVICE_RETRY = 'Retry-After'
+SERVICE_AVAILABILITY_ID = 'ivo://ivoa.net/std/VOSI#availability'
 
 # try to disable the unverified HTTPS call warnings
 try:
@@ -124,7 +125,6 @@ class BaseWsClient(object):
         self.subject = subject
         self.resource_id = resource_id
         self.retry = retry
-        self.host = host
 
         # agent is / delimited key value pairs, separated by a space,
         # containing the application name and version,
@@ -151,6 +151,11 @@ class BaseWsClient(object):
 
         # build the corresponding capabilities instance
         self.caps = WsCapabilities(self)
+        self.host = None
+        if host is None:
+            self.host = self.caps.get_service_host()
+        else:
+            self.host = host
 
         # Clients should add entries to this dict for specialized
         # conversion of HTTP error codes into particular exceptions.
@@ -189,15 +194,30 @@ class BaseWsClient(object):
         """Wrapper for HEAD so that we use this client's session"""
         return self._get_session().head(self._get_url(resource), **kwargs)
 
+    def is_available(self):
+        """
+        Checks whether the service is currently available or not
+        :return: True if service is available, False otherwise
+        """
+        try:
+            self.get((SERVICE_AVAILABILITY_ID, None))
+        except exceptions.HttpException:
+            return False
+        return True
+
     def _get_url(self, resource):
         if type(resource) is tuple:
             # this is WS feature / path request
             path = ''
             if resource[1] is not None:
                 path = resource[1].strip('/')
-            url = '{}/{}'.format(self.caps.get_access_url(resource[0]), path)
-            self.logger.debug('Resolved URL: {}'.format(url))
-            return url
+            access_url = '{}/{}'.format(self.caps.get_access_url(resource[0]), path)
+            # replace host name if necessary
+            url = urlparse(access_url)
+            if urlparse(url).netloc != self.host:
+                access_url = '{}://{}/{}'.format(url.scheme, self.host, url.path)
+            self.logger.debug('Resolved URL: {}'.format(access_url))
+            return access_url
         else:
             # assume this is url.
             resource_url = urlparse(resource)
@@ -216,7 +236,8 @@ class BaseWsClient(object):
             if self.subject.certificate is not None:
                 self._session.cert = (self.subject.certificate, self.subject.certificate)
             else:
-                if self.subject.get_auth(self.host) is not None:
+                if (self.host is not None) and \
+                        (self.subject.get_auth(self.host) is not None):
                     self._session.auth = self.subject.get_auth(self.host)
 
         user_agent = "{} {} {} {} ({})".format(self.agent, self.package_info, self.python_info,
@@ -353,6 +374,7 @@ CACHE_REFRESH_INTERVAL = 10*60
 CACHE_LOCATION = os.path.join(os.path.expanduser("~"), '.config', 'cadc-registry')
 REGISTRY_FILE = 'resource-caps'
 
+
 class WsCapabilities(object):
     """
     Contains the capabilities of Web Services. The most useful function is get_access_url that
@@ -400,6 +422,10 @@ class WsCapabilities(object):
             sm = self.ws.subject.get_security_method()
         return self.capabilities.get_access_url(feature, sm)
 
+    def get_service_host(self):
+        service_url = self._get_capability_url()
+        return urlparse(service_url).netloc
+
     def _get_content(self, resource_file, url, last_accessed):
         """
          Return content from a local cache file if information is recent (it was accessed
@@ -413,7 +439,7 @@ class WsCapabilities(object):
             try:
                 with open(resource_file, 'r') as f:
                     content = f.read()
-            except Exception as e:
+            except Exception:
                 # will download it
                 pass
 

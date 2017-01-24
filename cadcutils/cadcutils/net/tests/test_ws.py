@@ -84,6 +84,7 @@ from cadcutils import exceptions
 class TestWs(unittest.TestCase):
 
     """Class for testing the webservie client"""
+    @patch('cadcutils.net.ws.WsCapabilities')
     @patch('cadcutils.net.auth.os.path.isfile', Mock())
     @patch('cadcutils.net.auth.netrclib')
     @patch('cadcutils.net.ws.RetrySession.put')
@@ -91,7 +92,7 @@ class TestWs(unittest.TestCase):
     @patch('cadcutils.net.ws.RetrySession.delete')
     @patch('cadcutils.net.ws.RetrySession.get')
     @patch('cadcutils.net.ws.RetrySession.post')
-    def test_ops(self, post_mock, get_mock, delete_mock, head_mock, put_mock, netrclib_mock):
+    def test_ops(self, post_mock, get_mock, delete_mock, head_mock, put_mock, netrclib_mock, caps_mock):
         anon_subject = auth.Subject()
         with self.assertRaises(ValueError):
             ws.BaseWsClient(None, anon_subject, "TestApp")
@@ -99,6 +100,7 @@ class TestWs(unittest.TestCase):
         service = 'myservice'
         resource_id = 'ivo://www.canfar.phys.uvic.ca/{}'.format(service)
         # test anonymous access
+        caps_mock.get_service_host.return_value = 'http://host/myservice'
         client = ws.BaseWsClient(resource_id, anon_subject, 'TestApp')
         resource_uri = urlparse(resource_id)
         base_url = 'http://{}{}/pub'.format(resource_uri.netloc, resource_uri.path)
@@ -455,7 +457,10 @@ class TestWsCapabilities(unittest.TestCase):
         # test anonymous access
         fh_mock = Mock()
         file_mock.write = fh_mock
-        client = ws.BaseWsClient(resource_id, anon_subject, 'TestApp')
+        client = Mock(resource_id=resource_id)
+        response = Mock()
+        response.content = cadcreg_content
+        client.get.return_value = response
         caps = ws.WsCapabilities(client)
         self.assertEquals(os.path.join(ws.CACHE_LOCATION, ws.REGISTRY_FILE), caps.reg_file)
         self.assertEquals(os.path.join(ws.CACHE_LOCATION, 'canfar.phys.uvic.ca', service), caps.caps_file)
@@ -485,6 +490,7 @@ class TestWsCapabilities(unittest.TestCase):
         file_modtime_mock.return_value = 0
         file_mock().__enter__.return_value.read.return_value = cache_content2
         get_mock.side_effect = [exceptions.HttpException()]
+        client.get.side_effect = [exceptions.HttpException]
         caps = ws.WsCapabilities(client)
         self.assertEquals(resource_cap_url2, caps._get_capability_url())
 
@@ -503,14 +509,14 @@ class TestWsCapabilities(unittest.TestCase):
         cadcreg_content = ('#test content\n {} = {} \n'
                            'ivo://some.provider/service = http://providerurl.test/service'). \
             format(resource_id, resource_cap_url)
-        response = Mock(content=capabilities__content.replace('WS_URL', resource_cap_url))
-        get_mock.return_value = response
         # set the modified time of the cache file to 0 to make sure the info is retrieved from server
         file_modtime_mock.return_value = 0
         # test anonymous access
         fh_mock = Mock()
         file_mock.write = fh_mock
-        client = ws.BaseWsClient(resource_id, auth.Subject(), 'TestApp')
+        client = Mock(resource_id=resource_id, subject=auth.Subject())
+        response = Mock(content=capabilities__content.replace('WS_URL', resource_cap_url))
+        client.get.return_value = response
         caps = ws.WsCapabilities(client)
         # mock _get_capability_url to return some url without attempting to access the server
         def get_url():
@@ -531,7 +537,8 @@ class TestWsCapabilities(unittest.TestCase):
             capabilities__content.replace('WS_URL', resource_cap_url))
 
         # repeat for basic auth subject
-        client = ws.BaseWsClient(resource_id, auth.Subject(netrc=True), 'TestApp')
+        client = Mock(resource_id=resource_id, subject=auth.Subject(netrc=True))
+        client.get.return_value = response
         caps = ws.WsCapabilities(client)
         caps._get_capability_url = get_url
         # does not work with user-password of the subject set above
@@ -553,7 +560,8 @@ class TestWsCapabilities(unittest.TestCase):
 
         # repeat for https
         with patch('os.path.isfile') as p:
-            client = ws.BaseWsClient(resource_id, auth.Subject(certificate='somecert.pem'), 'TestApp')
+            client = Mock(resource_id=resource_id, subject=auth.Subject(certificate='somecert.pem'))
+        client.get.return_value = response
         caps = ws.WsCapabilities(client)
         caps._get_capability_url = get_url
         # does not work with user-password of the subject set above
@@ -582,7 +590,7 @@ class TestWsCapabilities(unittest.TestCase):
         cache_content2 = capabilities__content.replace('WS_URL', resource_cap_url2)
         file_modtime_mock.return_value = time.time()
         file_mock().__enter__.return_value.read.return_value = cache_content2
-        client = ws.BaseWsClient(resource_id, auth.Subject(), 'TestApp')
+        client = Mock(resource_id=resource_id, subject=auth.Subject())
         caps = ws.WsCapabilities(client)
         caps._get_capability_url = get_url
         caps.caps_urls[service] = '{}/capabilities'.format(resource_cap_url2)
@@ -597,7 +605,7 @@ class TestWsCapabilities(unittest.TestCase):
             capabilities__content.replace('WS_URL', resource_cap_url2)
 
         # repeat for basic auth subject
-        client = ws.BaseWsClient(resource_id, auth.Subject(netrc=True), 'TestApp')
+        client = Mock(resource_id=resource_id, subject=auth.Subject(netrc=True))
         caps = ws.WsCapabilities(client)
         caps._get_capability_url = get_url
         # does not work with user-password of the subject set above
@@ -619,7 +627,7 @@ class TestWsCapabilities(unittest.TestCase):
 
         # repeat for https
         with patch('os.path.isfile') as p:
-            client = ws.BaseWsClient(resource_id, auth.Subject(certificate='somecert.pem'), 'TestApp')
+            client = Mock(resource_id=resource_id, subject=auth.Subject(certificate='somecert.pem'))
         caps = ws.WsCapabilities(client)
         caps._get_capability_url = get_url
         # does not work with user-password of the subject set above
