@@ -214,8 +214,8 @@ class BaseWsClient(object):
             access_url = '{}/{}'.format(self.caps.get_access_url(resource[0]), path)
             # replace host name if necessary
             url = urlparse(access_url)
-            if urlparse(url).netloc != self.host:
-                access_url = '{}://{}/{}'.format(url.scheme, self.host, url.path)
+            if url.netloc != self.host:
+                access_url = '{}://{}{}'.format(url.scheme, self.host, url.path)
             self.logger.debug('Resolved URL: {}'.format(access_url))
             return access_url
         else:
