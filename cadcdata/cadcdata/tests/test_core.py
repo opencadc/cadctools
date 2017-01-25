@@ -110,7 +110,7 @@ class TestCadcDataClient(unittest.TestCase):
         file_chunks = ['aaaa', 'bbbb', '']
         response = Mock()
         response.headers.get.return_value = 'filename={}'.format('orig_file_name')
-        response.raw.read.return_value = iter(file_chunks) #read returns an iter
+        response.raw.read.side_effect = file_chunks #read returns multiple blocks
         basews_mock.return_value.get.return_value = response
         client = CadcDataClient(auth.Subject())
         with self.assertRaises(exceptions.HttpException):
@@ -129,7 +129,7 @@ class TestCadcDataClient(unittest.TestCase):
         # do it again with the file now open
         response = Mock()
         response.headers.get.return_value = 'filename={}'.format('orig_file_name')
-        response.raw.read.return_value = iter(file_chunks)
+        response.raw.read.side_effect = file_chunks
         basews_mock.return_value.get.return_value = response
         with open(file_name, 'w') as f:
             client.get_file('TEST', 'afile', destination=f)
@@ -152,7 +152,7 @@ class TestCadcDataClient(unittest.TestCase):
             self.assertEquals(file_content, f.read())
         os.remove(file_name)
 
-        # test process_bytes and send the content to /dev/null after
+        # test process_bytes and send the content to /dev/null after. Use no decompress
         def concatenate_chunks(chunk):
             global mycontent
             mycontent = '{}{}'.format(mycontent, chunk)
@@ -162,11 +162,11 @@ class TestCadcDataClient(unittest.TestCase):
         file_chunks.append('') # last chunk is empty
         response = Mock()
         response.headers.get.return_value = 'filename={}.gz'.format(file_name)
-        response.iter_content.return_value = iter(file_chunks)
+        response.raw.read.side_effect = file_chunks
         basews_mock.return_value.get.return_value = response
         client = CadcDataClient(auth.Subject())
         client.logger.setLevel(logging.INFO)
-        client.get_file('TEST', 'afile', decompress=True, destination='/dev/null',
+        client.get_file('TEST', 'afile', destination='/dev/null',
                         process_bytes=concatenate_chunks)
         self.assertEquals(file_content, mycontent)
 

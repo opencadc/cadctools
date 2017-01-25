@@ -212,12 +212,41 @@ class CadcDataClient(object):
     def _save_bytes(self, response, file, resource, decompress=False, process_bytes=None):
         # requests automatically decompresses the data. Tell it to do it only if it had to
         total_length = 0
+
+        class RawRange:
+            """
+            Wrapper class to make response.raw.read work as iterator and behave the same way
+            as the corresponding response.iter_content
+            """
+            def __init__(self, response):
+                """
+                :param response: HTTP response object
+                """
+                self._read = response.raw.read
+                self.block_size = 0
+
+            def __iter__(self):
+                return self
+
+            def next(self):
+                # reads the next raw block
+                data = self._read(self.block_size)
+                if len(data) > 0:
+                    return data
+                else:
+                    raise StopIteration()
+
+            def get_instance(self, READ_BLOCK_SIZE):
+                self.block_size = READ_BLOCK_SIZE
+                return self
+
         try:
             total_length = int(response.headers.get('content-length'))
         except ValueError as e:
             pass
         if not decompress:
-            reader = response.raw.read
+            rr = RawRange(response)
+            reader = rr.get_instance
         else:
             reader = response.iter_content
         if self.logger.isEnabledFor(logging.INFO):
