@@ -89,22 +89,29 @@ class Capabilities(object):
     def add_capability(self, capability):
         self._caps[capability.standard_id] = capability
 
-    def get_access_url(self, capability_id, security_method):
+    def get_access_url(self, capability_id, security_methods):
         """
-        Returns the access URL corresponding to a capability ID and a security method. Raises
+        Returns the access URL corresponding to a capability ID and a list of security methods. Raises
         a ValueError if no entry found.
         :param capability_id: ID of the capability
-        :param security_method: ID of the security method
+        :param security_methods: IDs of the security methods in the preferred order
         :return: URL to use for accessing the feature/capability
         """
         capability = self._caps[capability_id]
         if capability is None:
             raise ValueError('Capability {} not found'.format(capability_id))
-        try:
-            return capability.get_interface(security_method)
-        except KeyError as e:
-            raise ValueError('Capability {} does not support security method {}'.
-                             format(capability_id, security_method))
+        # if the capability supports anonymous access and this is the only capability interface or
+        # the client comes with no security_methods, then return the url corresponding
+        # to the anonymous access
+        if (capability.get_interface(None) is not None) and \
+                ((capability.num_interfaces == 1) or (len(security_methods) == 0)):
+            return capability.get_interface(None)
+
+        for sm in security_methods:
+            if capability.get_interface(sm) is not None:
+                return capability.get_interface(sm)
+        raise ValueError('Capability {} does not support security methods {}'.
+                             format(capability_id, security_methods))
 
 def check_valid_url(url_str):
     """
@@ -140,7 +147,7 @@ class Capability(object):
         # validate security_method is uri
         if security_method is not None:
             check_valid_url(security_method)
-        return self._interfaces[security_method]
+        return self._interfaces.get(security_method)
 
     def add_interface(self, access_url, security_method):
         # validate arguments
@@ -148,6 +155,14 @@ class Capability(object):
         if security_method is not None:
             check_valid_url(security_method)
         self._interfaces[security_method] = access_url
+
+    @property
+    def num_interfaces(self):
+        """
+        Number of supported interfaces
+        :return: number of supported interfaces
+        """
+        return len(self._interfaces)
 
 
 class CapabilitiesReader(object):

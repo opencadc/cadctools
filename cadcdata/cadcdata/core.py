@@ -224,7 +224,7 @@ class CadcDataClient(object):
             chunks = progress.bar(reader(READ_BLOCK_SIZE),
                       expected_size=(total_length / READ_BLOCK_SIZE) + 1)
         else:
-            chunks = reader(chunk_size=READ_BLOCK_SIZE)
+            chunks = reader(READ_BLOCK_SIZE)
         start = time.time()
         for chunk in chunks:
             if process_bytes is not None:

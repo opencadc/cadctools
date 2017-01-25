@@ -236,7 +236,7 @@ class BaseWsClient(object):
             if self.subject.certificate is not None:
                 self._session.cert = (self.subject.certificate, self.subject.certificate)
             else:
-                if (self.host is not None) and \
+                if (not self.subject.anon) and (self.host is not None) and \
                         (self.subject.get_auth(self.host) is not None):
                     self._session.auth = self.subject.get_auth(self.host)
 
@@ -397,12 +397,11 @@ class WsCapabilities(object):
         self.caps_urls = {}
         self.features = {}
 
-    def get_access_url(self, feature, security_method=False):
+    def get_access_url(self, feature):
         """
         Returns the access URL corresponding to a feature and the authentication information associated
         with the subject that created the Web Service client
         :param feature: Web Service feature
-        :param security_method: use this security method
         :return: corresponding access URL
         """
         if (time.time() - self.last_capstime) > CACHE_REFRESH_INTERVAL:
@@ -417,10 +416,8 @@ class WsCapabilities(object):
             if (time.time() - self.last_capstime) > CACHE_REFRESH_INTERVAL:
                 self.last_capstime = time.time()
             self.capabilities = self._caps_reader.parsexml(caps)
-        sm = security_method
-        if sm is False:
-            sm = self.ws.subject.get_security_method()
-        return self.capabilities.get_access_url(feature, sm)
+        sms = self.ws.subject.get_security_methods()
+        return self.capabilities.get_access_url(feature, sms)
 
     def get_service_host(self):
         service_url = self._get_capability_url()

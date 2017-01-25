@@ -391,6 +391,68 @@ class TestRetrySession(unittest.TestCase):
         with self.assertRaises(exceptions.HttpException):
             rs.send(request)
 
+    def test_misc(self):
+        """
+        Tests miscellaneous functions
+        """
+        service_url = 'http://somehost.com/service'
+        with patch('cadcutils.net.ws.WsCapabilities') as caps_mock:
+            caps_mock.return_value.get_service_host.return_value = 'somehost.com'
+            caps_mock.return_value.get_access_url.return_value = service_url
+            client = ws.BaseWsClient("someresourceID", auth.Subject(), 'TestApp')
+            self.assertEqual('{}/'.format(service_url), client._get_url(('myfeature', None)))
+            caps_mock.return_value.get_access_url.assert_called_once_with('myfeature')
+
+        # same test but change name of host in the client
+        test_host = 'testhost.com'
+        with patch('cadcutils.net.ws.WsCapabilities') as caps_mock:
+            caps_mock.return_value.get_service_host.return_value = 'somehost.com'
+            caps_mock.return_value.get_access_url.return_value = service_url
+            client = ws.BaseWsClient("someresourceID", auth.Subject(), 'TestApp', host=test_host)
+            # original name of the host in service_url should be replaced by the test_host
+            self.assertEqual('http://testhost.com/service/', client._get_url(('myfeature', None)))
+            caps_mock.return_value.get_access_url.assert_called_once_with('myfeature')
+
+        # test with resource as url
+        with patch('cadcutils.net.ws.WsCapabilities') as caps_mock:
+            caps_mock.return_value.get_service_host.return_value = 'somehost.com'
+            client = ws.BaseWsClient("someresourceID", auth.Subject(), 'TestApp')
+            resource_url = 'http://someurl.com/path/'
+            self.assertEqual(resource_url, client._get_url(resource_url))
+            # repeat with overriden host name
+            client = ws.BaseWsClient("someresourceID", auth.Subject(), 'TestApp', host=test_host)
+            # same result
+            self.assertEqual(resource_url, client._get_url(resource_url))
+
+            # test exceptions with different status in the response
+            session = ws.RetrySession()
+            response = requests.Response()
+            response.status_code = requests.codes.not_found
+            with self.assertRaises(exceptions.NotFoundException):
+                session.check_status(response)
+            response.status_code = requests.codes.unauthorized
+            with self.assertRaises(exceptions.UnauthorizedException):
+                session.check_status(response)
+            response.status_code = requests.codes.forbidden
+            with self.assertRaises(exceptions.ForbiddenException):
+                session.check_status(response)
+            response.status_code = requests.codes.bad_request
+            with self.assertRaises(exceptions.BadRequestException):
+                session.check_status(response)
+            response.status_code = requests.codes.conflict
+            with self.assertRaises(exceptions.AlreadyExistsException):
+                session.check_status(response)
+            response.status_code = requests.codes.internal_server_error
+            with self.assertRaises(exceptions.InternalServerException):
+                session.check_status(response)
+            response.status_code = requests.codes.unavailable
+            with self.assertRaises(requests.HTTPError):
+                session.check_status(response)
+            response.status_code = requests.codes.not_extended
+            with self.assertRaises(exceptions.UnexpectedException):
+                session.check_status(response)
+
+
 
 capabilities__content = \
 """
@@ -541,22 +603,12 @@ class TestWsCapabilities(unittest.TestCase):
         client.get.return_value = response
         caps = ws.WsCapabilities(client)
         caps._get_capability_url = get_url
-        # does not work with user-password of the subject set above
-        with self.assertRaises(ValueError):
-            self.assertEquals('http://{}/capabilities'.format(resource_cap_url),
-                            caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities'))
-        # but it works anonymously
+        # capabilities works even if it has only one anonymous interface
         self.assertEquals('http://{}/capabilities'.format(resource_cap_url),
-                            caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities',
-                                                security_method=None))
+                            caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities'))
         # same for availability
-        with self.assertRaises(ValueError):
-            self.assertEquals('http://{}/availability'.format(resource_cap_url),
-                            caps.get_access_url('ivo://ivoa.net/std/VOSI#availability'))
         self.assertEquals('http://{}/availability'.format(resource_cap_url),
-                            caps.get_access_url('ivo://ivoa.net/std/VOSI#availability', None))
-        self.assertEquals('http://{}/auth'.format(resource_cap_url),
-                          caps.get_access_url('vos://cadc.nrc.ca~service/CADC/mystnd01'))
+                            caps.get_access_url('ivo://ivoa.net/std/VOSI#availability'))
 
         # repeat for https
         with patch('os.path.isfile') as p:
@@ -564,20 +616,12 @@ class TestWsCapabilities(unittest.TestCase):
         client.get.return_value = response
         caps = ws.WsCapabilities(client)
         caps._get_capability_url = get_url
-        # does not work with user-password of the subject set above
-        with self.assertRaises(ValueError):
-            self.assertEquals('http://{}/capabilities'.format(resource_cap_url),
-                            caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities'))
-        # but it works anonymously
+        # capabilities works even if it has only one anonymous interface
         self.assertEquals('http://{}/capabilities'.format(resource_cap_url),
-                            caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities',
-                                                security_method=None))
+                            caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities'))
         # same for availability
-        with self.assertRaises(ValueError):
-            self.assertEquals('http://{}/availability'.format(resource_cap_url),
-                            caps.get_access_url('ivo://ivoa.net/std/VOSI#availability'))
         self.assertEquals('http://{}/availability'.format(resource_cap_url),
-                            caps.get_access_url('ivo://ivoa.net/std/VOSI#availability', None))
+                            caps.get_access_url('ivo://ivoa.net/std/VOSI#availability'))
         self.assertEquals('https://{}'.format(resource_cap_url),
                           caps.get_access_url('vos://cadc.nrc.ca~service/CADC/mystnd01'))
 
@@ -609,19 +653,10 @@ class TestWsCapabilities(unittest.TestCase):
         caps = ws.WsCapabilities(client)
         caps._get_capability_url = get_url
         # does not work with user-password of the subject set above
-        with self.assertRaises(ValueError):
-            self.assertEquals('http://{}/capabilities'.format(resource_cap_url2),
-                              caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities'))
-        # but it works anonymously
         self.assertEquals('http://{}/capabilities'.format(resource_cap_url2),
-                          caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities',
-                                              security_method=None))
-        # same for availability
-        with self.assertRaises(ValueError):
-            self.assertEquals('http://{}/availability'.format(resource_cap_url2),
-                              caps.get_access_url('ivo://ivoa.net/std/VOSI#availability'))
+                          caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities'))
         self.assertEquals('http://{}/availability'.format(resource_cap_url2),
-                          caps.get_access_url('ivo://ivoa.net/std/VOSI#availability', None))
+                          caps.get_access_url('ivo://ivoa.net/std/VOSI#availability'))
         self.assertEquals('http://{}/auth'.format(resource_cap_url2),
                           caps.get_access_url('vos://cadc.nrc.ca~service/CADC/mystnd01'))
 
@@ -631,19 +666,10 @@ class TestWsCapabilities(unittest.TestCase):
         caps = ws.WsCapabilities(client)
         caps._get_capability_url = get_url
         # does not work with user-password of the subject set above
-        with self.assertRaises(ValueError):
-            self.assertEquals('http://{}/capabilities'.format(resource_cap_url2),
-                              caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities'))
-        # but it works anonymously
         self.assertEquals('http://{}/capabilities'.format(resource_cap_url2),
-                          caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities',
-                                              security_method=None))
-        # same for availability
-        with self.assertRaises(ValueError):
-            self.assertEquals('http://{}/availability'.format(resource_cap_url2),
-                              caps.get_access_url('ivo://ivoa.net/std/VOSI#availability'))
+                          caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities'))
         self.assertEquals('http://{}/availability'.format(resource_cap_url2),
-                          caps.get_access_url('ivo://ivoa.net/std/VOSI#availability', None))
+                          caps.get_access_url('ivo://ivoa.net/std/VOSI#availability'))
         self.assertEquals('https://{}'.format(resource_cap_url2),
                           caps.get_access_url('vos://cadc.nrc.ca~service/CADC/mystnd01'))
 
