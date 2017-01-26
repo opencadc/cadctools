@@ -598,8 +598,9 @@ class TestWsCapabilities(unittest.TestCase):
         file_mock().__enter__.return_value.write.assert_called_once_with(
             capabilities__content.replace('WS_URL', resource_cap_url))
 
-        # repeat for basic auth subject
-        client = Mock(resource_id=resource_id, subject=auth.Subject(netrc=True))
+        # repeat for basic auth subject. Mock the netrc library to prevent a lookup for $HOME/.netrc
+        with patch('cadcutils.net.auth.netrclib') as netrclib_mock:
+            client = Mock(resource_id=resource_id, subject=auth.Subject(netrc=True))
         client.get.return_value = response
         caps = ws.WsCapabilities(client)
         caps._get_capability_url = get_url
@@ -648,8 +649,9 @@ class TestWsCapabilities(unittest.TestCase):
         file_mock().__enter__.return_value.read.return_value = \
             capabilities__content.replace('WS_URL', resource_cap_url2)
 
-        # repeat for basic auth subject
-        client = Mock(resource_id=resource_id, subject=auth.Subject(netrc=True))
+        # repeat for basic auth subject. Mock the netrc library to prevent a lookup for $HOME/.netrc
+        with patch('cadcutils.net.auth.netrclib') as netrclib_mock:
+            client = Mock(resource_id=resource_id, subject=auth.Subject(netrc=True))
         caps = ws.WsCapabilities(client)
         caps._get_capability_url = get_url
         # does not work with user-password of the subject set above
