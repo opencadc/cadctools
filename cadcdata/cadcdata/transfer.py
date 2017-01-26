@@ -257,9 +257,9 @@ class TransferReader(object):
         try:
             NS = xml.nsmap['vos']
             version = dict((v, k) for k, v in VOSPACE_NS.iteritems())[NS]
-        except:
+        except Exception as e:
             raise TransferReaderError(
-                'Unable to establish the VOSpace version of transfer document' )
+                'Unable to establish the VOSpace version of transfer document {}'.format(e) )
 
         VOS = '{%s}' % NS                  # VOS namespace string
 

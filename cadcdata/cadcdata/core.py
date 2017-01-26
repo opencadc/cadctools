@@ -77,6 +77,7 @@ import sys
 import time
 import socket
 from clint.textui import progress
+from six import binary_type
 
 
 from cadcutils import net, util, exceptions
@@ -211,10 +212,11 @@ class CadcDataClient(object):
             Wrapper class to make response.raw.read work as iterator and behave the same way
             as the corresponding response.iter_content
             """
-            def __init__(self, rsp):
+            def __init__(self, rsp, decode_content):
                 """
                 :param rsp: HTTP response object
                 """
+                self.decode_content = decode_content
                 self._read = rsp.raw.read
                 self.block_size = 0
 
@@ -223,10 +225,10 @@ class CadcDataClient(object):
 
             def __next__(self):
                 return self.next()
-            
+
             def next(self):
                 # reads the next raw block
-                data = self._read(self.block_size)
+                data = self._read(self.block_size, decode_content=self.decode_content)
                 if len(data) > 0:
                     return data
                 else:
@@ -241,10 +243,11 @@ class CadcDataClient(object):
         except ValueError:
             pass
         if not decompress:
-            rr = RawRange(response)
-            reader = rr.get_instance
+            rr = RawRange(response, False)
+            # reader = response.iter_content
         else:
-            reader = response.iter_content
+            rr = RawRange(response, True)
+        reader = rr.get_instance
         if self.logger.isEnabledFor(logging.INFO):
             chunks = progress.bar(reader(READ_BLOCK_SIZE),
                                   expected_size=((total_length / READ_BLOCK_SIZE) + 1))
