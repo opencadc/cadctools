@@ -135,7 +135,7 @@ class CadcDataClient(object):
         :param archive: name of the archive containing the file
         :param file_id: the ID of the file to retrieve
         :param destination: file to save data to (file, file_name, stream or anything
-        that supports open/close and write). If None, the file is saved localy with the
+        that supports open/close and write). If None, the file is saved locally with the
         name provided by the content disposion received from the service.
         :param decompress: True to decompress the file (if applicable), False otherwise
         :param cutout: the arguments of cutout operation to be performed by the service

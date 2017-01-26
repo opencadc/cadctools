@@ -151,11 +151,9 @@ class BaseWsClient(object):
 
         # build the corresponding capabilities instance
         self.caps = WsCapabilities(self)
-        self.host = None
+        self.host = host
         if host is None:
             self.host = self.caps.get_service_host()
-        else:
-            self.host = host
 
         # Clients should add entries to this dict for specialized
         # conversion of HTTP error codes into particular exceptions.
@@ -262,7 +260,7 @@ class RetrySession(Session):
             requests.codes.payment_required,
             requests.codes.payment
 
-        In addition, the Connection error 'Connection reset be remote user' also triggers a retry
+        In addition, the Connection error 'Connection reset by remote user' also triggers a retry
         """
 
     retry_errors = [requests.codes.unavailable,
@@ -277,7 +275,7 @@ class RetrySession(Session):
 
     def __init__(self, retry=True, start_delay=1, *args, **kwargs):
         """
-        ::param retry: set to False if retries no required
+        ::param retry: set to False if retries not required
         ::param start_delay: start delay interval between retries (default=1s). Note that for HTTP 503,
                              this code follows the retry timeout set by the server in Retry-After
         """
