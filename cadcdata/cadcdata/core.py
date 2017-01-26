@@ -206,7 +206,7 @@ class CadcDataClient(object):
         # requests automatically decompresses the data. Tell it to do it only if it had to
         total_length = 0
 
-        class RawRange:
+        class RawRange(object):
             """
             Wrapper class to make response.raw.read work as iterator and behave the same way
             as the corresponding response.iter_content
@@ -221,6 +221,9 @@ class CadcDataClient(object):
             def __iter__(self):
                 return self
 
+            def __next__(self):
+                return self.next()
+            
             def next(self):
                 # reads the next raw block
                 data = self._read(self.block_size)
