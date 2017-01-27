@@ -437,6 +437,8 @@ class WsCapabilities(object):
             except Exception:
                 # will download it
                 pass
+        # config dirs if they don't exist yet
+        os.makedirs(os.path.dirname(resource_file), exist_ok=True)
 
         if content is None:
             # get information from the bootstrap registry

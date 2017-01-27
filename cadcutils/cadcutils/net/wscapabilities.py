@@ -184,7 +184,7 @@ class CapabilitiesReader(object):
         """
         caps = Capabilities()
         try:
-            doc = etree.fromstring(content)
+            doc = etree.fromstring(content.encode('ascii'))
         except Exception as e:
             raise ValueError('Error parsing capabilities document.', e)
         for cap in doc.iterfind('capability'):

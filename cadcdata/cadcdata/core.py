@@ -190,7 +190,7 @@ class CadcDataClient(object):
                         destination = os.path.splitext(destination)[0]
                     self.logger.debug('Using content disposition destination name: {}'.
                                       format(destination))
-                    with open(destination, 'w') as f:
+                    with open(destination, 'wb') as f:
                         self._save_bytes(response, f, url,
                                          decompress=decompress, process_bytes=process_bytes)
                 return
@@ -253,13 +253,7 @@ class CadcDataClient(object):
         for chunk in chunks:
             if process_bytes is not None:
                 process_bytes(chunk)
-            if six.PY2:
-                dest_file.write(chunk)
-            else:
-                if 'b' in dest_file.mode:
-                    dest_file.write(chunk.encode())
-                else:
-                    dest_file.write(chunk)
+            dest_file.write(chunk)
         duration = time.time() - start
         self.logger.info('Successfully downloaded archive/fileID {} in {}s (avg. speed: {}Mb/s)'.format(
             resource, int(duration), round(total_length/1024/1024/duration, 2)))
@@ -543,4 +537,4 @@ def main_app():
     logger.info("DONE")
 
 # if __name__ == '__main__':
-#     main_app()
+#      main_app()

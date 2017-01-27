@@ -104,7 +104,7 @@ class TestCadcDataClient(unittest.TestCase):
     def test_get_file(self, trans_reader_mock, basews_mock):
         # test a simple get - no decompress
         file_name = '/tmp/afile.txt'
-        file_chunks = ['aaaa', 'bbbb', '']
+        file_chunks = ['aaaa'.encode(), 'bbbb'.encode(), ''.encode()]
         response = Mock()
         response.headers.get.return_value = 'filename={}'.format('orig_file_name')
         response.raw.read.side_effect = file_chunks #read returns multiple blocks
@@ -119,8 +119,8 @@ class TestCadcDataClient(unittest.TestCase):
         t.protocols = [p]
         trans_reader_mock.return_value.read.return_value = t
         client.get_file('TEST', 'afile', destination=file_name)
-        expected_content = ''.join(file_chunks)
-        with open(file_name, 'r') as f:
+        expected_content = (''.join([c.decode() for c in file_chunks])).encode()
+        with open(file_name, 'rb') as f:
             self.assertEquals(expected_content, f.read())
         os.remove(file_name)
         # do it again with the file now open
@@ -128,16 +128,16 @@ class TestCadcDataClient(unittest.TestCase):
         response.headers.get.return_value = 'filename={}'.format('orig_file_name')
         response.raw.read.side_effect = file_chunks
         basews_mock.return_value.get.return_value = response
-        with open(file_name, 'w') as f:
+        with open(file_name, 'wb') as f:
             client.get_file('TEST', 'afile', destination=f)
-        with open(file_name, 'r') as f:
+        with open(file_name, 'rb') as f:
             self.assertEquals(expected_content, f.read())
         os.remove(file_name)
 
         # test a get with decompress
         file_name = 'bfile.txt'
         file_content = 'ABCDEFGH12345'
-        file_chunks = [file_content[i:i+5] for i in xrange(0, len(file_content), 5)]
+        file_chunks = [file_content[i:i+5].encode() for i in xrange(0, len(file_content), 5)]
         file_chunks.append('') # last chunk is empty
         response = Mock()
         response.headers.get.return_value = 'filename={}.gz'.format(file_name)
@@ -152,10 +152,10 @@ class TestCadcDataClient(unittest.TestCase):
         # test process_bytes and send the content to /dev/null after. Use no decompress
         def concatenate_chunks(chunk):
             global mycontent
-            mycontent = '{}{}'.format(mycontent, chunk)
+            mycontent = '{}{}'.format(mycontent, chunk.decode())
         file_name = 'bfile.txt'
         file_content = 'ABCDEFGH12345'
-        file_chunks = [file_content[i:i+5] for i in xrange(0, len(file_content), 5)]
+        file_chunks = [file_content[i:i+5].encode() for i in xrange(0, len(file_content), 5)]
         file_chunks.append('') # last chunk is empty
         response = Mock()
         response.headers.get.return_value = 'filename={}.gz'.format(file_name)
