@@ -155,7 +155,7 @@ class CadcDataClient(object):
             params['cutout'] = cutout
         self.logger.debug('GET {}/{}'.format(archive, file_id))
         # TODO negotiate transfer even for fhead or wcs?
-        protocols = self._get_transfer_protocols(archive, file_id)
+        protocols = self._get_transfer_protocols(archive, file_id, params=params)
         if len(protocols) == 0:
             raise exceptions.HttpException('No URLs available to access data')
 
@@ -168,7 +168,7 @@ class CadcDataClient(object):
                 continue
             self.logger.debug('GET from URL {}'.format(url))
             try:
-                response = self._data_client.get(url, stream=True, params=params)
+                response = self._data_client.get(url, stream=True)
 
                 if destination is not None:
                     if not hasattr(destination, 'read'):
@@ -336,7 +336,7 @@ class CadcDataClient(object):
         self.logger.debug("File info: {}".format(file_info))
         return file_info
 
-    def _get_transfer_protocols(self, archive, file_id, is_get=True, headers=None):
+    def _get_transfer_protocols(self, archive, file_id, is_get=True, headers=None, params=None):
         if headers is None:
             headers = {}
         uri_transfer = 'ad:{}/{}'.format(archive, file_id)
@@ -353,7 +353,7 @@ class CadcDataClient(object):
         h['Content-Type'] = 'text/xml'
         logger.debug(request_xml)
         response = self._data_client.post(resource=(TRANSFER_RESOURCE_ID, None),
-                                          data=request_xml, headers=h)
+                                          data=request_xml, headers=h, params=params)
         response_str = response.text.encode('utf-8')
 
         self.logger.debug('POST had {} redirects'.format(len(response.history)))
@@ -536,5 +536,5 @@ def main_app():
 
     logger.info("DONE")
 
-# if __name__ == '__main__':
-#      main_app()
+if __name__ == '__main__':
+     main_app()

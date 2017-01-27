@@ -81,7 +81,7 @@ from cadcutils.net import auth
 from cadcutils import exceptions
 from cadcdata import transfer
 from cadcdata import CadcDataClient
-from cadcdata.core import main_app
+from cadcdata.core import main_app, TRANSFER_RESOURCE_ID
 from mock import Mock, patch, MagicMock, ANY, call
 
 
@@ -171,23 +171,31 @@ class TestCadcDataClient(unittest.TestCase):
         response = Mock()
         response.headers.get.return_value = 'filename={}.gz'.format(file_name)
         response.raw.read.side_effect = file_chunks
-        get_mock = Mock(return_value=response)
-        basews_mock.return_value.get = get_mock
+        response.history = []
+        response.status_code = 200
+        response.url = 'someurl'
+        post_mock = Mock(return_value=response)
+        basews_mock.return_value.post = post_mock
         fileid = 'getfile'
         archive = 'TEST'
-        p = MagicMock()
         p.endpoint = 'http://someurl/transfer/{}/{}'.format(archive, fileid)
-        t.protocols = [p]
         client.get_file('TEST', 'getfile', decompress=True, wcs=True)
-        get_mock.assert_called_with(p.endpoint, params={'wcs': True}, stream=True)
+        trans_doc = ('<vos:transfer xmlns:vos="http://www.ivoa.net/xml/VOSpace/v2.0">\n  '
+                     '<vos:target>ad:TEST/getfile</vos:target>\n  '
+                     '<vos:direction>pullFromVoSpace</vos:direction>\n  '
+                     '<vos:protocol uri="ivo://ivoa.net/vospace/core#httpget"/>\n</vos:transfer>\n')
+        post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None), params={'wcs': True}, data=trans_doc,
+                                     headers={'Content-Type': 'text/xml'})
         response.raw.read.side_effect = file_chunks
-        get_mock.reset_mock()
+        post_mock.reset_mock()
         client.get_file('TEST', 'getfile', decompress=True, fhead=True)
-        get_mock.assert_called_with(p.endpoint, params={'fhead': True}, stream=True)
+        post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None), params={'fhead': True}, data=trans_doc,
+                                     headers={'Content-Type': 'text/xml'})
         response.raw.read.side_effect = file_chunks
-        get_mock.reset_mock()
+        post_mock.reset_mock()
         client.get_file('TEST', 'getfile', decompress=True, cutout='[1:1]')
-        get_mock.assert_called_with(p.endpoint, params={'cutout': '[1:1]'}, stream=True)
+        post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None), params={'cutout': '[1:1]'}, data=trans_doc,
+                                     headers={'Content-Type': 'text/xml'})
 
         # test a put
         file_name = '/tmp/putfile.txt'
