@@ -183,7 +183,7 @@ class TestCadcDataClient(unittest.TestCase):
         trans_doc = ('<vos:transfer xmlns:vos="http://www.ivoa.net/xml/VOSpace/v2.0">\n  '
                      '<vos:target>ad:TEST/getfile</vos:target>\n  '
                      '<vos:direction>pullFromVoSpace</vos:direction>\n  '
-                     '<vos:protocol uri="ivo://ivoa.net/vospace/core#httpget"/>\n</vos:transfer>\n')
+                     '<vos:protocol uri="ivo://ivoa.net/vospace/core#httpget"/>\n</vos:transfer>\n').encode()
         post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None), params={'wcs': True}, data=trans_doc,
                                      headers={'Content-Type': 'text/xml'})
         response.raw.read.side_effect = file_chunks
