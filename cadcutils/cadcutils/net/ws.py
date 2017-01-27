@@ -444,6 +444,9 @@ class WsCapabilities(object):
         if content is None:
             # get information from the bootstrap registry
             try:
+                response = self.ws.get(url)
+                response.encoding = 'utf-8'
+                content = response.text
                 content = self.ws.get(url).content
                 with open(resource_file, 'wb') as f:
                     f.write(content)
