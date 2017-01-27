@@ -438,7 +438,8 @@ class WsCapabilities(object):
                 # will download it
                 pass
         # config dirs if they don't exist yet
-        os.makedirs(os.path.dirname(resource_file), exist_ok=True)
+        if not os.path.exists(os.path.dirname(resource_file)):
+            os.makedirs(os.path.dirname(resource_file))
 
         if content is None:
             # get information from the bootstrap registry
@@ -446,6 +447,7 @@ class WsCapabilities(object):
                 content = self.ws.get(url).content
                 with open(resource_file, 'wb') as f:
                     f.write(content)
+                    content = content.decode()
             except exceptions.HttpException:
                 # problems with the bootstrap registry. Try to use the old local one
                 # regardless of how old it is
