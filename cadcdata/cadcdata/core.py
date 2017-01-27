@@ -77,8 +77,7 @@ import sys
 import time
 import socket
 from clint.textui import progress
-from six import binary_type
-
+import six
 
 from cadcutils import net, util, exceptions
 from cadcdata.transfer import Transfer, TransferReader, TransferWriter
@@ -242,11 +241,8 @@ class CadcDataClient(object):
             total_length = int(response.headers.get('content-length'))
         except ValueError:
             pass
-        if not decompress:
-            rr = RawRange(response, False)
-            # reader = response.iter_content
-        else:
-            rr = RawRange(response, True)
+
+        rr = RawRange(response, decompress)
         reader = rr.get_instance
         if self.logger.isEnabledFor(logging.INFO):
             chunks = progress.bar(reader(READ_BLOCK_SIZE),
@@ -257,8 +253,13 @@ class CadcDataClient(object):
         for chunk in chunks:
             if process_bytes is not None:
                 process_bytes(chunk)
-            dest_file.write(chunk)
-            dest_file.flush()
+            if six.PY2:
+                dest_file.write(chunk)
+            else:
+                if 'b' in dest_file.mode:
+                    dest_file.write(chunk.encode())
+                else:
+                    dest_file.write(chunk)
         duration = time.time() - start
         self.logger.info('Successfully downloaded archive/fileID {} in {}s (avg. speed: {}Mb/s)'.format(
             resource, int(duration), round(total_length/1024/1024/duration, 2)))

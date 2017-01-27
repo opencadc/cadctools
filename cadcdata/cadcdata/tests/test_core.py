@@ -69,7 +69,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import copy
 import os
 import sys
 import unittest
@@ -77,9 +76,7 @@ import logging
 import shutil
 
 from six import StringIO
-from datetime import datetime
-import gzip
-import requests
+from six.moves import xrange
 from cadcutils.net import auth
 from cadcutils import exceptions
 from cadcdata import transfer

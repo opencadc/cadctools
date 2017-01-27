@@ -65,7 +65,7 @@
 # ************************************************************************
 
 from six.moves.urllib.parse import urlparse
-from six import string_types
+from six import string_types, iteritems
 from lxml import etree
 import os
 
@@ -256,10 +256,10 @@ class TransferReader(object):
         # on the namespace string
         try:
             NS = xml.nsmap['vos']
-            version = dict((v, k) for k, v in VOSPACE_NS.iteritems())[NS]
-        except Exception as e:
+            version = dict((v, k) for k, v in iteritems(VOSPACE_NS))[NS]
+        except Exception:
             raise TransferReaderError(
-                'Unable to establish the VOSpace version of transfer document {}'.format(e) )
+                'Unable to establish the VOSpace version of transfer document')
 
         VOS = '{%s}' % NS                  # VOS namespace string
 
