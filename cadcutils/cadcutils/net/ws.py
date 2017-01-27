@@ -450,7 +450,7 @@ class WsCapabilities(object):
                 content = self.ws.get(url).content
                 with open(resource_file, 'wb') as f:
                     f.write(content)
-                    content = content.decode()
+                    #content = content.decode()
             except exceptions.HttpException:
                 # problems with the bootstrap registry. Try to use the old local one
                 # regardless of how old it is
