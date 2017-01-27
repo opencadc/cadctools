@@ -70,8 +70,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import argparse
-import imp
 import logging
 import os
 import os.path
@@ -79,29 +77,29 @@ import sys
 import time
 import socket
 from clint.textui import progress
-from StringIO import StringIO
-from datetime import datetime
+import six
 
 from cadcutils import net, util, exceptions
-from cadcdata.transfer import Transfer, TransferReader, TransferReaderError, \
-    TransferWriter, TransferWriterError
-from six.moves.urllib.parse import urlparse
+from cadcdata.transfer import Transfer, TransferReader, TransferWriter
 
 from cadcdata import version
 
 __all__ = ['CadcDataClient']
 
-# TODO replace with SERVICE_URI when server supports it
-SERVICE_URL = 'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/'
+CADC_AD_CAPABILITY_ID = "vos://cadc.nrc.ca~vospace/CADC/std/archive#file-1.0"
 # IVOA dateformat
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
+# resource ID for info
 DEFAULT_RESOURCE_ID = 'ivo://cadc.nrc.ca/data'
+# resource ID for negotiating the transfer
+TRANSFER_RESOURCE_ID = 'ivo://ivoa.net/std/VOSpace#sync-2.1'
 ARCHIVE_STREAM_HTTP_HEADER = 'X-CADC-Stream'
 APP_NAME = 'cadc-data'
 
-READ_BLOCK_SIZE=8*1024
+READ_BLOCK_SIZE = 8*1024
 
 logger = logging.getLogger(APP_NAME)
+
 
 class CadcDataClient(object):
 
@@ -122,16 +120,12 @@ class CadcDataClient(object):
         self._transfer_writer = TransferWriter()
         self._transfer_reader = TransferReader()
 
-        # TODO This is just a temporary hack to be replaced with proper registry lookup functionaliy
-        resource_url = urlparse(resource_id)
         self.host = host
 
         agent = "{}/{}".format(APP_NAME, version.version)
 
         self._data_client = net.BaseWsClient(resource_id, subject,
                                              agent, retry=True, host=self.host)
-        self.logger.info('Service URL: {}'.format(self._data_client.base_url))
-
 
     def get_file(self, archive, file_id, destination=None, decompress=False,
                  cutout=None, fhead=False, wcs=False, process_bytes=None):
@@ -141,16 +135,17 @@ class CadcDataClient(object):
         :param archive: name of the archive containing the file
         :param file_id: the ID of the file to retrieve
         :param destination: file to save data to (file, file_name, stream or anything
-        that supports open/close and write). If None, the file is saved localy with the
+        that supports open/close and write). If None, the file is saved locally with the
         name provided by the content disposion received from the service.
+        :param decompress: True to decompress the file (if applicable), False otherwise
         :param cutout: the arguments of cutout operation to be performed by the service
+        :param fhead: download just the head of a fits file
         :param wcs: True if the wcs is to be included with the file
         :param process_bytes: function to be applied to the received bytes
         :return: the data stream object
         """
         assert archive is not None
         assert file_id is not None
-        resource = '{}/{}'.format(archive, file_id)
         params = {}
         if fhead:
             params['fhead'] = fhead
@@ -158,9 +153,9 @@ class CadcDataClient(object):
             params['wcs'] = wcs
         if cutout:
             params['cutout'] = cutout
-        self.logger.debug('GET '.format(resource))
-
-        protocols = self._get_transfer_protocols(archive, file_id)
+        self.logger.debug('GET {}/{}'.format(archive, file_id))
+        # TODO negotiate transfer even for fhead or wcs?
+        protocols = self._get_transfer_protocols(archive, file_id, params=params)
         if len(protocols) == 0:
             raise exceptions.HttpException('No URLs available to access data')
 
@@ -173,16 +168,16 @@ class CadcDataClient(object):
                 continue
             self.logger.debug('GET from URL {}'.format(url))
             try:
-                response = self._data_client.get(url, stream=True, params=params)
+                response = self._data_client.get(url, stream=True)
 
                 if destination is not None:
                     if not hasattr(destination, 'read'):
                         # got a destination name?
                         with open(destination, 'wb') as f:
-                            self._save_bytes(response, f, resource,
+                            self._save_bytes(response, f, url,
                                              decompress=decompress, process_bytes=process_bytes)
                     else:
-                        self._save_bytes(response, destination, resource,
+                        self._save_bytes(response, destination, url,
                                          decompress=decompress, process_bytes=process_bytes)
                 else:
                     # get the destination name from the content disposition
@@ -195,8 +190,8 @@ class CadcDataClient(object):
                         destination = os.path.splitext(destination)[0]
                     self.logger.debug('Using content disposition destination name: {}'.
                                       format(destination))
-                    with open(destination, 'w') as f:
-                        self._save_bytes(response, f, resource,
+                    with open(destination, 'wb') as f:
+                        self._save_bytes(response, f, url,
                                          decompress=decompress, process_bytes=process_bytes)
                 return
             except (exceptions.HttpException, socket.timeout) as e:
@@ -207,38 +202,68 @@ class CadcDataClient(object):
                 continue
         raise exceptions.HttpException('Unable to download data from any of the available URLs')
 
-    def _save_bytes(self, response, file, resource, decompress=False, process_bytes=None):
+    def _save_bytes(self, response, dest_file, resource, decompress=False, process_bytes=None):
         # requests automatically decompresses the data. Tell it to do it only if it had to
         total_length = 0
+
+        class RawRange(object):
+            """
+            Wrapper class to make response.raw.read work as iterator and behave the same way
+            as the corresponding response.iter_content
+            """
+            def __init__(self, rsp, decode_content):
+                """
+                :param rsp: HTTP response object
+                """
+                self.decode_content = decode_content
+                self._read = rsp.raw.read
+                self.block_size = 0
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                return self.next()
+
+            def next(self):
+                # reads the next raw block
+                data = self._read(self.block_size, decode_content=self.decode_content)
+                if len(data) > 0:
+                    return data
+                else:
+                    raise StopIteration()
+
+            def get_instance(self, block_size):
+                self.block_size = block_size
+                return self
+
         try:
             total_length = int(response.headers.get('content-length'))
-        except ValueError as e:
+        except ValueError:
             pass
-        if not decompress:
-            reader = response.raw.read
-        else:
-            reader = response.iter_content
+
+        rr = RawRange(response, decompress)
+        reader = rr.get_instance
         if self.logger.isEnabledFor(logging.INFO):
             chunks = progress.bar(reader(READ_BLOCK_SIZE),
-                      expected_size=(total_length / READ_BLOCK_SIZE) + 1)
+                                  expected_size=((total_length / READ_BLOCK_SIZE) + 1))
         else:
-            chunks = reader(chunk_size=READ_BLOCK_SIZE)
+            chunks = reader(READ_BLOCK_SIZE)
         start = time.time()
         for chunk in chunks:
             if process_bytes is not None:
                 process_bytes(chunk)
-            file.write(chunk)
-            file.flush()
+            dest_file.write(chunk)
         duration = time.time() - start
         self.logger.info('Successfully downloaded archive/fileID {} in {}s (avg. speed: {}Mb/s)'.format(
             resource, int(duration), round(total_length/1024/1024/duration, 2)))
 
-    def put_file(self, archive, file_id, file, archive_stream=None):
+    def put_file(self, archive, file_id, src_file, archive_stream=None):
         """
         Puts a file into the archive storage
         :param archive: name of the archive
         :param file_id: ID of file in the archive storage
-        :param file: location of the source file
+        :param src_file: location of the source file
         :param archive_stream: specific archive stream
         """
         assert archive is not None
@@ -250,8 +275,7 @@ class CadcDataClient(object):
         if self._data_client.subject.anon:
             raise exceptions.UnauthorizedException('Must be authenticated to put data')
 
-        resource = '{}/{}'.format(archive, file_id)
-        self.logger.debug('PUT {}'.format(resource))
+        self.logger.debug('PUT {}/{}'.format(archive, file_id))
         headers = {}
         if archive_stream is not None:
             headers[ARCHIVE_STREAM_HTTP_HEADER] = str(archive_stream)
@@ -271,8 +295,8 @@ class CadcDataClient(object):
             self.logger.debug('PUT to URL {}'.format(url))
 
             try:
-                with open(file, 'rb') as f:
-                    self._data_client.put(resource, headers=headers, data=f)
+                with open(src_file, 'rb') as f:
+                    self._data_client.put(url, headers=headers, data=f)
                 self.logger.debug('Successfully updated file\n')
                 return
             except (exceptions.HttpException, socket.timeout) as e:
@@ -292,36 +316,34 @@ class CadcDataClient(object):
         """
         assert archive is not None
         assert file_id is not None
-        resource = '/{}/{}'.format(archive, file_id)
+        resource = (CADC_AD_CAPABILITY_ID, '{}/{}'.format(archive, file_id))
         self.logger.debug('HEAD {}'.format(resource))
         response = self._data_client.head(resource)
         h = response.headers
-        hmap = {'name':'Content-Disposition',
-                'size':'Content-Length',
-                'md5sum':'Content-MD5',
-                'type':'Content-Type',
-                'encoding':'Content-Encoding',
-                'lastmod':'Last-Modified',
-                'usize':'X-Uncompressed-Length',
-                'umd5sum':'X-Uncompressed-MD5'}
-        file_info = {}
-        file_info['id'] = file_id
-        file_info['archive'] = archive
+        hmap = {'name': 'Content-Disposition',
+                'size': 'Content-Length',
+                'md5sum': 'Content-MD5',
+                'type': 'Content-Type',
+                'encoding': 'Content-Encoding',
+                'lastmod': 'Last-Modified',
+                'usize': 'X-Uncompressed-Length',
+                'umd5sum': 'X-Uncompressed-MD5'}
+        file_info = {'id': file_id, 'archive': archive}
         for key in hmap:
             file_info[key] = h.get(hmap[key], None)
         file_info['name'] = file_info['name'].replace('inline; filename=', '')
-        #TODOfile_info['ingest_date'] = h[?]
+        # TODO file_info['ingest_date'] = h[?]
         self.logger.debug("File info: {}".format(file_info))
         return file_info
 
-    def _get_transfer_protocols(self, archive, file_id, is_get=True, headers={}):
+    def _get_transfer_protocols(self, archive, file_id, is_get=True, headers=None, params=None):
+        if headers is None:
+            headers = {}
         uri_transfer = 'ad:{}/{}'.format(archive, file_id)
         # Direction-dependent setup
         if is_get:
-            dir_str = 'from'
             tran = Transfer(uri_transfer, 'pullFromVoSpace')
         else:
-            dir_str = 'to'
             tran = Transfer(uri_transfer, 'pushToVoSpace')
 
         # obtain list of endpoints by sending a transfer document and
@@ -330,8 +352,8 @@ class CadcDataClient(object):
         h = headers.copy()
         h['Content-Type'] = 'text/xml'
         logger.debug(request_xml)
-        response = self._data_client.post(resource='transfer', data=request_xml,
-                                    headers=h)
+        response = self._data_client.post(resource=(TRANSFER_RESOURCE_ID, None),
+                                          data=request_xml, headers=h, params=params)
         response_str = response.text.encode('utf-8')
 
         self.logger.debug('POST had {} redirects'.format(len(response.history)))
@@ -342,29 +364,32 @@ class CadcDataClient(object):
         tran = self._transfer_reader.read(response_str)
         return tran.protocols
 
-def handle_error(msg, exit=True):
+
+def handle_error(msg, exit_after=True):
     """
     Prints error message and exit (by default)
     :param msg: error message to print
+    :param exit_after: True if log error message and exit, False if log error message and return
     :return:
     """
     logger.error(msg)
-    if exit:
-        sys.exit(-1) #TODO use different error codes?
+    if exit_after:
+        sys.exit(-1)  # TODO use different error codes?
+
 
 def main_app():
 
     parser = util.get_base_parser(version=version.version, default_resource_id=DEFAULT_RESOURCE_ID)
 
-    parser.description = ('Client for accessing the data Web Service at the Canadian Astronomy Data Centre '+
+    parser.description = ('Client for accessing the data Web Service at the Canadian Astronomy Data Centre ' +
                           '(www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data)')
 
     subparsers = parser.add_subparsers(dest='cmd',
-                                       help='Supported commands. Use the -h|--help argument of a command ' +\
-                                        'for more details')
+                                       help='Supported commands. Use the -h|--help argument of a command '
+                                       'for more details')
     get_parser = subparsers.add_parser('get',
-                                          description='Retrieve files from a CADC archive',
-                                          help='Retrieve files from a CADC archive')
+                                       description='Retrieve files from a CADC archive',
+                                       help='Retrieve files from a CADC archive')
     get_parser.add_argument('-a', '--archive', help='CADC archive', required=True)
     get_parser.add_argument('-o', '--output',
                             help='Space-separated list of destination files (quotes required for multiple elements)',
@@ -372,7 +397,7 @@ def main_app():
     get_parser.add_argument('--cutout', help=('Specify one or multiple extension and/or pixel range cutout '
                                               'operations to be performed. Use cfitsio syntax'),
                             required=False)
-    get_parser.add_argument('-de','--decompress', help='Decompress the data (gzip only)',
+    get_parser.add_argument('-de', '--decompress', help='Decompress the data (gzip only)',
                             action='store_true', required=False)
     get_parser.add_argument('--wcs', help='Return the World Coordinate System (WCS) information',
                             action='store_true', required=False)
@@ -381,9 +406,9 @@ def main_app():
     get_parser.add_argument('fileID', help='The ID of the file in the archive', nargs='+')
 
     put_parser = subparsers.add_parser('put',
-                                        description='Upload files into a CADC archive',
-                                        help='Upload files into a CADC archive')
-    put_parser.add_argument('-a','--archive', help='CADC archive', required=True)
+                                       description='Upload files into a CADC archive',
+                                       help='Upload files into a CADC archive')
+    put_parser.add_argument('-a', '--archive', help='CADC archive', required=True)
     put_parser.add_argument('-as', '--archive-stream', help='Specific archive stream to add the file to',
                             required=False)
     put_parser.add_argument('-c', '--compress', help='gzip compress the data',
@@ -395,19 +420,19 @@ def main_app():
                             help='File or directory containing the files to be put', nargs='+')
 
     info_parser = subparsers.add_parser('info',
-                                          description=('Get information regarding files in a '
-                                                       'CADC archive on the form:\n'
-                                                       'File id:\n'
-                                                       '\t -name\n'
-                                                       '\t -size\n'
-                                                       '\t -md5sum\n'
-                                                       '\t -encoding\n'
-                                                       '\t -type\n'
-                                                       '\t -usize\n'
-                                                       '\t -umd5sum\n'
-                                                       #'\t -ingest_date\n'
-                                                       '\t -lastmod'),
-                                          help='Get information regarding files in a CADC archive')
+                                        description=('Get information regarding files in a '
+                                                     'CADC archive on the form:\n'
+                                                     'File id:\n'
+                                                     '\t -name\n'
+                                                     '\t -size\n'
+                                                     '\t -md5sum\n'
+                                                     '\t -encoding\n'
+                                                     '\t -type\n'
+                                                     '\t -usize\n'
+                                                     '\t -umd5sum\n'
+                                                     # '\t -ingest_date\n'
+                                                     '\t -lastmod'),
+                                        help='Get information regarding files in a CADC archive')
     info_parser.add_argument('-a', '--archive', help='CADC archive', required=True)
     # info_parser.add_argument('--file-id', action='store_true', help='File ID')
     # info_parser.add_argument('--file-name', action='store_true', help='File name')
@@ -421,7 +446,6 @@ def main_app():
     # info_parser.add_argument('--last-modified', action='store_true', help='Ingest date')
     info_parser.add_argument('fileID',
                              help='The ID of the file in the archive', nargs='+')
-
 
     args = parser.parse_args()
     if args.verbose:
@@ -443,28 +467,28 @@ def main_app():
                 files = args.output.split()
                 if len(files) != len(file_ids):
                     handle_error('Different size of destination files list ({}) and list of file IDs ({})'.
-                                  format(files, file_ids))
+                                 format(files, file_ids))
                 for f, fid in list(zip(files, file_ids)):
                     try:
                         client.get_file(archive, fid, f, decompress=args.decompress,
-                                     fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
-                    except exceptions.NotFoundException as e:
-                        handle_error('File ID {} not found'.format(fid), exit=False)
+                                        fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
+                    except exceptions.NotFoundException:
+                        handle_error('File ID {} not found'.format(fid), exit_after=False)
             else:
                 for fid in file_ids:
                     try:
                         client.get_file(archive, fid, None, decompress=args.decompress,
                                         fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
-                    except exceptions.NotFoundException as e:
-                        handle_error('File ID {} not found'.format(fid), exit=False)
+                    except exceptions.NotFoundException:
+                        handle_error('File ID {} not found'.format(fid), exit_after=False)
         elif args.cmd == 'info':
             logger.info('info')
             archive = args.archive
             for file_id in args.fileID:
                 try:
                     file_info = client.get_file_info(archive, file_id)
-                except exceptions.NotFoundException as e:
-                    handle_error('File ID {} not found'.format(file_id), exit=False)
+                except exceptions.NotFoundException:
+                    handle_error('File ID {} not found'.format(file_id), exit_after=False)
                     continue
                 print('File {}:'.format(file_id))
                 for field in sorted(file_info):
@@ -475,13 +499,13 @@ def main_app():
             sources = args.source
 
             files = []
-            for file in sources:
-                if os.path.isfile(file):
-                    files.append(file)
-                elif os.path.isdir(file):
-                    for f in os.listdir(file):
-                        if os.path.isfile(os.path.join(file, f)):
-                            files.append(os.path.join(file, f))
+            for file1 in sources:
+                if os.path.isfile(file1):
+                    files.append(file1)
+                elif os.path.isdir(file1):
+                    for f in os.listdir(file1):
+                        if os.path.isfile(os.path.join(file1, f)):
+                            files.append(os.path.join(file1, f))
                         else:
                             logger.warn('{} not added to the list of files to put'.format(f))
             logger.debug('Files to put: {}'.format(files))
@@ -493,21 +517,24 @@ def main_app():
                     file_ids.append(args.fileID)
             else:
                 # create the list of file_ids
-                for file in files:
-                    file_ids.append(os.path.basename(file).split('.')[0])
+                for f in files:
+                    file_ids.append(os.path.basename(f).split('.')[0])
 
-            for file, file_id in list(zip(files, file_ids)):
-                client.put_file(archive, file_id, file, archive_stream=args.archive_stream)
-    except exceptions.UnauthorizedException as e:
+            for f, file_id in list(zip(files, file_ids)):
+                client.put_file(archive, file_id, f, archive_stream=args.archive_stream)
+    except exceptions.UnauthorizedException:
         if subject.anon:
             handle_error('Operation cannot be performed anonymously. '
                          'Use one of the available methods to authenticate')
         else:
             handle_error('Unexpected authentication problem')
-    except exceptions.ForbiddenException as e:
+    except exceptions.ForbiddenException:
         handle_error('Unauthorized to perform operation')
     except exceptions.UnexpectedException as e:
         logger.debug(e.orig_exception)
         handle_error('Unexpected server error')
 
     logger.info("DONE")
+
+if __name__ == '__main__':
+     main_app()

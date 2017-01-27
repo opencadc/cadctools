@@ -60,11 +60,12 @@
 # *  General Public License along         Publique GNU Affero avec
 # *  with OpenCADC.  If not, see          OpenCADC ; si ce n’est
 # *  <http://www.gnu.org/licenses/>.      pas le cas, consultez :
-# *                                       <http://www.gnu.org/licenses/>.
+# *                                       <http://www.gnu.org/licenses/>.six.string_types
 # *
 # ************************************************************************
 
-from urlparse import urlparse
+from six.moves.urllib.parse import urlparse
+from six import string_types, iteritems
 from lxml import etree
 import os
 
@@ -227,7 +228,7 @@ class Transfer(object):
                     "%s may only be set in VOSpace documents version >= %i" \
                         % (property,ver) )
 
-        assert isinstance(value, basestring)
+        assert isinstance(value, string_types)
 
         self.properties[property] = value
 
@@ -255,10 +256,10 @@ class TransferReader(object):
         # on the namespace string
         try:
             NS = xml.nsmap['vos']
-            version = dict((v, k) for k, v in VOSPACE_NS.iteritems())[NS]
-        except:
+            version = dict((v, k) for k, v in iteritems(VOSPACE_NS))[NS]
+        except Exception:
             raise TransferReaderError(
-                'Unable to establish the VOSpace version of transfer document' )
+                'Unable to establish the VOSpace version of transfer document')
 
         VOS = '{%s}' % NS                  # VOS namespace string
 

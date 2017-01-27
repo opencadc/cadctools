@@ -69,22 +69,19 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import copy
 import os
 import sys
 import unittest
 import logging
 import shutil
-# TODO to be changed to io.StringIO when caom2 is prepared for python3
-from StringIO import StringIO
-from datetime import datetime
-import gzip
-import requests
+
+from six import StringIO
+from six.moves import xrange
 from cadcutils.net import auth
 from cadcutils import exceptions
 from cadcdata import transfer
 from cadcdata import CadcDataClient
-from cadcdata.core import main_app
+from cadcdata.core import main_app, TRANSFER_RESOURCE_ID
 from mock import Mock, patch, MagicMock, ANY, call
 
 
@@ -107,10 +104,10 @@ class TestCadcDataClient(unittest.TestCase):
     def test_get_file(self, trans_reader_mock, basews_mock):
         # test a simple get - no decompress
         file_name = '/tmp/afile.txt'
-        file_chunks = ['aaaa', 'bbbb', '']
+        file_chunks = ['aaaa'.encode(), 'bbbb'.encode(), ''.encode()]
         response = Mock()
         response.headers.get.return_value = 'filename={}'.format('orig_file_name')
-        response.raw.read.return_value = iter(file_chunks) #read returns an iter
+        response.raw.read.side_effect = file_chunks #read returns multiple blocks
         basews_mock.return_value.get.return_value = response
         client = CadcDataClient(auth.Subject())
         with self.assertRaises(exceptions.HttpException):
@@ -122,29 +119,29 @@ class TestCadcDataClient(unittest.TestCase):
         t.protocols = [p]
         trans_reader_mock.return_value.read.return_value = t
         client.get_file('TEST', 'afile', destination=file_name)
-        expected_content = ''.join(file_chunks)
-        with open(file_name, 'r') as f:
+        expected_content = (''.join([c.decode() for c in file_chunks])).encode()
+        with open(file_name, 'rb') as f:
             self.assertEquals(expected_content, f.read())
         os.remove(file_name)
         # do it again with the file now open
         response = Mock()
         response.headers.get.return_value = 'filename={}'.format('orig_file_name')
-        response.raw.read.return_value = iter(file_chunks)
+        response.raw.read.side_effect = file_chunks
         basews_mock.return_value.get.return_value = response
-        with open(file_name, 'w') as f:
+        with open(file_name, 'wb') as f:
             client.get_file('TEST', 'afile', destination=f)
-        with open(file_name, 'r') as f:
+        with open(file_name, 'rb') as f:
             self.assertEquals(expected_content, f.read())
         os.remove(file_name)
 
         # test a get with decompress
         file_name = 'bfile.txt'
         file_content = 'ABCDEFGH12345'
-        file_chunks = [file_content[i:i+5] for i in xrange(0, len(file_content), 5)]
+        file_chunks = [file_content[i:i+5].encode() for i in xrange(0, len(file_content), 5)]
         file_chunks.append('') # last chunk is empty
         response = Mock()
         response.headers.get.return_value = 'filename={}.gz'.format(file_name)
-        response.iter_content.return_value = iter(file_chunks)
+        response.raw.read.side_effect = file_chunks
         basews_mock.return_value.get.return_value = response
         client = CadcDataClient(auth.Subject())
         client.get_file('TEST', 'afile', decompress=True)
@@ -152,45 +149,53 @@ class TestCadcDataClient(unittest.TestCase):
             self.assertEquals(file_content, f.read())
         os.remove(file_name)
 
-        # test process_bytes and send the content to /dev/null after
+        # test process_bytes and send the content to /dev/null after. Use no decompress
         def concatenate_chunks(chunk):
             global mycontent
-            mycontent = '{}{}'.format(mycontent, chunk)
+            mycontent = '{}{}'.format(mycontent, chunk.decode())
         file_name = 'bfile.txt'
         file_content = 'ABCDEFGH12345'
-        file_chunks = [file_content[i:i+5] for i in xrange(0, len(file_content), 5)]
+        file_chunks = [file_content[i:i+5].encode() for i in xrange(0, len(file_content), 5)]
         file_chunks.append('') # last chunk is empty
         response = Mock()
         response.headers.get.return_value = 'filename={}.gz'.format(file_name)
-        response.iter_content.return_value = iter(file_chunks)
+        response.raw.read.side_effect = file_chunks
         basews_mock.return_value.get.return_value = response
         client = CadcDataClient(auth.Subject())
         client.logger.setLevel(logging.INFO)
-        client.get_file('TEST', 'afile', decompress=True, destination='/dev/null',
+        client.get_file('TEST', 'afile', destination='/dev/null',
                         process_bytes=concatenate_chunks)
         self.assertEquals(file_content, mycontent)
 
         # test get fhead
         response = Mock()
         response.headers.get.return_value = 'filename={}.gz'.format(file_name)
-        response.iter_content.return_value = iter(file_chunks)
-        get_mock = Mock(return_value=response)
-        basews_mock.return_value.get = get_mock
+        response.raw.read.side_effect = file_chunks
+        response.history = []
+        response.status_code = 200
+        response.url = 'someurl'
+        post_mock = Mock(return_value=response)
+        basews_mock.return_value.post = post_mock
         fileid = 'getfile'
         archive = 'TEST'
-        p = MagicMock()
         p.endpoint = 'http://someurl/transfer/{}/{}'.format(archive, fileid)
-        t.protocols = [p]
         client.get_file('TEST', 'getfile', decompress=True, wcs=True)
-        get_mock.assert_called_with(p.endpoint, params={'wcs': True}, stream=True)
-        response.iter_content.return_value = iter(file_chunks)
-        get_mock.reset_mock()
+        trans_doc = ('<vos:transfer xmlns:vos="http://www.ivoa.net/xml/VOSpace/v2.0">\n  '
+                     '<vos:target>ad:TEST/getfile</vos:target>\n  '
+                     '<vos:direction>pullFromVoSpace</vos:direction>\n  '
+                     '<vos:protocol uri="ivo://ivoa.net/vospace/core#httpget"/>\n</vos:transfer>\n').encode()
+        post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None), params={'wcs': True}, data=trans_doc,
+                                     headers={'Content-Type': 'text/xml'})
+        response.raw.read.side_effect = file_chunks
+        post_mock.reset_mock()
         client.get_file('TEST', 'getfile', decompress=True, fhead=True)
-        get_mock.assert_called_with(p.endpoint, params={'fhead': True}, stream=True)
-        response.iter_content.return_value = iter(file_chunks)
-        get_mock.reset_mock()
+        post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None), params={'fhead': True}, data=trans_doc,
+                                     headers={'Content-Type': 'text/xml'})
+        response.raw.read.side_effect = file_chunks
+        post_mock.reset_mock()
         client.get_file('TEST', 'getfile', decompress=True, cutout='[1:1]')
-        get_mock.assert_called_with(p.endpoint, params={'cutout': '[1:1]'}, stream=True)
+        post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None), params={'cutout': '[1:1]'}, data=trans_doc,
+                                     headers={'Content-Type': 'text/xml'})
 
         # test a put
         file_name = '/tmp/putfile.txt'
@@ -203,12 +208,18 @@ class TestCadcDataClient(unittest.TestCase):
         with self.assertRaises(exceptions.UnauthorizedException):
             client.put_file('TEST', 'putfile', file_name)
         client._data_client.subject.anon = False # authenticate the user
+        transf_end_point = 'http://test.ca/endpoint'
+        def mock_get_trans_protocols(archive, file_id, is_get, headers):
+            protocol = Mock()
+            protocol.endpoint = transf_end_point
+            return [protocol]
+        client._get_transfer_protocols = mock_get_trans_protocols
         client.put_file('TEST', 'putfile', file_name)
-        put_mock.assert_called_with('TEST/putfile', data=ANY, headers={})
+        put_mock.assert_called_with(transf_end_point, data=ANY, headers={})
 
         # specify an archive stream
         client.put_file('TEST', 'putfile', file_name, archive_stream='default')
-        put_mock.assert_called_with('TEST/putfile', data=ANY, headers={'X-CADC-Stream':'default'})
+        put_mock.assert_called_with(transf_end_point, data=ANY, headers={'X-CADC-Stream':'default'})
         os.remove(file_name)
 
         # test an info
