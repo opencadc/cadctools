@@ -238,7 +238,7 @@ class CadcDataClient(object):
                 return self
 
         try:
-            total_length = int(response.headers.get('content-length'))
+            total_length = int(response.headers.get('content-length', 0))
         except ValueError:
             pass
 
