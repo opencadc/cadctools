@@ -111,7 +111,7 @@ class TestAuth(unittest.TestCase):
         except OSError as ex:
             pass
         sys.argv = ["cadc-get-cert", "--cert-filename", certfile]
-        auth.get_cert_main()
+        self.assertEquals(None, auth.get_cert_main())
         with open(certfile, 'r') as f:
             self.assertEqual(value, f.read())
 
@@ -132,29 +132,35 @@ Expected /tmp/testcertfile to be a directory.
         """ Test the help option of the cadc-get-cert app """
 
         usage =\
-"""usage: cadc-get-cert [-h] [--cert-filename CERT_FILENAME]
-                     [--cert-server CERT_SERVER] [--daysValid DAYSVALID]
-                     [-u USER]
+"""usage: cadc-get-cert [-h] [-V]
+                     [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                     [--host HOST] [--resourceID RESOURCEID] [-d | -q | -v]
+                     [--cert-filename CERT_FILENAME] [--daysValid DAYSVALID]
 
-Retrieve a security certificate for interaction with a Web service such as
-VOSpace. Certificate will be valid for daysValid and stored as local file
-cert_filename. First looks for an entry in the users .netrc matching the realm
-www.canfar.phys.uvic.ca, the user is prompted for a username and password if
-no entry is found.
+Retrieve a security certificate for interaction with a Web service such as VOSpace. Certificate will be valid for daysValid and stored as local file cert_filename.
 
 optional arguments:
-  -h, --help            show this help message and exit
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
   --cert-filename CERT_FILENAME
                         Filesystem location to store the proxy certificate.
                         (default: {})
-  --cert-server CERT_SERVER
-                        Certificate server network address. (default:
-                        www.canfar.phys.uvic.ca)
   --daysValid DAYSVALID
                         Number of days the certificate should be valid.
-                        (default: 10)
-  -u USER, --user USER  CADC user ID associated with the certificate (default:
-                        None)
+  -d, --debug           debug messages
+  -h, --help            show this help message and exit
+  --host HOST           Base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    Use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -q, --quiet           run quietly
+  --resourceID RESOURCEID
+                        resource identifier (default ivo://cadc.nrc.ca/cred)
+  -u, --user USER       Name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+  -V, --version         show program's version number and exit
 """.format(os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'))
         # --help
         self.maxDiff = None  # Display the entire difference
@@ -183,7 +189,7 @@ optional arguments:
 
         # empty netrc subject
         m = mock_open()
-        with patch('__builtin__.open', m, create=True):
+        with patch('six.moves.builtins.open', m, create=True):
             subject = auth.Subject(netrc='somefile')
         self.assertFalse(subject.anon)
         self.assertEquals(None, subject.certificate)
