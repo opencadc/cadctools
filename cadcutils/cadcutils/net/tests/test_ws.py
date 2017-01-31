@@ -80,6 +80,9 @@ from cadcutils.net import ws, auth, wscapabilities
 from cadcutils.net.ws import DEFAULT_RETRY_DELAY, MAX_RETRY_DELAY, MAX_NUM_RETRIES, SERVICE_RETRY
 from cadcutils import exceptions
 
+# The following is a temporary workaround for Python issue 25532 (https://bugs.python.org/issue25532)
+call.__wrapped__ = None
+
 
 class TestWs(unittest.TestCase):
 
