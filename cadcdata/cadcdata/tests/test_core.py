@@ -88,11 +88,9 @@ from mock import Mock, patch, MagicMock, ANY, call
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 
 class MyExitError(Exception):
-    pass
 
-class MyExitError(Exception):
-    pass
-
+    def __init__(self):
+        self.message = "MyExitError"
 
 mycontent = ''
 
