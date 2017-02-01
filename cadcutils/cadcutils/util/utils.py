@@ -251,7 +251,7 @@ class _CustomArgParser(ArgumentParser):
     """
     Custom arg parses to sort options in alphabetical order before displaying them
     """
-    def __init__(self, subparsers=True, common_parser=None, **kwargs):
+    def __init__(self, subparsers=True, common_parser=None, version=None, **kwargs):
         self.common_parser = common_parser
         self.subparsers = subparsers
         self._subparsers_added = False
@@ -261,6 +261,9 @@ class _CustomArgParser(ArgumentParser):
             super(_CustomArgParser, self).__init__(parents=[common_parser], **kwargs)
         else:
             super(_CustomArgParser, self).__init__(**kwargs)
+        if version is not None:
+            self.add_argument('-V', '--version', action='version', version=version)
+
 
     def add_subparsers(self, **kwargs):
         if not self.subparsers:
@@ -292,8 +295,6 @@ def get_base_parser(subparsers=True, version=None, usecert=True, default_resourc
     """
     cparser = ArgumentParser(add_help=False, formatter_class=SingleMetavarHelpFormatter)
 
-    if version is not None:
-        cparser.add_argument('-V', '--version', action='version', version=version)
     auth_group = cparser.add_mutually_exclusive_group()
     if usecert:
         auth_group.add_argument('--cert', type=str,
@@ -323,5 +324,5 @@ def get_base_parser(subparsers=True, version=None, usecert=True, default_resourc
     log_group.add_argument('-v', '--verbose', action='store_true',
                         help='verbose messages')
 
-    argparser = _CustomArgParser(subparsers=subparsers, common_parser=cparser)
+    argparser = _CustomArgParser(subparsers=subparsers, common_parser=cparser, version=version)
     return argparser

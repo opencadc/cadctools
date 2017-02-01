@@ -115,6 +115,7 @@ class BaseWsClient(object):
         """
 
         self.logger = logging.getLogger('BaseWsClient')
+        logging.getLogger('BaseWsClient').addHandler(logging.NullHandler())
 
         if resource_id is None:
             raise ValueError('No resource ID provided')

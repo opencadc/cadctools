@@ -132,10 +132,11 @@ Expected /tmp/testcertfile to be a directory.
         """ Test the help option of the cadc-get-cert app """
 
         usage =\
-"""usage: cadc-get-cert [-h] [-V]
+"""usage: cadc-get-cert [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                      [--host HOST] [--resourceID RESOURCEID] [-d | -q | -v]
-                     [--cert-filename CERT_FILENAME] [--daysValid DAYSVALID]
+                     [-V] [--cert-filename CERT_FILENAME]
+                     [--daysValid DAYSVALID]
 
 Retrieve a security certificate for interaction with a Web service such as VOSpace. Certificate will be valid for daysValid and stored as local file cert_filename.
 

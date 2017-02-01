@@ -237,6 +237,38 @@ class UtilTests(unittest.TestCase):
         #help with a simple, no subparsers basic parser - these are the default arguments
         expected_stdout = \
 '''usage: cadc-client [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                   [--host HOST] --resourceID RESOURCEID [-d | -q | -v] [-V]
+
+optional arguments:
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -d, --debug           debug messages
+  -h, --help            show this help message and exit
+  --host HOST           Base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    Use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -q, --quiet           run quietly
+  --resourceID RESOURCEID
+                        resource identifier (e.g. ivo://cadc.nrc.ca/service
+  -u, --user USER       Name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+  -V, --version         show program's version number and exit
+'''
+
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            with self.assertRaises(MyExitError):
+                sys.argv = ["cadc-client", "--help"]
+                parser = get_base_parser(subparsers=False, version=3.3)
+                parser.parse_args()
+            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+        #print(stdout_mock.getvalue())
+
+        # same test but no version this time
+        expected_stdout = \
+'''usage: cadc-client [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                    [--host HOST] --resourceID RESOURCEID [-d | -q | -v]
 
 optional arguments:
