@@ -100,7 +100,7 @@ class UtilTests(unittest.TestCase):
         """ Test the handling of logging level control from command line arguments """
         
         parser = get_base_parser(subparsers=False)
-        args = parser.parse_args(["--debug", "--resourceID", "www.some.resource"])
+        args = parser.parse_args(["--debug", "--resource-id", "www.some.resource"])
         self.assertEqual(logging.DEBUG, get_log_level(args))
 
         parser = get_base_parser(subparsers=False,
@@ -197,12 +197,12 @@ class UtilTests(unittest.TestCase):
 
         parser = get_base_parser(subparsers=False)
         resource_id = "ivo://www.some.resource/resourceid"
-        args = parser.parse_args(["--resourceID", resource_id])
-        self.assertEquals(urlparse(resource_id), args.resourceID)
+        args = parser.parse_args(["--resource-id", resource_id])
+        self.assertEquals(urlparse(resource_id), args.resource_id)
 
         parser = get_base_parser(subparsers=False, default_resource_id=resource_id)
         args = parser.parse_args([])
-        self.assertEquals(resource_id, args.resourceID)
+        self.assertEquals(resource_id, args.resource_id)
 
         # missing resourceID
         parser = get_base_parser(subparsers=False)
@@ -237,7 +237,7 @@ class UtilTests(unittest.TestCase):
         #help with a simple, no subparsers basic parser - these are the default arguments
         expected_stdout = \
 '''usage: cadc-client [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                   [--host HOST] --resourceID RESOURCEID [-d | -q | -v]
+                   [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v] [-V]
 
 optional arguments:
   --cert CERT           location of your X509 certificate to use for
@@ -250,8 +250,40 @@ optional arguments:
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
-  --resourceID RESOURCEID
-                        resource identifier (e.g. ivo://cadc.nrc.ca/service
+  --resource-id RESOURCE_ID
+                        resource identifier (e.g. ivo://cadc.nrc.ca/service)
+  -u, --user USER       Name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+  -V, --version         show program's version number and exit
+'''
+
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            with self.assertRaises(MyExitError):
+                sys.argv = ["cadc-client", "--help"]
+                parser = get_base_parser(subparsers=False, version=3.3)
+                parser.parse_args()
+            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+        #print(stdout_mock.getvalue())
+
+        # same test but no version this time
+        expected_stdout = \
+'''usage: cadc-client [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                   [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v]
+
+optional arguments:
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -d, --debug           debug messages
+  -h, --help            show this help message and exit
+  --host HOST           Base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    Use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -q, --quiet           run quietly
+  --resource-id RESOURCE_ID
+                        resource identifier (e.g. ivo://cadc.nrc.ca/service)
   -u, --user USER       Name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
@@ -267,7 +299,7 @@ optional arguments:
         # --help with a simple parser with a few extra command line options
         expected_stdout = \
 '''usage: cadc-client [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                   [--host HOST] --resourceID RESOURCEID [-d | -q | -v] [-x]
+                   [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v] [-x]
                    fileID [fileID ...]
 
 positional arguments:
@@ -284,8 +316,8 @@ optional arguments:
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
-  --resourceID RESOURCEID
-                        resource identifier (e.g. ivo://cadc.nrc.ca/service
+  --resource-id RESOURCE_ID
+                        resource identifier (e.g. ivo://cadc.nrc.ca/service)
   -u, --user USER       Name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
@@ -329,7 +361,7 @@ optional arguments:
         expected_stdout = \
 '''usage: cadc-client cmd1 [-h]
                         [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                        [--host HOST] --resourceID RESOURCEID [-d | -q | -v]
+                        [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v]
                         [-x]
 
 optional arguments:
@@ -343,8 +375,8 @@ optional arguments:
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
-  --resourceID RESOURCEID
-                        resource identifier (e.g. ivo://cadc.nrc.ca/service
+  --resource-id RESOURCE_ID
+                        resource identifier (e.g. ivo://cadc.nrc.ca/service)
   -u, --user USER       Name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
@@ -359,7 +391,7 @@ optional arguments:
         expected_stdout = \
 '''usage: cadc-client cmd2 [-h]
                         [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                        [--host HOST] --resourceID RESOURCEID [-d | -q | -v]
+                        [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v]
                         fileID [fileID ...]
 
 positional arguments:
@@ -376,8 +408,8 @@ optional arguments:
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
-  --resourceID RESOURCEID
-                        resource identifier (e.g. ivo://cadc.nrc.ca/service
+  --resource-id RESOURCE_ID
+                        resource identifier (e.g. ivo://cadc.nrc.ca/service)
   -u, --user USER       Name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages

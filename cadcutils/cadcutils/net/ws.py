@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
@@ -64,6 +65,14 @@
 #
 #
 # ***********************************************************************
+
+"""
+Contains functionality related to interacting with Web Services. Users
+of this class can instantiate the BaseWsClient in order to access
+the webservices via one of the get, put, post, delete and head
+functions that the service supports.
+
+"""
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -99,7 +108,32 @@ except:
 
 
 class BaseWsClient(object):
-    """Web Service client primarily for CADC services"""
+    """
+    Web Service client primarily for CADC services. It is a wrapper class
+       around the requests module to facilitate the interaction with the
+       server via the get, put, post, delete and head functions (when the service supports it).
+
+    Additional functionality that this class transparently offer:
+            - discovery the capabilities of the service and their access methods
+            - handling of transient errors with retrials
+            - use of the appropriate credentials when interacting with the service
+            - proper agent identification for logging on the server
+
+    Three arguments are required in order to instantiate this class:
+        1. A valid resource ID corresponding to the Web service that is being accessed
+           (the list of valid resource is available at:
+           'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-caps'.
+        2. A cadcutils.net.Subject instance that contains the user credentials (no arguments
+           for anonymous subject, certificate file or basic authentication).
+        3. Agent is the name and version of the application as it will be presented in the HTTP
+          request e.g. foo/1.0.2
+    Once the BaseWsClient has been instantiated, the get/put/post/delete/head functions can be
+        called on it.
+
+    TODO: this implementation is very tightly coupled with the requests package, especially the
+        arguments of get/post/put/delete/head that are blindly passed and the response object that
+        is returned and the clients work with.
+       """
 
     def __init__(self, resource_id, subject, agent, retry=True, host=None):
         """
@@ -107,7 +141,8 @@ class BaseWsClient(object):
         :param resource_id -- ID of the resource being accessed (URI format)
         :param subject -- The subject that is using the service
         :type subject: cadcutil.auth.Subject
-        :param agent -- Name of the agent (application) that accesses the service
+        :param agent -- Name of the agent (application) that accesses the service and its version,
+        e.g. foo/1.0.2
         :type agent: Subject
         :param retry -- True if the client retries on transient errors False otherwise
         :param host -- override the name of the host the service is running on (for testing purposes)
@@ -115,6 +150,7 @@ class BaseWsClient(object):
         """
 
         self.logger = logging.getLogger('BaseWsClient')
+        logging.getLogger('BaseWsClient').addHandler(logging.NullHandler())
 
         if resource_id is None:
             raise ValueError('No resource ID provided')
@@ -172,24 +208,57 @@ class BaseWsClient(object):
 
     def post(self, resource=None, **kwargs):
         """Wrapper for POST so that we use this client's session
-        TODO: change argument resource to feature and add path argument to all the functions
+           :param resource represents the resource to access. It can take two forms:
+           1 - a URL or 2 - a tuple representing a Web Service resource in which the
+           first member of the tuple is the URI of the resource (capability) and
+           the second argument is the path.
+           :param kwargs additional arguments to pass to the requests.post
+           :returns response as received from the request library
         """
         return self._get_session().post(self._get_url(resource), **kwargs)
 
     def put(self, resource=None, **kwargs):
-        """Wrapper for PUT so that we use this client's session"""
+        """Wrapper for PUT so that we use this client's session
+           :param resource represents the resource to access. It can take two forms:
+           1 - a URL or 2 - a tuple representing a Web Service resource in which the
+           first member of the tuple is the URI of the resource (capability) and
+           the second argument is the path.
+           :param kwargs additional arguments to pass to the requests.post
+           :returns response as received from the request library
+        """
         return self._get_session().put(self._get_url(resource), **kwargs)
 
     def get(self, resource, params=None, **kwargs):
-        """Wrapper for GET so that we use this client's session"""
+        """Wrapper for GET so that we use this client's session
+           :param resource represents the resource to access. It can take two forms:
+           1 - a URL or 2 - a tuple representing a Web Service resource in which the
+           first member of the tuple is the URI of the resource (capability) and
+           the second argument is the path.
+           :param kwargs additional arguments to pass to the requests.post
+           :returns response as received from the request library
+        """
         return self._get_session().get(self._get_url(resource), params=params, **kwargs)
 
     def delete(self, resource=None, **kwargs):
-        """Wrapper for DELETE so that we use this client's session"""
+        """Wrapper for DELETE so that we use this client's session
+           :param resource represents the resource to access. It can take two forms:
+           1 - a URL or 2 - a tuple representing a Web Service resource in which the
+           first member of the tuple is the URI of the resource (capability) and
+           the second argument is the path.
+           :param kwargs additional arguments to pass to the requests.post
+           :returns response as received from the request library
+        """
         return self._get_session().delete(self._get_url(resource), **kwargs)
 
     def head(self, resource=None, **kwargs):
-        """Wrapper for HEAD so that we use this client's session"""
+        """Wrapper for HEAD so that we use this client's session
+           :param resource represents the resource to access. It can take two forms:
+           1 - a URL or 2 - a tuple representing a Web Service resource in which the
+           first member of the tuple is the URI of the resource (capability) and
+           the second argument is the path.
+           :param kwargs additional arguments to pass to the requests.post
+           :returns response as received from the request library
+        """
         return self._get_session().head(self._get_url(resource), **kwargs)
 
     def is_available(self):
@@ -483,4 +552,7 @@ class WsCapabilities(object):
                 if not line.startswith('#') and (len(line) > 0):
                     feature, url = line.split('=')
                     self.caps_urls[feature.strip()] = url.strip()
+        if self.ws.resource_id not in self.caps_urls:
+            raise AttributeError('Resource ID {} not found. Available resource IDs: {}'.
+                                               format(self.ws.resource_id, self.caps_urls.keys()))
         return self.caps_urls[self.ws.resource_id]
