@@ -67,10 +67,9 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import logging
-import os
 import sys
 import inspect
-from argparse import ArgumentParser, HelpFormatter, RawDescriptionHelpFormatter
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from datetime import datetime
 from six.moves.urllib.parse import urlparse
 from operator import attrgetter
@@ -115,6 +114,7 @@ def get_logger(namespace=None, log_level=logging.ERROR):
         default: the name of the calling module.
     :ptype log_level: The initial log level.
         default: logging.ERROR
+    :param log_level: logging level
     :return the logger object.
     
     """
@@ -173,9 +173,8 @@ def parse_resource_id(resource_id):
     return resource_id
 
 
-
 ############################################################################################
-# Common command line options and customized of format
+# Common command line options and customized format
 ############################################################################################
 
 class SingleMetavarHelpFormatter(RawDescriptionHelpFormatter):
@@ -298,31 +297,31 @@ def get_base_parser(subparsers=True, version=None, usecert=True, default_resourc
     auth_group = cparser.add_mutually_exclusive_group()
     if usecert:
         auth_group.add_argument('--cert', type=str,
-                            help='location of your X509 certificate to use for authentication ' +
-                            '(unencrypted, in PEM format)')
+                                help='location of your X509 certificate to use for authentication ' +
+                                 '(unencrypted, in PEM format)')
     auth_group.add_argument('-n', action='store_true', help='Use .netrc in $HOME for authentication')
     auth_group.add_argument('--netrc-file', help='netrc file to use for authentication')
     auth_group.add_argument('-u', '--user', help='Name of user to authenticate. ' +
                              'Note: application prompts for the corresponding password!')
     cparser.add_argument('--host',
-                        help='Base hostname for services - used mainly for testing ' +
+                         help='Base hostname for services - used mainly for testing ' +
                                        '(default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)',
-                        default='www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')
+                         default='www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')
     if default_resource_id is None:
-        cparser.add_argument('--resourceID',
-                            type=urlparse, required=True,
-                            help='resource identifier (e.g. ivo://cadc.nrc.ca/service')
+        cparser.add_argument('--resource-id',
+                             type=urlparse, required=True,
+                             help='resource identifier (e.g. ivo://cadc.nrc.ca/service)')
     else:
-        cparser.add_argument('--resourceID',type=parse_resource_id,
-                            default = default_resource_id,
-                            help='resource identifier (default {})'.format(default_resource_id))
+        cparser.add_argument('--resource-id',type=parse_resource_id,
+                             default = default_resource_id,
+                             help='resource identifier (default {})'.format(default_resource_id))
     log_group = cparser.add_mutually_exclusive_group()
     log_group.add_argument('-d', '--debug', action='store_true',
-                        help='debug messages')
+                           help='debug messages')
     log_group.add_argument('-q', '--quiet', action='store_true',
-                        help='run quietly')
+                           help='run quietly')
     log_group.add_argument('-v', '--verbose', action='store_true',
-                        help='verbose messages')
+                           help='verbose messages')
 
     argparser = _CustomArgParser(subparsers=subparsers, common_parser=cparser, version=version)
     return argparser

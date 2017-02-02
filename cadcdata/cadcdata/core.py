@@ -115,7 +115,7 @@ class CadcDataClient(object):
         """
         Instance of a CadcDataClient
         :param subject: the subject(user) performing the action
-        :type subject: Subject
+        :type subject: cadcutils.net.Subject
         :param resource_id: The identifier of the service resource (e.g 'ivo://cadc.nrc.ca/data')
         :param host: Host server for the caom2repo service
         """
@@ -399,7 +399,7 @@ def main_app():
                             action='store_true', required=False)
     get_parser.add_argument('--fhead', help='Return the FITS header information',
                             action='store_true', required=False)
-    get_parser.add_argument('fileName', help='The name of the file in the archive', nargs='+')
+    get_parser.add_argument('filename', help='The name of the file in the archive', nargs='+')
     get_parser.epilog = \
 """
 Examples:
@@ -453,7 +453,7 @@ Examples:
                                                      '\t -lastmod'),
                                         help='Get information regarding files in a CADC archive')
     info_parser.add_argument('-a', '--archive', help='CADC archive', required=True)
-    info_parser.add_argument('fileName',
+    info_parser.add_argument('filename',
                              help='The name of the file in the archive', nargs='+')
     info_parser.epilog = \
 """
@@ -495,12 +495,12 @@ Examples:
 
     subject = net.Subject.from_cmd_line_args(args)
 
-    client = CadcDataClient(subject, args.resourceID, host=args.host)
+    client = CadcDataClient(subject, args.resource_id, host=args.host)
     try:
         if args.cmd == 'get':
             logger.info('get')
             archive = args.archive
-            file_names = args.fileName
+            file_names = args.filename
             if args.output is not None:
                 files = args.output.split()
                 if len(files) != len(file_names):
@@ -522,7 +522,7 @@ Examples:
         elif args.cmd == 'info':
             logger.info('info')
             archive = args.archive
-            for file_name in args.fileName:
+            for file_name in args.filename:
                 try:
                     file_info = client.get_file_info(archive, file_name)
                 except exceptions.NotFoundException:

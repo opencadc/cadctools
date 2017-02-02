@@ -287,15 +287,15 @@ optional arguments:
         usage = \
 '''usage: cadc-data get [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                     [--host HOST] [--resourceID RESOURCEID] [-d | -q | -v] -a
-                     ARCHIVE [-o OUTPUT] [--cutout CUTOUT] [-de] [--wcs]
+                     [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
+                     -a ARCHIVE [-o OUTPUT] [--cutout CUTOUT] [-de] [--wcs]
                      [--fhead]
-                     fileName [fileName ...]
+                     filename [filename ...]
 
 Retrieve files from a CADC archive
 
 positional arguments:
-  fileName              The name of the file in the archive
+  filename              The name of the file in the archive
 
 optional arguments:
   -a, --archive ARCHIVE
@@ -316,7 +316,7 @@ optional arguments:
   -o, --output OUTPUT   Space-separated list of destination files (quotes
                         required for multiple elements)
   -q, --quiet           run quietly
-  --resourceID RESOURCEID
+  --resource-id RESOURCE_ID
                         resource identifier (default ivo://cadc.nrc.ca/data)
   -u, --user USER       Name of user to authenticate. Note: application
                         prompts for the corresponding password!
@@ -345,8 +345,8 @@ Examples:
         usage = \
 '''usage: cadc-data put [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                     [--host HOST] [--resourceID RESOURCEID] [-d | -q | -v] -a
-                     ARCHIVE [-as ARCHIVE_STREAM] [-c]
+                     [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
+                     -a ARCHIVE [-as ARCHIVE_STREAM] [-c]
                      source [source ...]
 
 Upload files into a CADC archive
@@ -370,7 +370,7 @@ optional arguments:
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
-  --resourceID RESOURCEID
+  --resource-id RESOURCE_ID
                         resource identifier (default ivo://cadc.nrc.ca/data)
   -u, --user USER       Name of user to authenticate. Note: application
                         prompts for the corresponding password!
@@ -396,9 +396,9 @@ Examples:
         usage = \
 '''usage: cadc-data info [-h]
                       [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                      [--host HOST] [--resourceID RESOURCEID] [-d | -q | -v]
+                      [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
                       -a ARCHIVE
-                      fileName [fileName ...]
+                      filename [filename ...]
 
 Get information regarding files in a CADC archive on the form:
 File:
@@ -412,7 +412,7 @@ File:
 	 -lastmod
 
 positional arguments:
-  fileName              The name of the file in the archive
+  filename              The name of the file in the archive
 
 optional arguments:
   -a, --archive ARCHIVE
@@ -427,7 +427,7 @@ optional arguments:
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
-  --resourceID RESOURCEID
+  --resource-id RESOURCE_ID
                         resource identifier (default ivo://cadc.nrc.ca/data)
   -u, --user USER       Name of user to authenticate. Note: application
                         prompts for the corresponding password!
