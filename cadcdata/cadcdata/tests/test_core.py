@@ -88,11 +88,9 @@ from mock import Mock, patch, MagicMock, ANY, call
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 
 class MyExitError(Exception):
-    pass
 
-class MyExitError(Exception):
-    pass
-
+    def __init__(self):
+        self.message = "MyExitError"
 
 mycontent = ''
 
@@ -176,9 +174,9 @@ class TestCadcDataClient(unittest.TestCase):
         response.url = 'someurl'
         post_mock = Mock(return_value=response)
         basews_mock.return_value.post = post_mock
-        fileid = 'getfile'
+        file_name = 'getfile'
         archive = 'TEST'
-        p.endpoint = 'http://someurl/transfer/{}/{}'.format(archive, fileid)
+        p.endpoint = 'http://someurl/transfer/{}/{}'.format(archive, file_name)
         client.get_file('TEST', 'getfile', decompress=True, wcs=True)
         trans_doc = ('<vos:transfer xmlns:vos="http://www.ivoa.net/xml/VOSpace/v2.0">\n  '
                      '<vos:target>ad:TEST/getfile</vos:target>\n  '
@@ -209,21 +207,21 @@ class TestCadcDataClient(unittest.TestCase):
             client.put_file('TEST', 'putfile', file_name)
         client._data_client.subject.anon = False # authenticate the user
         transf_end_point = 'http://test.ca/endpoint'
-        def mock_get_trans_protocols(archive, file_id, is_get, headers):
+        def mock_get_trans_protocols(archive, file_name, is_get, headers):
             protocol = Mock()
             protocol.endpoint = transf_end_point
             return [protocol]
         client._get_transfer_protocols = mock_get_trans_protocols
-        client.put_file('TEST', 'putfile', file_name)
+        client.put_file('TEST', file_name)
         put_mock.assert_called_with(transf_end_point, data=ANY, headers={})
 
         # specify an archive stream
-        client.put_file('TEST', 'putfile', file_name, archive_stream='default')
+        client.put_file('TEST', file_name, archive_stream='default')
         put_mock.assert_called_with(transf_end_point, data=ANY, headers={'X-CADC-Stream':'default'})
         os.remove(file_name)
 
         # test an info
-        file_id ='myfile'
+        file_name ='myfile'
         file_name = 'myfile.txt'
         archive = 'TEST'
         size = '123'
@@ -247,7 +245,6 @@ class TestCadcDataClient(unittest.TestCase):
         response.headers = h
         basews_mock.return_value.head.return_value = response
         info = client.get_file_info('TEST', 'myfile')
-        self.assertEqual(file_id, info['id'])
         self.assertEqual(archive, info['archive'])
         self.assertEqual(file_name, info['name'])
         self.assertEqual(size, info['size'])
@@ -262,10 +259,10 @@ class TestCadcDataClient(unittest.TestCase):
                                          MyExitError, MyExitError, MyExitError]))
     def test_help(self):
         """ Tests the helper displays for commands and subcommands in main"""
-
+        self.maxDiff = None
         #help
         usage = \
-'''usage: cadc-data [-h] {get,put,info} ...
+'''usage: cadc-data [-h] [-V] {get,put,info} ...
 
 Client for accessing the data Web Service at the Canadian Astronomy Data Centre (www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data)
 
@@ -278,6 +275,7 @@ positional arguments:
 
 optional arguments:
   -h, --help      show this help message and exit
+  -V, --version   show program's version number and exit
 '''
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             sys.argv = ['cadc-data', '--help']
@@ -287,17 +285,17 @@ optional arguments:
 
         # get -h
         usage = \
-'''usage: cadc-data get [-h] [-V]
+'''usage: cadc-data get [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                     [--host HOST] [--resourceID RESOURCEID] [-d | -q | -v] -a
-                     ARCHIVE [-o OUTPUT] [--cutout CUTOUT] [-de] [--wcs]
+                     [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
+                     -a ARCHIVE [-o OUTPUT] [--cutout CUTOUT] [-de] [--wcs]
                      [--fhead]
-                     fileID [fileID ...]
+                     filename [filename ...]
 
 Retrieve files from a CADC archive
 
 positional arguments:
-  fileID                The ID of the file in the archive
+  filename              The name of the file in the archive
 
 optional arguments:
   -a, --archive ARCHIVE
@@ -318,13 +316,24 @@ optional arguments:
   -o, --output OUTPUT   Space-separated list of destination files (quotes
                         required for multiple elements)
   -q, --quiet           run quietly
-  --resourceID RESOURCEID
+  --resource-id RESOURCE_ID
                         resource identifier (default ivo://cadc.nrc.ca/data)
   -u, --user USER       Name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
-  -V, --version         show program's version number and exit
   --wcs                 Return the World Coordinate System (WCS) information
+
+Examples:
+- Anonymously getting a public file:
+        cadc-data get -v -a GEMINI 00aug02_002.fits
+- Use certificate to get a cutout and save it to a file:
+        cadc-data get --cert ~/.ssl/cadcproxy.pem -o /tmp/700000o-cutout.fits --cutout [1] -a CFHT 700000o
+- Use default netrc file ($HOME/.netrc) to get FITS header of a file:
+        cadc-data get -v -n --fhead -a GEMINI 00aug02_002.fits
+- Use a different netrc file to download wcs information:
+        cadc-data get -d --netrc ~/mynetrc -o /tmp/700000o-wcs.fits --wcs -a CFHT 700000o
+- Connect as user to download two files and uncompress them (prompt for password if user not in $HOME/.netrc):
+        cadc-data get -v -u auser -de -a GEMINI 00aug02_002.fits 00aug02_003.fits
 '''
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             sys.argv = ['cadc-data', 'get', '--help']
@@ -334,10 +343,10 @@ optional arguments:
 
         # put -h
         usage = \
-'''usage: cadc-data put [-h] [-V]
+'''usage: cadc-data put [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                     [--host HOST] [--resourceID RESOURCEID] [-d | -q | -v] -a
-                     ARCHIVE [-as ARCHIVE_STREAM] [-c] [--fileID FILEID]
+                     [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
+                     -a ARCHIVE [-as ARCHIVE_STREAM] [-c]
                      source [source ...]
 
 Upload files into a CADC archive
@@ -354,8 +363,6 @@ optional arguments:
                         authentication (unencrypted, in PEM format)
   -c, --compress        gzip compress the data
   -d, --debug           debug messages
-  --fileID FILEID       file ID to use for single source (not to be used with
-                        multiple sources)
   -h, --help            show this help message and exit
   --host HOST           Base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
@@ -363,12 +370,21 @@ optional arguments:
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
-  --resourceID RESOURCEID
+  --resource-id RESOURCE_ID
                         resource identifier (default ivo://cadc.nrc.ca/data)
   -u, --user USER       Name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
-  -V, --version         show program's version number and exit
+
+Examples:
+- Use certificate to put a file in an archive stream:
+        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default -a TEST myfile.fits.gz
+- Use default netrc file ($HOME/.netrc) to put two files:
+        cadc-data put -v -n -a TEST myfile1.fits.gz myfile2.fits.gz
+- Use a different netrc file to put files from a directory:
+        cadc-data put -d --netrc ~/mynetrc -a TEST dir
+- Connect as user to put files from multiple sources (prompt for password if user not in $HOME/.netrc):
+        cadc-data put -v -u auser --archive TEST myfile.fits.gz dir1 dir2
 '''
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             sys.argv = ['cadc-data', 'put', '-h']
@@ -378,14 +394,14 @@ optional arguments:
 
         # info -h
         usage = \
-'''usage: cadc-data info [-h] [-V]
+'''usage: cadc-data info [-h]
                       [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                      [--host HOST] [--resourceID RESOURCEID] [-d | -q | -v]
+                      [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
                       -a ARCHIVE
-                      fileID [fileID ...]
+                      filename [filename ...]
 
 Get information regarding files in a CADC archive on the form:
-File id:
+File:
 	 -name
 	 -size
 	 -md5sum
@@ -396,7 +412,7 @@ File id:
 	 -lastmod
 
 positional arguments:
-  fileID                The ID of the file in the archive
+  filename              The name of the file in the archive
 
 optional arguments:
   -a, --archive ARCHIVE
@@ -411,13 +427,25 @@ optional arguments:
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
-  --resourceID RESOURCEID
+  --resource-id RESOURCE_ID
                         resource identifier (default ivo://cadc.nrc.ca/data)
   -u, --user USER       Name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
-  -V, --version         show program's version number and exit
+
+Examples:
+- Anonymously getting information about a public file:
+        cadc-data info -a GEMINI 00aug02_002.fits
+- Use certificate to get information about a file:
+        cadc-data info --cert ~/.ssl/cadcproxy.pem -a CFHT 700000o
+- Use default netrc file ($HOME/.netrc) to get information about a file:
+        cadc-data info -n -a GEMINI 00aug02_002.fits
+- Use a different netrc file to get information about a file:
+        cadc-data info --netrc ~/mynetrc -a CFHT 700000o
+- Connect as user to get information about two files (prompt for password if user not in $HOME/.netrc):
+        cadc-data info -u auser -a GEMINI 00aug02_002.fits 00aug02_003.fits
 '''
+
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             sys.argv = ['cadc-data', 'info', '--help']
             with self.assertRaises(MyExitError):
@@ -457,17 +485,16 @@ optional arguments:
         self.assertTrue('Different size of destination files list' in b.getvalue())
 
         # test info
-        info_mock.return_value = {'id':'file1', 'archive':'TEST', 'name':'file1.txt.gz',
+        info_mock.return_value = {'archive':'TEST', 'name':'file1.txt.gz',
                                   'size':'5', 'md5sum':'0x33', 'type':'text', 'encoding':'gzip',
                                   'lastmod' : '10/10/10T10:10:10.000', 'usize':'50', 'umd5sum':'0x234'}
-        sys.argv = ['cadc-data', 'info', '-a', 'TEST', 'fileid1']
+        sys.argv = ['cadc-data', 'info', '-a', 'TEST', 'file1']
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             main_app()
         expected = \
-'''File fileid1:
+'''File file1:
 	    archive: TEST
 	   encoding: gzip
-	         id: file1
 	    lastmod: 10/10/10T10:10:10.000
 	     md5sum: 0x33
 	       name: file1.txt.gz
@@ -482,15 +509,15 @@ optional arguments:
         #create a file structure of files to put
         put_dir = '/tmp/put_dir'
         put_subdir = '{}/somedir'.format(put_dir)
-        file1id = 'file1'
-        file2id =  'file2'
+        file1 = 'file1'
+        file2 =  'file2'
         if os.path.exists(put_dir):
             shutil.rmtree(put_dir)
         os.makedirs(put_dir)
         os.makedirs(put_subdir)
-        with open(os.path.join(put_dir, '{}.txt'.format(file1id)), 'w') as f:
+        with open(os.path.join(put_dir, '{}.txt'.format(file1)), 'w') as f:
             f.write('TEST FILE1')
-        with open(os.path.join(put_dir, '{}.txt'.format(file2id)), 'w') as f:
+        with open(os.path.join(put_dir, '{}.txt'.format(file2)), 'w') as f:
             f.write('TEST FILE2')
         #extra file that is not going to be put because it resides in a subdirectory
         with open(os.path.join(put_subdir, 'file3.txt'), 'w') as f:
@@ -499,12 +526,12 @@ optional arguments:
         sys.argv = ['cadc-data', 'put', '-a', 'TEST', put_dir]
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             main_app()
-        calls = [call('TEST', 'file2', '/tmp/put_dir/file2.txt', archive_stream=None),
-                 call('TEST', 'file1', '/tmp/put_dir/file1.txt', archive_stream=None)]
+        calls = [call('TEST', '/tmp/put_dir/file2.txt', archive_stream=None),
+                 call('TEST', '/tmp/put_dir/file1.txt', archive_stream=None)]
         put_mock.assert_has_calls(calls, any_order=True)
-        # number of file names does not match the number of file ids. logger displays an error
+        # number of file names does not match the number of file names. logger displays an error
         get_mock.reset_mock()
-        sys.argv = ['cadc-data', 'get', '-a', 'TEST', '-o', 'file1.txt', 'fileid1', 'fileid2']
+        sys.argv = ['cadc-data', 'get', '-a', 'TEST', '-o', 'file1.txt', 'file1', 'file2']
         b = StringIO()
         logger = logging.getLogger('cadc-data')
         # capture the log message in a StreamHandler
@@ -512,14 +539,6 @@ optional arguments:
         with self.assertRaises(MyExitError):
             main_app()
         self.assertTrue('Different size of destination files list' in b.getvalue())
-
-        #repeat test specifying the fileIDs this time
-        put_mock.reset_mock()
-        sys.argv = ['cadc-data', 'put', '-a', 'TEST', '--fileID', 'fileID1',
-                    '-as', 'default', os.path.join(put_dir, '{}.txt'.format(file1id))]
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            main_app()
-        put_mock.assert_called_with('TEST', 'fileID1', '/tmp/put_dir/file1.txt', archive_stream='default')
 
         #cleanup
         shutil.rmtree(put_dir)

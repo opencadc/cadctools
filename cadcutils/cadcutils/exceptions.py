@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 # ************************************************************************
 # *******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # **************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
@@ -64,9 +65,15 @@
 # *
 # *
 # ************************************************************************
+
+"""
+Exceptions used in the cadcutils package
+"""
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-__all__ = ['UnauthorizedException']
+__all__ = ['UnauthorizedException', 'ForbiddenException', 'NotFoundException',
+           'BadRequestException', 'ByteLimitException',
+           'InternalServerException', 'UnexpectedException', '']
 
 
 class HttpException(Exception):

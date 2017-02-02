@@ -132,12 +132,13 @@ Expected /tmp/testcertfile to be a directory.
         """ Test the help option of the cadc-get-cert app """
 
         usage =\
-"""usage: cadc-get-cert [-h] [-V]
+"""usage: cadc-get-cert [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                     [--host HOST] [--resourceID RESOURCEID] [-d | -q | -v]
-                     [--cert-filename CERT_FILENAME] [--daysValid DAYSVALID]
+                     [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
+                     [-V] [--cert-filename CERT_FILENAME]
+                     [--days-valid DAYS_VALID]
 
-Retrieve a security certificate for interaction with a Web service such as VOSpace. Certificate will be valid for daysValid and stored as local file cert_filename.
+Retrieve a security certificate for interaction with a Web service such as VOSpace. Certificate will be valid for days-valid and stored as local file cert_filename.
 
 optional arguments:
   --cert CERT           location of your X509 certificate to use for
@@ -145,7 +146,7 @@ optional arguments:
   --cert-filename CERT_FILENAME
                         Filesystem location to store the proxy certificate.
                         (default: {})
-  --daysValid DAYSVALID
+  --days-valid DAYS_VALID
                         Number of days the certificate should be valid.
   -d, --debug           debug messages
   -h, --help            show this help message and exit
@@ -155,7 +156,7 @@ optional arguments:
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
-  --resourceID RESOURCEID
+  --resource-id RESOURCE_ID
                         resource identifier (default ivo://cadc.nrc.ca/cred)
   -u, --user USER       Name of user to authenticate. Note: application
                         prompts for the corresponding password!
@@ -224,11 +225,11 @@ optional arguments:
 
 
         parser = get_base_parser(subparsers=False)
-        args = parser.parse_args(['--resourceID', 'blah'])
+        args = parser.parse_args(['--resource-id', 'blah'])
         subject = auth.Subject.from_cmd_line_args(args)
         self.assertTrue(subject.anon)
 
-        sys.argv = ['cadc-client', '--resourceID', 'blah', '--cert', 'mycert.pem']
+        sys.argv = ['cadc-client', '--resource-id', 'blah', '--cert', 'mycert.pem']
         args = parser.parse_args()
         subject = auth.Subject.from_cmd_line_args(args)
         self.assertFalse(subject.anon)

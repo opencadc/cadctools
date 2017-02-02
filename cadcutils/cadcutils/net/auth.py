@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
@@ -65,6 +66,13 @@
 #
 # ***********************************************************************
 
+"""
+Module that contains functionality related to authentication. The
+main tools in this module are get_cert that interacts with the
+CADC Credential Delegation Protocol Web Service to return a proxy
+X509 certificate and Subject that incapsulates the credentials of
+a user.
+"""
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -91,8 +99,12 @@ SECURITY_METHODS_IDS = {'certificate': 'ivo://ivoa.net/sso#tls-with-certificate'
 
 class Subject(object):
     """
-    Class that stores user authentication information. For now, it includes: username,
-        X509 certificate file or netrc file that stores user/password.
+    Class that stores user authentication information to be used for accessing
+        distributed resources over HTTP. For now, the supported credentials are:
+        X509 certificate (via a proxy certificate file) or basic HTTP
+        user/password (via netrc file that stores user/password or simply user name. Note
+        that in the later case the library might prompt for the password before
+        connecting.
     """
 
     def __init__(self, username=None, certificate=None, netrc=False):
@@ -241,13 +253,13 @@ def get_cert_main():
 
     parser = util.get_base_parser(subparsers=False, version=GET_CERT_VERSION, default_resource_id=CRED_RESOURCE_ID)
     parser.description=('Retrieve a security certificate for interaction with a Web service '
-                          'such as VOSpace. Certificate will be valid for daysValid and stored '
+                          'such as VOSpace. Certificate will be valid for days-valid and stored '
                           'as local file cert_filename.')
     parser.add_argument('--cert-filename',
                         default=os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'),
                         help=('Filesystem location to store the proxy certificate. (default: {})'.
                               format(os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'))))
-    parser.add_argument('--daysValid', type=int, default=10, help='Number of days the certificate should be valid.')
+    parser.add_argument('--days-valid', type=int, default=10, help='Number of days the certificate should be valid.')
 
     args = parser.parse_args()
 
@@ -266,7 +278,7 @@ def get_cert_main():
 
     try:
         subject = Subject.from_cmd_line_args(args)
-        cert = get_cert(subject, days_valid=args.daysValid)
+        cert = get_cert(subject, days_valid=args.days_valid)
         with open(args.cert_filename, 'w') as w:
             w.write(cert)
     except OSError as ose:
