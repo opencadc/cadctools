@@ -81,10 +81,10 @@ matrix:
         # astropy-ci-extras channel (or in the one provided in the
         # CONDA_CHANNELS environmental variable).
 
-        #- python: 3.3
-        #  env: SETUP_CMD='egg_info'
-        #- python: 3.3
-        #  env: SETUP_CMD='test' NUMPY_VERSION=1.9
+        - python: 3.3
+          env: SETUP_CMD='egg_info'
+        - python: 3.3
+          env: SETUP_CMD='test' NUMPY_VERSION=1.9
 
         # Try older numpy versions
         #- python: 2.7
