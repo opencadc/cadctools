@@ -70,11 +70,13 @@ from __future__ import (absolute_import, division, print_function,
 
 import unittest
 
+import os
 import requests
-from mock import Mock, patch, call
+import time
+from mock import Mock, patch, call, mock_open
 from six.moves.urllib.parse import urlparse
 
-from cadcutils.net import ws, auth
+from cadcutils.net import ws, auth, wscapabilities
 from cadcutils.net.ws import DEFAULT_RETRY_DELAY, MAX_RETRY_DELAY, MAX_NUM_RETRIES, SERVICE_RETRY
 from cadcutils import exceptions
 
@@ -82,6 +84,7 @@ from cadcutils import exceptions
 class TestWs(unittest.TestCase):
 
     """Class for testing the webservie client"""
+    @patch('cadcutils.net.ws.WsCapabilities')
     @patch('cadcutils.net.auth.os.path.isfile', Mock())
     @patch('cadcutils.net.auth.netrclib')
     @patch('cadcutils.net.ws.RetrySession.put')
@@ -89,7 +92,7 @@ class TestWs(unittest.TestCase):
     @patch('cadcutils.net.ws.RetrySession.delete')
     @patch('cadcutils.net.ws.RetrySession.get')
     @patch('cadcutils.net.ws.RetrySession.post')
-    def test_ops(self, post_mock, get_mock, delete_mock, head_mock, put_mock, netrclib_mock):
+    def test_ops(self, post_mock, get_mock, delete_mock, head_mock, put_mock, netrclib_mock, caps_mock):
         anon_subject = auth.Subject()
         with self.assertRaises(ValueError):
             ws.BaseWsClient(None, anon_subject, "TestApp")
@@ -97,26 +100,26 @@ class TestWs(unittest.TestCase):
         service = 'myservice'
         resource_id = 'ivo://www.canfar.phys.uvic.ca/{}'.format(service)
         # test anonymous access
+        caps_mock.get_service_host.return_value = 'http://host/myservice'
         client = ws.BaseWsClient(resource_id, anon_subject, 'TestApp')
         resource_uri = urlparse(resource_id)
         base_url = 'http://{}{}/pub'.format(resource_uri.netloc, resource_uri.path)
-        resource_url = '{}/{}'.format(base_url, resource)
+        resource_url = 'http://{}{}/{}'.format(resource_uri.netloc, base_url, resource)
         self.assertEquals(anon_subject, client.subject)
         self.assertTrue(client.retry)
-        self.assertEqual(base_url, client.base_url)
         self.assertEqual('TestApp', client.agent)
         self.assertTrue(client.retry)
         self.assertEquals(None, client._session)  # lazy initialization
-        client.get(resource)
+        client.get(resource_url)
         get_mock.assert_called_with(resource_url, params=None)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
-        client.post(resource, **params)
+        client.post(resource_url, **params)
         post_mock.assert_called_with(resource_url, **params)
-        client.delete(resource)
+        client.delete(resource_url)
         delete_mock.assert_called_with(resource_url)
-        client.head(resource)
+        client.head(resource_url)
         head_mock.assert_called_with(resource_url)
-        client.put(resource, **params)
+        client.put(resource_url, **params)
         put_mock.assert_called_with(resource_url, **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
 
@@ -131,19 +134,18 @@ class TestWs(unittest.TestCase):
         client = ws.BaseWsClient(resource_id, subject, 'TestApp', retry=False, host=host)
         base_url = 'http://{}{}/auth'.format(host, resource_uri.path)
         resource_url = '{}/{}'.format(base_url, resource)
-        self.assertEquals(base_url, client.base_url)
         self.assertEquals('TestApp', client.agent)
         self.assertFalse(client.retry)
-        client.get(resource)
+        client.get(resource_url)
         get_mock.assert_called_with(resource_url, params=None)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
-        client.post(resource, **params)
+        client.post(resource_url, **params)
         post_mock.assert_called_with(resource_url, **params)
-        client.delete(resource)
+        client.delete(resource_url)
         delete_mock.assert_called_with(resource_url)
-        client.head(resource)
+        client.head(resource_url)
         head_mock.assert_called_with(resource_url)
-        client.put(resource, **params)
+        client.put(resource_url, **params)
         put_mock.assert_called_with(resource_url, **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
 
@@ -158,19 +160,18 @@ class TestWs(unittest.TestCase):
         client = ws.BaseWsClient(resource_id, subject, 'TestApp')
         base_url = 'https://{}{}/pub'.format(resource_uri.netloc, resource_uri.path)
         resource_url = '{}/{}'.format(base_url, resource)
-        self.assertEquals(base_url, client.base_url)
         self.assertEquals('TestApp', client.agent)
         self.assertTrue(client.retry)
-        client.get(resource)
+        client.get(resource_url)
         get_mock.assert_called_with(resource_url, params=None)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
-        client.post(resource, **params)
+        client.post(resource_url, **params)
         post_mock.assert_called_with(resource_url, **params)
-        client.delete(resource)
+        client.delete(resource_url)
         delete_mock.assert_called_with(resource_url)
-        client.head(resource)
+        client.head(resource_url)
         head_mock.assert_called_with(resource_url)
-        client.put(resource, **params)
+        client.put(resource_url, **params)
         put_mock.assert_called_with(resource_url, **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
         self.assertEquals((certfile, certfile), client._session.cert)
@@ -185,20 +186,19 @@ class TestWs(unittest.TestCase):
         base_url = 'http://{}{}/observations'.format(resource_uri.netloc, resource_uri.path)
         resource_url = '{}/{}'.format(base_url, resource)
         self.assertTrue(client.retry)
-        self.assertEqual(base_url, client.base_url)
         self.assertEqual('TestApp', client.agent)
         self.assertTrue(client.retry)
         self.assertEquals(None, client._session)  # lazy initialization
-        client.get(resource)
+        client.get(resource_url)
         get_mock.assert_called_with(resource_url, params=None)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
-        client.post(resource, **params)
+        client.post(resource_url, **params)
         post_mock.assert_called_with(resource_url, **params)
-        client.delete(resource)
+        client.delete(resource_url)
         delete_mock.assert_called_with(resource_url)
-        client.head(resource)
+        client.head(resource_url)
         head_mock.assert_called_with(resource_url)
-        client.put(resource, **params)
+        client.put(resource_url, **params)
         put_mock.assert_called_with(resource_url, **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
 
@@ -214,19 +214,18 @@ class TestWs(unittest.TestCase):
         client = ws.BaseWsClient(resource_id, subject, 'TestApp', retry=False, host=host)
         base_url = 'http://{}{}/auth-observations'.format(host, resource_uri.path)
         resource_url = '{}/{}'.format(base_url, resource)
-        self.assertEquals(base_url, client.base_url)
         self.assertEquals('TestApp', client.agent)
         self.assertFalse(client.retry)
-        client.get(resource)
+        client.get(resource_url)
         get_mock.assert_called_with(resource_url, params=None)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
-        client.post(resource, **params)
+        client.post(resource_url, **params)
         post_mock.assert_called_with(resource_url, **params)
-        client.delete(resource)
+        client.delete(resource_url)
         delete_mock.assert_called_with(resource_url)
-        client.head(resource)
+        client.head(resource_url)
         head_mock.assert_called_with(resource_url)
-        client.put(resource, **params)
+        client.put(resource_url, **params)
         put_mock.assert_called_with(resource_url, **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
 
@@ -240,19 +239,18 @@ class TestWs(unittest.TestCase):
         client = ws.BaseWsClient(resource_id, auth.Subject(certificate=certfile), 'TestApp')
         base_url = 'https://{}{}/observations'.format(resource_uri.netloc, resource_uri.path)
         resource_url = '{}/{}'.format(base_url, resource)
-        self.assertEquals(base_url, client.base_url)
         self.assertEquals('TestApp', client.agent)
         self.assertTrue(client.retry)
-        client.get(resource)
+        client.get(resource_url)
         get_mock.assert_called_with(resource_url, params=None)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
-        client.post(resource, **params)
+        client.post(resource_url, **params)
         post_mock.assert_called_with(resource_url, **params)
-        client.delete(resource)
+        client.delete(resource_url)
         delete_mock.assert_called_with(resource_url)
-        client.head(resource)
+        client.head(resource_url)
         head_mock.assert_called_with(resource_url)
-        client.put(resource, **params)
+        client.put(resource_url, **params)
         put_mock.assert_called_with(resource_url, **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
         self.assertEquals((certfile, certfile), client._session.cert)
@@ -392,6 +390,291 @@ class TestRetrySession(unittest.TestCase):
         send_mock.side_effect = he
         with self.assertRaises(exceptions.HttpException):
             rs.send(request)
+
+    def test_misc(self):
+        """
+        Tests miscellaneous functions
+        """
+        service_url = 'http://somehost.com/service'
+        with patch('cadcutils.net.ws.WsCapabilities') as caps_mock:
+            caps_mock.return_value.get_service_host.return_value = 'somehost.com'
+            caps_mock.return_value.get_access_url.return_value = service_url
+            client = ws.BaseWsClient("someresourceID", auth.Subject(), 'TestApp')
+            self.assertEqual('{}/'.format(service_url), client._get_url(('myfeature', None)))
+            caps_mock.return_value.get_access_url.assert_called_once_with('myfeature')
+
+        # same test but change name of host in the client
+        test_host = 'testhost.com'
+        with patch('cadcutils.net.ws.WsCapabilities') as caps_mock:
+            caps_mock.return_value.get_service_host.return_value = 'somehost.com'
+            caps_mock.return_value.get_access_url.return_value = service_url
+            client = ws.BaseWsClient("someresourceID", auth.Subject(), 'TestApp', host=test_host)
+            # original name of the host in service_url should be replaced by the test_host
+            self.assertEqual('http://testhost.com/service/', client._get_url(('myfeature', None)))
+            caps_mock.return_value.get_access_url.assert_called_once_with('myfeature')
+
+        # test with resource as url
+        with patch('cadcutils.net.ws.WsCapabilities') as caps_mock:
+            caps_mock.return_value.get_service_host.return_value = 'somehost.com'
+            client = ws.BaseWsClient("someresourceID", auth.Subject(), 'TestApp')
+            resource_url = 'http://someurl.com/path/'
+            self.assertEqual(resource_url, client._get_url(resource_url))
+            # repeat with overriden host name
+            client = ws.BaseWsClient("someresourceID", auth.Subject(), 'TestApp', host=test_host)
+            # same result
+            self.assertEqual(resource_url, client._get_url(resource_url))
+
+            # test exceptions with different status in the response
+            session = ws.RetrySession()
+            response = requests.Response()
+            response.status_code = requests.codes.not_found
+            with self.assertRaises(exceptions.NotFoundException):
+                session.check_status(response)
+            response.status_code = requests.codes.unauthorized
+            with self.assertRaises(exceptions.UnauthorizedException):
+                session.check_status(response)
+            response.status_code = requests.codes.forbidden
+            with self.assertRaises(exceptions.ForbiddenException):
+                session.check_status(response)
+            response.status_code = requests.codes.bad_request
+            with self.assertRaises(exceptions.BadRequestException):
+                session.check_status(response)
+            response.status_code = requests.codes.conflict
+            with self.assertRaises(exceptions.AlreadyExistsException):
+                session.check_status(response)
+            response.status_code = requests.codes.internal_server_error
+            with self.assertRaises(exceptions.InternalServerException):
+                session.check_status(response)
+            response.status_code = requests.codes.unavailable
+            with self.assertRaises(requests.HTTPError):
+                session.check_status(response)
+            response.status_code = requests.codes.not_extended
+            with self.assertRaises(exceptions.UnexpectedException):
+                session.check_status(response)
+
+
+
+capabilities__content = \
+"""
+<vosi:capabilities xmlns:vosi="http://www.ivoa.net/xml/VOSICapabilities/v1.0" xmlns:vs="http://www.ivoa.net/xml/VODataService/v1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <capability standardID="ivo://ivoa.net/std/VOSI#capabilities">
+        <interface xsi:type="vs:ParamHTTP" role="std">
+            <accessURL use="full">
+                http://WS_URL/capabilities
+            </accessURL>
+        </interface>
+    </capability>
+    <capability standardID="ivo://ivoa.net/std/VOSI#availability">
+        <interface xsi:type="vs:ParamHTTP" role="std">
+            <accessURL use="full">
+                http://WS_URL/availability
+            </accessURL>
+        </interface>
+    </capability>
+    <capability standardID="vos://cadc.nrc.ca~service/CADC/mystnd01">
+        <interface xsi:type="vs:ParamHTTP" role="std" version="1.0">
+            <accessURL use="base">
+                http://WS_URL/pub
+            </accessURL>
+        </interface>
+        <interface xsi:type="vs:ParamHTTP" role="std" version="1.0">
+            <accessURL use="base">
+                http://WS_URL/auth
+            </accessURL>
+            <securityMethod standardID="http://www.w3.org/Protocols/HTTP/1.0/spec.html#BasicAA"/>
+        </interface>
+        <interface xsi:type="vs:ParamHTTP" role="std" version="1.0">
+            <accessURL use="base">
+                https://WS_URL
+            </accessURL>
+            <securityMethod standardID="ivo://ivoa.net/sso#tls-with-certificate"/>
+        </interface>
+    </capability>
+</vosi:capabilities>
+"""
+
+class TestWsCapabilities(unittest.TestCase):
+
+    """Class for testing the webservie client"""
+    @patch('cadcutils.net.ws.os.path.getmtime')
+    @patch('cadcutils.net.ws.open', mock=mock_open())
+    @patch('cadcutils.net.ws.BaseWsClient.get')
+    def test_get_reg(self, get_mock, file_mock, file_modtime_mock):
+        """
+        Tests the registry part of WsCapabilities
+        """
+        # test when registry information is read from the server (cache is outdated)
+        resource = 'aresource'
+        service = 'myservice'
+        resource_id = 'ivo://canfar.phys.uvic.ca/{}'.format(service)
+        resource_cap_url = 'http://www.canfar.net/myservice'
+        cadcreg_content = ('#test content\n {} = {} \n'
+                           'ivo://some.provider/service = http://providerurl.test/service').\
+            format(resource_id, resource_cap_url)
+        response = Mock(content=cadcreg_content)
+        get_mock.return_value = response
+        # set the modified time of the cache file to 0 to make sure the info is retrieved from server
+        file_modtime_mock.return_value = 0
+        anon_subject = auth.Subject()
+        # test anonymous access
+        fh_mock = Mock()
+        file_mock.write = fh_mock
+        client = Mock(resource_id=resource_id)
+        response = Mock()
+        response.content = cadcreg_content
+        client.get.return_value = response
+        caps = ws.WsCapabilities(client)
+        self.assertEquals(os.path.join(ws.CACHE_LOCATION, ws.REGISTRY_FILE), caps.reg_file)
+        self.assertEquals(os.path.join(ws.CACHE_LOCATION, 'canfar.phys.uvic.ca', service), caps.caps_file)
+        self.assertEquals(resource_cap_url, caps._get_capability_url())
+        file_mock.assert_called_once_with(os.path.join(ws.CACHE_LOCATION, ws.REGISTRY_FILE), 'wb')
+        # TODO not sure why need to access write this way
+        file_mock().__enter__.return_value.write.assert_called_once_with(cadcreg_content)
+
+        # test when registry information is retrieved from the cache file
+        get_mock.reset_mock()
+        get_mock.return_value = None
+        file_modtime_mock.reset_mock()
+        file_mock.reset_mock()
+        resource_cap_url2 = 'http://www.canfar.net/myservice2'
+        cache_content2 = ('#test content\n {} = {} \n'
+                           'ivo://some.provider/service = http://providerurl.test/service').\
+            format(resource_id, resource_cap_url2)
+        file_modtime_mock.return_value = time.time()
+        file_mock().__enter__.return_value.read.return_value = cache_content2
+        caps = ws.WsCapabilities(client)
+        self.assertEquals(resource_cap_url2, caps._get_capability_url())
+
+        # test when registry information is outdated but there are errors retrieving it from the CADC registry
+        # so in the end go back and use the cache version
+        file_modtime_mock.reset_mock()
+        file_mock.reset_mock()
+        file_modtime_mock.return_value = 0
+        file_mock().__enter__.return_value.read.return_value = cache_content2
+        get_mock.side_effect = [exceptions.HttpException()]
+        client.get.side_effect = [exceptions.HttpException]
+        caps = ws.WsCapabilities(client)
+        self.assertEquals(resource_cap_url2, caps._get_capability_url())
+
+    @patch('cadcutils.net.ws.os.path.getmtime')
+    @patch('cadcutils.net.ws.open', mock=mock_open())
+    @patch('cadcutils.net.ws.BaseWsClient.get')
+    def test_get_caps(self, get_mock, file_mock, file_modtime_mock):
+        """
+        Tests the capabilities part of WsCapabilities
+        """
+        # test when registry information is read from the server (cache is outdated)
+        resource = 'aresource'
+        service = 'myservice'
+        resource_id = 'ivo://canfar.phys.uvic.ca/{}'.format(service)
+        resource_cap_url = 'www.canfar.net/myservice'
+        cadcreg_content = ('#test content\n {} = {} \n'
+                           'ivo://some.provider/service = http://providerurl.test/service'). \
+            format(resource_id, resource_cap_url)
+        # set the modified time of the cache file to 0 to make sure the info is retrieved from server
+        file_modtime_mock.return_value = 0
+        # test anonymous access
+        fh_mock = Mock()
+        file_mock.write = fh_mock
+        client = Mock(resource_id=resource_id, subject=auth.Subject())
+        response = Mock(content=capabilities__content.replace('WS_URL', resource_cap_url))
+        client.get.return_value = response
+        caps = ws.WsCapabilities(client)
+        # mock _get_capability_url to return some url without attempting to access the server
+        def get_url():
+            return 'http://some.url/capabilities'
+        caps._get_capability_url = get_url
+        caps.caps_urls[service] = '{}/capabilities'.format(resource_cap_url)
+        self.assertEquals('http://{}/capabilities'.format(resource_cap_url),
+                          caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities'))
+        self.assertEquals('http://{}/availability'.format(resource_cap_url),
+                          caps.get_access_url('ivo://ivoa.net/std/VOSI#availability'))
+        self.assertEquals('http://{}/pub'.format(resource_cap_url),
+                          caps.get_access_url('vos://cadc.nrc.ca~service/CADC/mystnd01'))
+        resource_url = urlparse(resource_id)
+        file_mock.assert_called_once_with(os.path.join(ws.CACHE_LOCATION,
+                                                       resource_url.netloc, resource_url.path.strip('/')), 'wb')
+        # TODO not sure why need to access write this way
+        file_mock().__enter__.return_value.write.assert_called_once_with(
+            capabilities__content.replace('WS_URL', resource_cap_url))
+
+        # repeat for basic auth subject. Mock the netrc library to prevent a lookup for $HOME/.netrc
+        with patch('cadcutils.net.auth.netrclib') as netrclib_mock:
+            client = Mock(resource_id=resource_id, subject=auth.Subject(netrc=True))
+        client.get.return_value = response
+        caps = ws.WsCapabilities(client)
+        caps._get_capability_url = get_url
+        # capabilities works even if it has only one anonymous interface
+        self.assertEquals('http://{}/capabilities'.format(resource_cap_url),
+                            caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities'))
+        # same for availability
+        self.assertEquals('http://{}/availability'.format(resource_cap_url),
+                            caps.get_access_url('ivo://ivoa.net/std/VOSI#availability'))
+
+        # repeat for https
+        with patch('os.path.isfile') as p:
+            client = Mock(resource_id=resource_id, subject=auth.Subject(certificate='somecert.pem'))
+        client.get.return_value = response
+        caps = ws.WsCapabilities(client)
+        caps._get_capability_url = get_url
+        # capabilities works even if it has only one anonymous interface
+        self.assertEquals('http://{}/capabilities'.format(resource_cap_url),
+                            caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities'))
+        # same for availability
+        self.assertEquals('http://{}/availability'.format(resource_cap_url),
+                            caps.get_access_url('ivo://ivoa.net/std/VOSI#availability'))
+        self.assertEquals('https://{}'.format(resource_cap_url),
+                          caps.get_access_url('vos://cadc.nrc.ca~service/CADC/mystnd01'))
+
+        # test when capabilities information is retrieved from the cache file
+        get_mock.reset_mock()
+        get_mock.return_value = None
+        file_modtime_mock.reset_mock()
+        file_mock.reset_mock()
+        resource_cap_url2 = 'http://www.canfar.net/myservice2'
+        cache_content2 = capabilities__content.replace('WS_URL', resource_cap_url2)
+        file_modtime_mock.return_value = time.time()
+        file_mock().__enter__.return_value.read.return_value = cache_content2
+        client = Mock(resource_id=resource_id, subject=auth.Subject())
+        caps = ws.WsCapabilities(client)
+        caps._get_capability_url = get_url
+        caps.caps_urls[service] = '{}/capabilities'.format(resource_cap_url2)
+        self.assertEquals('http://{}/capabilities'.format(resource_cap_url2),
+                          caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities'))
+        self.assertEquals('http://{}/availability'.format(resource_cap_url2),
+                          caps.get_access_url('ivo://ivoa.net/std/VOSI#availability'))
+        self.assertEquals('http://{}/pub'.format(resource_cap_url2),
+                          caps.get_access_url('vos://cadc.nrc.ca~service/CADC/mystnd01'))
+        resource_url = urlparse(resource_id)
+        file_mock().__enter__.return_value.read.return_value = \
+            capabilities__content.replace('WS_URL', resource_cap_url2)
+
+        # repeat for basic auth subject. Mock the netrc library to prevent a lookup for $HOME/.netrc
+        with patch('cadcutils.net.auth.netrclib') as netrclib_mock:
+            client = Mock(resource_id=resource_id, subject=auth.Subject(netrc=True))
+        caps = ws.WsCapabilities(client)
+        caps._get_capability_url = get_url
+        # does not work with user-password of the subject set above
+        self.assertEquals('http://{}/capabilities'.format(resource_cap_url2),
+                          caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities'))
+        self.assertEquals('http://{}/availability'.format(resource_cap_url2),
+                          caps.get_access_url('ivo://ivoa.net/std/VOSI#availability'))
+        self.assertEquals('http://{}/auth'.format(resource_cap_url2),
+                          caps.get_access_url('vos://cadc.nrc.ca~service/CADC/mystnd01'))
+
+        # repeat for https
+        with patch('os.path.isfile') as p:
+            client = Mock(resource_id=resource_id, subject=auth.Subject(certificate='somecert.pem'))
+        caps = ws.WsCapabilities(client)
+        caps._get_capability_url = get_url
+        # does not work with user-password of the subject set above
+        self.assertEquals('http://{}/capabilities'.format(resource_cap_url2),
+                          caps.get_access_url('ivo://ivoa.net/std/VOSI#capabilities'))
+        self.assertEquals('http://{}/availability'.format(resource_cap_url2),
+                          caps.get_access_url('ivo://ivoa.net/std/VOSI#availability'))
+        self.assertEquals('https://{}'.format(resource_cap_url2),
+                          caps.get_access_url('vos://cadc.nrc.ca~service/CADC/mystnd01'))
+
 
 # TODO By default, internet tests fail. They only succeed when test with --remote-data flag.
 # Need to figure out a way to skip the tests unless that flag is present.
