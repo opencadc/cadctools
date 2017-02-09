@@ -88,8 +88,6 @@ from mock import Mock, patch, MagicMock, ANY, call
 call.__wrapped__ = None
 
 
-THIS_DIR = os.path.dirname(os.path.realpath(__file__))
-
 class MyExitError(Exception):
 
     def __init__(self):
