@@ -140,7 +140,7 @@ def list_resources():
         if r[2] is None:
             caps_str = 'NA'
         else:
-            caps_str = ', '.join(r[2]._caps.keys())
+            caps_str = ', '.join(sorted(r[2]._caps.keys()))
         print('{} ({}) - Capabilities: {}\n'.format(r[0], r[1], caps_str))
 
 
