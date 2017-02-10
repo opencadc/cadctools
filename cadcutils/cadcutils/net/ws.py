@@ -85,12 +85,13 @@ import os
 import requests
 from requests import Session
 from six.moves.urllib.parse import urlparse
+from lxml import etree
 
 from cadcutils import exceptions
 from .. import version as cadctools_version
 from . import wscapabilities
 
-__all__ = ['BaseWsClient']
+__all__ = ['BaseWsClient', 'get_resources', 'list_resources', 'BOOTSTRAP_REGISTRY']
 
 BUFSIZE = 8388608  # Size of read/write buffer
 MAX_RETRY_DELAY = 128  # maximum delay between retries
@@ -107,6 +108,39 @@ except:
     pass
 
 
+def get_resources(with_caps=True):
+    """
+    Fetches the registry information regarding the available resources and their
+    capabilities
+    :param with_caps: True for including capabilities information, false otherwise
+    :return: Dictionary of the form {resource_id: (capability url, wscapabilities.Capabilities)}
+    """
+    resources = {}
+    cr = wscapabilities.CapabilitiesReader()
+    response = requests.get(BOOTSTRAP_REGISTRY)
+    response.raise_for_status()
+    for line in response.content.split('\n'):
+        caps = None
+        if (not line.startswith('#')) and (len(line.strip()) > 0):
+            resource_id, url = line.split('=')
+            if with_caps:
+                caps_resp = requests.get(url.strip())
+                caps_resp.raise_for_status()
+                caps = cr.parsexml(caps_resp.content)
+            resources[resource_id.strip()] = (url.strip(), caps)
+    return resources
+
+
+def list_resources():
+    """
+    Displays information about the services and their capabilities.
+    """
+    resources = get_resources()
+    for r in resources:
+        print('{} ({}) - Capabilities {}\n'.format(r, resources[r][0],
+              'NA' if resources[r][1] is None else resources[r][1]._caps.keys()))
+
+
 class BaseWsClient(object):
     """
     Web Service client primarily for CADC services. It is a wrapper class
@@ -120,9 +154,8 @@ class BaseWsClient(object):
             - proper agent identification for logging on the server
 
     Three arguments are required in order to instantiate this class:
-        1. A valid resource ID corresponding to the Web service that is being accessed
-           (the list of valid resource is available at:
-           'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-caps'.
+        1. A valid resource ID corresponding to the Web service that is being accessed.
+        cadcutils.net.get_resources lists all the available resources at BOOTSTRAP_LOCATION location
         2. A cadcutils.net.Subject instance that contains the user credentials (no arguments
            for anonymous subject, certificate file or basic authentication).
         3. Agent is the name and version of the application as it will be presented in the HTTP
@@ -138,7 +171,8 @@ class BaseWsClient(object):
     def __init__(self, resource_id, subject, agent, retry=True, host=None):
         """
         Client constructor
-        :param resource_id -- ID of the resource being accessed (URI format)
+        :param resource_id -- ID of the resource being accessed (URI format) as it appears in
+        the registry.
         :param subject -- The subject that is using the service
         :type subject: cadcutil.auth.Subject
         :param agent -- Name of the agent (application) that accesses the service and its version,
