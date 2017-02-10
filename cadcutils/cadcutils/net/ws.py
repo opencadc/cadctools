@@ -137,8 +137,11 @@ def list_resources():
     """
     resources = get_resources()
     for r in resources:
-        print('{} ({}) - Capabilities {}\n'.format(r, resources[r][0],
-              'NA' if resources[r][1] is None else resources[r][1]._caps.keys()))
+        if resources[r][1] is None:
+            caps_str = 'NA'
+        else:
+            caps_str = ', '.join(resources[r][1]._caps.keys())
+        print('{} ({}) - Capabilities: {}\n'.format(r, resources[r][0], caps_str))
 
 
 class BaseWsClient(object):
