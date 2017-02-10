@@ -126,16 +126,14 @@ class TestListResources(unittest.TestCase):
         get_mock.side_effect = [response_caps, response_serv1, response_serv2]
         self.maxDiff = None
         usage = \
-'''ivo://cadc.nrc.ca/serv2 (http://www.cadc.nrc.gc.ca/serv2/capabilities) - Capabilities: ivo://ivoa.net/std/VOSI#tables-1.1, ivo://ivoa.net/std/VOSI#capabilities
+'''ivo://cadc.nrc.ca/serv1 (http://www.cadc.nrc.gc.ca/serv1/capabilities) - Capabilities: ivo://ivoa.net/std/VOSI#capabilities, ivo://ivoa.net/std/VOSI#availability
 
-ivo://cadc.nrc.ca/serv1 (http://www.cadc.nrc.gc.ca/serv1/capabilities) - Capabilities: ivo://ivoa.net/std/VOSI#capabilities, ivo://ivoa.net/std/VOSI#availability
+ivo://cadc.nrc.ca/serv2 (http://www.cadc.nrc.gc.ca/serv2/capabilities) - Capabilities: ivo://ivoa.net/std/VOSI#tables-1.1, ivo://ivoa.net/std/VOSI#capabilities
 
 '''
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             ws.list_resources()
             self.assertEqual(usage, stdout_mock.getvalue())
-
-
 
 
 class aTestWs(unittest.TestCase):

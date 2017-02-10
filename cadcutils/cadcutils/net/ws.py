@@ -113,9 +113,9 @@ def get_resources(with_caps=True):
     Fetches the registry information regarding the available resources and their
     capabilities
     :param with_caps: True for including capabilities information, false otherwise
-    :return: Dictionary of the form {resource_id: (capability url, wscapabilities.Capabilities)}
+    :return: List of the form (resource_id, capability url, wscapabilities.Capabilities)}
     """
-    resources = {}
+    resources = []
     cr = wscapabilities.CapabilitiesReader()
     response = requests.get(BOOTSTRAP_REGISTRY)
     response.raise_for_status()
@@ -127,7 +127,7 @@ def get_resources(with_caps=True):
                 caps_resp = requests.get(url.strip())
                 caps_resp.raise_for_status()
                 caps = cr.parsexml(caps_resp.content)
-            resources[resource_id.strip()] = (url.strip(), caps)
+            resources.append((resource_id.strip(), url.strip(), caps))
     return resources
 
 
@@ -137,11 +137,11 @@ def list_resources():
     """
     resources = get_resources()
     for r in resources:
-        if resources[r][1] is None:
+        if r[2] is None:
             caps_str = 'NA'
         else:
-            caps_str = ', '.join(resources[r][1]._caps.keys())
-        print('{} ({}) - Capabilities: {}\n'.format(r, resources[r][0], caps_str))
+            caps_str = ', '.join(r[2]._caps.keys())
+        print('{} ({}) - Capabilities: {}\n'.format(r[0], r[1], caps_str))
 
 
 class BaseWsClient(object):
