@@ -75,13 +75,68 @@ import requests
 import time
 from mock import Mock, patch, call, mock_open
 from six.moves.urllib.parse import urlparse
+from six import StringIO
 
-from cadcutils.net import ws, auth, wscapabilities
+from cadcutils.net import ws, auth
 from cadcutils.net.ws import DEFAULT_RETRY_DELAY, MAX_RETRY_DELAY, MAX_NUM_RETRIES, SERVICE_RETRY
 from cadcutils import exceptions
 
+# The following is a temporary workaround for Python issue 25532 (https://bugs.python.org/issue25532)
+call.__wrapped__ = None
 
-class TestWs(unittest.TestCase):
+
+class TestListResources(unittest.TestCase):
+
+    @patch('cadcutils.net.ws.requests.get')
+    def test_list_resources(self, get_mock):
+        response_caps = Mock()
+        response_caps.content = ('# This is just a test\n'
+                                 'ivo://cadc.nrc.ca/serv1 = http://www.cadc.nrc.gc.ca/serv1/capabilities\n'
+                                 'ivo://cadc.nrc.ca/serv2 = http://www.cadc.nrc.gc.ca/serv2/capabilities\n')
+        response_serv1 = Mock()
+        response_serv1.content = ('<vosi:capabilities xmlns:vosi="http://www.ivoa.net/xml/VOSICapabilities/v1.0" '
+                                  'xmlns:vs="http://www.ivoa.net/xml/VODataService/v1.1" '
+                                  'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n'
+                                  '<capability standardID="ivo://ivoa.net/std/VOSI#capabilities">\n'
+                                  '<interface xsi:type="vs:ParamHTTP" role="std">\n'
+                                  '<accessURL use="full">http://www.cadc.hia.nrcgc..ca/serv1/capabilities</accessURL>\n'
+                                  '</interface>\n'
+                                  '</capability>\n'
+                                  '<capability standardID="ivo://ivoa.net/std/VOSI#availability">\n'
+                                  '<interface xsi:type="vs:ParamHTTP" role="std">\n'
+                                  '<accessURL use="full">http://www.cadc.nrc.gc.ca/serv1/availability</accessURL>\n'
+                                  '</interface>\n'
+                                  '</capability>\n'
+                                  '</vosi:capabilities>\n')
+        response_serv2 = Mock()
+        response_serv2.content = ('<vosi:capabilities xmlns:vosi="http://www.ivoa.net/xml/VOSICapabilities/v1.0" '
+                                  'xmlns:vs="http://www.ivoa.net/xml/VODataService/v1.1" '
+                                  'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n'
+                                 '<capability standardID="ivo://ivoa.net/std/VOSI#capabilities">\n'
+                                 '<interface xsi:type="vs:ParamHTTP" role="std">\n'
+                                 '<accessURL use="full">http://www.cadc.hia.nrcgc..ca/serv2/capabilities</accessURL>\n'
+                                 '</interface>\n'
+                                 '</capability>\n'
+                                 '<capability standardID="ivo://ivoa.net/std/VOSI#tables-1.1">\n'
+                                 '<interface xsi:type="vs:ParamHTTP" role="std">\n'
+                                 '<accessURL use="full">http://www.cadc.nrc.gc.ca/serv2/availability</accessURL>\n'
+                                 '</interface>\n'
+                                 '</capability>\n'
+                                 '</vosi:capabilities>\n')
+        get_mock.side_effect = [response_caps, response_serv1, response_serv2]
+        self.maxDiff = None
+        usage = \
+'''ivo://cadc.nrc.ca/serv1 (http://www.cadc.nrc.gc.ca/serv1/capabilities) - Capabilities: ivo://ivoa.net/std/VOSI#availability, ivo://ivoa.net/std/VOSI#capabilities
+
+ivo://cadc.nrc.ca/serv2 (http://www.cadc.nrc.gc.ca/serv2/capabilities) - Capabilities: ivo://ivoa.net/std/VOSI#capabilities, ivo://ivoa.net/std/VOSI#tables-1.1
+
+'''
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            ws.list_resources()
+            self.assertEqual(usage, stdout_mock.getvalue())
+
+
+class aTestWs(unittest.TestCase):
 
     """Class for testing the webservie client"""
     @patch('cadcutils.net.ws.WsCapabilities')

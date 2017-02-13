@@ -84,8 +84,9 @@ from cadcdata import CadcDataClient
 from cadcdata.core import main_app, TRANSFER_RESOURCE_ID
 from mock import Mock, patch, MagicMock, ANY, call
 
+# The following is a temporary workaround for Python issue 25532 (https://bugs.python.org/issue25532)
+call.__wrapped__ = None
 
-THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 
 class MyExitError(Exception):
 
