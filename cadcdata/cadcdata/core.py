@@ -388,18 +388,18 @@ def main_app():
                                        help='Retrieve files from a CADC archive')
     get_parser.add_argument('-a', '--archive', help='CADC archive', required=True)
     get_parser.add_argument('-o', '--output',
-                            help='Space-separated list of destination files (quotes required for multiple elements)',
+                            help='space-separated list of destination files (quotes required for multiple elements)',
                             required=False)
-    get_parser.add_argument('--cutout', help=('Specify one or multiple extension and/or pixel range cutout '
+    get_parser.add_argument('--cutout', help=('specify one or multiple extension and/or pixel range cutout '
                                               'operations to be performed. Use cfitsio syntax'),
                             required=False)
-    get_parser.add_argument('-de', '--decompress', help='Decompress the data (gzip only)',
+    get_parser.add_argument('-de', '--decompress', help='decompress the data (gzip only)',
                             action='store_true', required=False)
-    get_parser.add_argument('--wcs', help='Return the World Coordinate System (WCS) information',
+    get_parser.add_argument('--wcs', help='return the World Coordinate System (WCS) information',
                             action='store_true', required=False)
-    get_parser.add_argument('--fhead', help='Return the FITS header information',
+    get_parser.add_argument('--fhead', help='return the FITS header information',
                             action='store_true', required=False)
-    get_parser.add_argument('filename', help='The name of the file in the archive', nargs='+')
+    get_parser.add_argument('filename', help='the name of the file in the archive', nargs='+')
     get_parser.epilog = \
 """
 Examples:
@@ -419,12 +419,12 @@ Examples:
                                        description='Upload files into a CADC archive',
                                        help='Upload files into a CADC archive')
     put_parser.add_argument('-a', '--archive', help='CADC archive', required=True)
-    put_parser.add_argument('-as', '--archive-stream', help='Specific archive stream to add the file to',
+    put_parser.add_argument('-as', '--archive-stream', help='specific archive stream to add the file to',
                             required=False)
     put_parser.add_argument('-c', '--compress', help='gzip compress the data',
                             action='store_true', required=False)
     put_parser.add_argument('source',
-                            help='File or directory containing the files to be put', nargs='+')
+                            help='file or directory containing the files to be put', nargs='+')
     put_parser.epilog = \
 """
 Examples:

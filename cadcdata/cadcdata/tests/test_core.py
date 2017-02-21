@@ -296,33 +296,33 @@ optional arguments:
 Retrieve files from a CADC archive
 
 positional arguments:
-  filename              The name of the file in the archive
+  filename              the name of the file in the archive
 
 optional arguments:
   -a, --archive ARCHIVE
                         CADC archive
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
-  --cutout CUTOUT       Specify one or multiple extension and/or pixel range
+  --cutout CUTOUT       specify one or multiple extension and/or pixel range
                         cutout operations to be performed. Use cfitsio syntax
   -d, --debug           debug messages
-  -de, --decompress     Decompress the data (gzip only)
-  --fhead               Return the FITS header information
+  -de, --decompress     decompress the data (gzip only)
+  --fhead               return the FITS header information
   -h, --help            show this help message and exit
-  --host HOST           Base hostname for services - used mainly for testing
+  --host HOST           base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  -n                    Use .netrc in $HOME for authentication
+  -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
-  -o, --output OUTPUT   Space-separated list of destination files (quotes
+  -o, --output OUTPUT   space-separated list of destination files (quotes
                         required for multiple elements)
   -q, --quiet           run quietly
   --resource-id RESOURCE_ID
                         resource identifier (default ivo://cadc.nrc.ca/data)
-  -u, --user USER       Name of user to authenticate. Note: application
+  -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
-  --wcs                 Return the World Coordinate System (WCS) information
+  --wcs                 return the World Coordinate System (WCS) information
 
 Examples:
 - Anonymously getting a public file:
@@ -353,27 +353,27 @@ Examples:
 Upload files into a CADC archive
 
 positional arguments:
-  source                File or directory containing the files to be put
+  source                file or directory containing the files to be put
 
 optional arguments:
   -a, --archive ARCHIVE
                         CADC archive
   -as, --archive-stream ARCHIVE_STREAM
-                        Specific archive stream to add the file to
+                        specific archive stream to add the file to
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -c, --compress        gzip compress the data
   -d, --debug           debug messages
   -h, --help            show this help message and exit
-  --host HOST           Base hostname for services - used mainly for testing
+  --host HOST           base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  -n                    Use .netrc in $HOME for authentication
+  -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
   --resource-id RESOURCE_ID
                         resource identifier (default ivo://cadc.nrc.ca/data)
-  -u, --user USER       Name of user to authenticate. Note: application
+  -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
 
@@ -422,15 +422,15 @@ optional arguments:
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages
   -h, --help            show this help message and exit
-  --host HOST           Base hostname for services - used mainly for testing
+  --host HOST           base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  -n                    Use .netrc in $HOME for authentication
+  -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
   --resource-id RESOURCE_ID
                         resource identifier (default ivo://cadc.nrc.ca/data)
-  -u, --user USER       Name of user to authenticate. Note: application
+  -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
 

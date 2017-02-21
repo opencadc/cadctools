@@ -235,6 +235,7 @@ class UtilTests(unittest.TestCase):
                                          MyExitError, MyExitError, MyExitError]))
     def test_base_parser_help(self):
         #help with a simple, no subparsers basic parser - these are the default arguments
+        self.maxDiff = None
         expected_stdout = \
 '''usage: cadc-client [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                    [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v] [-V]
@@ -244,15 +245,15 @@ optional arguments:
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages
   -h, --help            show this help message and exit
-  --host HOST           Base hostname for services - used mainly for testing
+  --host HOST           base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  -n                    Use .netrc in $HOME for authentication
+  -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
   --resource-id RESOURCE_ID
                         resource identifier (e.g. ivo://cadc.nrc.ca/service)
-  -u, --user USER       Name of user to authenticate. Note: application
+  -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
   -V, --version         show program's version number and exit
@@ -276,15 +277,15 @@ optional arguments:
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages
   -h, --help            show this help message and exit
-  --host HOST           Base hostname for services - used mainly for testing
+  --host HOST           base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  -n                    Use .netrc in $HOME for authentication
+  -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
   --resource-id RESOURCE_ID
                         resource identifier (e.g. ivo://cadc.nrc.ca/service)
-  -u, --user USER       Name of user to authenticate. Note: application
+  -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
 '''
@@ -303,22 +304,22 @@ optional arguments:
                    fileID [fileID ...]
 
 positional arguments:
-  fileID                The ID of the file in the archive
+  fileID                the ID of the file in the archive
 
 optional arguments:
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages
   -h, --help            show this help message and exit
-  --host HOST           Base hostname for services - used mainly for testing
+  --host HOST           base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  -n                    Use .netrc in $HOME for authentication
+  -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
   --resource-id RESOURCE_ID
                         resource identifier (e.g. ivo://cadc.nrc.ca/service)
-  -u, --user USER       Name of user to authenticate. Note: application
+  -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
   -x                    test argument
@@ -329,7 +330,7 @@ optional arguments:
                 parser = get_base_parser(subparsers=False)
                 parser.add_argument('-x', action='store_true', help='test argument')
                 parser.add_argument('fileID',
-                             help='The ID of the file in the archive', nargs='+')
+                             help='the ID of the file in the archive', nargs='+')
                 parser.parse_args()
             self.assertEqual(expected_stdout, stdout_mock.getvalue())
 
@@ -341,7 +342,7 @@ optional arguments:
         parser_cmd1.add_argument('-x', action='store_true', help='test argument')
         parser_cmd2 = subparsers.add_parser('cmd2')
         parser_cmd2.add_argument('fileID',
-                                 help='The ID of the file in the archive', nargs='+')
+                                 help='the ID of the file in the archive', nargs='+')
 
         expected_stdout = \
 '''usage: cadc-client [-h] {cmd1,cmd2} ...
@@ -369,15 +370,15 @@ optional arguments:
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages
   -h, --help            show this help message and exit
-  --host HOST           Base hostname for services - used mainly for testing
+  --host HOST           base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  -n                    Use .netrc in $HOME for authentication
+  -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
   --resource-id RESOURCE_ID
                         resource identifier (e.g. ivo://cadc.nrc.ca/service)
-  -u, --user USER       Name of user to authenticate. Note: application
+  -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
   -x                    test argument
@@ -395,22 +396,22 @@ optional arguments:
                         fileID [fileID ...]
 
 positional arguments:
-  fileID                The ID of the file in the archive
+  fileID                the ID of the file in the archive
 
 optional arguments:
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages
   -h, --help            show this help message and exit
-  --host HOST           Base hostname for services - used mainly for testing
+  --host HOST           base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  -n                    Use .netrc in $HOME for authentication
+  -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
   --resource-id RESOURCE_ID
                         resource identifier (e.g. ivo://cadc.nrc.ca/service)
-  -u, --user USER       Name of user to authenticate. Note: application
+  -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
 '''
