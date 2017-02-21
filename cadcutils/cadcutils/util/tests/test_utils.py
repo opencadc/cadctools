@@ -341,7 +341,7 @@ optional arguments:
         parser_cmd1.add_argument('-x', action='store_true', help='test argument')
         parser_cmd2 = subparsers.add_parser('cmd2')
         parser_cmd2.add_argument('fileID',
-                                 help='The ID of the file in the archive', nargs='+')
+                                 help='the ID of the file in the archive', nargs='+')
 
         expected_stdout = \
 '''usage: cadc-client [-h] {cmd1,cmd2} ...
