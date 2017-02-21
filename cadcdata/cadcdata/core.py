@@ -381,61 +381,61 @@ def main_app():
                           '(www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data)')
 
     subparsers = parser.add_subparsers(dest='cmd',
-                                       help='Supported commands. Use the -h|--help argument of a command '
+                                       help='supported commands. Use the -h|--help argument of a command '
                                        'for more details')
     get_parser = subparsers.add_parser('get',
                                        description='Retrieve files from a CADC archive',
                                        help='Retrieve files from a CADC archive')
-    get_parser.add_argument('-a', '--archive', help='CADC archive', required=True)
     get_parser.add_argument('-o', '--output',
-                            help='Space-separated list of destination files (quotes required for multiple elements)',
+                            help='space-separated list of destination files (quotes required for multiple elements)',
                             required=False)
-    get_parser.add_argument('--cutout', help=('Specify one or multiple extension and/or pixel range cutout '
+    get_parser.add_argument('--cutout', help=('specify one or multiple extension and/or pixel range cutout '
                                               'operations to be performed. Use cfitsio syntax'),
                             required=False)
-    get_parser.add_argument('-de', '--decompress', help='Decompress the data (gzip only)',
+    get_parser.add_argument('--de', '--decompress', help='decompress the data (gzip only)',
                             action='store_true', required=False)
-    get_parser.add_argument('--wcs', help='Return the World Coordinate System (WCS) information',
+    get_parser.add_argument('--wcs', help='return the World Coordinate System (WCS) information',
                             action='store_true', required=False)
-    get_parser.add_argument('--fhead', help='Return the FITS header information',
+    get_parser.add_argument('--fhead', help='return the FITS header information',
                             action='store_true', required=False)
-    get_parser.add_argument('filename', help='The name of the file in the archive', nargs='+')
+    get_parser.add_argument('archive', help='CADC archive')
+    get_parser.add_argument('filename', help='the name of the file in the archive', nargs='+')
     get_parser.epilog = \
 """
 Examples:
 - Anonymously getting a public file:
-        cadc-data get -v -a GEMINI 00aug02_002.fits
+        cadc-data get -v GEMINI 00aug02_002.fits
 - Use certificate to get a cutout and save it to a file:
-        cadc-data get --cert ~/.ssl/cadcproxy.pem -o /tmp/700000o-cutout.fits --cutout [1] -a CFHT 700000o
+        cadc-data get --cert ~/.ssl/cadcproxy.pem -o /tmp/700000o-cutout.fits --cutout [1] CFHT 700000o
 - Use default netrc file ($HOME/.netrc) to get FITS header of a file:
-        cadc-data get -v -n --fhead -a GEMINI 00aug02_002.fits
+        cadc-data get -v -n --fhead GEMINI 00aug02_002.fits
 - Use a different netrc file to download wcs information:
-        cadc-data get -d --netrc ~/mynetrc -o /tmp/700000o-wcs.fits --wcs -a CFHT 700000o
+        cadc-data get -d --netrc ~/mynetrc -o /tmp/700000o-wcs.fits --wcs CFHT 700000o
 - Connect as user to download two files and uncompress them (prompt for password if user not in $HOME/.netrc):
-        cadc-data get -v -u auser -de -a GEMINI 00aug02_002.fits 00aug02_003.fits
+        cadc-data get -v -u auser -de GEMINI 00aug02_002.fits 00aug02_003.fits
 """
 
     put_parser = subparsers.add_parser('put',
                                        description='Upload files into a CADC archive',
                                        help='Upload files into a CADC archive')
-    put_parser.add_argument('-a', '--archive', help='CADC archive', required=True)
-    put_parser.add_argument('-as', '--archive-stream', help='Specific archive stream to add the file to',
+    put_parser.add_argument('-as', '--archive-stream', help='specific archive stream to add the file to',
                             required=False)
     put_parser.add_argument('-c', '--compress', help='gzip compress the data',
                             action='store_true', required=False)
+    put_parser.add_argument('archive', help='CADC archive')
     put_parser.add_argument('source',
-                            help='File or directory containing the files to be put', nargs='+')
+                            help='file or directory containing the files to be put', nargs='+')
     put_parser.epilog = \
 """
 Examples:
 - Use certificate to put a file in an archive stream:
-        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default -a TEST myfile.fits.gz
+        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default TEST myfile.fits.gz
 - Use default netrc file ($HOME/.netrc) to put two files:
-        cadc-data put -v -n -a TEST myfile1.fits.gz myfile2.fits.gz
+        cadc-data put -v -n TEST myfile1.fits.gz myfile2.fits.gz
 - Use a different netrc file to put files from a directory:
-        cadc-data put -d --netrc ~/mynetrc -a TEST dir
+        cadc-data put -d --netrc ~/mynetrc TEST dir
 - Connect as user to put files from multiple sources (prompt for password if user not in $HOME/.netrc):
-        cadc-data put -v -u auser --archive TEST myfile.fits.gz dir1 dir2
+        cadc-data put -v -u auser TEST myfile.fits.gz dir1 dir2
 """
 
     info_parser = subparsers.add_parser('info',
@@ -452,22 +452,22 @@ Examples:
                                                      # '\t -ingest_date\n'
                                                      '\t -lastmod'),
                                         help='Get information regarding files in a CADC archive')
-    info_parser.add_argument('-a', '--archive', help='CADC archive', required=True)
+    info_parser.add_argument('archive', help='CADC archive')
     info_parser.add_argument('filename',
-                             help='The name of the file in the archive', nargs='+')
+                             help='the name of the file in the archive', nargs='+')
     info_parser.epilog = \
 """
 Examples:
 - Anonymously getting information about a public file:
-        cadc-data info -a GEMINI 00aug02_002.fits
+        cadc-data info GEMINI 00aug02_002.fits
 - Use certificate to get information about a file:
-        cadc-data info --cert ~/.ssl/cadcproxy.pem -a CFHT 700000o
+        cadc-data info --cert ~/.ssl/cadcproxy.pem CFHT 700000o
 - Use default netrc file ($HOME/.netrc) to get information about a file:
-        cadc-data info -n -a GEMINI 00aug02_002.fits
+        cadc-data info -n GEMINI 00aug02_002.fits
 - Use a different netrc file to get information about a file:
-        cadc-data info --netrc ~/mynetrc -a CFHT 700000o
+        cadc-data info --netrc ~/mynetrc CFHT 700000o
 - Connect as user to get information about two files (prompt for password if user not in $HOME/.netrc):
-        cadc-data info -u auser -a GEMINI 00aug02_002.fits 00aug02_003.fits
+        cadc-data info -u auser GEMINI 00aug02_002.fits 00aug02_003.fits
 """
 
     args = parser.parse_args()
@@ -508,14 +508,14 @@ Examples:
                                  format(files, file_names))
                 for f, fname in list(zip(files, file_names)):
                     try:
-                        client.get_file(archive, fname, f, decompress=args.decompress,
+                        client.get_file(archive, fname, f, decompress=args.de,
                                         fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
                     except exceptions.NotFoundException:
                         handle_error('File name {} not found'.format(fname), exit_after=False)
             else:
                 for fname in file_names:
                     try:
-                        client.get_file(archive, fname, None, decompress=args.decompress,
+                        client.get_file(archive, fname, None, decompress=args.de,
                                         fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
                     except exceptions.NotFoundException:
                         handle_error('File name {} not found'.format(fname), exit_after=False)
@@ -548,6 +548,8 @@ Examples:
                         else:
                             logger.warn('{} not added to the list of files to put'.format(f))
             logger.debug('Files to put: {}'.format(files))
+            if len(files) == 0:
+                handle_error('No files found to put')
             for f in files:
                 client.put_file(archive, f, archive_stream=args.archive_stream)
     except exceptions.UnauthorizedException:
