@@ -257,9 +257,9 @@ def get_cert_main():
                           'as local file cert_filename.')
     parser.add_argument('--cert-filename',
                         default=os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'),
-                        help=('Filesystem location to store the proxy certificate. (default: {})'.
+                        help=('filesystem location to store the proxy certificate. (default: {})'.
                               format(os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'))))
-    parser.add_argument('--days-valid', type=int, default=10, help='Number of days the certificate should be valid.')
+    parser.add_argument('--days-valid', type=int, default=10, help='number of days the certificate should be valid.')
 
     args = parser.parse_args()
 
