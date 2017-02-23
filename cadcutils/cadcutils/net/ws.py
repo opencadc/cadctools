@@ -313,9 +313,9 @@ class BaseWsClient(object):
         if type(resource) is tuple:
             # this is WS feature / path request
             path = ''
-            if resource[1] is not None:
-                path = resource[1].strip('/')
-            access_url = '{}/{}'.format(self.caps.get_access_url(resource[0]), path)
+            if (resource[1] is not None) and (len(resource[1])>0):
+                path = '/{}'.format(resource[1].strip('/'))
+            access_url = '{}{}'.format(self.caps.get_access_url(resource[0]), path)
             # replace host name if necessary
             url = urlparse(access_url)
             if url.netloc != self.host:
