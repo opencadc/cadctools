@@ -1,4 +1,4 @@
-import ConfigParser
+from six.moves import configparser
 import os
 import tempfile
 import shutil
@@ -59,10 +59,10 @@ class TestConfig(unittest.TestCase):
 
     def cmp_configs(self, config_path, default_config_path):
 
-        parser = ConfigParser.ConfigParser()
+        parser = configparser.ConfigParser()
         parser.read(config_path)
 
-        default_parser = ConfigParser.ConfigParser()
+        default_parser = configparser.ConfigParser()
         default_parser.read(default_config_path)
 
         for section in default_parser.sections():
