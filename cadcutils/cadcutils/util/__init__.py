@@ -11,3 +11,4 @@ The following functions are meant to be imported directly from cadcutils.util:
 
 """
 from .utils import *
+from .config import *

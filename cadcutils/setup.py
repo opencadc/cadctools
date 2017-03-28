@@ -79,6 +79,7 @@ package_info['package_data'].setdefault(PACKAGENAME, [])
 package_info['package_data'][PACKAGENAME].append('tests/*')
 package_info['package_data'][PACKAGENAME].append('net/tests/*')
 package_info['package_data'][PACKAGENAME].append('util/tests/*')
+package_info['package_data'][PACKAGENAME].append('util/tests/data/*')
 
 # Define entry points for command-line scripts
 entry_points = {'console_scripts': []}
