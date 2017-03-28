@@ -471,6 +471,8 @@ class RetrySession(Session):
                 raise exceptions.AlreadyExistsException(orig_exception=e)
             elif e.response.status_code == requests.codes.internal_server_error:
                 raise exceptions.InternalServerException(orig_exception=e)
+            elif e.response.status_code == requests.codes.request_entity_too_large:
+                raise exceptions.ByteLimitException(orig_exception=e)
             elif e.response.status_code in self.retry_errors:
                 raise e
             else:
