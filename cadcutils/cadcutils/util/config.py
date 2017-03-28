@@ -2,7 +2,7 @@ import errno
 import logging
 import os
 import sys
-import ConfigParser
+from six.moves import configparser
 from shutil import copyfile
 
 
@@ -34,21 +34,21 @@ class Config(object):
             logger.error(error)
             raise IOError(error)
 
-        self.parser = ConfigParser.ConfigParser()
+        self.parser = configparser.ConfigParser()
         try:
             self.parser.readfp(open(default_config_path))
-        except ConfigParser.Error as exc:
+        except configparser.Error as exc:
             logger.error("Error opening {0} because {1}.".format(default_config_path, exc.message))
 
         try:
             self.parser.read(config_path)
-        except ConfigParser.Error as exc:
+        except configparser.Error as exc:
             logger.error("Error opening {0} because {1}.".format(config_path, exc.message))
 
     def get(self, section, option):
         try:
             return self.parser.get(section, option)
-        except ConfigParser.NoOptionError:
+        except configparser.NoOptionError:
             pass
         return None
 
@@ -67,18 +67,18 @@ class Config(object):
             return
 
         # read local config file
-        parser = ConfigParser.ConfigParser()
+        parser = configparser.ConfigParser()
         try:
             parser.read(config_path)
-        except ConfigParser.Error as exc:
+        except configparser.Error as exc:
             logger.error("Error opening {0} because {1}.".format(config_path, exc.message))
             return
 
         # read default config file
-        default_parser = ConfigParser.RawConfigParser()
+        default_parser = configparser.RawConfigParser()
         try:
             default_parser.read(default_config_path)
-        except ConfigParser.Error as exc:
+        except configparser.Error as exc:
             logger.error("Error opening {0} because {1}.".format(default_config_path, exc.message))
             return
 
