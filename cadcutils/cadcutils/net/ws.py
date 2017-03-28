@@ -171,7 +171,7 @@ class BaseWsClient(object):
         is returned and the clients work with.
        """
 
-    def __init__(self, resource_id, subject, agent, retry=True, host=None):
+    def __init__(self, resource_id, subject, agent, retry=True, host=None, session_headers=None):
         """
         Client constructor
         :param resource_id -- ID of the resource being accessed (URI format) as it appears in
@@ -183,7 +183,7 @@ class BaseWsClient(object):
         :type agent: Subject
         :param retry -- True if the client retries on transient errors False otherwise
         :param host -- override the name of the host the service is running on (for testing purposes)
-
+        :param session_headers -- Headers used throughout the session - dictionary format expected.
         """
 
         self.logger = logging.getLogger('BaseWsClient')
@@ -198,6 +198,7 @@ class BaseWsClient(object):
         self.subject = subject
         self.resource_id = resource_id
         self.retry = retry
+        self.session_headers = session_headers
 
         # agent is / delimited key value pairs, separated by a space,
         # containing the application name and version,
@@ -313,9 +314,9 @@ class BaseWsClient(object):
         if type(resource) is tuple:
             # this is WS feature / path request
             path = ''
-            if resource[1] is not None:
-                path = resource[1].strip('/')
-            access_url = '{}/{}'.format(self.caps.get_access_url(resource[0]), path)
+            if (resource[1] is not None) and (len(resource[1])>0):
+                path = '/{}'.format(resource[1].strip('/'))
+            access_url = '{}{}'.format(self.caps.get_access_url(resource[0]), path)
             # replace host name if necessary
             url = urlparse(access_url)
             if url.netloc != self.host:
@@ -347,6 +348,9 @@ class BaseWsClient(object):
         user_agent = "{} {} {} {} ({})".format(self.agent, self.package_info, self.python_info,
                                                self.system_info, self.os_info)
         self._session.headers.update({"User-Agent": user_agent})
+        if self.session_headers is not None:
+            for header in self.session_headers:
+                self._session.headers.update(self.session_headers)
         assert isinstance(self._session, requests.Session)
         return self._session
 
