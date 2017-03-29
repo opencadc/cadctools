@@ -25,7 +25,7 @@ def mkdir_p(path):
 
 class Config(object):
 
-    def __init__(self, config_path, default_config_path):
+    def __init__(self, config_path, default_config_path=None):
         logger.info("Using config file {0}.".format(config_path))
 
         # check config file exists and can be read
@@ -35,10 +35,11 @@ class Config(object):
             raise IOError(error)
 
         self.parser = configparser.ConfigParser()
-        try:
-            self.parser.readfp(open(default_config_path))
-        except configparser.Error as exc:
-            logger.error("Error opening {0} because {1}.".format(default_config_path, exc.message))
+        if default_config_path:
+            try:
+                self.parser.readfp(open(default_config_path))
+            except configparser.Error as exc:
+                logger.error("Error opening {0} because {1}.".format(default_config_path, exc.message))
 
         try:
             self.parser.read(config_path)
