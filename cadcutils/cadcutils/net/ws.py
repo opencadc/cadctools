@@ -225,9 +225,7 @@ class BaseWsClient(object):
 
         # build the corresponding capabilities instance
         self.caps = WsCapabilities(self)
-        self.host = host
-        if host is None:
-            self.host = self.caps.get_service_host()
+        self._host = host
 
         # Clients should add entries to this dict for specialized
         # conversion of HTTP error codes into particular exceptions.
@@ -243,6 +241,12 @@ class BaseWsClient(object):
         # The actual conversion is performed by get_exception()
         self._HTTP_STATUS_CODE_EXCEPTIONS = {
             401: exceptions.UnauthorizedException()}
+
+    @property
+    def host(self):
+        if self._host is None:
+            self._host = self.caps.get_service_host()
+        return self._host
 
     def post(self, resource=None, **kwargs):
         """Wrapper for POST so that we use this client's session
@@ -471,6 +475,8 @@ class RetrySession(Session):
                 raise exceptions.AlreadyExistsException(orig_exception=e)
             elif e.response.status_code == requests.codes.internal_server_error:
                 raise exceptions.InternalServerException(orig_exception=e)
+            elif e.response.status_code == requests.codes.request_entity_too_large:
+                raise exceptions.ByteLimitException(orig_exception=e)
             elif e.response.status_code in self.retry_errors:
                 raise e
             else:

@@ -78,7 +78,7 @@ import sys
 import time
 import socket
 from clint.textui import progress
-import six
+import traceback
 
 from cadcutils import net, util, exceptions
 from cadcdata.transfer import Transfer, TransferReader, TransferWriter
@@ -489,6 +489,8 @@ Examples:
         """
 
         errors[0] += 1
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            print('!!!!!{}'.format(traceback.format_exc()))
         logger.error(msg)
         if exit_after:
             sys.exit(-1)  # TODO use different error codes?
