@@ -455,8 +455,9 @@ class TestRetrySession(unittest.TestCase):
             caps_mock.return_value.get_service_host.return_value = 'somehost.com'
             caps_mock.return_value.get_access_url.return_value = service_url
             client = ws.BaseWsClient("someresourceID", auth.Subject(), 'TestApp')
-            self.assertEqual('{}/'.format(service_url), client._get_url(('myfeature', None)))
+            self.assertEqual('{}'.format(service_url), client._get_url(('myfeature', None)))
             caps_mock.return_value.get_access_url.assert_called_once_with('myfeature')
+            self.assertEqual('{}'.format(service_url), client._get_url(('myfeature', '')))
 
         # same test but change name of host in the client
         test_host = 'testhost.com'
@@ -465,7 +466,7 @@ class TestRetrySession(unittest.TestCase):
             caps_mock.return_value.get_access_url.return_value = service_url
             client = ws.BaseWsClient("someresourceID", auth.Subject(), 'TestApp', host=test_host)
             # original name of the host in service_url should be replaced by the test_host
-            self.assertEqual('http://testhost.com/service/', client._get_url(('myfeature', None)))
+            self.assertEqual('http://testhost.com/service', client._get_url(('myfeature', None)))
             caps_mock.return_value.get_access_url.assert_called_once_with('myfeature')
 
         # test with resource as url

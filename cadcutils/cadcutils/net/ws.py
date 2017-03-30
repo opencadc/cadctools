@@ -171,7 +171,7 @@ class BaseWsClient(object):
         is returned and the clients work with.
        """
 
-    def __init__(self, resource_id, subject, agent, retry=True, host=None):
+    def __init__(self, resource_id, subject, agent, retry=True, host=None, session_headers=None):
         """
         Client constructor
         :param resource_id -- ID of the resource being accessed (URI format) as it appears in
@@ -183,7 +183,7 @@ class BaseWsClient(object):
         :type agent: Subject
         :param retry -- True if the client retries on transient errors False otherwise
         :param host -- override the name of the host the service is running on (for testing purposes)
-
+        :param session_headers -- Headers used throughout the session - dictionary format expected.
         """
 
         self.logger = logging.getLogger('BaseWsClient')
@@ -198,6 +198,7 @@ class BaseWsClient(object):
         self.subject = subject
         self.resource_id = resource_id
         self.retry = retry
+        self.session_headers = session_headers
 
         # agent is / delimited key value pairs, separated by a space,
         # containing the application name and version,
@@ -224,9 +225,7 @@ class BaseWsClient(object):
 
         # build the corresponding capabilities instance
         self.caps = WsCapabilities(self)
-        self.host = host
-        if host is None:
-            self.host = self.caps.get_service_host()
+        self._host = host
 
         # Clients should add entries to this dict for specialized
         # conversion of HTTP error codes into particular exceptions.
@@ -242,6 +241,12 @@ class BaseWsClient(object):
         # The actual conversion is performed by get_exception()
         self._HTTP_STATUS_CODE_EXCEPTIONS = {
             401: exceptions.UnauthorizedException()}
+
+    @property
+    def host(self):
+        if self._host is None:
+            self._host = self.caps.get_service_host()
+        return self._host
 
     def post(self, resource=None, **kwargs):
         """Wrapper for POST so that we use this client's session
@@ -313,9 +318,9 @@ class BaseWsClient(object):
         if type(resource) is tuple:
             # this is WS feature / path request
             path = ''
-            if resource[1] is not None:
-                path = resource[1].strip('/')
-            access_url = '{}/{}'.format(self.caps.get_access_url(resource[0]), path)
+            if (resource[1] is not None) and (len(resource[1])>0):
+                path = '/{}'.format(resource[1].strip('/'))
+            access_url = '{}{}'.format(self.caps.get_access_url(resource[0]), path)
             # replace host name if necessary
             url = urlparse(access_url)
             if url.netloc != self.host:
@@ -347,6 +352,9 @@ class BaseWsClient(object):
         user_agent = "{} {} {} {} ({})".format(self.agent, self.package_info, self.python_info,
                                                self.system_info, self.os_info)
         self._session.headers.update({"User-Agent": user_agent})
+        if self.session_headers is not None:
+            for header in self.session_headers:
+                self._session.headers.update(self.session_headers)
         assert isinstance(self._session, requests.Session)
         return self._session
 
@@ -467,6 +475,8 @@ class RetrySession(Session):
                 raise exceptions.AlreadyExistsException(orig_exception=e)
             elif e.response.status_code == requests.codes.internal_server_error:
                 raise exceptions.InternalServerException(orig_exception=e)
+            elif e.response.status_code == requests.codes.request_entity_too_large:
+                raise exceptions.ByteLimitException(orig_exception=e)
             elif e.response.status_code in self.retry_errors:
                 raise e
             else:

@@ -1,5 +1,6 @@
 language: python
 
+
 python:
     - 2.7
     - 3.3
@@ -30,7 +31,7 @@ env:
         - NUMPY_VERSION=stable
         - ASTROPY_VERSION=stable
         - SETUP_CMD='test'
-        - PIP_DEPENDENCIES='requests lxml clint mock coverage'
+        - PIP_DEPENDENCIES='requests lxml clint mock coverage unittest2'
 
         # For this package-template, we include examples of Cython modules,
         # so Cython is required for testing. If your package does not include

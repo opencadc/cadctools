@@ -1,0 +1,14 @@
+[section-1]
+option-1 = value-1
+option-2 = value-2
+option-3 = value-3
+
+[section-2]
+option-1 = value-1
+option-4 = value-4
+option-5 = value-5
+
+[section-3]
+option-1 = value-1
+option-4 = value-4
+option-6 = value-6

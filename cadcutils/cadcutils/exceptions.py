@@ -65,12 +65,15 @@
 # *
 # *
 # ************************************************************************
-
 """
 Exceptions used in the cadcutils package
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import errno
+import logging
+import traceback
+
 __all__ = ['UnauthorizedException', 'ForbiddenException', 'NotFoundException',
            'BadRequestException', 'ByteLimitException',
            'InternalServerException', 'UnexpectedException', '']
@@ -82,8 +85,26 @@ class HttpException(Exception):
     HTTP related exceptions
     """
     def __init__(self, msg=None, orig_exception=None):
+        self._msg = None
         self.msg = msg
         self.orig_exception = orig_exception
+
+    @property
+    def msg(self):
+        result = None
+        if self._msg:
+            result = '*********************{}'.format(self._msg)
+        elif self.orig_exception is not None:
+            result = self.orig_exception.message
+
+        if logging.DEBUG:
+            result = '{}\n{}'.format(result, traceback.format_exc())
+
+        return result
+
+    @msg.setter
+    def msg(self, msg):
+        self._msg = msg
 
 
 class UnauthorizedException(HttpException):
@@ -93,6 +114,7 @@ class UnauthorizedException(HttpException):
     """
     def __init__(self, msg=None, orig_exception=None):
         self.msg = msg
+        self.errno = errno.EACCES
         self.orig_exception = orig_exception
 
 
@@ -113,6 +135,7 @@ class NotFoundException(HttpException):
     """
     def __init__(self, msg=None, orig_exception=None):
         self.msg = msg
+        self.errno = errno.ENOENT
         self.orig_exception = orig_exception
 
 
@@ -133,6 +156,7 @@ class AlreadyExistsException(HttpException):
     """
     def __init__(self, msg=None, orig_exception=None):
         self.msg = msg
+        self.errno = errno.EEXIST
         self.orig_exception = orig_exception
 
 
@@ -143,6 +167,7 @@ class ByteLimitException(HttpException):
     """
     def __init__(self, msg=None, orig_exception=None):
         self.msg = msg
+        self.errno = errno.E2BIG
         self.orig_exception = orig_exception
 
 

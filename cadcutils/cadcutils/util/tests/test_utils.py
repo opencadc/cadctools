@@ -235,6 +235,7 @@ class UtilTests(unittest.TestCase):
                                          MyExitError, MyExitError, MyExitError]))
     def test_base_parser_help(self):
         #help with a simple, no subparsers basic parser - these are the default arguments
+        self.maxDiff = None
         expected_stdout = \
 '''usage: cadc-client [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                    [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v] [-V]
@@ -303,7 +304,7 @@ optional arguments:
                    fileID [fileID ...]
 
 positional arguments:
-  fileID                The ID of the file in the archive
+  fileID                the ID of the file in the archive
 
 optional arguments:
   --cert CERT           location of your X509 certificate to use for
@@ -329,7 +330,7 @@ optional arguments:
                 parser = get_base_parser(subparsers=False)
                 parser.add_argument('-x', action='store_true', help='test argument')
                 parser.add_argument('fileID',
-                             help='The ID of the file in the archive', nargs='+')
+                             help='the ID of the file in the archive', nargs='+')
                 parser.parse_args()
             self.assertEqual(expected_stdout, stdout_mock.getvalue())
 
