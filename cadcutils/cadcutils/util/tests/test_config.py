@@ -4,7 +4,7 @@ import tempfile
 import shutil
 import uuid
 import unittest2 as unittest
-from cadcutils.util import config
+from cadcutils.util.config import Config
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
 
@@ -17,6 +17,17 @@ class TestConfig(unittest.TestCase):
     """Test the vos Config class.
     """
 
+    def test_read_config(self):
+
+        config_file = get_test_data_file_path('single-section-default-config')
+        config = Config(config_file)
+
+        with self.assertRaises(configparser.NoSectionError):
+            config.get('foo', 'bar')
+
+        with self.assertRaises(configparser.NoOptionError):
+            config.get('section-1', 'bar')
+
     def test_single_section_config(self):
 
         self.do_test('single-section-config', 'single-section-default-config')
@@ -25,16 +36,16 @@ class TestConfig(unittest.TestCase):
 
         self.do_test('multi-section-config', 'multi-section-default-config')
 
-    def do_test(self, config_filename, default_config_filename):
+    def do_test(self, config_file, default_config_file):
 
         default_config_path = tempfile.gettempdir() + '/' + str(uuid.uuid4())
-        test_default_config = get_test_data_file_path(default_config_filename)
+        test_default_config = get_test_data_file_path(default_config_file)
         shutil.copy(test_default_config, default_config_path)
 
         # no existing config file
         config_path = tempfile.gettempdir() + '/' + str(uuid.uuid4())
 
-        config.Config.write_config(config_path, default_config_path)
+        Config.write_config(config_path, default_config_path)
 
         self.assertTrue(os.path.isfile(config_path))
         self.cmp_configs(config_path, default_config_path)
@@ -43,17 +54,17 @@ class TestConfig(unittest.TestCase):
         config_path = tempfile.gettempdir() + '/' + str(uuid.uuid4())
         shutil.copy(test_default_config, config_path)
 
-        config.Config.write_config(config_path, default_config_path)
+        Config.write_config(config_path, default_config_path)
 
         self.cmp_configs(config_path, default_config_path)
 
         # merge default and existing config files
         config_path = tempfile.gettempdir() + '/' + str(uuid.uuid4())
 
-        test_config = get_test_data_file_path(config_filename)
+        test_config = get_test_data_file_path(config_file)
         shutil.copy(test_config, config_path)
 
-        config.Config.write_config(config_path, default_config_path)
+        Config.write_config(config_path, default_config_path)
 
         self.cmp_configs(config_path, default_config_path)
 
