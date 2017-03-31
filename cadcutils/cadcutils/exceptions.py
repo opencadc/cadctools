@@ -93,7 +93,7 @@ class HttpException(Exception):
     def msg(self):
         result = None
         if self._msg:
-            result = '*********************{}'.format(self._msg)
+            result = self._msg
         elif self.orig_exception is not None:
             result = self.orig_exception.message
 
