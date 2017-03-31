@@ -24,85 +24,63 @@ def mkdir_p(path):
 
 
 class Config(object):
-    """
-    Class to read and write a configuration file.
-    """
 
-    def __init__(self, config_file, default_config_file=None):
-        """
-        Init the Config class.
-        If config_file is not found, or cannot be read, raises an IOError.
-        If default_config_file is given, read in the default options. Then
-        read config_file overriding any default options if found.
-        
-        :param config_file: absolute path to the local configuration file
-        :param default_config_file: absolute path to the default configuration file
-        """
-        logger.info("Using config file {0}.".format(config_file))
+    def __init__(self, config_path, default_config_path=None):
+        logger.info("Using config file {0}.".format(config_path))
 
         # check config file exists and can be read
-        if not os.path.isfile(config_file) and not os.access(config_file, os.R_OK):
-            error = "Can not read configuration file {0}.".format(config_file)
+        if not os.path.isfile(config_path) and not os.access(config_path, os.R_OK):
+            error = "Can not read {0}.".format(config_path)
             logger.error(error)
             raise IOError(error)
 
         self.parser = configparser.ConfigParser()
-        if default_config_file:
+        if default_config_path:
             try:
-                self.parser.readfp(open(default_config_file))
+                self.parser.readfp(open(default_config_path))
             except configparser.Error as exc:
-                logger.error("Error opening {0} because {1}.".format(default_config_file, exc.message))
+                logger.error("Error opening {0} because {1}.".format(default_config_path, exc.message))
 
         try:
-            self.parser.read(config_file)
+            self.parser.read(config_path)
         except configparser.Error as exc:
-            logger.error("Error opening {0} because {1}.".format(config_file, exc.message))
+            logger.error("Error opening {0} because {1}.".format(config_path, exc.message))
 
     def get(self, section, option):
-        """
-        Get the value of the given option in the given section.
-        
-        :param section: section name
-        :param option: option name
-        :return: the option value in the section, or a NoSectionError if the section is not found,
-        or a NoOptionError if the option is not found in the section.
-        """
-        return self.parser.get(section, option)
+        try:
+            return self.parser.get(section, option)
+        except configparser.NoOptionError:
+            pass
+        return None
 
     @staticmethod
-    def write_config(config_file, default_config_file):
+    def write_config(config_path, default_config_path):
         """
-        Writes a new configuration file, or updates an existing one.
-        If config_file is not found, default_config_file is copied to config_file.
-        If config_file exists, any new sections and options are copied from default_config_file
-        to config_file. Existing options in config_file are not overwritten, nor are
-        options deleted from config_file that do not exist in default_config_file.
-        
-        :param config_file: absolute path to the local configuration file
-        :param default_config_file: absolute path to the default configuration file
-        :return
+        :param config_path:
+        :param default_config_path:
+        :return:
         """
 
         # if not local config file then write the default config file
-        if not os.path.isfile(config_file):
-            mkdir_p(os.path.dirname(config_file))
-            copyfile(default_config_file, config_file)
+        if not os.path.isfile(config_path):
+            mkdir_p(os.path.dirname(config_path))
+            copyfile(default_config_path, config_path)
             return
 
         # read local config file
         parser = configparser.ConfigParser()
         try:
-            parser.read(config_file)
+            parser.read(config_path)
         except configparser.Error as exc:
-            logger.error("Error opening {0} because {1}.".format(config_file, exc.message))
+            logger.error("Error opening {0} because {1}.".format(config_path, exc.message))
             return
 
         # read default config file
-        default_parser = configparser.ConfigParser()
+        default_parser = configparser.RawConfigParser()
         try:
-            default_parser.read(default_config_file)
+            default_parser.read(default_config_path)
         except configparser.Error as exc:
-            logger.error("Error opening {0} because {1}.".format(default_config_file, exc.message))
+            logger.error("Error opening {0} because {1}.".format(default_config_path, exc.message))
             return
 
         # update config file with new options from the default config
@@ -116,10 +94,17 @@ class Config(object):
                     parser.set(section, option, value)
                     updated = True
 
+        # remove old options not in the default config file?
+        # for section in default_parser.sections():
+        #     options = parser.options(section)
+        #     for option in options:
+        #         if not default_parser.has_option(section, option):
+        #             parser.remove_option(section, option)
+
         # write updated config file
         if updated:
             try:
-                config_file = open(config_file, 'w')
+                config_file = open(config_path, 'w')
                 parser.write(config_file)
                 config_file.close()
             except Exception as exc:
