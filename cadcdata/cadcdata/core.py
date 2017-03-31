@@ -489,9 +489,6 @@ Examples:
         """
 
         errors[0] += 1
-        if logging.getLogger().isEnabledFor(logging.DEBUG):
-            print("*****{}".format(e.message))
-            print('****{}'.format(traceback.format_exc()))
         logger.error(msg)
         if exit_after:
             sys.exit(-1)  # TODO use different error codes?
@@ -521,7 +518,7 @@ Examples:
                         client.get_file(archive, fname, None, decompress=args.de,
                                         fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
                     except exceptions.NotFoundException:
-                        handle_error('File name {} not found {}'.format(fname, ), exit_after=False)
+                        handle_error('File name not found {}'.format(fname), exit_after=False)
         elif args.cmd == 'info':
             logger.info('info')
             archive = args.archive
