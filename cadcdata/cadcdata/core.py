@@ -78,7 +78,7 @@ import sys
 import time
 import socket
 from clint.textui import progress
-import six
+import traceback
 
 from cadcutils import net, util, exceptions
 from cadcdata.transfer import Transfer, TransferReader, TransferWriter
@@ -518,7 +518,7 @@ Examples:
                         client.get_file(archive, fname, None, decompress=args.de,
                                         fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
                     except exceptions.NotFoundException:
-                        handle_error('File name {} not found'.format(fname), exit_after=False)
+                        handle_error('File name not found {}'.format(fname), exit_after=False)
         elif args.cmd == 'info':
             logger.info('info')
             archive = args.archive
