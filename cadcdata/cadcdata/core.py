@@ -564,7 +564,7 @@ Examples:
         logger.debug(e.orig_exception)
         handle_error('Unexpected server error')
     except Exception as e:
-        handle_error(e.message)
+        handle_error(e)
 
     if errors[0] > 0:
         logger.error('Finished with {} error(s)'.format(errors[0]))

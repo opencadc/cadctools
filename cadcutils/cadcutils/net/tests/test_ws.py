@@ -90,11 +90,11 @@ class TestListResources(unittest.TestCase):
     @patch('cadcutils.net.ws.requests.get')
     def test_list_resources(self, get_mock):
         response_caps = Mock()
-        response_caps.content = ('# This is just a test\n'
+        response_caps.text = ('# This is just a test\n'
                                  'ivo://cadc.nrc.ca/serv1 = http://www.cadc.nrc.gc.ca/serv1/capabilities\n'
                                  'ivo://cadc.nrc.ca/serv2 = http://www.cadc.nrc.gc.ca/serv2/capabilities\n')
         response_serv1 = Mock()
-        response_serv1.content = ('<vosi:capabilities xmlns:vosi="http://www.ivoa.net/xml/VOSICapabilities/v1.0" '
+        response_serv1.text = ('<vosi:capabilities xmlns:vosi="http://www.ivoa.net/xml/VOSICapabilities/v1.0" '
                                   'xmlns:vs="http://www.ivoa.net/xml/VODataService/v1.1" '
                                   'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n'
                                   '<capability standardID="ivo://ivoa.net/std/VOSI#capabilities">\n'
@@ -109,7 +109,7 @@ class TestListResources(unittest.TestCase):
                                   '</capability>\n'
                                   '</vosi:capabilities>\n')
         response_serv2 = Mock()
-        response_serv2.content = ('<vosi:capabilities xmlns:vosi="http://www.ivoa.net/xml/VOSICapabilities/v1.0" '
+        response_serv2.text = ('<vosi:capabilities xmlns:vosi="http://www.ivoa.net/xml/VOSICapabilities/v1.0" '
                                   'xmlns:vs="http://www.ivoa.net/xml/VODataService/v1.1" '
                                   'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n'
                                  '<capability standardID="ivo://ivoa.net/std/VOSI#capabilities">\n'
@@ -567,7 +567,7 @@ class TestWsCapabilities(unittest.TestCase):
         cadcreg_content = ('#test content\n {} = {} \n'
                            'ivo://some.provider/service = http://providerurl.test/service').\
             format(resource_id, resource_cap_url)
-        response = Mock(content=cadcreg_content)
+        response = Mock(text=cadcreg_content)
         get_mock.return_value = response
         # set the modified time of the cache file to 0 to make sure the info is retrieved from server
         file_modtime_mock.return_value = 0
@@ -577,13 +577,13 @@ class TestWsCapabilities(unittest.TestCase):
         file_mock.write = fh_mock
         client = Mock(resource_id=resource_id)
         response = Mock()
-        response.content = cadcreg_content
+        response.text = cadcreg_content
         client.get.return_value = response
         caps = ws.WsCapabilities(client)
         self.assertEquals(os.path.join(ws.CACHE_LOCATION, ws.REGISTRY_FILE), caps.reg_file)
         self.assertEquals(os.path.join(ws.CACHE_LOCATION, 'canfar.phys.uvic.ca', service), caps.caps_file)
         self.assertEquals(resource_cap_url, caps._get_capability_url())
-        file_mock.assert_called_once_with(os.path.join(ws.CACHE_LOCATION, ws.REGISTRY_FILE), 'wb')
+        file_mock.assert_called_once_with(os.path.join(ws.CACHE_LOCATION, ws.REGISTRY_FILE), 'w')
         # TODO not sure why need to access write this way
         file_mock().__enter__.return_value.write.assert_called_once_with(cadcreg_content)
 
@@ -633,7 +633,7 @@ class TestWsCapabilities(unittest.TestCase):
         fh_mock = Mock()
         file_mock.write = fh_mock
         client = Mock(resource_id=resource_id, subject=auth.Subject())
-        response = Mock(content=capabilities__content.replace('WS_URL', resource_cap_url))
+        response = Mock(text=capabilities__content.replace('WS_URL', resource_cap_url))
         client.get.return_value = response
         caps = ws.WsCapabilities(client)
         # mock _get_capability_url to return some url without attempting to access the server
@@ -649,7 +649,7 @@ class TestWsCapabilities(unittest.TestCase):
                           caps.get_access_url('vos://cadc.nrc.ca~service/CADC/mystnd01'))
         resource_url = urlparse(resource_id)
         file_mock.assert_called_once_with(os.path.join(ws.CACHE_LOCATION,
-                                                       resource_url.netloc, resource_url.path.strip('/')), 'wb')
+                                                       resource_url.netloc, resource_url.path.strip('/')), 'w')
         # TODO not sure why need to access write this way
         file_mock().__enter__.return_value.write.assert_called_once_with(
             capabilities__content.replace('WS_URL', resource_cap_url))

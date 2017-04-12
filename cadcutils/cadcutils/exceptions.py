@@ -73,6 +73,7 @@ from __future__ import (absolute_import, division, print_function,
 import errno
 import logging
 import traceback
+import requests
 
 __all__ = ['UnauthorizedException', 'ForbiddenException', 'NotFoundException',
            'BadRequestException', 'ByteLimitException',
@@ -85,26 +86,22 @@ class HttpException(Exception):
     HTTP related exceptions
     """
     def __init__(self, msg=None, orig_exception=None):
-        self._msg = None
-        self.msg = msg
         self.orig_exception = orig_exception
+        self._msg = ''
+        if (msg == None) and (self.orig_exception is not None) and \
+                isinstance(self.orig_exception, requests.HTTPError):
+                self._msg = self.orig_exception.response.text
+
+        if logging.getLogger().isEnabledFor(logging.DEBUG):
+            self._msg = '{}\n{}'.format(self._msg, ''.join(traceback.format_stack()))
 
     @property
     def msg(self):
-        result = None
-        if self._msg:
-            result = self._msg
-        elif self.orig_exception is not None:
-            result = self.orig_exception.message
+        return self._msg
 
-        if logging.DEBUG:
-            result = '{}\n{}'.format(result, traceback.format_exc())
+    def __str__(self):
+        return self.msg
 
-        return result
-
-    @msg.setter
-    def msg(self, msg):
-        self._msg = msg
 
 
 class UnauthorizedException(HttpException):
@@ -113,9 +110,8 @@ class UnauthorizedException(HttpException):
         msg  -- explanation of why the specific transition is not allowed
     """
     def __init__(self, msg=None, orig_exception=None):
-        self.msg = msg
+        HttpException.__init__(self, msg, orig_exception)
         self.errno = errno.EACCES
-        self.orig_exception = orig_exception
 
 
 class ForbiddenException(HttpException):
@@ -124,8 +120,7 @@ class ForbiddenException(HttpException):
         msg  -- explanation of why the specific transition is not allowed
     """
     def __init__(self, msg=None, orig_exception=None):
-        self.msg = msg
-        self.orig_exception = orig_exception
+        HttpException.__init__(self, msg, orig_exception)
 
 
 class NotFoundException(HttpException):
@@ -134,9 +129,7 @@ class NotFoundException(HttpException):
         msg
     """
     def __init__(self, msg=None, orig_exception=None):
-        self.msg = msg
-        self.errno = errno.ENOENT
-        self.orig_exception = orig_exception
+        HttpException.__init__(self, msg, orig_exception)
 
 
 class BadRequestException(HttpException):
@@ -145,8 +138,7 @@ class BadRequestException(HttpException):
         msg
     """
     def __init__(self, msg=None, orig_exception=None):
-        self.msg = msg
-        self.orig_exception = orig_exception
+        HttpException.__init__(self, msg, orig_exception)
 
 
 class AlreadyExistsException(HttpException):
@@ -155,9 +147,8 @@ class AlreadyExistsException(HttpException):
         msg
     """
     def __init__(self, msg=None, orig_exception=None):
-        self.msg = msg
+        HttpException.__init__(self, msg, orig_exception)
         self.errno = errno.EEXIST
-        self.orig_exception = orig_exception
 
 
 class ByteLimitException(HttpException):
@@ -166,9 +157,8 @@ class ByteLimitException(HttpException):
         msg
     """
     def __init__(self, msg=None, orig_exception=None):
-        self.msg = msg
+        HttpException.__init__(self, msg, orig_exception)
         self.errno = errno.E2BIG
-        self.orig_exception = orig_exception
 
 
 class InternalServerException(HttpException):
@@ -177,8 +167,7 @@ class InternalServerException(HttpException):
         msg
     """
     def __init__(self, msg=None, orig_exception=None):
-        self.msg = msg
-        self.orig_exception = orig_exception
+        HttpException.__init__(self, msg, orig_exception)
 
 
 class UnexpectedException(HttpException):
@@ -187,5 +176,4 @@ class UnexpectedException(HttpException):
         msg
     """
     def __init__(self, msg=None, orig_exception=None):
-        self.msg = msg
-        self.orig_exception = orig_exception
+        HttpException.__init__(self, msg, orig_exception)
