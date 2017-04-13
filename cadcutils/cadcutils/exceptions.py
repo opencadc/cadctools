@@ -87,8 +87,8 @@ class HttpException(Exception):
     """
     def __init__(self, msg=None, orig_exception=None):
         self.orig_exception = orig_exception
-        self._msg = ''
-        if (msg == None) and (self.orig_exception is not None) and \
+        self._msg = msg
+        if (msg is None) and (self.orig_exception is not None) and \
                 isinstance(self.orig_exception, requests.HTTPError):
                 self._msg = self.orig_exception.response.text
 
@@ -101,7 +101,6 @@ class HttpException(Exception):
 
     def __str__(self):
         return self.msg
-
 
 
 class UnauthorizedException(HttpException):
