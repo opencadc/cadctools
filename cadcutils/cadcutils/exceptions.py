@@ -128,6 +128,7 @@ class NotFoundException(HttpException):
         msg
     """
     def __init__(self, msg=None, orig_exception=None):
+        self.errno = errno.ENOENT
         HttpException.__init__(self, msg, orig_exception)
 
 

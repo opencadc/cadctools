@@ -510,6 +510,7 @@ class WsCapabilities(object):
         self._caps_reader = wscapabilities.CapabilitiesReader()
         self.caps_urls = {}
         self.features = {}
+        self.capabilities = {}
 
     def get_access_url(self, feature):
         """
@@ -527,9 +528,11 @@ class WsCapabilities(object):
                     # cannot read the cache file for whatever reason
                     pass
             caps = self._get_content(self.caps_file, self._get_capability_url(), self.last_capstime)
+            # caps is a string but it's xml content claims it's utf-8 encode, hence need to encode it before
+            # parsing it.
+            self.capabilities = self._caps_reader.parsexml(caps.encode('utf-8'))
             if (time.time() - self.last_capstime) > CACHE_REFRESH_INTERVAL:
                 self.last_capstime = time.time()
-            self.capabilities = self._caps_reader.parsexml(caps)
         sms = self.ws.subject.get_security_methods()
         return self.capabilities.get_access_url(feature, sms)
 
