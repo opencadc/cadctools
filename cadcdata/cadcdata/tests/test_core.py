@@ -289,7 +289,7 @@ optional arguments:
 '''usage: cadc-data get [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                      [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
-                     [-o OUTPUT] [--cutout CUTOUT] [--de] [--wcs] [--fhead]
+                     [-o OUTPUT] [--cutout CUTOUT] [-z] [--wcs] [--fhead]
                      archive filename [filename ...]
 
 Retrieve files from a CADC archive
@@ -303,8 +303,8 @@ optional arguments:
                         authentication (unencrypted, in PEM format)
   --cutout CUTOUT       specify one or multiple extension and/or pixel range
                         cutout operations to be performed. Use cfitsio syntax
-  --de, --decompress    decompress the data (gzip only)
   -d, --debug           debug messages
+  -z, --decompress      decompress the data (gzip only)
   --fhead               return the FITS header information
   -h, --help            show this help message and exit
   --host HOST           base hostname for services - used mainly for testing
@@ -332,7 +332,7 @@ Examples:
 - Use a different netrc file to download wcs information:
         cadc-data get -d --netrc ~/mynetrc -o /tmp/700000o-wcs.fits --wcs CFHT 700000o
 - Connect as user to download two files and uncompress them (prompt for password if user not in $HOME/.netrc):
-        cadc-data get -v -u auser -de GEMINI 00aug02_002.fits 00aug02_003.fits
+        cadc-data get -v -u auser -z GEMINI 00aug02_002.fits 00aug02_003.fits
 '''
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             sys.argv = ['cadc-data', 'get', '--help']
@@ -345,7 +345,7 @@ Examples:
 '''usage: cadc-data put [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                      [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
-                     [-as ARCHIVE_STREAM] [-c]
+                     [-s ARCHIVE_STREAM] [-c]
                      archive source [source ...]
 
 Upload files into a CADC archive
@@ -355,7 +355,7 @@ positional arguments:
   source                file or directory containing the files to be put
 
 optional arguments:
-  -as, --archive-stream ARCHIVE_STREAM
+  -s, --archive-stream ARCHIVE_STREAM
                         specific archive stream to add the file to
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
