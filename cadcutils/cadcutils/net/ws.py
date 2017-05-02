@@ -119,14 +119,14 @@ def get_resources(with_caps=True):
     cr = wscapabilities.CapabilitiesReader()
     response = requests.get(BOOTSTRAP_REGISTRY)
     response.raise_for_status()
-    for line in response.content.split('\n'):
+    for line in response.text.split('\n'):
         caps = None
         if (not line.startswith('#')) and (len(line.strip()) > 0):
             resource_id, url = line.split('=')
             if with_caps:
                 caps_resp = requests.get(url.strip())
                 caps_resp.raise_for_status()
-                caps = cr.parsexml(caps_resp.content)
+                caps = cr.parsexml(caps_resp.text)
             resources.append((resource_id.strip(), url.strip(), caps))
     return resources
 
@@ -510,6 +510,7 @@ class WsCapabilities(object):
         self._caps_reader = wscapabilities.CapabilitiesReader()
         self.caps_urls = {}
         self.features = {}
+        self.capabilities = {}
 
     def get_access_url(self, feature):
         """
@@ -527,9 +528,11 @@ class WsCapabilities(object):
                     # cannot read the cache file for whatever reason
                     pass
             caps = self._get_content(self.caps_file, self._get_capability_url(), self.last_capstime)
+            # caps is a string but it's xml content claims it's utf-8 encode, hence need to encode it before
+            # parsing it.
+            self.capabilities = self._caps_reader.parsexml(caps.encode('utf-8'))
             if (time.time() - self.last_capstime) > CACHE_REFRESH_INTERVAL:
                 self.last_capstime = time.time()
-            self.capabilities = self._caps_reader.parsexml(caps)
         sms = self.ws.subject.get_security_methods()
         return self.capabilities.get_access_url(feature, sms)
 
@@ -560,13 +563,9 @@ class WsCapabilities(object):
         if content is None:
             # get information from the bootstrap registry
             try:
-                response = self.ws.get(url)
-                response.encoding = 'utf-8'
-                content = response.text
-                content = self.ws.get(url).content
-                with open(resource_file, 'wb') as f:
+                content = self.ws.get(url).text
+                with open(resource_file, 'w') as f:
                     f.write(content)
-                    #content = content.decode()
             except exceptions.HttpException:
                 # problems with the bootstrap registry. Try to use the old local one
                 # regardless of how old it is
