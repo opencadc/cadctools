@@ -15,7 +15,8 @@ Requires pip.
 
 Run 
 ```
-pip install -r requirements.txt
+cd cadcutils && pip install -r ./dev_requirements.txt
+cd cadcdata && pip install -r ./dev_requirements.txt
 pip install cadcutils/
 pip install cadcdata/
 ```
@@ -25,17 +26,17 @@ pip install cadcdata/
 ### Testing cadcutils
 
 ```
-pip install -r requirements.txt
-cd cadcutils
+cd ./cadcutils
+pip install -r ./dev_requirements.txt
 python setup.py test
 ```
 
 ### Testing cadcdata
 
 ```
-pip install -r requirements.txt
-pip install cadcutils/
-cd cadcdata
+cd ./cadcdata
+pip install -r ./dev_requirements.txt
+pip install ../cadcutils/
 python setup.py test
 ```
 
