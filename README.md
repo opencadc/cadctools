@@ -17,8 +17,6 @@ Run
 ```
 cd cadcutils && pip install -r ./dev_requirements.txt
 cd cadcdata && pip install -r ./dev_requirements.txt
-pip install cadcutils/
-pip install cadcdata/
 ```
 
 ## Testing packages
@@ -27,7 +25,6 @@ pip install cadcdata/
 
 ```
 cd ./cadcutils
-pip install -r ./dev_requirements.txt
 python setup.py test
 ```
 
@@ -35,18 +32,12 @@ python setup.py test
 
 ```
 cd ./cadcdata
-pip install -r ./dev_requirements.txt
-pip install ../cadcutils/
 python setup.py test
 ```
 
 ## Usage Example
 
-Run the following to install the packages 
-```
-pip install cadcutils/
-pip install cadcdata/
-```
+### In library mode
 
 Write the following into a file named `test.py`
 ```
@@ -60,6 +51,23 @@ print(client.get_file_info('GEMINI', '00AUG02_002'))
 Then Run
 ```
 python test.py
+```
+
+### Direct Usage
+
+After installing the cadcdata package, run 
+```
+cadc-data get GEMINI 00AUG02_002
+```
+
+This will download the fits file to your current directory. 
+
+To see more information do
+
+```
+cadc-data put --help
+cadc-data get --help
+cadc-data info --help
 ```
 
 ## Docker image
