@@ -442,7 +442,7 @@ class RetrySession(Session):
                     self.logger.debug("Caught exception: {0}".format(ce))
                     if ce.errno != 104:
                         # Only continue trying on a reset by peer error.
-                        raise exceptions.HttpException(ce)
+                        raise exceptions.HttpException(orig_exception=ce)
                 self.logger.warn("Resending request in {}s ...".format(current_delay))
                 time.sleep(current_delay)
                 num_retries += 1
