@@ -53,8 +53,8 @@ matrix:
         #  env: SETUP_CMD='test'
           
 install:
-   - pip install -r cadcutils/dev_requirements.txt
-   - pip install -r cadcdata/dev_requirements.txt
+   - cd cadcutils; pip install -r dev_requirements.txt; cd ..;
+   - cd cadcdata; pip install -r dev_requirements.txt; cd ..;
 
 script:
    - cd cadcutils; python setup.py $SETUP_CMD || exit -1; cd ..
