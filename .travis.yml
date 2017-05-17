@@ -30,7 +30,6 @@ env:
 
     matrix:
         # Make sure that egg_info works without dependencies
-        - SETUP_CMD='egg_info'
         - SETUP_CMD='test'
 
 matrix:
@@ -39,6 +38,10 @@ matrix:
         # Do a coverage test in Python 2.
         - python: 2.7
           env: SETUP_CMD='coverage'
+
+	# Do a egg-info test in Python 2.
+	- python: 2.7
+	  env: SETUP_CMD='egg_info'
 
         # Check for sphinx doc build warnings - we do this first because it
         # may run for a long time
@@ -51,10 +54,12 @@ matrix:
         #  env: SETUP_CMD='test'
           
 install:
+   - pip install -r cadcutils/dev_requirements.txt
+   - pip install -r cadcdata/dev_requirements.txt
 
 script:
    - cd cadcutils; python setup.py $SETUP_CMD || exit -1; cd ..
-   - cd cadcdata; pip install ../cadcutils; python setup.py $SETUP_CMD || exit -1
+   - cd cadcdata; python setup.py $SETUP_CMD || exit -1
 
 after_success:
     # If coveralls.io is set up for this package, uncomment the line
