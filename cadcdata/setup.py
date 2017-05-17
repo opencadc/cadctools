@@ -4,6 +4,7 @@
 import glob
 import os
 import sys
+from setuptools.command.test import test as TestCommand
 
 from setuptools import setup
 
@@ -12,7 +13,7 @@ if sys.version_info[0] >= 3:
     import builtins
 else:
     import __builtin__ as builtins
-if sys.argv[1] != 'test':
+if sys.argv[1] not in ['test', 'coverage']:
     builtins._PACKAGE_SETUP_ = True
 
 # Get some values from the setup.cfg
@@ -56,6 +57,23 @@ for entry_point in entry_point_list:
     entry_points['console_scripts'].append('{0} = {1}'.format(entry_point[0],
                                                               entry_point[1]))
 
+# add the --cov option to the test command
+class PyTest(TestCommand):
+    """class py.test for the testing
+
+    """
+    user_options = []
+
+    def __init__(self, dist, **kw):
+        TestCommand.__init__(self, dist, **kw)
+        self.pytest_args = ['--cov', PACKAGENAME]
+
+    def run_tests(self):
+        # import here, cause outside the eggs aren't loaded
+        import pytest
+        err_no = pytest.main(self.pytest_args)
+        sys.exit(err_no)
+
 # Note that requires and provides should not be included in the call to
 # ``setup``, since these are now deprecated. See this link for more details:
 # https://groups.google.com/forum/#!topic/astropy-dev/urYO8ckB2uM
@@ -73,7 +91,9 @@ setup(name=PACKAGENAME,
       zip_safe=False,
       use_2to3=False,
       setup_requires=['pytest-runner'],
+      test_requires=['pytest'],
       entry_points=entry_points,
       packages=[PACKAGENAME],
-      package_data={PACKAGENAME: ['data/*', 'tests/data/*', '*/data/*', '*/tests/data/*']}
+      package_data={PACKAGENAME: ['data/*', 'tests/data/*', '*/data/*', '*/tests/data/*']},
+      cmdclass = {'coverage': PyTest}
 )
