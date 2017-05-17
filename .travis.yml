@@ -26,7 +26,6 @@ env:
     global:
 
         - SETUP_CMD='test'
-        - PIP_DEPENDENCIES='pytest requests lxml clint mock pytest-cov unittest2'
 
     matrix:
         # Make sure that egg_info works without dependencies
