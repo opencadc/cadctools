@@ -28,8 +28,8 @@ metadata = dict(conf.items('metadata'))
 
 PACKAGENAME = metadata.get('package_name', 'packagename')
 DESCRIPTION = metadata.get('description', 'CADC package')
-AUTHOR = metadata.get('author', '')
-AUTHOR_EMAIL = metadata.get('author_email', '')
+AUTHOR = metadata.get('author', 'CADC')
+AUTHOR_EMAIL = metadata.get('author_email', 'cadc@nrc.gc.ca')
 LICENSE = metadata.get('license', 'unknown')
 URL = metadata.get('url', 'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')
 
