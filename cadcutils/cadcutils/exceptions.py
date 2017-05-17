@@ -88,9 +88,11 @@ class HttpException(Exception):
     def __init__(self, msg=None, orig_exception=None):
         self.orig_exception = orig_exception
         self._msg = msg
-        if (msg is None) and (self.orig_exception is not None) and \
-                isinstance(self.orig_exception, requests.HTTPError):
+        if (msg is None) and (self.orig_exception is not None):
+            if isinstance(self.orig_exception, requests.HTTPError):
                 self._msg = self.orig_exception.response.text
+            else:
+                self._msg = str(self.orig_exception)
 
         if logging.getLogger().isEnabledFor(logging.DEBUG):
             self._msg = '{}\n{}'.format(self._msg, ''.join(traceback.format_stack()))
@@ -100,7 +102,7 @@ class HttpException(Exception):
         return self._msg
 
     def __str__(self):
-        return self.msg
+        return self.msg if self.msg is not None else ''
 
 
 class UnauthorizedException(HttpException):
