@@ -38,7 +38,7 @@ matrix:
         - python: 2.7
           env: SETUP_CMD='coverage'
 
-	# Do a egg-info test in Python 2.
+        # Do a egg-info test in Python 2.
         - python: 2.7
           env: SETUP_CMD='egg_info'
 
