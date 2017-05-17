@@ -39,8 +39,8 @@ matrix:
           env: SETUP_CMD='coverage'
 
 	# Do a egg-info test in Python 2.
-	- python: 2.7
-	  env: SETUP_CMD='egg_info'
+        - python: 2.7
+          env: SETUP_CMD='egg_info'
 
         # Check for sphinx doc build warnings - we do this first because it
         # may run for a long time
