@@ -89,16 +89,21 @@ class TestAuth(unittest.TestCase):
 
 
     @patch('cadcutils.net.auth.get_cert', Mock(return_value='CERTVALUE'))
-    @patch('sys.exit', Mock(side_effect=[MyExitError]))
+    @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))
     def test_get_cert_main(self):
         """ Test the cert_main function """
 
         value = "CERTVALUE"
 
+        # get certificate with no arguments -> authentication args required
+        with self.assertRaises(MyExitError):
+            sys.argv = ["cadc-get-cert"]
+            auth.get_cert_main()
+
         # get certificate default location
         m = mock_open()
         with patch('six.moves.builtins.open', m, create=True):
-            sys.argv = ["cadc-get-cert"]
+            sys.argv = ["cadc-get-cert", "-u",  "bob"]
             auth.get_cert_main()
         m.assert_called_with(os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'), 'w')
         handle = m()
@@ -110,7 +115,7 @@ class TestAuth(unittest.TestCase):
             os.remove(certfile)
         except OSError as ex:
             pass
-        sys.argv = ["cadc-get-cert", "--cert-filename", certfile]
+        sys.argv = ["cadc-get-cert", "-u", "bob", "--cert-filename", certfile]
         self.assertEquals(None, auth.get_cert_main())
         with open(certfile, 'r') as f:
             self.assertEqual(value, f.read())
@@ -119,7 +124,7 @@ class TestAuth(unittest.TestCase):
         errmsg = """[Errno 17] File exists: '{}' : {}
 Expected /tmp/testcertfile to be a directory.
 """.format(certfile, certfile)
-        sys.argv = ["cadc-get-cert", "--cert-filename", certfile + "/cert"]
+        sys.argv = ["cadc-get-cert", "-u", "bob", "--cert-filename", certfile + "/cert"]
         with self.assertRaises(MyExitError):
             with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
                 auth.get_cert_main()
@@ -133,7 +138,7 @@ Expected /tmp/testcertfile to be a directory.
 
         usage =\
 """usage: cadc-get-cert [-h]
-                     [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                     (--cert CERT | -n | --netrc-file NETRC_FILE | -u USER)
                      [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
                      [-V] [--cert-filename CERT_FILENAME]
                      [--days-valid DAYS_VALID]
