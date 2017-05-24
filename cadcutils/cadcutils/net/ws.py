@@ -407,6 +407,11 @@ class RetrySession(Session):
         :return: the response
         :rtype: requests.Response
         """
+        # merge kwargs with env
+        proxies = kwargs.get('proxies') or {}
+        settings = self.merge_environment_settings(
+            request.url, proxies, kwargs.get('stream'), kwargs.get('verify'), kwargs.get('cert'))
+        kwargs.update(settings)
 
         if self.retry:
             current_delay = max(self.start_delay, DEFAULT_RETRY_DELAY)
@@ -443,7 +448,7 @@ class RetrySession(Session):
                     if ce.errno != 104:
                         # Only continue trying on a reset by peer error.
                         raise exceptions.HttpException(orig_exception=ce)
-                self.logger.warn("Resending request in {}s ...".format(current_delay))
+                self.logger.warning("Resending request in {}s ...".format(current_delay))
                 time.sleep(current_delay)
                 num_retries += 1
                 current_delay = min(current_delay*2, MAX_RETRY_DELAY)
