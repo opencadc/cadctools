@@ -107,7 +107,47 @@ logger = logging.getLogger(APP_NAME)
 
 class CadcDataClient(object):
 
-    """Class to access CADC archival data."""
+    """Class to access CADC archival data.
+    
+    Example of usage:
+    import os
+    from cadcutils import net
+    from cadcdata import CadcDataClient
+    
+    # create possible types of subjects
+    anonSubject = net.Subject()
+    certSubject = net.Subject(certificate=os.path.join(os.environ['HOME'], ".ssl/cadcproxy.pem"))
+    netrcSubject = net.Subject(netrc=True)
+    authSubject = net.Subject(netrc=os.path.join(os.environ['HOME'], ".netrc"))
+    
+    client = CadcDataClient(anonSubject) # connect to ivo://cadc.nrc.ca/data service
+    # save fhead of file
+    client.get_file('CFHT', '700000o', '/tmp/700000o_fhead', fhead=True)
+    
+    client = CadcDataClient(certSubject)
+    client.put('TEST', '/tmp/myfile.txt', archive_stream='default')
+    
+    client = CadcDataClient(netrcSubject)
+    print(client.get_file_info('CFHT', '700000o'))
+    
+    client = CadcDataClient(authSubject)
+    # get the file in an internal buffer. 
+    # The file is too large to load into memory. Therefore, for this example, 
+    # we are retrieving just the wcs info in a buffer.
+    import io
+    f = io.BytesIO()
+    client.get_file('CFHT', '700000o', f, wcs=True)
+    print(f.getvalue())
+    
+    # process the bytes as they are received - count_bytes proc. Note - the bytes are then thrown to /dev/null
+    byte_count = 0
+    def count_bytes(bytes):
+        global byte_count
+        byte_count += len(bytes)
+    
+    client.get_file('CFHT', '700000o', f, wcs=True, process_bytes = count_bytes)
+    print('Processed {} bytes'.format(byte_count))
+    """
 
     logger = logging.getLogger('CadcDataClient')
 
@@ -250,8 +290,11 @@ class CadcDataClient(object):
         rr = RawRange(response, decompress)
         reader = rr.get_instance
         if self.logger.isEnabledFor(logging.INFO):
-            chunks = progress.bar(reader(READ_BLOCK_SIZE),
-                                  expected_size=((total_length / READ_BLOCK_SIZE) + 1))
+            if total_length != 0:
+                chunks = progress.bar(reader(READ_BLOCK_SIZE),
+                                    expected_size=((total_length / READ_BLOCK_SIZE) + 1))
+            else:
+                chunks = progress.mill(reader(READ_BLOCK_SIZE), expected_size = 0)
         else:
             chunks = reader(READ_BLOCK_SIZE)
         start = time.time()
@@ -392,7 +435,7 @@ def main_app():
     get_parser.add_argument('--cutout', help=('specify one or multiple extension and/or pixel range cutout '
                                               'operations to be performed. Use cfitsio syntax'),
                             required=False)
-    get_parser.add_argument('--de', '--decompress', help='decompress the data (gzip only)',
+    get_parser.add_argument('-z', '--decompress', help='decompress the data (gzip only)',
                             action='store_true', required=False)
     get_parser.add_argument('--wcs', help='return the World Coordinate System (WCS) information',
                             action='store_true', required=False)
@@ -412,13 +455,13 @@ Examples:
 - Use a different netrc file to download wcs information:
         cadc-data get -d --netrc ~/mynetrc -o /tmp/700000o-wcs.fits --wcs CFHT 700000o
 - Connect as user to download two files and uncompress them (prompt for password if user not in $HOME/.netrc):
-        cadc-data get -v -u auser -de GEMINI 00aug02_002.fits 00aug02_003.fits
+        cadc-data get -v -u auser -z GEMINI 00aug02_002.fits 00aug02_003.fits
 """
 
     put_parser = subparsers.add_parser('put',
                                        description='Upload files into a CADC archive',
                                        help='Upload files into a CADC archive')
-    put_parser.add_argument('-as', '--archive-stream', help='specific archive stream to add the file to',
+    put_parser.add_argument('-s', '--archive-stream', help='specific archive stream to add the file to',
                             required=False)
     put_parser.add_argument('-c', '--compress', help='gzip compress the data',
                             action='store_true', required=False)
@@ -508,14 +551,14 @@ Examples:
                                  format(files, file_names))
                 for f, fname in list(zip(files, file_names)):
                     try:
-                        client.get_file(archive, fname, f, decompress=args.de,
+                        client.get_file(archive, fname, f, decompress=args.decompress,
                                         fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
                     except exceptions.NotFoundException:
                         handle_error('File name {} not found'.format(fname), exit_after=False)
             else:
                 for fname in file_names:
                     try:
-                        client.get_file(archive, fname, None, decompress=args.de,
+                        client.get_file(archive, fname, None, decompress=args.decompress,
                                         fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
                     except exceptions.NotFoundException:
                         handle_error('File name not found {}'.format(fname), exit_after=False)
@@ -561,16 +604,12 @@ Examples:
     except exceptions.ForbiddenException:
         handle_error('Unauthorized to perform operation')
     except exceptions.UnexpectedException as e:
-        logger.debug(e.orig_exception)
-        handle_error('Unexpected server error')
+        handle_error('Unexpected server error: {}'.format(str(e)))
     except Exception as e:
-        handle_error(e.message)
+        handle_error(str(e))
 
     if errors[0] > 0:
         logger.error('Finished with {} error(s)'.format(errors[0]))
         sys.exit(-1)
     else:
         logger.info("DONE")
-
-if __name__ == '__main__':
-     main_app()

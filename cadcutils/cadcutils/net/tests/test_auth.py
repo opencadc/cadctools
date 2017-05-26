@@ -89,16 +89,21 @@ class TestAuth(unittest.TestCase):
 
 
     @patch('cadcutils.net.auth.get_cert', Mock(return_value='CERTVALUE'))
-    @patch('sys.exit', Mock(side_effect=[MyExitError]))
+    @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))
     def test_get_cert_main(self):
         """ Test the cert_main function """
 
         value = "CERTVALUE"
 
+        # get certificate with no arguments -> authentication args required
+        with self.assertRaises(MyExitError):
+            sys.argv = ["cadc-get-cert"]
+            auth.get_cert_main()
+
         # get certificate default location
         m = mock_open()
         with patch('six.moves.builtins.open', m, create=True):
-            sys.argv = ["cadc-get-cert"]
+            sys.argv = ["cadc-get-cert", "-u",  "bob"]
             auth.get_cert_main()
         m.assert_called_with(os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'), 'w')
         handle = m()
@@ -110,8 +115,8 @@ class TestAuth(unittest.TestCase):
             os.remove(certfile)
         except OSError as ex:
             pass
-        sys.argv = ["cadc-get-cert", "--cert-filename", certfile]
-        self.assertEquals(None, auth.get_cert_main())
+        sys.argv = ["cadc-get-cert", "-u", "bob", "--cert-filename", certfile]
+        self.assertEqual(None, auth.get_cert_main())
         with open(certfile, 'r') as f:
             self.assertEqual(value, f.read())
 
@@ -119,7 +124,7 @@ class TestAuth(unittest.TestCase):
         errmsg = """[Errno 17] File exists: '{}' : {}
 Expected /tmp/testcertfile to be a directory.
 """.format(certfile, certfile)
-        sys.argv = ["cadc-get-cert", "--cert-filename", certfile + "/cert"]
+        sys.argv = ["cadc-get-cert", "-u", "bob", "--cert-filename", certfile + "/cert"]
         with self.assertRaises(MyExitError):
             with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
                 auth.get_cert_main()
@@ -133,7 +138,7 @@ Expected /tmp/testcertfile to be a directory.
 
         usage =\
 """usage: cadc-get-cert [-h]
-                     [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                     (--cert CERT | -n | --netrc-file NETRC_FILE | -u USER)
                      [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
                      [-V] [--cert-filename CERT_FILENAME]
                      [--days-valid DAYS_VALID]
@@ -176,26 +181,26 @@ optional arguments:
         # anon subject
         subject = auth.Subject()
         self.assertTrue(subject.anon)
-        self.assertEquals(None, subject.certificate)
-        self.assertEquals({}, subject._hosts_auth)
-        self.assertEquals(None, subject.get_auth('realm1'))
+        self.assertEqual(None, subject.certificate)
+        self.assertEqual({}, subject._hosts_auth)
+        self.assertEqual(None, subject.get_auth('realm1'))
 
         # cert subject
         cert = 'somecert'
         subject = auth.Subject(certificate=cert)
         self.assertFalse(subject.anon)
-        self.assertEquals(cert, subject.certificate)
-        self.assertEquals({}, subject._hosts_auth)
-        self.assertEquals(None, subject.get_auth('realm1'))
+        self.assertEqual(cert, subject.certificate)
+        self.assertEqual({}, subject._hosts_auth)
+        self.assertEqual(None, subject.get_auth('realm1'))
 
         # empty netrc subject
         m = mock_open()
         with patch('six.moves.builtins.open', m, create=True):
             subject = auth.Subject(netrc='somefile')
         self.assertFalse(subject.anon)
-        self.assertEquals(None, subject.certificate)
-        self.assertEquals({}, subject._hosts_auth)
-        self.assertEquals(None, subject.get_auth('realm1'))
+        self.assertEqual(None, subject.certificate)
+        self.assertEqual({}, subject._hosts_auth)
+        self.assertEqual(None, subject.get_auth('realm1'))
 
         # netrc with content
         netrc_content = {'realm1':('user1', None, 'pass1'), 'realm2':('user1', None, 'pass2')}
@@ -205,23 +210,23 @@ optional arguments:
             netrclib_mock.netrc.return_value.hosts = netrc_content
             subject = auth.Subject(netrc=True)
         self.assertFalse(subject.anon)
-        self.assertEquals(None, subject.certificate)
-        self.assertEquals('/home/myhome/.netrc', subject.netrc)
-        self.assertEquals(expected_host_auth, subject._hosts_auth)
-        self.assertEquals(('user1', 'pass1'), subject.get_auth('realm1'))
-        self.assertEquals(('user1', 'pass2'), subject.get_auth('realm2'))
-        self.assertEquals(None, subject.get_auth('realm3'))
+        self.assertEqual(None, subject.certificate)
+        self.assertEqual('/home/myhome/.netrc', subject.netrc)
+        self.assertEqual(expected_host_auth, subject._hosts_auth)
+        self.assertEqual(('user1', 'pass1'), subject.get_auth('realm1'))
+        self.assertEqual(('user1', 'pass2'), subject.get_auth('realm2'))
+        self.assertEqual(None, subject.get_auth('realm3'))
 
         # subject with username
         username = 'user1'
         passwd = 'passwd1'
         subject = auth.Subject(username=username)
         self.assertFalse(subject.anon)
-        self.assertEquals(None, subject.certificate)
-        self.assertEquals({}, subject._hosts_auth)
+        self.assertEqual(None, subject.certificate)
+        self.assertEqual({}, subject._hosts_auth)
         with patch('cadcutils.net.auth.getpass') as getpass_mock:
             getpass_mock.getpass.return_value = passwd
-            self.assertEquals((username, passwd), subject.get_auth('realm1'))
+            self.assertEqual((username, passwd), subject.get_auth('realm1'))
 
 
         parser = get_base_parser(subparsers=False)
@@ -233,4 +238,4 @@ optional arguments:
         args = parser.parse_args()
         subject = auth.Subject.from_cmd_line_args(args)
         self.assertFalse(subject.anon)
-        self.assertEquals('mycert.pem', subject.certificate)
+        self.assertEqual('mycert.pem', subject.certificate)

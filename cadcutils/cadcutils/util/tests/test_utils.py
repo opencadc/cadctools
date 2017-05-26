@@ -87,14 +87,14 @@ class UtilTests(unittest.TestCase):
         """ Test the ivoa date formats functions date2ivoa and str2ivoa """
 
         expect_date = '2016-11-07T11:22:33.123'
-        self.assertEquals(expect_date, date2ivoa(str2ivoa(expect_date)))
+        self.assertEqual(expect_date, date2ivoa(str2ivoa(expect_date)))
 
         with self.assertRaises(ValueError):
             str2ivoa('2011-01-01')
 
         # handling of None arguments
-        self.assertEquals(None, date2ivoa(None))
-        self.assertEquals(None, str2ivoa(None))
+        self.assertEqual(None, date2ivoa(None))
+        self.assertEqual(None, str2ivoa(None))
         
     def test_get_log_level(self):
         """ Test the handling of logging level control from command line arguments """
@@ -119,30 +119,30 @@ class UtilTests(unittest.TestCase):
     def test_init_logging_debug(self):
         """ Test the init_logging function """
         logger1 = get_logger('namspace1', log_level=logging.DEBUG)
-        self.assertEquals(logging.DEBUG, logger1.getEffectiveLevel())
+        self.assertEqual(logging.DEBUG, logger1.getEffectiveLevel())
         logger2 = get_logger('namspace2')
-        self.assertEquals(logging.ERROR, logger2.getEffectiveLevel())
+        self.assertEqual(logging.ERROR, logger2.getEffectiveLevel())
 
     def test_shared_logger(self):
         """ Loggers with the same namespace share the
             same logging instances """
         logger1 = get_logger('namspace1', log_level=logging.DEBUG)
-        self.assertEquals(logging.DEBUG, logger1.getEffectiveLevel())
+        self.assertEqual(logging.DEBUG, logger1.getEffectiveLevel())
         logger2 = get_logger('namspace1', log_level=logging.WARN)
-        self.assertEquals(logging.WARN, logger1.getEffectiveLevel())
-        self.assertEquals(logging.WARN, logger2.getEffectiveLevel())
+        self.assertEqual(logging.WARN, logger1.getEffectiveLevel())
+        self.assertEqual(logging.WARN, logger2.getEffectiveLevel())
         logger3 = get_logger('namspace2', log_level=logging.INFO)
-        self.assertEquals(logging.INFO, logger3.getEffectiveLevel())
-        self.assertEquals(logging.WARN, logger1.getEffectiveLevel())
-        self.assertEquals(logging.WARN, logger2.getEffectiveLevel())
+        self.assertEqual(logging.INFO, logger3.getEffectiveLevel())
+        self.assertEqual(logging.WARN, logger1.getEffectiveLevel())
+        self.assertEqual(logging.WARN, logger2.getEffectiveLevel())
 
     def test_modify_log_level(self):
         logger = get_logger('test_modify_log_level', log_level=logging.INFO)
-        self.assertEquals(logging.INFO, logger.getEffectiveLevel())
+        self.assertEqual(logging.INFO, logger.getEffectiveLevel())
         logger = get_logger('test_modify_log_level', log_level=logging.DEBUG)
-        self.assertEquals(logging.DEBUG, logger.getEffectiveLevel())
+        self.assertEqual(logging.DEBUG, logger.getEffectiveLevel())
         logger.setLevel(logging.ERROR)
-        self.assertEquals(logging.ERROR, logger.getEffectiveLevel())
+        self.assertEqual(logging.ERROR, logger.getEffectiveLevel())
 
     def test_modname_log_format(self):
 
@@ -198,11 +198,11 @@ class UtilTests(unittest.TestCase):
         parser = get_base_parser(subparsers=False)
         resource_id = "ivo://www.some.resource/resourceid"
         args = parser.parse_args(["--resource-id", resource_id])
-        self.assertEquals(urlparse(resource_id), args.resource_id)
+        self.assertEqual(urlparse(resource_id), args.resource_id)
 
         parser = get_base_parser(subparsers=False, default_resource_id=resource_id)
         args = parser.parse_args([])
-        self.assertEquals(resource_id, args.resource_id)
+        self.assertEqual(resource_id, args.resource_id)
 
         # missing resourceID
         parser = get_base_parser(subparsers=False)
