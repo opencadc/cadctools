@@ -107,7 +107,6 @@ def _main():
     args = parser.parse_args()
 
     retry = True
-    print("The getCert application is being deprecated. Please start using the cadc-get-cert application instead.")
     while retry:
         try:
             get_cert(cert_server=args.cert_server,
