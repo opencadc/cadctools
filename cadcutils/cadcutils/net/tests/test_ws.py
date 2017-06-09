@@ -459,16 +459,11 @@ class TestRetrySession(unittest.TestCase):
             self.assertEqual('{}'.format(service_url), client._get_url(('myfeature', None)))
             caps_mock.return_value.get_access_url.assert_called_once_with('myfeature')
             self.assertEqual('{}'.format(service_url), client._get_url(('myfeature', '')))
-
-        # same test but change name of host in the client
+            
+            
         test_host = 'testhost.com'
-        with patch('cadcutils.net.ws.WsCapabilities') as caps_mock:
-            caps_mock.return_value.get_service_host.return_value = 'somehost.com'
-            caps_mock.return_value.get_access_url.return_value = service_url
-            client = ws.BaseWsClient("someresourceID", auth.Subject(), 'TestApp', host=test_host)
-            # original name of the host in service_url should be replaced by the test_host
-            self.assertEqual('http://testhost.com/service', client._get_url(('myfeature', None)))
-            caps_mock.return_value.get_access_url.assert_called_once_with('myfeature')
+        client = ws.BaseWsClient("someresourceID", auth.Subject(), 'TestApp', host=test_host)
+        self.assertEqual(test_host, client.host)
 
         # test with resource as url
         with patch('cadcutils.net.ws.WsCapabilities') as caps_mock:
@@ -731,7 +726,7 @@ class TestWsCapabilities(unittest.TestCase):
                           caps.get_access_url('ivo://ivoa.net/std/VOSI#availability'))
         self.assertEqual('https://{}'.format(resource_cap_url2),
                           caps.get_access_url('vos://cadc.nrc.ca~service/CADC/mystnd01'))
-
+        
 
 # TODO By default, internet tests fail. They only succeed when test with --remote-data flag.
 # Need to figure out a way to skip the tests unless that flag is present.

@@ -91,7 +91,7 @@ from cadcutils import exceptions
 from .. import version as cadctools_version
 from . import wscapabilities
 
-__all__ = ['BaseWsClient', 'get_resources', 'list_resources', 'BOOTSTRAP_REGISTRY']
+__all__ = ['BaseWsClient', 'get_resources', 'list_resources', 'DEFAULT_REGISTRY']
 
 BUFSIZE = 8388608  # Size of read/write buffer
 MAX_RETRY_DELAY = 128  # maximum delay between retries
@@ -117,7 +117,7 @@ def get_resources(with_caps=True):
     """
     resources = []
     cr = wscapabilities.CapabilitiesReader()
-    response = requests.get(BOOTSTRAP_REGISTRY)
+    response = requests.get(DEFAULT_REGISTRY)
     response.raise_for_status()
     for line in response.text.split('\n'):
         caps = None
@@ -224,8 +224,7 @@ class BaseWsClient(object):
             self.os_info = "{} {}".format(release, version)
 
         # build the corresponding capabilities instance
-        self.caps = WsCapabilities(self)
-        self._host = host
+        self.caps = WsCapabilities(self, host)
 
         # Clients should add entries to this dict for specialized
         # conversion of HTTP error codes into particular exceptions.
@@ -244,9 +243,7 @@ class BaseWsClient(object):
 
     @property
     def host(self):
-        if self._host is None:
-            self._host = self.caps.get_service_host()
-        return self._host
+        return self.caps.host
 
     def post(self, resource=None, **kwargs):
         """Wrapper for POST so that we use this client's session
@@ -320,14 +317,11 @@ class BaseWsClient(object):
             path = ''
             if (resource[1] is not None) and (len(resource[1])>0):
                 path = '/{}'.format(resource[1].strip('/'))
-            access_url = '{}{}'.format(self.caps.get_access_url(resource[0]), path)
-            # replace host name if necessary
-            url = urlparse(access_url)
-            if url.netloc != self.host:
-                access_url = '{}://{}{}'.format(url.scheme, self.host, url.path)
-            self.logger.debug('Resolved URL: {}'.format(access_url))
+            base_url = self.caps.get_access_url(resource[0])
+            access_url = '{}{}'.format(base_url, path)
             return access_url
         else:
+            print("is not tuple")
             # assume this is url.
             resource_url = urlparse(resource)
             if resource_url.scheme not in ['http', 'https']:
@@ -488,7 +482,7 @@ class RetrySession(Session):
                 raise exceptions.UnexpectedException(orig_exception=e)
 
 
-BOOTSTRAP_REGISTRY = 'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-caps'
+DEFAULT_REGISTRY = 'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-caps'
 CACHE_REFRESH_INTERVAL = 10*60
 CACHE_LOCATION = os.path.join(os.path.expanduser("~"), '.config', 'cadc-registry')
 REGISTRY_FILE = 'resource-caps'
@@ -500,9 +494,10 @@ class WsCapabilities(object):
     returns the url corresponding to a feature of a Web Service
     """
 
-    def __init__(self, ws_client):
+    def __init__(self, ws_client, host=None):
         self.logger = logging.getLogger('WsCapabilities')
         self.ws = ws_client
+        self._host = host
         if not os.path.isdir(CACHE_LOCATION):
             os.makedirs(CACHE_LOCATION)
 
@@ -524,6 +519,7 @@ class WsCapabilities(object):
         :param feature: Web Service feature
         :return: corresponding access URL
         """
+        
         if (time.time() - self.last_capstime) > CACHE_REFRESH_INTERVAL:
             if self.last_capstime == 0:
                 # startup
@@ -539,11 +535,12 @@ class WsCapabilities(object):
             if (time.time() - self.last_capstime) > CACHE_REFRESH_INTERVAL:
                 self.last_capstime = time.time()
         sms = self.ws.subject.get_security_methods()
+        
         return self.capabilities.get_access_url(feature, sms)
 
-    def get_service_host(self):
-        service_url = self._get_capability_url()
-        return urlparse(service_url).netloc
+    @property
+    def host(self):
+        return self._host
 
     def _get_content(self, resource_file, url, last_accessed):
         """
@@ -594,7 +591,15 @@ class WsCapabilities(object):
                 except OSError:
                     # cannot read the cache file for whatever reason
                     pass
-            reg = self._get_content(self.reg_file, BOOTSTRAP_REGISTRY, self.last_regtime)
+            
+            # replace registry host name if necessary
+            registry_url = DEFAULT_REGISTRY
+            url = urlparse(registry_url)
+            if self._host != None and url.netloc != self._host:
+                registry_url = '{}://{}{}'.format(url.scheme, self._host, url.path)
+            self.logger.debug('Resolved URL: {}'.format(registry_url))
+            
+            reg = self._get_content(self.reg_file, registry_url, self.last_regtime)
             self.caps_urls = {}
             if (time.time() - self.last_regtime) > CACHE_REFRESH_INTERVAL:
                 self.last_regtime = time.time()
