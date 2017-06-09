@@ -197,7 +197,6 @@ class CadcDataClient(object):
             params['wcs'] = wcs
         if cutout:
             params['cutout'] = cutout
-            print(params['cutout'])
         file_info = '{}/{}'.format(archive, file_name)
         self.logger.debug('GET {}'.format(file_info))
         # TODO negotiate transfer even for fhead or wcs?
