@@ -195,6 +195,12 @@ class TestCadcDataClient(unittest.TestCase):
         client.get_file('TEST', 'getfile', decompress=True, cutout='[1:1]')
         post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None), params={'cutout': '[1:1]'}, data=trans_doc,
                                      headers={'Content-Type': 'text/xml'})
+        response.raw.read.side_effect = file_chunks
+        post_mock.reset_mock()
+        client.get_file('TEST', 'getfile', decompress=True, cutout='[[1:1], 2]')
+        post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None), params={'cutout': '[[1:1], 2]'}, data=trans_doc,
+                                     headers={'Content-Type': 'text/xml'})
+
 
         # test a put
         file_name = '/tmp/putfile.txt'
@@ -289,7 +295,8 @@ optional arguments:
 '''usage: cadc-data get [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                      [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
-                     [-o OUTPUT] [--cutout CUTOUT] [-z] [--wcs] [--fhead]
+                     [-o OUTPUT] [--cutout [CUTOUT [CUTOUT ...]]] [-z] [--wcs]
+                     [--fhead]
                      archive filename [filename ...]
 
 Retrieve files from a CADC archive
@@ -301,7 +308,8 @@ positional arguments:
 optional arguments:
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
-  --cutout CUTOUT       specify one or multiple extension and/or pixel range
+  --cutout [CUTOUT [CUTOUT ...]]
+                        specify one or multiple extension and/or pixel range
                         cutout operations to be performed. Use cfitsio syntax
   -d, --debug           debug messages
   -z, --decompress      decompress the data (gzip only)
