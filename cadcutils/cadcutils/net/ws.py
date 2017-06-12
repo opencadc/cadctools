@@ -321,7 +321,6 @@ class BaseWsClient(object):
             access_url = '{}{}'.format(base_url, path)
             return access_url
         else:
-            print("is not tuple")
             # assume this is url.
             resource_url = urlparse(resource)
             if resource_url.scheme not in ['http', 'https']:
