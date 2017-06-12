@@ -495,16 +495,24 @@ class WsCapabilities(object):
     """
 
     def __init__(self, ws_client, host=None):
+        """
+        :param ws_client: WebService client that the capabilities are required for
+        :param host: use this host rather than the default CADC host for reg lookup
+        """
         self.logger = logging.getLogger('WsCapabilities')
         self.ws = ws_client
         self._host = host
-        if not os.path.isdir(CACHE_LOCATION):
-            os.makedirs(CACHE_LOCATION)
+        cache_location = CACHE_LOCATION
+        if host is not None:
+            cache_location = os.path.join(cache_location, 'alt-domains', host)
+
+        if not os.path.isdir(cache_location):
+            os.makedirs(cache_location)
 
         # check the registry file in cache if it requires a refresh
-        self.reg_file = os.path.join(CACHE_LOCATION, REGISTRY_FILE)
+        self.reg_file = os.path.join(cache_location, REGISTRY_FILE)
         resource_id = urlparse(ws_client.resource_id)
-        self.caps_file = os.path.join(CACHE_LOCATION, resource_id.netloc, resource_id.path.strip('/'))
+        self.caps_file = os.path.join(cache_location, resource_id.netloc, resource_id.path.strip('/'))
         self.last_regtime = 0
         self.last_capstime = 0
         self._caps_reader = wscapabilities.CapabilitiesReader()

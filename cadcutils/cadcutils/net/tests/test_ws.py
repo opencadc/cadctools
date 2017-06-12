@@ -136,7 +136,7 @@ ivo://cadc.nrc.ca/serv2 (http://www.cadc.nrc.gc.ca/serv2/capabilities) - Capabil
             self.assertEqual(usage, stdout_mock.getvalue())
 
 
-class aTestWs(unittest.TestCase):
+class TestWs(unittest.TestCase):
 
     """Class for testing the webservie client"""
     @patch('cadcutils.net.ws.WsCapabilities')
@@ -447,6 +447,22 @@ class TestRetrySession(unittest.TestCase):
         with self.assertRaises(exceptions.HttpException):
             rs.send(request)
 
+
+    def test_config_file_location(self):
+        # test the location of the config file when the host is specified
+        myhost = 'myhost.ca'
+        resource = 'aresource'
+        service = 'myservice'
+        resource_id = 'ivo://canfar.phys.uvic.ca/{}'.format(service)
+        client = Mock(resource_id=resource_id)
+        with patch('cadcutils.net.ws.os.makedirs') as makedirs_mock:
+            wscap = ws.WsCapabilities(client, host=myhost)
+        expected_location = os.path.join(ws.CACHE_LOCATION, 'alt-domains', myhost)
+        makedirs_mock.check_called_with(expected_location)
+        self.assertEqual(os.path.join(expected_location, 'resource-caps'), wscap.reg_file)
+        self.assertEqual(os.path.join(expected_location, urlparse(resource_id).netloc, service),
+                         wscap.caps_file)
+
     def test_misc(self):
         """
         Tests miscellaneous functions
@@ -462,7 +478,8 @@ class TestRetrySession(unittest.TestCase):
             
             
         test_host = 'testhost.com'
-        client = ws.BaseWsClient("someresourceID", auth.Subject(), 'TestApp', host=test_host)
+        with patch('cadcutils.net.ws.os.makedirs'):
+            client = ws.BaseWsClient("someresourceID", auth.Subject(), 'TestApp', host=test_host)
         self.assertEqual(test_host, client.host)
 
         # test with resource as url
