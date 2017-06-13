@@ -278,7 +278,7 @@ class _CustomArgParser(ArgumentParser):
 
 
 
-def get_base_parser(subparsers=True, version=None, usecert=True, default_resource_id=None):
+def get_base_parser(subparsers=True, version=None, usecert=True, default_resource_id=None, auth_required=False):
     """
     An ArgumentParser with some common things most CADC clients will want. There are two
     modes to use this parser: with or without subparsers. With supbarsers (subparsers=True),
@@ -290,11 +290,12 @@ def get_base_parser(subparsers=True, version=None, usecert=True, default_resourc
     :param version: A version number if desired.
     :param usecert: If True add '--cert' argument.
     :param default_resource_id: default resource identifier to use
+    :param auth_required: At least one of the authentication options is required
     :return: An ArgumentParser instance.
     """
     cparser = ArgumentParser(add_help=False, formatter_class=SingleMetavarHelpFormatter)
 
-    auth_group = cparser.add_mutually_exclusive_group()
+    auth_group = cparser.add_mutually_exclusive_group(required=auth_required)
     if usecert:
         auth_group.add_argument('--cert', type=str,
                                 help='location of your X509 certificate to use for authentication ' +

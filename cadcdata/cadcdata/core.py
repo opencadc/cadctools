@@ -432,7 +432,8 @@ def main_app():
     get_parser.add_argument('-o', '--output',
                             help='space-separated list of destination files (quotes required for multiple elements)',
                             required=False)
-    get_parser.add_argument('--cutout', help=('specify one or multiple extension and/or pixel range cutout '
+    get_parser.add_argument('--cutout', nargs='*',
+                            help=('specify one or multiple extension and/or pixel range cutout '
                                               'operations to be performed. Use cfitsio syntax'),
                             required=False)
     get_parser.add_argument('-z', '--decompress', help='decompress the data (gzip only)',

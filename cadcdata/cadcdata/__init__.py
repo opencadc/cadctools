@@ -43,12 +43,9 @@ processes communication to determine the result of running the command.
 
 """
 
-# Affiliated packages may add whatever they like to this file, but
-# should keep this content at the top.
-# ----------------------------------------------------------------------------
-from ._astropy_init import *
-# ----------------------------------------------------------------------------
-
 # For egg_info test builds to pass, put package imports here.
-if not _ASTROPY_SETUP_:
-   from .core import *
+try:
+    _PACKAGE_SETUP_
+except NameError:
+    # do any package imports here
+    from .core import *
