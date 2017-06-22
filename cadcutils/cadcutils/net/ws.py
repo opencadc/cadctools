@@ -91,6 +91,19 @@ from cadcutils import exceptions
 from .. import version as cadctools_version
 from . import wscapabilities
 
+# an issue related to the requests library
+# (https://github.com/shazow/urllib3/issues/1060)
+# prevents the latest versions of the requests library work when pyOpenSSL
+# is installed in the system. The temporary workaround below makes
+# requests ignore the install pyOpenSSL
+#TODO remove after the above issue is closed
+try:
+    from requests.packages.urllib3.contrib import pyopenssl
+    pyopenssl.extract_from_urllib3()
+except ImportError:
+    # it's an earlier version of requests that doesn't use pyOpenSSL
+    pass
+
 __all__ = ['BaseWsClient', 'get_resources', 'list_resources', 'DEFAULT_REGISTRY']
 
 BUFSIZE = 8388608  # Size of read/write buffer
