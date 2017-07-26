@@ -1,3 +1,17 @@
+Common Archive Observation Model - data engineering tools
+
+
+.. image:: https://img.shields.io/pypi/pyversions/cadcutils.svg
+
+.. image:: https://img.shields.io/travis/opencadc/cadctools/master.svg   
+    :target: https://travis-ci.org/opencadc/cadctools?branch=master 
+
+.. image:: https://img.shields.io/coveralls/opencadc/cadctools/master.svg   
+    :target: https://coveralls.io/github/opencadc/caadctools?branch=master 
+
+.. image:: https://img.shields.io/github/contributors/opencadc/cadctools.svg
+    :target: https://github.com/opencadc/cadctools/graphs/contributors
+
 # cadctools
 Client tools for using CADC services
 
