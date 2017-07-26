@@ -6,7 +6,6 @@ python:
     - 3.3
     - 3.4
     - 3.5
-    - 3.6
 
 # Setting sudo to false opts in to Travis-CI container-based builds.
 sudo: false
@@ -17,8 +16,8 @@ sudo: false
 # https://github.com/travis-ci/apt-package-whitelist/blob/master/ubuntu-precise
 
 #addons:
-#    apt:
-#        packages:
+    #apt:
+        #packages:
 #            - graphviz
 #            - texlive-latex-extra
 #            - dvipng
@@ -54,15 +53,19 @@ matrix:
         #  env: SETUP_CMD='test'
           
 install:
+   - pip install -U pip
    - cd cadcutils; pip install -r dev_requirements.txt; cd ..;
    - cd cadcdata; pip install -r dev_requirements.txt; cd ..;
+   - pip install coveralls
 
 script:
-   - cd cadcutils; python setup.py $SETUP_CMD || exit -1; cd ..
-   - cd cadcdata; python setup.py $SETUP_CMD || exit -1
+    #- cd cadcutils; python setup.py $SETUP_CMD || exit -1; cd ..
+    #- cd cadcdata; python setup.py $SETUP_CMD || exit -1
+   - cd cadcutils; pytest --cov cadcutils || exit 1; cd ..
+   - cd cadcdata; pytest --cov cadcdata || exit 1; cd ..
 
 after_success:
     # If coveralls.io is set up for this package, uncomment the line
     # below and replace "packagename" with the name of your package.
     # The coveragerc file may be customized as needed for your package.
-    # - if [[ $SETUP_CMD == 'coverage' ]]; then coveralls; fi
+    - if [[ $SETUP_CMD == 'coverage' ]]; then coverage combine cadcutils/.coverage cadcdata/.coverage || exit 1; coveralls; fi

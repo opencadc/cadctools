@@ -6,7 +6,7 @@ cadctools
 
 .. image::
   https://img.shields.io/coveralls/opencadc/cadctools/master.svg
-    :target: https://coveralls.io/github/opencadc/caadctools?branch=master
+    :target: https://coveralls.io/github/opencadc/cadctools?branch=master
 
 .. image::
   https://img.shields.io/github/contributors/opencadc/cadctools.svg
