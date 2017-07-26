@@ -70,14 +70,8 @@ from __future__ import (absolute_import, division, print_function,
 
 import unittest
 
-import os
-import requests
-from mock import Mock, patch, mock_open
-from six.moves.urllib.parse import urlparse
-import time
-
+from six import assertRaisesRegex
 from cadcutils.net import ws, auth, wscapabilities
-from cadcutils import exceptions
 
 
 class TestWsCapabilities(unittest.TestCase):
@@ -90,34 +84,34 @@ class TestWsCapabilities(unittest.TestCase):
         with self.assertRaises(ValueError):
             cr.parsexml('blah')
 
-        with self.assertRaisesRegexp(ValueError, 'Error parsing capabilities document: No capabilities found'):
+        with assertRaisesRegex(self, ValueError, 'Error parsing capabilities document: No capabilities found'):
             cr.parsexml('<capabilities></capabilities>')
 
-        with self.assertRaisesRegexp(ValueError,
+        with assertRaisesRegex(self, ValueError,
                                      'Error parsing capabilities document. '
                                      'Capability standard ID is invalid URL: None'):
             cr.parsexml('<capabilities><capability></capability></capabilities>')
 
-        with self.assertRaisesRegexp(ValueError,
+        with assertRaisesRegex(self, ValueError,
                                      'Error parsing capabilities document. '
                                      'Capability standard ID is invalid URL: abc'):
             cr.parsexml('<capabilities><capability standardID="abc"></capability></capabilities>')
 
-        with self.assertRaisesRegexp(ValueError, 'Error parsing capabilities document. '
+        with assertRaisesRegex(self, ValueError, 'Error parsing capabilities document. '
                                                  'No interfaces found for capability ivo://provider/service'):
             cr.parsexml('<capabilities><capability standardID="ivo://provider/service"></capability></capabilities>')
 
-        with self.assertRaisesRegexp(ValueError, 'Error parsing capabilities document. '
+        with assertRaisesRegex(self, ValueError, 'Error parsing capabilities document. '
                                                  'No accessURL for interface for ivo://provider/service'):
             cr.parsexml('<capabilities><capability standardID="ivo://provider/service">'
                         '<interface></interface></capability></capabilities>')
 
-        with self.assertRaisesRegexp(ValueError, 'Error parsing capabilities document. '
+        with assertRaisesRegex(self, ValueError, 'Error parsing capabilities document. '
                                                  'No accessURL for interface for ivo://provider/service'):
             cr.parsexml('<capabilities><capability standardID="ivo://provider/service">'
                         '<interface></interface><accessURL></accessURL></capability></capabilities>')
 
-        with self.assertRaisesRegexp(ValueError, 'Error parsing capabilities document. '
+        with assertRaisesRegex(self, ValueError, 'Error parsing capabilities document. '
                                                  'No accessURL for interface for ivo://provider/service'):
             cr.parsexml('<capabilities><capability standardID="ivo://provider/service">'
                         '<interface><accessURL standardID="abc"></accessURL></interface></capability></capabilities>')
@@ -128,14 +122,14 @@ class TestWsCapabilities(unittest.TestCase):
                     '</accessURL></interface></capability></capabilities>')
 
         # add security method
-        with self.assertRaisesRegexp(ValueError, 'Error parsing capabilities document. '
+        with assertRaisesRegex(self, ValueError, 'Error parsing capabilities document. '
                                                  'Invalid security method None for URL '
                                                  'http://someurl/somepath of capability ivo://provider/service'):
             cr.parsexml('<capabilities><capability standardID="ivo://provider/service">'
                         '<interface><accessURL>http://someurl/somepath'
                         '</accessURL><securityMethod></securityMethod></interface></capability></capabilities>')
 
-        with self.assertRaisesRegexp(ValueError, 'Error parsing capabilities document. '
+        with assertRaisesRegex(self, ValueError, 'Error parsing capabilities document. '
                                                  'Invalid URL in access URL \(http://someurl/somepath\) or '
                                                  'security method \(mymethod\)'):
             cr.parsexml('<capabilities><capability standardID="ivo://provider/service">'
