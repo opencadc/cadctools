@@ -6,6 +6,7 @@ python:
     - 3.3
     - 3.4
     - 3.5
+    - 3.6
 
 # Setting sudo to false opts in to Travis-CI container-based builds.
 sudo: false
@@ -55,16 +56,10 @@ matrix:
 install:
    - pip install -U pip
    - for i in $(ls -d */); do cd $i; pip install -r dev_requirements.txt; cd ..; done
-     #- cd cadcutils; pip install -r dev_requirements.txt; cd ..;
-     #- cd cadcdata; pip install -r dev_requirements.txt; cd ..;
    - pip install coveralls
 
 script:
-    #- cd cadcutils; python setup.py $SETUP_CMD || exit -1; cd ..
-    #- cd cadcdata; python setup.py $SETUP_CMD || exit -1
    - for i in $(ls -d */); do cd $i; pytest --cov $i || exit 1; cd ..; done
-    #- cd cadcutils; pytest --cov cadcutils || exit 1; cd ..
-    #- cd cadcdata; pytest --cov cadcdata || exit 1; cd ..
 
 after_success:
     # If coveralls.io is set up for this package, uncomment the line
