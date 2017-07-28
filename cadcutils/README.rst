@@ -1,4 +1,4 @@
-cadcutila
+cadcutils
 =========
 
 .. image:: https://img.shields.io/pypi/v/cadcutils.svg   
