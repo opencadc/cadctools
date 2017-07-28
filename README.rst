@@ -1,6 +1,8 @@
 cadctools
 =========
 
+.. image:: https://img.shields.io/pypi/pyversions/caom2.svg
+
 .. image:: https://img.shields.io/travis/opencadc/cadctools/master.svg
     :target: https://travis-ci.org/opencadc/cadctools?branch=master
 
@@ -9,6 +11,7 @@ cadctools
 
 .. image:: https://img.shields.io/github/contributors/opencadc/cadctools.svg
     :target: https://github.com/opencadc/cadctools/graphs/contributors
+
 
 
 Client tools and utilities for using Canadian Astronomy Data Centre services
