@@ -4,12 +4,10 @@ cadctools
 .. image:: https://img.shields.io/travis/opencadc/cadctools/master.svg
     :target: https://travis-ci.org/opencadc/cadctools?branch=master
 
-.. image::
-  https://img.shields.io/coveralls/opencadc/cadctools/master.svg
+.. image:: https://img.shields.io/coveralls/opencadc/cadctools/master.svg
     :target: https://coveralls.io/github/opencadc/cadctools?branch=master
 
-.. image::
-  https://img.shields.io/github/contributors/opencadc/cadctools.svg
+.. image:: https://img.shields.io/github/contributors/opencadc/cadctools.svg
     :target: https://github.com/opencadc/cadctools/graphs/contributors
 
 
