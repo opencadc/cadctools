@@ -1,7 +1,8 @@
 cadctools
 =========
 
-.. image:: https://img.shields.io/pypi/pyversions/caom2.svg
+.. image:: https://img.shields.io/pypi/pyversions/cadcutils.svg
+    :target: https://pypi.python.org/pypi/cadcutils
 
 .. image:: https://img.shields.io/travis/opencadc/cadctools/master.svg
     :target: https://travis-ci.org/opencadc/cadctools?branch=master
