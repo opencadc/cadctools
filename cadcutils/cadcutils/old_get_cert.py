@@ -57,7 +57,7 @@ def get_cert(cert_server=None, cert_filename=None,
     if resp.status_code != 200:
         raise OSError(resp.status_code, html2text.html2text(resp.content))
     with open(cert_filename, 'w') as w:
-        w.write(resp.content)
+        w.write(resp.text)
     return resp
 
 

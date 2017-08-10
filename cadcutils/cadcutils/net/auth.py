@@ -240,7 +240,7 @@ def get_cert(subject, days_valid=None, host=None):
     client = ws.BaseWsClient(CRED_RESOURCE_ID, subject,
                              agent="cadc-get-cert/1.0.1", retry=True, host=host)
     response = client.get((CRED_PROXY_FEATURE_ID, None), params=params)
-    return response.content
+    return response.text
 
 
 def get_cert_main():
