@@ -238,6 +238,10 @@ class BaseWsClient(object):
 
         # build the corresponding capabilities instance
         self.caps = WsCapabilities(self, host)
+        self._host = host
+        if host is None:
+            base_url = self.caps.get_access_url(SERVICE_AVAILABILITY_ID)
+            self._host = urlparse(base_url).hostname
 
         # Clients should add entries to this dict for specialized
         # conversion of HTTP error codes into particular exceptions.
@@ -256,7 +260,7 @@ class BaseWsClient(object):
 
     @property
     def host(self):
-        return self.caps.host
+        return self._host
 
     def post(self, resource=None, **kwargs):
         """Wrapper for POST so that we use this client's session

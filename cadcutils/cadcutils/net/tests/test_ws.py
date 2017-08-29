@@ -155,7 +155,9 @@ class TestWs(unittest.TestCase):
         service = 'myservice'
         resource_id = 'ivo://www.canfar.phys.uvic.ca/{}'.format(service)
         # test anonymous access
-        caps_mock.get_service_host.return_value = 'http://host/myservice'
+        cm = Mock()
+        cm.get_access_url.return_value = "http://host/availability"
+        caps_mock.return_value = cm
         client = ws.BaseWsClient(resource_id, anon_subject, 'TestApp')
         resource_uri = urlparse(resource_id)
         base_url = 'http://{}{}/pub'.format(resource_uri.netloc, resource_uri.path)
@@ -473,7 +475,7 @@ class TestRetrySession(unittest.TestCase):
             caps_mock.return_value.get_access_url.return_value = service_url
             client = ws.BaseWsClient("someresourceID", auth.Subject(), 'TestApp')
             self.assertEqual('{}'.format(service_url), client._get_url(('myfeature', None)))
-            caps_mock.return_value.get_access_url.assert_called_once_with('myfeature')
+            caps_mock.return_value.get_access_url.assert_called_with('myfeature')
             self.assertEqual('{}'.format(service_url), client._get_url(('myfeature', '')))
             
             
@@ -485,6 +487,9 @@ class TestRetrySession(unittest.TestCase):
         # test with resource as url
         with patch('cadcutils.net.ws.WsCapabilities') as caps_mock:
             caps_mock.return_value.get_service_host.return_value = 'somehost.com'
+            cm = Mock()
+            cm.get_access_url.return_value = "http://host/availability"
+            caps_mock.return_value = cm
             client = ws.BaseWsClient("someresourceID", auth.Subject(), 'TestApp')
             resource_url = 'http://someurl.com/path/'
             self.assertEqual(resource_url, client._get_url(resource_url))
