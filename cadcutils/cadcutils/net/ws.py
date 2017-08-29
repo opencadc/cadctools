@@ -238,11 +238,10 @@ class BaseWsClient(object):
 
         # build the corresponding capabilities instance
         self.caps = WsCapabilities(self, host)
+        self._host = host
         if host is None:
             base_url = self.caps.get_access_url(SERVICE_AVAILABILITY_ID)
             self._host = urlparse(base_url).hostname
-        else:
-            self._host = host
 
         # Clients should add entries to this dict for specialized
         # conversion of HTTP error codes into particular exceptions.
