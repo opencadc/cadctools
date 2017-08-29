@@ -203,8 +203,11 @@ class Subject(object):
             if realm in self._hosts_auth \
                     and self.username == self._hosts_auth[realm][0]:
                 return self._hosts_auth[realm]
-            sys.stdout.write("Password for {}@{}: ".format(self.username, realm))
+            sys.stdout.write("Password for {}@{}. ".format(self.username, realm))
+            sys.stdout.flush()
             self._hosts_auth[realm] = (self.username, getpass.getpass().strip('\n'))
+            sys.stdout.write("\n")
+            sys.stdout.flush()
             return self._hosts_auth[realm]
 
     def get_security_methods(self):
