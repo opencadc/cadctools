@@ -531,8 +531,8 @@ Examples:
 
     args = parser.parse_args()
     if len(sys.argv) < 2:
-        handle_error("Missing command", exit_after=False)
-        parser.print_help()
+        parser.print_usage()
+        handle_error("{}: error: too few arguments".format(APP_NAME), exit_after=False)
         sys.exit(-1)
     if args.verbose:
         logging.basicConfig(level=logging.INFO, stream=sys.stdout)
