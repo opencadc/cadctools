@@ -531,7 +531,7 @@ Examples:
 
     args = parser.parse_args()
     if len(sys.argv) < 2:
-        parser.print_usage()
+        parser.print_usage(file=sys.stderr)
         handle_error("{}: error: too few arguments".format(APP_NAME), exit_after=False)
         sys.exit(-1)
     if args.verbose:
