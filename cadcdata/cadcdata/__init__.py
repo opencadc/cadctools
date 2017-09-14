@@ -11,7 +11,8 @@ command it installs.
 
 The only mandatory argument that the CadcDataClient constructor takes is
 a cadcutils.net.Subject that holds the user credentials. The data WS is
-accessed through the get_file, put_file and get_file_info functions of the client.
+accessed through the get_file, put_file and get_file_info functions of the
+client.
 
 Example:
    from cadcdata import CadcDataClient
@@ -35,17 +36,12 @@ Example:
    import os
    os.system('cadc-data info -a GEMINI 00AUG02_002')
 
-Method 1. is the recommended method as it does not required forking external processes
-and also allows trapping the exceptions and reacting according to the type of the
-error. Method 2 also works but the sys.exit needs to be trapped in order
-to prevent the script from quiting. Method 3, while simple, must rely on inter
-processes communication to determine the result of running the command.
+Method 1. is the recommended method as it does not required forking external
+processes and also allows trapping the exceptions and reacting according to the
+type of the error. Method 2 also works but the sys.exit needs to be trapped in
+order to prevent the script from quiting. Method 3, while simple, must rely on
+inter processes communication to determine the result of running the command.
 
 """
 
-# For egg_info test builds to pass, put package imports here.
-try:
-    _PACKAGE_SETUP_
-except NameError:
-    # do any package imports here
-    from .core import *
+from .core import *

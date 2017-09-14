@@ -12,9 +12,3 @@ The main modules and packages in cadcutils are:
 
 """
 
-try:
-    _PACKAGE_SETUP_
-except NameError:
-    # do any package imports here
-    pass
-
