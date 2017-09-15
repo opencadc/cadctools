@@ -290,6 +290,17 @@ optional arguments:
                 main_app()
             self.assertEqual(usage, stdout_mock.getvalue())
 
+        usage = \
+'''usage: cadc-data [-h] [-V] {get,put,info} ...
+cadc-data: error: too few arguments
+'''
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
+                sys.argv = ['cadc-data']
+                with self.assertRaises(MyExitError):
+                    main_app()
+                self.assertEqual(usage, stderr_mock.getvalue())
+
         # get -h
         usage = \
 '''usage: cadc-data get [-h]

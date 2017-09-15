@@ -514,14 +514,6 @@ Examples:
         cadc-data info -u auser GEMINI 00aug02_002.fits 00aug02_003.fits
 """
 
-    args = parser.parse_args()
-    if args.verbose:
-        logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-    elif args.debug:
-        logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
-    else:
-        logging.basicConfig(level=logging.WARN, stream=sys.stdout)
-
     # handle errors
     errors = [0]
     def handle_error(msg, exit_after=True):
@@ -536,6 +528,19 @@ Examples:
         logger.error(msg)
         if exit_after:
             sys.exit(-1)  # TODO use different error codes?
+
+    args = parser.parse_args()
+    if len(sys.argv) < 2:
+        parser.print_usage(file=sys.stderr)
+        handle_error("{}: error: too few arguments".format(APP_NAME), exit_after=False)
+        sys.exit(-1)
+    if args.verbose:
+        logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    elif args.debug:
+        logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
+    else:
+        logging.basicConfig(level=logging.WARN, stream=sys.stdout)
+
 
     subject = net.Subject.from_cmd_line_args(args)
 
