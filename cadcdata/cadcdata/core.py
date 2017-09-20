@@ -484,20 +484,23 @@ def main_app():
     get_parser.add_argument('archive', help='CADC archive')
     get_parser.add_argument(
         'filename', help='the name of the file in the archive', nargs='+')
-    get_parser.epilog = \
-"""
-Examples:
-- Anonymously getting a public file:
-        cadc-data get -v GEMINI 00aug02_002.fits
-- Use certificate to get a cutout and save it to a file:
-        cadc-data get --cert ~/.ssl/cadcproxy.pem -o /tmp/700000o-cutout.fits --cutout [1] CFHT 700000o
-- Use default netrc file ($HOME/.netrc) to get FITS header of a file:
-        cadc-data get -v -n --fhead GEMINI 00aug02_002.fits
-- Use a different netrc file to download wcs information:
-        cadc-data get -d --netrc ~/mynetrc -o /tmp/700000o-wcs.fits --wcs CFHT 700000o
-- Connect as user to download two files and uncompress them (prompt for password if user not in $HOME/.netrc):
-        cadc-data get -v -u auser -z GEMINI 00aug02_002.fits 00aug02_003.fits
-"""
+    get_parser.epilog = (
+        'Examples:\n'
+        '- Anonymously getting a public file:\n'
+        '        cadc-data get -v GEMINI 00aug02_002.fits\n'
+        '- Use certificate to get a cutout and save it to a file:\n'
+        '        cadc-data get --cert ~/.ssl/cadcproxy.pem -o '
+        '/tmp/700000o-cutout.fits --cutout [1] CFHT 700000o\n'
+        '- Use default netrc file ($HOME/.netrc) to get FITS header of a '
+        'file:\n'
+        '        cadc-data get -v -n --fhead GEMINI 00aug02_002.fits\n'
+        '- Use a different netrc file to download wcs information:\n'
+        '        cadc-data get -d --netrc ~/mynetrc -o /tmp/700000o-wcs.fits '
+        '--wcs CFHT 700000o\n'
+        '- Connect as user to download two files and uncompress them '
+        '(prompt for password if user not in $HOME/.netrc):\n'
+        '        cadc-data get -v -u auser -z GEMINI 00aug02_002.fits '
+        '00aug02_003.fits')
 
     put_parser = subparsers.add_parser(
         'put',
@@ -513,53 +516,53 @@ Examples:
     put_parser.add_argument(
         'source',
         help='file or directory containing the files to be put', nargs='+')
-    put_parser.epilog = \
-"""
-Examples:
-- Use certificate to put a file in an archive stream:
-        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default TEST myfile.fits.gz
-- Use default netrc file ($HOME/.netrc) to put two files:
-        cadc-data put -v -n TEST myfile1.fits.gz myfile2.fits.gz
-- Use a different netrc file to put files from a directory:
-        cadc-data put -d --netrc ~/mynetrc TEST dir
-- Connect as user to put files from multiple sources (prompt for password if user not in $HOME/.netrc):
-        cadc-data put -v -u auser TEST myfile.fits.gz dir1 dir2
-"""
+    put_parser.epilog = (
+        'Examples:\n'
+        '- Use certificate to put a file in an archive stream:\n'
+        '        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default TEST '
+        'myfile.fits.gz\n'
+        '- Use default netrc file ($HOME/.netrc) to put two files:\n'
+        '        cadc-data put -v -n TEST myfile1.fits.gz myfile2.fits.gz\n'
+        '- Use a different netrc file to put files from a directory:\n'
+        '        cadc-data put -d --netrc ~/mynetrc TEST dir\n'
+        '- Connect as user to put files from multiple sources (prompt for '
+        'password if user not in $HOME/.netrc):\n'
+        '        cadc-data put -v -u auser TEST myfile.fits.gz dir1 dir2')
 
     info_parser = subparsers.add_parser(
         'info',
         description=('Get information regarding files in a '
                      'CADC archive on the form:\n'
                      'File:\n'
-                        '\t -name\n'
-                        '\t -size\n'
-                        '\t -md5sum\n'
-                        '\t -encoding\n'
-                        '\t -type\n'
-                        '\t -usize\n'
-                        '\t -umd5sum\n'
-                        # '\t -ingest_date\n'
-                        '\t -lastmod'),
+                     '\t -name\n'
+                     '\t -size\n'
+                     '\t -md5sum\n'
+                     '\t -encoding\n'
+                     '\t -type\n'
+                     '\t -usize\n'
+                     '\t -umd5sum\n'
+                     # '\t -ingest_date\n'
+                     '\t -lastmod'),
         help='Get information regarding files in a CADC archive')
     info_parser.add_argument('archive', help='CADC archive')
     info_parser.add_argument('filename',
                              help='the name of the file in the archive',
                              nargs='+')
-    info_parser.epilog = \
-"""
-Examples:
-- Anonymously getting information about a public file:
-        cadc-data info GEMINI 00aug02_002.fits
-- Use certificate to get information about a file:
-        cadc-data info --cert ~/.ssl/cadcproxy.pem CFHT 700000o
-- Use default netrc file ($HOME/.netrc) to get information about a file:
-        cadc-data info -n GEMINI 00aug02_002.fits
-- Use a different netrc file to get information about a file:
-        cadc-data info --netrc ~/mynetrc CFHT 700000o
-- Connect as user to get information about two files (prompt for password if\
- user not in $HOME/.netrc):
-        cadc-data info -u auser GEMINI 00aug02_002.fits 00aug02_003.fits
-"""
+    info_parser.epilog = (
+        'Examples:\n'
+        '- Anonymously getting information about a public file:\n'
+        '        cadc-data info GEMINI 00aug02_002.fits\n'
+        '- Use certificate to get information about a file:\n'
+        '        cadc-data info --cert ~/.ssl/cadcproxy.pem CFHT 700000o\n'
+        '- Use default netrc file ($HOME/.netrc) to get information about '
+        'a file:\n'
+        '        cadc-data info -n GEMINI 00aug02_002.fits\n'
+        '- Use a different netrc file to get information about a file:\n'
+        '        cadc-data info --netrc ~/mynetrc CFHT 700000o\n'
+        '- Connect as user to get information about two files '
+        '(prompt for password if user not in $HOME/.netrc):\n'
+        '        cadc-data info -u auser GEMINI 00aug02_002.fits '
+        '00aug02_003.fits')
 
     # handle errors
     errors = [0]

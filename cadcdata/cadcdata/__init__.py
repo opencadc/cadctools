@@ -44,4 +44,4 @@ inter processes communication to determine the result of running the command.
 
 """
 
-from .core import *
+from .core import *   # noqa
