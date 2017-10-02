@@ -84,7 +84,8 @@ from cadcdata import CadcDataClient
 from cadcdata.core import main_app, TRANSFER_RESOURCE_ID
 from mock import Mock, patch, MagicMock, ANY, call
 
-# The following is a temporary workaround for Python issue 25532 (https://bugs.python.org/issue25532)
+# The following is a temporary workaround for Python issue
+# 25532 (https://bugs.python.org/issue25532)
 call.__wrapped__ = None
 
 
@@ -105,8 +106,9 @@ class TestCadcDataClient(unittest.TestCase):
         file_name = '/tmp/afile.txt'
         file_chunks = ['aaaa'.encode(), 'bbbb'.encode(), ''.encode()]
         response = Mock()
-        response.headers.get.return_value = 'filename={}'.format('orig_file_name')
-        response.raw.read.side_effect = file_chunks #read returns multiple blocks
+        response.headers.get.return_value = \
+            'filename={}'.format('orig_file_name')
+        response.raw.read.side_effect = file_chunks # returns multiple blocks
         basews_mock.return_value.get.return_value = response
         client = CadcDataClient(auth.Subject())
         with self.assertRaises(exceptions.HttpException):
@@ -118,13 +120,15 @@ class TestCadcDataClient(unittest.TestCase):
         t.protocols = [p]
         trans_reader_mock.return_value.read.return_value = t
         client.get_file('TEST', 'afile', destination=file_name)
-        expected_content = (''.join([c.decode() for c in file_chunks])).encode()
+        expected_content = \
+            (''.join([c.decode() for c in file_chunks])).encode()
         with open(file_name, 'rb') as f:
             self.assertEquals(expected_content, f.read())
         os.remove(file_name)
         # do it again with the file now open
         response = Mock()
-        response.headers.get.return_value = 'filename={}'.format('orig_file_name')
+        response.headers.get.return_value = \
+            'filename={}'.format('orig_file_name')
         response.raw.read.side_effect = file_chunks
         basews_mock.return_value.get.return_value = response
         with open(file_name, 'wb') as f:
@@ -136,7 +140,8 @@ class TestCadcDataClient(unittest.TestCase):
         # test a get with decompress
         file_name = 'bfile.txt'
         file_content = 'ABCDEFGH12345'
-        file_chunks = [file_content[i:i+5].encode() for i in xrange(0, len(file_content), 5)]
+        file_chunks = [file_content[i:i+5].encode()
+                       for i in xrange(0, len(file_content), 5)]
         file_chunks.append('') # last chunk is empty
         response = Mock()
         response.headers.get.return_value = 'filename={}.gz'.format(file_name)
@@ -148,13 +153,15 @@ class TestCadcDataClient(unittest.TestCase):
             self.assertEquals(file_content, f.read())
         os.remove(file_name)
 
-        # test process_bytes and send the content to /dev/null after. Use no decompress
+        # test process_bytes and send the content to /dev/null after.
+        # Use no decompress
         def concatenate_chunks(chunk):
             global mycontent
             mycontent = '{}{}'.format(mycontent, chunk.decode())
         file_name = 'bfile.txt'
         file_content = 'ABCDEFGH12345'
-        file_chunks = [file_content[i:i+5].encode() for i in xrange(0, len(file_content), 5)]
+        file_chunks = [file_content[i:i+5].encode()
+                       for i in xrange(0, len(file_content), 5)]
         file_chunks.append('') # last chunk is empty
         response = Mock()
         response.headers.get.return_value = 'filename={}.gz'.format(file_name)
@@ -179,26 +186,36 @@ class TestCadcDataClient(unittest.TestCase):
         archive = 'TEST'
         p.endpoint = 'http://someurl/transfer/{}/{}'.format(archive, file_name)
         client.get_file('TEST', 'getfile', decompress=True, wcs=True)
-        trans_doc = ('<vos:transfer xmlns:vos="http://www.ivoa.net/xml/VOSpace/v2.0">\n  '
-                     '<vos:target>ad:TEST/getfile</vos:target>\n  '
-                     '<vos:direction>pullFromVoSpace</vos:direction>\n  '
-                     '<vos:protocol uri="ivo://ivoa.net/vospace/core#httpget"/>\n</vos:transfer>\n').encode()
-        post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None), params={'wcs': True}, data=trans_doc,
+        trans_doc = \
+            ('<vos:transfer xmlns:'
+             'vos="http://www.ivoa.net/xml/VOSpace/v2.0">\n  '
+             '<vos:target>ad:TEST/getfile</vos:target>\n  '
+             '<vos:direction>pullFromVoSpace</vos:direction>\n  '
+             '<vos:protocol uri="ivo://ivoa.net/vospace/core#httpget"/>\n'
+             '</vos:transfer>\n').encode()
+        post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None),
+                                     params={'wcs': True}, data=trans_doc,
                                      headers={'Content-Type': 'text/xml'})
         response.raw.read.side_effect = file_chunks
         post_mock.reset_mock()
         client.get_file('TEST', 'getfile', decompress=True, fhead=True)
-        post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None), params={'fhead': True}, data=trans_doc,
+        post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None),
+                                     params={'fhead': True}, data=trans_doc,
                                      headers={'Content-Type': 'text/xml'})
         response.raw.read.side_effect = file_chunks
         post_mock.reset_mock()
         client.get_file('TEST', 'getfile', decompress=True, cutout='[1:1]')
-        post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None), params={'cutout': '[1:1]'}, data=trans_doc,
+        post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None),
+                                     params={'cutout': '[1:1]'},
+                                     data=trans_doc,
                                      headers={'Content-Type': 'text/xml'})
         response.raw.read.side_effect = file_chunks
         post_mock.reset_mock()
-        client.get_file('TEST', 'getfile', decompress=True, cutout='[[1:1], 2]')
-        post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None), params={'cutout': '[[1:1], 2]'}, data=trans_doc,
+        client.get_file('TEST', 'getfile',
+                        decompress=True, cutout='[[1:1], 2]')
+        post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None),
+                                     params={'cutout': '[[1:1], 2]'},
+                                     data=trans_doc,
                                      headers={'Content-Type': 'text/xml'})
 
 
@@ -224,7 +241,8 @@ class TestCadcDataClient(unittest.TestCase):
 
         # specify an archive stream
         client.put_file('TEST', file_name, archive_stream='default')
-        put_mock.assert_called_with(transf_end_point, data=ANY, headers={'X-CADC-Stream':'default'})
+        put_mock.assert_called_with(transf_end_point, data=ANY,
+                                    headers={'X-CADC-Stream':'default'})
         os.remove(file_name)
 
         # test an info
@@ -263,7 +281,8 @@ class TestCadcDataClient(unittest.TestCase):
         self.assertEqual(umd5sum, info['umd5sum'])
 
     @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
-                                         MyExitError, MyExitError, MyExitError]))
+                                         MyExitError, MyExitError,
+                                         MyExitError]))
     def test_help(self):
         """ Tests the helper displays for commands and subcommands in main"""
         self.maxDiff = None
@@ -468,41 +487,54 @@ Examples:
             self.assertEqual(usage, stdout_mock.getvalue())
 
     @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
-                                         MyExitError, MyExitError, MyExitError]))
+                                         MyExitError, MyExitError,
+                                         MyExitError]))
     @patch('cadcdata.core.CadcDataClient.put_file')
     @patch('cadcdata.core.CadcDataClient.get_file_info')
     @patch('cadcdata.core.CadcDataClient.get_file')
     def test_main(self, get_mock, info_mock, put_mock):
-        sys.argv = ['cadc-data', 'get', 'TEST', 'fileid1', 'fileid2', 'fileid3']
+        sys.argv = ['cadc-data', 'get', 'TEST', 'fileid1', 'fileid2',
+                    'fileid3']
         main_app()
-        calls = [call('TEST', 'fileid1', None, cutout=None, decompress=False, fhead=False, wcs=False),
-                 call('TEST', 'fileid2', None, cutout=None, decompress=False, fhead=False, wcs=False),
-                 call('TEST', 'fileid3', None, cutout=None, decompress=False, fhead=False, wcs=False)]
+        calls = [call('TEST', 'fileid1', None, cutout=None, decompress=False,
+                      fhead=False, wcs=False),
+                 call('TEST', 'fileid2', None, cutout=None, decompress=False,
+                      fhead=False, wcs=False),
+                 call('TEST', 'fileid3', None, cutout=None, decompress=False,
+                      fhead=False, wcs=False)]
         get_mock.assert_has_calls(calls)
 
         #test with file names
         get_mock.reset_mock()
-        sys.argv = ['cadc-data', 'get', 'TEST', '-o', 'file1.txt file2.txt', 'fileid1', 'fileid2']
+        sys.argv = ['cadc-data', 'get', 'TEST', '-o', 'file1.txt file2.txt',
+                    'fileid1', 'fileid2']
         main_app()
-        calls = [call('TEST', 'fileid1', 'file1.txt', cutout=None, decompress=False, fhead=False, wcs=False),
-                 call('TEST', 'fileid2', 'file2.txt', cutout=None, decompress=False, fhead=False, wcs=False)]
+        calls = [call('TEST', 'fileid1', 'file1.txt', cutout=None,
+                      decompress=False, fhead=False, wcs=False),
+                 call('TEST', 'fileid2', 'file2.txt', cutout=None,
+                      decompress=False, fhead=False, wcs=False)]
         get_mock.assert_has_calls(calls)
 
-        # number of file names does not match the number of file ids. logger displays an error
+        # number of file names does not match the number of file ids.
+        # logger displays an error
         get_mock.reset_mock()
-        sys.argv = ['cadc-data', 'get', 'TEST', '-o', 'file1.txt', 'fileid1', 'fileid2']
+        sys.argv = ['cadc-data', 'get', 'TEST', '-o', 'file1.txt', 'fileid1',
+                    'fileid2']
         b = StringIO()
         logger = logging.getLogger('cadc-data')
         # capture the log message in a StreamHandler
         logger.addHandler(logging.StreamHandler(b))
         with self.assertRaises(MyExitError):
             main_app()
-        self.assertTrue('Different size of destination files list' in b.getvalue())
+        self.assertTrue(
+            'Different size of destination files list' in b.getvalue())
 
         # test info
         info_mock.return_value = {'archive':'TEST', 'name':'file1.txt.gz',
-                                  'size':'5', 'md5sum':'0x33', 'type':'text', 'encoding':'gzip',
-                                  'lastmod' : '10/10/10T10:10:10.000', 'usize':'50', 'umd5sum':'0x234'}
+                                  'size':'5', 'md5sum':'0x33', 'type':'text',
+                                  'encoding':'gzip',
+                                  'lastmod' : '10/10/10T10:10:10.000',
+                                  'usize':'50', 'umd5sum':'0x234'}
         sys.argv = ['cadc-data', 'info', 'TEST', 'file1']
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             main_app()
@@ -534,7 +566,8 @@ Examples:
             f.write('TEST FILE1')
         with open(os.path.join(put_dir, '{}.txt'.format(file2)), 'w') as f:
             f.write('TEST FILE2')
-        #extra file that is not going to be put because it resides in a subdirectory
+        #extra file that is not going to be put because it resides in
+        # a subdirectory
         with open(os.path.join(put_subdir, 'file3.txt'), 'w') as f:
             f.write('TEST FILE3')
 
@@ -544,16 +577,19 @@ Examples:
         calls = [call('TEST', '/tmp/put_dir/file2.txt', archive_stream=None),
                  call('TEST', '/tmp/put_dir/file1.txt', archive_stream=None)]
         put_mock.assert_has_calls(calls, any_order=True)
-        # number of file names does not match the number of file names. logger displays an error
+        # number of file names does not match the number of file names.
+        # logger displays an error
         get_mock.reset_mock()
-        sys.argv = ['cadc-data', 'get', 'TEST', '-o', 'file1.txt', 'file1', 'file2']
+        sys.argv = ['cadc-data', 'get', 'TEST', '-o', 'file1.txt', 'file1',
+                    'file2']
         b = StringIO()
         logger = logging.getLogger('cadc-data')
         # capture the log message in a StreamHandler
         logger.addHandler(logging.StreamHandler(b))
         with self.assertRaises(MyExitError):
             main_app()
-        self.assertTrue('Different size of destination files list' in b.getvalue())
+        self.assertTrue(
+            'Different size of destination files list' in b.getvalue())
 
         #cleanup
         shutil.rmtree(put_dir)
