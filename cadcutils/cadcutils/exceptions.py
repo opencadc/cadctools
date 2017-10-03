@@ -77,7 +77,7 @@ import requests
 
 __all__ = ['UnauthorizedException', 'ForbiddenException', 'NotFoundException',
            'BadRequestException', 'ByteLimitException',
-           'InternalServerException', 'UnexpectedException', '']
+           'InternalServerException', 'UnexpectedException']
 
 
 class HttpException(Exception):
@@ -95,7 +95,8 @@ class HttpException(Exception):
                 self._msg = str(self.orig_exception)
 
         if logging.getLogger().isEnabledFor(logging.DEBUG):
-            self._msg = '{}\n{}'.format(self._msg, ''.join(traceback.format_stack()))
+            self._msg = '{}\n{}'.format(
+                self._msg, ''.join(traceback.format_stack()))
 
     @property
     def msg(self):

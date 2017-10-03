@@ -91,60 +91,67 @@ class Capabilities(object):
         self.logger = logging.getLogger('Capabilities')
         self._caps = {}
 
-
     def add_capability(self, capability):
         self._caps[capability.standard_id] = capability
 
     def get_access_url(self, capability_id, security_methods):
         """
-        Returns the access URL corresponding to a capability ID and a list of security methods. Raises
-        a ValueError if no entry found.
+        Returns the access URL corresponding to a capability ID and a list of
+        security methods. Raises a ValueError if no entry found.
         :param capability_id: ID of the capability
-        :param security_methods: IDs of the security methods in the preferred order
+        :param security_methods: IDs of the security methods in the preferred
+        order
         :return: URL to use for accessing the feature/capability
         """
         capability = self._caps[capability_id]
         if capability is None:
             raise ValueError('Capability {} not found'.format(capability_id))
-        # if the capability supports anonymous access and this is the only capability interface or
-        # the client comes with no security_methods, then return the url corresponding
-        # to the anonymous access
+        # if the capability supports anonymous access and this is the only
+        # capability interface or
+        # the client comes with no security_methods, then return the url
+        # corresponding to the anonymous access
         if (capability.get_interface(None) is not None) and \
-                ((capability.num_interfaces == 1) or (len(security_methods) == 0)):
+                ((capability.num_interfaces == 1) or
+                 (len(security_methods) == 0)):
             return capability.get_interface(None)
 
         for sm in security_methods:
             if capability.get_interface(sm) is not None:
                 return capability.get_interface(sm)
         raise ValueError('Capability {} does not support security methods {}'.
-                             format(capability_id, security_methods))
+                         format(capability_id, security_methods))
+
 
 def check_valid_url(url_str):
     """
-    Checks whether the url argument as at least 3 components: scheme, netloc and path. Anything missing?
+    Checks whether the url argument as at least 3 components: scheme,
+    netloc and path. Anything missing?
     :param url: url to check
     :raises ValueError if not valid
     """
     if url_str is None:
         raise ValueError('Invalid URL: {}'.format(url_str))
     url = urlparse(url_str)
-    if (len(url.scheme) == 0) or\
-       (len(url.netloc) == 0) or\
-       (len(url.path) == 0):
+    if (len(url.scheme) == 0) or \
+            (len(url.netloc) == 0) or \
+            (len(url.path) == 0):
         raise ValueError('Invalid URL: {}'.format(url_str))
 
 
 class Capability(object):
     """
-    Represents a capability of a Web Service. It has one or multiple _interfaces (access URLs)
+    Represents a capability of a Web Service. It has one or multiple
+    _interfaces (access URLs)
     corresponding to different supported security methods
     """
+
     def __init__(self, standard_id):
         """
         :param standard_id: ID of the capability
         """
         self.logger = logging.getLogger('Capability')
-        # validate standard id is valid uri with 3 components: scheme, netloc and path. Anything missing?
+        # validate standard id is valid uri with 3 components: scheme,
+        # netloc and path. Anything missing?
         check_valid_url(standard_id)
         self.standard_id = standard_id
         self._interfaces = {}
@@ -173,8 +180,10 @@ class Capability(object):
 
 class CapabilitiesReader(object):
     """
-    Class to parse the capabilities xml file and return the corresponding capabilities object
+    Class to parse the capabilities xml file and return the corresponding
+    capabilities object
     """
+
     def __init__(self):
         """
         Arguments:
@@ -203,30 +212,37 @@ class CapabilitiesReader(object):
 
             for child in cap.iterchildren(tag='interface'):
                 if (child.find('accessURL') is not None) \
-                    and (child.find('accessURL').text is not None):
+                        and (child.find('accessURL').text is not None):
                     access_url = child.find('accessURL').text.strip()
                 else:
-                    raise ValueError('Error parsing capabilities document. No accessURL for interface for {}'.
+                    raise ValueError('Error parsing capabilities document. '
+                                     'No accessURL for interface for {}'.
                                      format(capability.standard_id))
                 security_method = child.find('securityMethod')
                 if security_method is not None:
                     if security_method.get('standardID') is not None:
-                        security_method = security_method.get('standardID').strip()
+                        security_method = \
+                            security_method.get('standardID').strip()
                     else:
-                        raise ValueError('Error parsing capabilities document. '
-                                         'Invalid security method {} for URL {} of capability {}'.
-                                     format(security_method.get('standardID'),
-                                            access_url, capability.standard_id))
+                        raise ValueError(
+                            'Error parsing capabilities document. '
+                            'Invalid security method {} for URL {} of '
+                            'capability {}'.
+                            format(security_method.get('standardID'),
+                                   access_url, capability.standard_id))
                 try:
                     capability.add_interface(access_url, security_method)
                 except ValueError as e:
-                    raise ValueError('Error parsing capabilities document. Invalid URL in access URL ({}) '
+                    raise ValueError('Error parsing capabilities document. '
+                                     'Invalid URL in access URL ({}) '
                                      'or security method ({})'.
                                      format(access_url, security_method))
             if len(capability._interfaces) == 0:
-                raise ValueError('Error parsing capabilities document. No interfaces found for capability {}'.
-                                     format(capability.standard_id))
+                raise ValueError('Error parsing capabilities document. '
+                                 'No interfaces found for capability {}'.
+                                 format(capability.standard_id))
             caps.add_capability(capability)
         if len(caps._caps) == 0:
-            raise ValueError('Error parsing capabilities document: No capabilities found')
+            raise ValueError('Error parsing capabilities document: '
+                             'No capabilities found')
         return caps

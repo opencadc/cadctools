@@ -11,4 +11,3 @@ The main modules and packages in cadcutils are:
     -exceptions: exceptions thrown by the cadcutils libraries
 
 """
-

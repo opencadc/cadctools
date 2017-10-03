@@ -94,18 +94,20 @@ GET_CERT_VERSION = '1.0.1'
 __all__ = ['get_cert', 'Subject']
 
 # these are the security methods currently supported
-SECURITY_METHODS_IDS = {'certificate': 'ivo://ivoa.net/sso#tls-with-certificate',
-                        'basic': 'http://www.w3.org/Protocols/HTTP/1.0/spec.html#BasicAA'}
+SECURITY_METHODS_IDS = {
+    'certificate': 'ivo://ivoa.net/sso#tls-with-certificate',
+    'basic': 'http://www.w3.org/Protocols/HTTP/1.0/spec.html#BasicAA'}
 
 
 class Subject(object):
     """
     Class that stores user authentication information to be used for accessing
-        distributed resources over HTTP. For now, the supported credentials are:
+        distributed resources over HTTP. For now, the supported credentials
+        are:
         X509 certificate (via a proxy certificate file) or basic HTTP
-        user/password (via netrc file that stores user/password or simply user name. Note
-        that in the later case the library might prompt for the password before
-        connecting.
+        user/password (via netrc file that stores user/password or simply user
+        name. Note that in the later case the library might prompt for the
+        password before connecting.
     """
 
     def __init__(self, username=None, certificate=None, netrc=False):
@@ -113,8 +115,8 @@ class Subject(object):
             The subject is anonymous if neither of this arguments is set
         :param username: user name
         :param certificate: name of the X509 certificate file
-        :param netrc: use information from .netrc. Value can be True (use default $HOME/.netrc)
-                    or the name of the netrc file to use.
+        :param netrc: use information from .netrc. Value can be True (use
+        default $HOME/.netrc) or the name of the netrc file to use.
         """
         self.logger = logging.getLogger('Subject')
         self.username = username
@@ -155,7 +157,8 @@ class Subject(object):
             else:
                 self._netrc = value
             for host_name in hosts:
-                self._hosts_auth[host_name] = (hosts[host_name][0], hosts[host_name][2])
+                self._hosts_auth[host_name] = (hosts[host_name][0],
+                                               hosts[host_name][2])
 
     @property
     def anon(self):
@@ -163,13 +166,15 @@ class Subject(object):
         Is this an anonymous subject (has no authentication means)?
         :return:
         """
-        return (self.certificate is None) and (self.netrc is False) and (self.username is None)
+        return (self.certificate is None) and (self.netrc is False) and\
+               (self.username is None)
 
     @staticmethod
     def from_cmd_line_args(args):
         """
-        Instantiates a subject based on attributes of a command line. It works with the base parser in cadcutils.
-        and uses the following command line arguments:
+        Instantiates a subject based on attributes of a command line. It
+        works with the base parser in cadcutils and uses the following command
+        line arguments:
             args.user: username
             args.cert: x509 certificate location
             args.n: use netrc files for authentication info
@@ -178,15 +183,18 @@ class Subject(object):
         :return: corresponding subject
         """
         return Subject(username=args.user, certificate=args.cert,
-                       netrc=(args.netrc_file if args.netrc_file is not None else args.n))
+                       netrc=(args.netrc_file if args.netrc_file
+                              is not None else args.n))
 
     def get_auth(self, realm):
         """
-        Returns a user/password touple for the given realm. Note that this function prompts for the
-        password on stdout when the username of the subject is known but no correponding password can be found
+        Returns a user/password touple for the given realm. Note that this
+        function prompts for the password on stdout when the username of the
+        subject is known but no correponding password can be found
 
         :param realm: realm for the authentication
-        :return: (username, password) touple or None if subject is anonymous or password not found.
+        :return: (username, password) touple or None if subject is anonymous
+        or password not found.
         """
         if self.anon:
             return None
@@ -196,24 +204,29 @@ class Subject(object):
             else:
                 msg = 'No user/password for {}'.format(realm)
                 if self.netrc is not False:
-                    msg = '{} in {}'.format(msg, self.netrc if self.netrc is not True else '$HOME/.netrc')
+                    msg = '{} in {}'.format(msg,
+                                            self.netrc if self.netrc
+                                            is not True else '$HOME/.netrc')
                 self.logger.error(msg)
                 return None
         else:
             if realm in self._hosts_auth \
                     and self.username == self._hosts_auth[realm][0]:
                 return self._hosts_auth[realm]
-            sys.stdout.write("Password for {}@{}. ".format(self.username, realm))
+            sys.stdout.write("Password for {}@{}. ".format(self.username,
+                                                           realm))
             sys.stdout.flush()
-            self._hosts_auth[realm] = (self.username, getpass.getpass().strip('\n'))
+            self._hosts_auth[realm] = (self.username,
+                                       getpass.getpass().strip('\n'))
             sys.stdout.write("\n")
             sys.stdout.flush()
             return self._hosts_auth[realm]
 
     def get_security_methods(self):
         """
-        returns the security method IDs that this subject is authentication for. The order of the returned
-        methods is one that it is preferred: certificate, basic and anon.
+        returns the security method IDs that this subject is authentication
+        for. The order of the returned methods is one that it is preferred:
+        certificate, basic and anon.
         :return: list of security method IDs
         """
         sms = []
@@ -225,12 +238,13 @@ class Subject(object):
 
 
 def get_cert(subject, days_valid=None, host=None):
-    """Access the CADC Certificate Delegation Protocol (CDP) server and retrieve
-       a X509 proxy certificate.
+    """Access the CADC Certificate Delegation Protocol (CDP) server and
+       retrieve a X509 proxy certificate.
 
     :param: subject: subject performing the action
     :ptype: cadcutils.subject
-    :param: host: name of the host (overrides the host returned by the service registry)
+    :param: host: name of the host (overrides the host returned by the service
+    registry)
     :param: days_valid: number of days the proxy certificate is valid for
     :ptype daysValid: int
 
@@ -241,13 +255,15 @@ def get_cert(subject, days_valid=None, host=None):
     if days_valid is not None:
         params['daysValid'] = int(days_valid)
     client = ws.BaseWsClient(CRED_RESOURCE_ID, subject,
-                             agent="cadc-get-cert/1.0.1", retry=True, host=host)
+                             agent="cadc-get-cert/1.0.1", retry=True,
+                             host=host)
     response = client.get((CRED_PROXY_FEATURE_ID, None), params=params)
     return response.text
 
 
 def get_cert_main():
-    """ Client to download an X509 certificate and save it in users home directory"""
+    """ Client to download an X509 certificate and save it in users home
+    directory"""
 
     def _signal_handler(signal, frame):
         sys.stderr.write("\n")
@@ -255,16 +271,22 @@ def get_cert_main():
 
     signal.signal(signal.SIGINT, _signal_handler)
 
-    parser = util.get_base_parser(subparsers=False, version=GET_CERT_VERSION, default_resource_id=CRED_RESOURCE_ID,
+    parser = util.get_base_parser(subparsers=False, version=GET_CERT_VERSION,
+                                  default_resource_id=CRED_RESOURCE_ID,
                                   auth_required=True)
-    parser.description=('Retrieve a security certificate for interaction with a Web service '
-                          'such as VOSpace. Certificate will be valid for days-valid and stored '
-                          'as local file cert_filename.')
+    parser.description = ('Retrieve a security certificate for interaction '
+                          'with a Web service such as VOSpace. Certificate '
+                          'will be valid for days-valid and stored as local '
+                          'file cert_filename.')
     parser.add_argument('--cert-filename',
-                        default=os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'),
-                        help=('filesystem location to store the proxy certificate. (default: {})'.
-                              format(os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'))))
-    parser.add_argument('--days-valid', type=int, default=10, help='number of days the certificate should be valid.')
+                        default=os.path.join(os.getenv('HOME', '/tmp'),
+                                             '.ssl/cadcproxy.pem'),
+                        help=('filesystem location to store the proxy '
+                              'certificate. (default: {})'.
+                              format(os.path.join(os.getenv('HOME', '/tmp'),
+                                                  '.ssl/cadcproxy.pem'))))
+    parser.add_argument('--days-valid', type=int, default=10,
+                        help='number of days the certificate should be valid.')
 
     args = parser.parse_args()
 
@@ -286,15 +308,18 @@ def get_cert_main():
         cert = get_cert(subject, days_valid=args.days_valid)
         with open(args.cert_filename, 'w') as w:
             w.write(cert)
-        print('DONE. {} day certificate saved in {}'.format(args.days_valid, args.cert_filename))
+        print('DONE. {} day certificate saved in {}'.format(
+            args.days_valid, args.cert_filename))
     except OSError as ose:
-        sys.stderr.write("FAILED to retrieved {} day certificate\n".format(args.days_valid))
+        sys.stderr.write("FAILED to retrieved {} day certificate\n".format(
+            args.days_valid))
         if ose.errno != 401:
             sys.stderr.write(html2text.html2text(str(ose)))
             return getattr(ose, 'errno', 1)
         else:
             sys.stderr.write("Access denied\n")
     except Exception as ex:
-        sys.stderr.write("FAILED to retrieved {} day certificate\n".format(args.days_valid))
+        sys.stderr.write("FAILED to retrieved {} day certificate\n".format(
+            args.days_valid))
         sys.stderr.write('{}'.format(html2text.html2text(str(ex))))
         return getattr(ex, 'errno', 1)
