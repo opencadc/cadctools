@@ -80,7 +80,7 @@ __all__ = ['UnauthorizedException', 'ForbiddenException', 'NotFoundException',
            'InternalServerException', 'UnexpectedException']
 
 
-class HttpException(Exception):
+class HttpException(Exception): 
     """
     Generic HTTP exception that is the base class of all the other
     HTTP related exceptions
