@@ -57,6 +57,19 @@ class TestConfig(unittest.TestCase):
 
         self.cmp_configs(config_path, default_config_path)
 
+        # test get non-existing option
+        self.assertEqual(None,
+                         config.Config(config_path, default_config_path).
+                         get('blah', 'blah'))
+
+        # test error paths
+        with self.assertRaises(IOError):
+            config.Config('/non/existent/path')
+        with self.assertRaises(IOError):
+            config.Config(test_default_config,
+                          default_config_path='/non/existen/path')
+
+
     def cmp_configs(self, config_path, default_config_path):
 
         parser = configparser.ConfigParser()

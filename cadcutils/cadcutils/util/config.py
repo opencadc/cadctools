@@ -52,7 +52,7 @@ class Config(object):
     def get(self, section, option):
         try:
             return self.parser.get(section, option)
-        except configparser.NoOptionError:
+        except (configparser.NoOptionError, configparser.NoSectionError):
             pass
         return None
 
