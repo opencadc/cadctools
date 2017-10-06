@@ -1,0 +1,7 @@
+usage: cadc-client [-h] {cmd1,cmd2} ...
+
+positional arguments:
+  {cmd1,cmd2}  My subcommands
+
+optional arguments:
+  -h, --help   show this help message and exit

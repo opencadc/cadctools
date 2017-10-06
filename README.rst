@@ -58,11 +58,7 @@ not report errors
 
 ::
  
-     cd ./cadcutils
-     flake8 --exclude=tests cadcutils
-     cd ..
-     cd ./cadcdata
-     flake8 --exclude=tests cadcdata
+     flake8 cadcutils/cadcutils cadcdata/cadcdata
 
 
 Usage Example

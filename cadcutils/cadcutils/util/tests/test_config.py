@@ -69,7 +69,6 @@ class TestConfig(unittest.TestCase):
             config.Config(test_default_config,
                           default_config_path='/non/existen/path')
 
-
     def cmp_configs(self, config_path, default_config_path):
 
         parser = configparser.ConfigParser()

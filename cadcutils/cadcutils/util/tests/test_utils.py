@@ -65,22 +65,28 @@
 #
 # ***********************************************************************
 
-import logging
-import sys
 import unittest
-
 from argparse import ArgumentError
+
+from mock import Mock, patch
 from six import StringIO
 from six.moves.urllib.parse import urlparse
-from mock import Mock, patch, MagicMock, ANY
 
-from cadcutils.util import *
+import os
+import sys
+import logging
+from cadcutils.util import date2ivoa, str2ivoa, get_base_parser, \
+    get_log_level, get_logger
+
+THIS_DIR = os.path.dirname(os.path.realpath(__file__))
+TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
+
 
 class MyExitError(Exception):
     pass
 
-class UtilTests(unittest.TestCase):
 
+class UtilTests(unittest.TestCase):
     """ Class for testing cadc utilities """
 
     def test_ivoa_dates(self):
@@ -95,26 +101,29 @@ class UtilTests(unittest.TestCase):
         # handling of None arguments
         self.assertEqual(None, date2ivoa(None))
         self.assertEqual(None, str2ivoa(None))
-        
+
     def test_get_log_level(self):
-        """ Test the handling of logging level control from command line arguments """
-        
+        """ Test the handling of logging level control from
+        command line arguments """
+
         parser = get_base_parser(subparsers=False)
-        args = parser.parse_args(["--debug", "--resource-id", "www.some.resource"])
+        args = parser.parse_args(
+            ["--debug", "--resource-id", "www.some.resource"])
         self.assertEqual(logging.DEBUG, get_log_level(args))
 
-        parser = get_base_parser(subparsers=False,
-                                 default_resource_id='ivo://www.some.resource/resourceID')
+        parser = get_base_parser(
+            subparsers=False,
+            default_resource_id='ivo://www.some.resource/resourceID')
         args = parser.parse_args(["--verbose"])
         self.assertEqual(logging.INFO, get_log_level(args))
-        
+
         args = parser.parse_args(["--quiet"])
         self.assertEqual(logging.FATAL, get_log_level(args))
-        
+
         args = parser.parse_args([])
         self.assertEqual(logging.ERROR, get_log_level(args))
 
-        print ("passed log level tests")
+        print("passed log level tests")
 
     def test_init_logging_debug(self):
         """ Test the init_logging function """
@@ -148,20 +157,20 @@ class UtilTests(unittest.TestCase):
 
         stdout_pointer = sys.stdout
         try:
-            sys.stdout = StringIO()      # capture output
+            sys.stdout = StringIO()  # capture output
             logger = get_logger()
             logger.error('Test message')
             out = sys.stdout.getvalue()  # release output
             self.assertTrue('test_utils' in out)
         finally:
-            sys.stdout.close()  # close the stream 
+            sys.stdout.close()  # close the stream
             sys.stdout = stdout_pointer  # restore original stdout
 
     def test_info_log_format(self):
 
         stdout_pointer = sys.stdout
         try:
-            sys.stdout = StringIO()      # capture output
+            sys.stdout = StringIO()  # capture output
             logger = get_logger('test_info_log_format', log_level=logging.INFO)
             logger.info('Test message')
             out = sys.stdout.getvalue()  # release output
@@ -169,15 +178,16 @@ class UtilTests(unittest.TestCase):
             self.assertTrue('test_info_log_format' in out)
             self.assertTrue('Test message' in out)
         finally:
-            sys.stdout.close()  # close the stream 
+            sys.stdout.close()  # close the stream
             sys.stdout = stdout_pointer  # restore original stdout
 
     def test_debug_log_format(self):
 
         stdout_pointer = sys.stdout
         try:
-            sys.stdout = StringIO()      # capture output
-            logger = get_logger('test_debug_log_format_namespace', log_level=logging.DEBUG)
+            sys.stdout = StringIO()  # capture output
+            logger = get_logger('test_debug_log_format_namespace',
+                                log_level=logging.DEBUG)
             logger.debug('Test message')
             out = sys.stdout.getvalue()  # release output
             self.assertTrue('DEBUG' in out)
@@ -185,7 +195,7 @@ class UtilTests(unittest.TestCase):
             self.assertTrue('test_utils.test_debug_log_format:' in out)
             self.assertTrue('Test message' in out)
         finally:
-            sys.stdout.close()  # close the stream 
+            sys.stdout.close()  # close the stream
             sys.stdout = stdout_pointer  # restore original stdout
 
     @patch('sys.exit', Mock(side_effect=[ArgumentError(None, None),
@@ -200,7 +210,8 @@ class UtilTests(unittest.TestCase):
         args = parser.parse_args(["--resource-id", resource_id])
         self.assertEqual(urlparse(resource_id), args.resource_id)
 
-        parser = get_base_parser(subparsers=False, default_resource_id=resource_id)
+        parser = get_base_parser(subparsers=False,
+                                 default_resource_id=resource_id)
         args = parser.parse_args([])
         self.assertEqual(resource_id, args.resource_id)
 
@@ -211,13 +222,15 @@ class UtilTests(unittest.TestCase):
 
         # invalid resourceID (scheme)
         resource_id = "http://www.some.resource/resourceid"
-        parser = get_base_parser(subparsers=False, default_resource_id=resource_id)
+        parser = get_base_parser(subparsers=False,
+                                 default_resource_id=resource_id)
         with self.assertRaises(ArgumentError):
             args = parser.parse_args([])
 
         # invalid resourceID (missing resource id)
         resource_id = "ivo://www.some.resource"
-        parser = get_base_parser(subparsers=False, default_resource_id=resource_id)
+        parser = get_base_parser(subparsers=False,
+                                 default_resource_id=resource_id)
         with self.assertRaises(ArgumentError):
             args = parser.parse_args([])
 
@@ -232,32 +245,15 @@ class UtilTests(unittest.TestCase):
             parser.add_subparsers(dest='cmd')
 
     @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
-                                         MyExitError, MyExitError, MyExitError]))
+                                         MyExitError, MyExitError,
+                                         MyExitError]))
     def test_base_parser_help(self):
-        #help with a simple, no subparsers basic parser - these are the default arguments
+        # help with a simple, no subparsers basic parser - these are
+        # the default arguments
         self.maxDiff = None
-        expected_stdout = \
-'''usage: cadc-client [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                   [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v] [-V]
 
-optional arguments:
-  --cert CERT           location of your X509 certificate to use for
-                        authentication (unencrypted, in PEM format)
-  -d, --debug           debug messages
-  -h, --help            show this help message and exit
-  --host HOST           base hostname for services - used mainly for testing
-                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  -n                    use .netrc in $HOME for authentication
-  --netrc-file NETRC_FILE
-                        netrc file to use for authentication
-  -q, --quiet           run quietly
-  --resource-id RESOURCE_ID
-                        resource identifier (e.g. ivo://cadc.nrc.ca/service)
-  -u, --user USER       name of user to authenticate. Note: application
-                        prompts for the corresponding password!
-  -v, --verbose         verbose messages
-  -V, --version         show program's version number and exit
-'''
+        with open(os.path.join(TESTDATA_DIR, 'help.txt'), 'r') as f:
+            expected_stdout = f.read()
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             with self.assertRaises(MyExitError):
@@ -265,30 +261,10 @@ optional arguments:
                 parser = get_base_parser(subparsers=False, version=3.3)
                 parser.parse_args()
             self.assertEqual(expected_stdout, stdout_mock.getvalue())
-        #print(stdout_mock.getvalue())
 
         # same test but no version this time
-        expected_stdout = \
-'''usage: cadc-client [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                   [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v]
-
-optional arguments:
-  --cert CERT           location of your X509 certificate to use for
-                        authentication (unencrypted, in PEM format)
-  -d, --debug           debug messages
-  -h, --help            show this help message and exit
-  --host HOST           base hostname for services - used mainly for testing
-                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  -n                    use .netrc in $HOME for authentication
-  --netrc-file NETRC_FILE
-                        netrc file to use for authentication
-  -q, --quiet           run quietly
-  --resource-id RESOURCE_ID
-                        resource identifier (e.g. ivo://cadc.nrc.ca/service)
-  -u, --user USER       name of user to authenticate. Note: application
-                        prompts for the corresponding password!
-  -v, --verbose         verbose messages
-'''
+        with open(os.path.join(TESTDATA_DIR, 'help_no_version.txt'), 'r') as f:
+            expected_stdout = f.read()
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             with self.assertRaises(MyExitError):
@@ -298,123 +274,56 @@ optional arguments:
             self.assertEqual(expected_stdout, stdout_mock.getvalue())
 
         # --help with a simple parser with a few extra command line options
-        expected_stdout = \
-'''usage: cadc-client [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                   [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v] [-x]
-                   fileID [fileID ...]
+        with open(os.path.join(TESTDATA_DIR, 'help_extra_opt.txt'), 'r') as f:
+            expected_stdout = f.read()
 
-positional arguments:
-  fileID                the ID of the file in the archive
-
-optional arguments:
-  --cert CERT           location of your X509 certificate to use for
-                        authentication (unencrypted, in PEM format)
-  -d, --debug           debug messages
-  -h, --help            show this help message and exit
-  --host HOST           base hostname for services - used mainly for testing
-                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  -n                    use .netrc in $HOME for authentication
-  --netrc-file NETRC_FILE
-                        netrc file to use for authentication
-  -q, --quiet           run quietly
-  --resource-id RESOURCE_ID
-                        resource identifier (e.g. ivo://cadc.nrc.ca/service)
-  -u, --user USER       name of user to authenticate. Note: application
-                        prompts for the corresponding password!
-  -v, --verbose         verbose messages
-  -x                    test argument
-'''
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             with self.assertRaises(MyExitError):
                 sys.argv = ["cadc-client", "--help"]
                 parser = get_base_parser(subparsers=False)
-                parser.add_argument('-x', action='store_true', help='test argument')
+                parser.add_argument('-x', action='store_true',
+                                    help='test argument')
                 parser.add_argument('fileID',
-                             help='the ID of the file in the archive', nargs='+')
+                                    help='the ID of the file in the archive',
+                                    nargs='+')
                 parser.parse_args()
             self.assertEqual(expected_stdout, stdout_mock.getvalue())
 
-
-        #help with a parser with 2 subcommands
+        # help with a parser with 2 subcommands
         parser = get_base_parser()
         subparsers = parser.add_subparsers(dest='cmd', help='My subcommands')
         parser_cmd1 = subparsers.add_parser('cmd1')
-        parser_cmd1.add_argument('-x', action='store_true', help='test argument')
+        parser_cmd1.add_argument('-x', action='store_true',
+                                 help='test argument')
         parser_cmd2 = subparsers.add_parser('cmd2')
         parser_cmd2.add_argument('fileID',
-                                 help='the ID of the file in the archive', nargs='+')
+                                 help='the ID of the file in the archive',
+                                 nargs='+')
 
-        expected_stdout = \
-'''usage: cadc-client [-h] {cmd1,cmd2} ...
+        with open(os.path.join(TESTDATA_DIR, 'help_subcommands.txt'),
+                  'r') as f:
+            expected_stdout = f.read()
 
-positional arguments:
-  {cmd1,cmd2}  My subcommands
-
-optional arguments:
-  -h, --help   show this help message and exit
-'''
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             with self.assertRaises(MyExitError):
                 sys.argv = ["cadc-client", "-h"]
                 parser.parse_args()
             self.assertEqual(expected_stdout, stdout_mock.getvalue())
 
-        expected_stdout = \
-'''usage: cadc-client cmd1 [-h]
-                        [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                        [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v]
-                        [-x]
+        with open(os.path.join(TESTDATA_DIR, 'help_subcommands1.txt'),
+                  'r') as f:
+            expected_stdout = f.read()
 
-optional arguments:
-  --cert CERT           location of your X509 certificate to use for
-                        authentication (unencrypted, in PEM format)
-  -d, --debug           debug messages
-  -h, --help            show this help message and exit
-  --host HOST           base hostname for services - used mainly for testing
-                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  -n                    use .netrc in $HOME for authentication
-  --netrc-file NETRC_FILE
-                        netrc file to use for authentication
-  -q, --quiet           run quietly
-  --resource-id RESOURCE_ID
-                        resource identifier (e.g. ivo://cadc.nrc.ca/service)
-  -u, --user USER       name of user to authenticate. Note: application
-                        prompts for the corresponding password!
-  -v, --verbose         verbose messages
-  -x                    test argument
-'''
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             with self.assertRaises(MyExitError):
                 sys.argv = ['cadc-client', 'cmd1', '-h']
                 parser.parse_args()
             self.assertEqual(expected_stdout, stdout_mock.getvalue())
 
-        expected_stdout = \
-'''usage: cadc-client cmd2 [-h]
-                        [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                        [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v]
-                        fileID [fileID ...]
+        with open(os.path.join(TESTDATA_DIR, 'help_subcommands2.txt'),
+                  'r') as f:
+            expected_stdout = f.read()
 
-positional arguments:
-  fileID                the ID of the file in the archive
-
-optional arguments:
-  --cert CERT           location of your X509 certificate to use for
-                        authentication (unencrypted, in PEM format)
-  -d, --debug           debug messages
-  -h, --help            show this help message and exit
-  --host HOST           base hostname for services - used mainly for testing
-                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  -n                    use .netrc in $HOME for authentication
-  --netrc-file NETRC_FILE
-                        netrc file to use for authentication
-  -q, --quiet           run quietly
-  --resource-id RESOURCE_ID
-                        resource identifier (e.g. ivo://cadc.nrc.ca/service)
-  -u, --user USER       name of user to authenticate. Note: application
-                        prompts for the corresponding password!
-  -v, --verbose         verbose messages
-'''
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             with self.assertRaises(MyExitError):
                 sys.argv = ['cadc-client', 'cmd2', '-h']
