@@ -243,7 +243,7 @@ class CadcDataClient(object):
                         destination = os.path.splitext(destination)[0]
                     self.logger.debug(
                         'Using content disposition destination name: {}'.
-                            format(destination))
+                        format(destination))
                     with open(destination, 'wb') as f:
                         self._save_bytes(response, f, file_info,
                                          decompress=decompress,
@@ -253,7 +253,7 @@ class CadcDataClient(object):
                 # try a different URL
                 self.logger.info(
                     'WARN: Cannot retrieve data from {}. Exception: {}'.
-                        format(url, e))
+                    format(url, e))
                 self.logger.warn('Try the next URL')
                 continue
         raise exceptions.HttpException(
