@@ -1,61 +1,60 @@
-#!/usr/bin/env python2.7
 # # -*- coding: utf-8 -*-
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
-#                                                                                                                                                          
-#  (c) 2016.                            (c) 2016.                                                                                                          
-#  Government of Canada                 Gouvernement du Canada                                                                                             
-#  National Research Council            Conseil national de recherches                                                                                     
-#  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6                                                                                            
-#  All rights reserved                  Tous droits réservés                                                                                               
-#                                                                                                                                                          
-#  NRC disclaims any warranties,        Le CNRC dénie toute garantie                                                                                       
-#  expressed, implied, or               énoncée, implicite ou légale,                                                                                      
-#  statutory, of any kind with          de quelque nature que ce                                                                                           
-#  respect to the software,             soit, concernant le logiciel,                                                                                      
-#  including without limitation         y compris sans restriction                                                                                         
-#  any warranty of merchantability      toute garantie de valeur                                                                                           
-#  or fitness for a particular          marchande ou de pertinence                                                                                         
-#  purpose. NRC shall not be            pour un usage particulier.                                                                                         
-#  liable in any event for any          Le CNRC ne pourra en aucun cas                                                                                     
-#  damages, whether direct or           être tenu responsable de tout                                                                                      
-#  indirect, special or general,        dommage, direct ou indirect,                                                                                       
-#  consequential or incidental,         particulier ou général,                                                                                            
-#  arising from the use of the          accessoire ou fortuit, résultant                                                                                   
-#  software.  Neither the name          de l'utilisation du logiciel. Ni                                                                                   
-#  of the National Research             le nom du Conseil National de                                                                                      
-#  Council of Canada nor the            Recherches du Canada ni les noms                                                                                   
-#  names of its contributors may        de ses  participants ne peuvent                                                                                    
-#  be used to endorse or promote        être utilisés pour approuver ou                                                                                    
-#  products derived from this           promouvoir les produits dérivés                                                                                    
-#  software without specific prior      de ce logiciel sans autorisation                                                                                   
-#  written permission.                  préalable et particulière                                                                                          
-#                                       par écrit.                                                                                                         
-#                                                                                                                                                          
-#  This file is part of the             Ce fichier fait partie du projet                                                                                   
-#  OpenCADC project.                    OpenCADC.                                                                                                          
-#                                                                                                                                                          
-#  OpenCADC is free software:           OpenCADC est un logiciel libre ;                                                                                   
-#  you can redistribute it and/or       vous pouvez le redistribuer ou le                                                                                  
-#  modify it under the terms of         modifier suivant les termes de                                                                                     
-#  the GNU Affero General Public        la “GNU Affero General Public                                                                                      
-#  License as published by the          License” telle que publiée                                                                                         
-#  Free Software Foundation,            par la Free Software Foundation                                                                                    
-#  either version 3 of the              : soit la version 3 de cette                                                                                       
-#  License, or (at your option)         licence, soit (à votre gré)                                                                                        
-#  any later version.                   toute version ultérieure.                                                                                          
-#                                                                                                                                                          
-#  OpenCADC is distributed in the       OpenCADC est distribué                                                                                             
-#  hope that it will be useful,         dans l’espoir qu’il vous                                                                                           
-#  but WITHOUT ANY WARRANTY;            sera utile, mais SANS AUCUNE                                                                                       
-#  without even the implied             GARANTIE : sans même la garantie                                                                                   
-#  warranty of MERCHANTABILITY          implicite de COMMERCIALISABILITÉ                                                                                   
-#  or FITNESS FOR A PARTICULAR          ni d’ADÉQUATION À UN OBJECTIF                                                                                      
-#  PURPOSE.  See the GNU Affero         PARTICULIER. Consultez la Licence                                                                                  
+#
+#  (c) 2017.                            (c) 2017.
+#  Government of Canada                 Gouvernement du Canada
+#  National Research Council            Conseil national de recherches
+#  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
+#  All rights reserved                  Tous droits réservés
+#
+#  NRC disclaims any warranties,        Le CNRC dénie toute garantie
+#  expressed, implied, or               énoncée, implicite ou légale,
+#  statutory, of any kind with          de quelque nature que ce
+#  respect to the software,             soit, concernant le logiciel,
+#  including without limitation         y compris sans restriction
+#  any warranty of merchantability      toute garantie de valeur
+#  or fitness for a particular          marchande ou de pertinence
+#  purpose. NRC shall not be            pour un usage particulier.
+#  liable in any event for any          Le CNRC ne pourra en aucun cas
+#  damages, whether direct or           être tenu responsable de tout
+#  indirect, special or general,        dommage, direct ou indirect,
+#  consequential or incidental,         particulier ou général,
+#  arising from the use of the          accessoire ou fortuit, résultant
+#  software.  Neither the name          de l'utilisation du logiciel. Ni
+#  of the National Research             le nom du Conseil National de
+#  Council of Canada nor the            Recherches du Canada ni les noms
+#  names of its contributors may        de ses  participants ne peuvent
+#  be used to endorse or promote        être utilisés pour approuver ou
+#  products derived from this           promouvoir les produits dérivés
+#  software without specific prior      de ce logiciel sans autorisation
+#  written permission.                  préalable et particulière
+#                                       par écrit.
+#
+#  This file is part of the             Ce fichier fait partie du projet
+#  OpenCADC project.                    OpenCADC.
+#
+#  OpenCADC is free software:           OpenCADC est un logiciel libre ;
+#  you can redistribute it and/or       vous pouvez le redistribuer ou le
+#  modify it under the terms of         modifier suivant les termes de
+#  the GNU Affero General Public        la “GNU Affero General Public
+#  License as published by the          License” telle que publiée
+#  Free Software Foundation,            par la Free Software Foundation
+#  either version 3 of the              : soit la version 3 de cette
+#  License, or (at your option)         licence, soit (à votre gré)
+#  any later version.                   toute version ultérieure.
+#
+#  OpenCADC is distributed in the       OpenCADC est distribué
+#  hope that it will be useful,         dans l’espoir qu’il vous
+#  but WITHOUT ANY WARRANTY;            sera utile, mais SANS AUCUNE
+#  without even the implied             GARANTIE : sans même la garantie
+#  warranty of MERCHANTABILITY          implicite de COMMERCIALISABILITÉ
+#  or FITNESS FOR A PARTICULAR          ni d’ADÉQUATION À UN OBJECTIF
+#  PURPOSE.  See the GNU Affero         PARTICULIER. Consultez la Licence
 #  General Public License for           Générale Publique GNU Affero
 #  more details.                        pour plus de détails.
-#                                       
+#
 #  You should have received             Vous devriez avoir reçu une
 #  a copy of the GNU Affero             copie de la Licence Générale
 #  General Public License along         Publique GNU Affero avec
@@ -78,7 +77,6 @@ import sys
 import time
 import socket
 from clint.textui import progress
-import traceback
 
 from cadcutils import net, util, exceptions
 from cadcdata.transfer import Transfer, TransferReader, TransferWriter
@@ -100,52 +98,54 @@ TRANSFER_RESOURCE_ID = 'ivo://ivoa.net/std/VOSpace#sync-2.1'
 ARCHIVE_STREAM_HTTP_HEADER = 'X-CADC-Stream'
 APP_NAME = 'cadc-data'
 
-READ_BLOCK_SIZE = 8*1024
+READ_BLOCK_SIZE = 8 * 1024
 
 logger = logging.getLogger(APP_NAME)
 
 
 class CadcDataClient(object):
-
     """Class to access CADC archival data.
-    
+
     Example of usage:
     import os
     from cadcutils import net
     from cadcdata import CadcDataClient
-    
+
     # create possible types of subjects
     anonSubject = net.Subject()
-    certSubject = net.Subject(certificate=os.path.join(os.environ['HOME'], ".ssl/cadcproxy.pem"))
+    certSubject = net.Subject(
+       certificate=os.path.join(os.environ['HOME'], ".ssl/cadcproxy.pem"))
     netrcSubject = net.Subject(netrc=True)
     authSubject = net.Subject(netrc=os.path.join(os.environ['HOME'], ".netrc"))
-    
-    client = CadcDataClient(anonSubject) # connect to ivo://cadc.nrc.ca/data service
+
+    client = CadcDataClient(anonSubject) # connect to ivo://cadc.nrc.ca/data
     # save fhead of file
     client.get_file('CFHT', '700000o', '/tmp/700000o_fhead', fhead=True)
-    
+
     client = CadcDataClient(certSubject)
     client.put('TEST', '/tmp/myfile.txt', archive_stream='default')
-    
+
     client = CadcDataClient(netrcSubject)
     print(client.get_file_info('CFHT', '700000o'))
-    
+
     client = CadcDataClient(authSubject)
-    # get the file in an internal buffer. 
-    # The file is too large to load into memory. Therefore, for this example, 
+    # get the file in an internal buffer.
+    # The file is too large to load into memory. Therefore, for this example,
     # we are retrieving just the wcs info in a buffer.
     import io
     f = io.BytesIO()
     client.get_file('CFHT', '700000o', f, wcs=True)
     print(f.getvalue())
-    
-    # process the bytes as they are received - count_bytes proc. Note - the bytes are then thrown to /dev/null
+
+    # process the bytes as they are received - count_bytes proc.
+    # Note - the bytes are then thrown to /dev/null
     byte_count = 0
     def count_bytes(bytes):
         global byte_count
         byte_count += len(bytes)
-    
-    client.get_file('CFHT', '700000o', f, wcs=True, process_bytes = count_bytes)
+
+    client.get_file('CFHT', '700000o', f, wcs=True,
+                    process_bytes = count_bytes)
     print('Processed {} bytes'.format(byte_count))
     """
 
@@ -156,7 +156,8 @@ class CadcDataClient(object):
         Instance of a CadcDataClient
         :param subject: the subject(user) performing the action
         :type subject: cadcutils.net.Subject
-        :param resource_id: The identifier of the service resource (e.g 'ivo://cadc.nrc.ca/data')
+        :param resource_id: The identifier of the service resource
+                            (e.g 'ivo://cadc.nrc.ca/data')
         :param host: Host server for the caom2repo service
         """
 
@@ -174,15 +175,18 @@ class CadcDataClient(object):
     def get_file(self, archive, file_name, destination=None, decompress=False,
                  cutout=None, fhead=False, wcs=False, process_bytes=None):
         """
-        Get a file from an archive. The entire file is delivered unless the cutout argument
-         is present specifying a cutout to extract from the file.
+        Get a file from an archive. The entire file is delivered unless the
+         cutout argument is present specifying a cutout to extract from file.
         :param archive: name of the archive containing the file
         :param file_name: the name of the file to retrieve
-        :param destination: file to save data to (file, file_name, stream or anything
-        that supports open/close and write). If None, the file is saved locally with the
-        name provided by the content disposion received from the service.
-        :param decompress: True to decompress the file (if applicable), False otherwise
-        :param cutout: the arguments of cutout operation to be performed by the service
+        :param destination: file to save data to (file, file_name, stream or
+        anything that supports open/close and write). If None, the file is
+        saved locally with the name provided by the content disposion received
+        from the service.
+        :param decompress: True to decompress the file (if applicable),
+        False otherwise
+        :param cutout: the arguments of cutout operation to be performed by
+        the service
         :param fhead: download just the head of a fits file
         :param wcs: True if the wcs is to be included with the file
         :param process_bytes: function to be applied to the received bytes
@@ -200,7 +204,8 @@ class CadcDataClient(object):
         file_info = '{}/{}'.format(archive, file_name)
         self.logger.debug('GET {}'.format(file_info))
         # TODO negotiate transfer even for fhead or wcs?
-        protocols = self._get_transfer_protocols(archive, file_name, params=params)
+        protocols = self._get_transfer_protocols(archive, file_name,
+                                                 params=params)
         if len(protocols) == 0:
             raise exceptions.HttpException('No URLs available to access data')
 
@@ -220,42 +225,52 @@ class CadcDataClient(object):
                         # got a destination name?
                         with open(destination, 'wb') as f:
                             self._save_bytes(response, f, file_info,
-                                             decompress=decompress, process_bytes=process_bytes)
+                                             decompress=decompress,
+                                             process_bytes=process_bytes)
                     else:
                         self._save_bytes(response, destination, file_info,
-                                         decompress=decompress, process_bytes=process_bytes)
+                                         decompress=decompress,
+                                         process_bytes=process_bytes)
                 else:
                     # get the destination name from the content disposition
-                    content_disp = response.headers.get('content-disposition', '')
+                    content_disp = response.headers.get('content-disposition',
+                                                        '')
                     destination = file_name
                     for content in content_disp.split():
                         if 'filename=' in content:
                             destination = content[9:]
                     if destination.endswith('gz') and decompress:
                         destination = os.path.splitext(destination)[0]
-                    self.logger.debug('Using content disposition destination name: {}'.
-                                      format(destination))
+                    self.logger.debug(
+                        'Using content disposition destination name: {}'.
+                        format(destination))
                     with open(destination, 'wb') as f:
                         self._save_bytes(response, f, file_info,
-                                         decompress=decompress, process_bytes=process_bytes)
+                                         decompress=decompress,
+                                         process_bytes=process_bytes)
                 return
             except (exceptions.HttpException, socket.timeout) as e:
                 # try a different URL
-                self.logger.info('WARN: Cannot retrieve data from {}. Exception: {}'.
-                                 format(url, e))
+                self.logger.info(
+                    'WARN: Cannot retrieve data from {}. Exception: {}'.
+                    format(url, e))
                 self.logger.warn('Try the next URL')
                 continue
-        raise exceptions.HttpException('Unable to download data from any of the available URLs')
+        raise exceptions.HttpException(
+            'Unable to download data from any of the available URLs')
 
-    def _save_bytes(self, response, dest_file, resource, decompress=False, process_bytes=None):
-        # requests automatically decompresses the data. Tell it to do it only if it had to
+    def _save_bytes(self, response, dest_file, resource, decompress=False,
+                    process_bytes=None):
+        # requests automatically decompresses the data.
+        # Tell it to do it only if it had to
         total_length = 0
 
         class RawRange(object):
             """
-            Wrapper class to make response.raw.read work as iterator and behave the same way
-            as the corresponding response.iter_content
+            Wrapper class to make response.raw.read work as iterator and behave
+            the same way as the corresponding response.iter_content
             """
+
             def __init__(self, rsp, decode_content):
                 """
                 :param rsp: HTTP response object
@@ -272,7 +287,8 @@ class CadcDataClient(object):
 
             def next(self):
                 # reads the next raw block
-                data = self._read(self.block_size, decode_content=self.decode_content)
+                data = self._read(self.block_size,
+                                  decode_content=self.decode_content)
                 if len(data) > 0:
                     return data
                 else:
@@ -291,10 +307,12 @@ class CadcDataClient(object):
         reader = rr.get_instance
         if self.logger.isEnabledFor(logging.INFO):
             if total_length != 0:
-                chunks = progress.bar(reader(READ_BLOCK_SIZE),
-                                    expected_size=((total_length / READ_BLOCK_SIZE) + 1))
+                chunks = progress.bar(reader(
+                    READ_BLOCK_SIZE),
+                    expected_size=((total_length / READ_BLOCK_SIZE) + 1))
             else:
-                chunks = progress.mill(reader(READ_BLOCK_SIZE), expected_size = 0)
+                chunks = progress.mill(reader(READ_BLOCK_SIZE),
+                                       expected_size=0)
         else:
             chunks = reader(READ_BLOCK_SIZE)
         start = time.time()
@@ -303,9 +321,10 @@ class CadcDataClient(object):
                 process_bytes(chunk)
             dest_file.write(chunk)
         duration = time.time() - start
-        self.logger.info('Successfully downloaded file {} as {} in {}s (avg. speed: {}MB/s)'.format(
-            resource, dest_file.name, round(duration, 2),
-            round(total_length/1024/1024/duration, 2)))
+        self.logger.info(
+            'Successfully downloaded file {} as {} in {}s (avg. speed: {}MB/s)'
+            ''.format(resource, dest_file.name, round(duration, 2),
+                      round(total_length / 1024 / 1024 / duration, 2)))
 
     def put_file(self, archive, src_file, archive_stream=None):
         """
@@ -320,15 +339,16 @@ class CadcDataClient(object):
         # service will normally respond with a 200 for an
         # anonymous put, though not provide any endpoints.
         if self._data_client.subject.anon:
-            raise exceptions.UnauthorizedException('Must be authenticated to put data')
+            raise exceptions.UnauthorizedException(
+                'Must be authenticated to put data')
 
         self.logger.debug('PUT {}/{}'.format(archive, src_file))
         headers = {}
         if archive_stream is not None:
             headers[ARCHIVE_STREAM_HTTP_HEADER] = str(archive_stream)
 
-        protocols = self._get_transfer_protocols(archive, src_file, is_get=False,
-                                                 headers=headers)
+        protocols = self._get_transfer_protocols(
+            archive, src_file, is_get=False, headers=headers)
         if len(protocols) == 0:
             raise exceptions.HttpException('No URLs available to put data to')
 
@@ -347,8 +367,11 @@ class CadcDataClient(object):
                     self._data_client.put(url, headers=headers, data=f)
                 duration = time.time() - start
                 stat_info = os.stat(src_file)
-                self.logger.info('Successfully uploaded archive/file {}/{} in {}s (avg. speed: {}MB/s)'.format(
-                    archive, src_file, round(duration, 2), round(stat_info.st_size / 1024 / 1024 / duration, 2)))
+                self.logger.info(
+                    ('Successfully uploaded archive/file {}/{} in {}s '
+                     '(avg. speed: {}MB/s)').format(
+                        archive, src_file, round(duration, 2),
+                        round(stat_info.st_size / 1024 / 1024 / duration, 2)))
                 return
             except (exceptions.HttpException, socket.timeout) as e:
                 # try a different URL
@@ -356,7 +379,8 @@ class CadcDataClient(object):
                                  format(url, e))
                 self.logger.warn('Try the next URL')
                 continue
-        raise exceptions.HttpException('Unable to put data from any of the available URLs')
+        raise exceptions.HttpException(
+            'Unable to put data from any of the available URLs')
 
     def get_file_info(self, archive, file_name):
         """
@@ -383,12 +407,14 @@ class CadcDataClient(object):
         for key in hmap:
             file_info[key] = h.get(hmap[key], None)
         if file_info['name'] is not None:
-            file_info['name'] = file_info['name'].replace('inline; filename=', '')
+            file_info['name'] = file_info['name'].replace(
+                'inline; filename=', '')
         # TODO file_info['ingest_date'] = h[?]
         self.logger.debug("File info: {}".format(file_info))
         return file_info
 
-    def _get_transfer_protocols(self, archive, file_name, is_get=True, headers=None, params=None):
+    def _get_transfer_protocols(self, archive, file_name, is_get=True,
+                                headers=None, params=None):
         if headers is None:
             headers = {}
         uri_transfer = 'ad:{}/{}'.format(archive, file_name)
@@ -404,123 +430,148 @@ class CadcDataClient(object):
         h = headers.copy()
         h['Content-Type'] = 'text/xml'
         logger.debug(request_xml)
-        response = self._data_client.post(resource=(TRANSFER_RESOURCE_ID, None),
-                                          data=request_xml, headers=h, params=params)
+        response = self._data_client.post(
+            resource=(TRANSFER_RESOURCE_ID, None),
+            data=request_xml, headers=h, params=params)
         response_str = response.text.encode('utf-8')
 
-        self.logger.debug('POST had {} redirects'.format(len(response.history)))
+        self.logger.debug('POST had {} redirects'.format(
+            len(response.history)))
         self.logger.debug('Response code: {}, URL: {}'.format(
-                          response.status_code, response.url))
+            response.status_code, response.url))
         self.logger.debug('Full XML response:\n{}'.format(response_str))
 
         tran = self._transfer_reader.read(response_str)
         return tran.protocols
 
+
 def main_app():
+    parser = util.get_base_parser(version=version.version,
+                                  default_resource_id=DEFAULT_RESOURCE_ID)
 
-    parser = util.get_base_parser(version=version.version, default_resource_id=DEFAULT_RESOURCE_ID)
+    parser.description = (
+        'Client for accessing the data Web Service at the Canadian Astronomy '
+        'Data Centre (www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data)')
 
-    parser.description = ('Client for accessing the data Web Service at the Canadian Astronomy Data Centre ' +
-                          '(www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data)')
-
-    subparsers = parser.add_subparsers(dest='cmd',
-                                       help='supported commands. Use the -h|--help argument of a command '
-                                       'for more details')
-    get_parser = subparsers.add_parser('get',
-                                       description='Retrieve files from a CADC archive',
-                                       help='Retrieve files from a CADC archive')
-    get_parser.add_argument('-o', '--output',
-                            help='space-separated list of destination files (quotes required for multiple elements)',
-                            required=False)
-    get_parser.add_argument('--cutout', nargs='*',
-                            help=('specify one or multiple extension and/or pixel range cutout '
-                                              'operations to be performed. Use cfitsio syntax'),
-                            required=False)
-    get_parser.add_argument('-z', '--decompress', help='decompress the data (gzip only)',
-                            action='store_true', required=False)
-    get_parser.add_argument('--wcs', help='return the World Coordinate System (WCS) information',
-                            action='store_true', required=False)
-    get_parser.add_argument('--fhead', help='return the FITS header information',
-                            action='store_true', required=False)
+    subparsers = parser.add_subparsers(
+        dest='cmd',
+        help='supported commands. Use the -h|--help argument of a command '
+             'for more details')
+    get_parser = subparsers.add_parser(
+        'get',
+        description='Retrieve files from a CADC archive',
+        help='Retrieve files from a CADC archive')
+    get_parser.add_argument(
+        '-o', '--output',
+        help='space-separated list of destination files '
+             '(quotes required for multiple elements)',
+        required=False)
+    get_parser.add_argument(
+        '--cutout', nargs='*',
+        help=('specify one or multiple extension and/or pixel range cutout '
+              'operations to be performed. Use cfitsio syntax'),
+        required=False)
+    get_parser.add_argument(
+        '-z', '--decompress', help='decompress the data (gzip only)',
+        action='store_true', required=False)
+    get_parser.add_argument(
+        '--wcs', help='return the World Coordinate System (WCS) information',
+        action='store_true', required=False)
+    get_parser.add_argument(
+        '--fhead', help='return the FITS header information',
+        action='store_true', required=False)
     get_parser.add_argument('archive', help='CADC archive')
-    get_parser.add_argument('filename', help='the name of the file in the archive', nargs='+')
-    get_parser.epilog = \
-"""
-Examples:
-- Anonymously getting a public file:
-        cadc-data get -v GEMINI 00aug02_002.fits
-- Use certificate to get a cutout and save it to a file:
-        cadc-data get --cert ~/.ssl/cadcproxy.pem -o /tmp/700000o-cutout.fits --cutout [1] CFHT 700000o
-- Use default netrc file ($HOME/.netrc) to get FITS header of a file:
-        cadc-data get -v -n --fhead GEMINI 00aug02_002.fits
-- Use a different netrc file to download wcs information:
-        cadc-data get -d --netrc ~/mynetrc -o /tmp/700000o-wcs.fits --wcs CFHT 700000o
-- Connect as user to download two files and uncompress them (prompt for password if user not in $HOME/.netrc):
-        cadc-data get -v -u auser -z GEMINI 00aug02_002.fits 00aug02_003.fits
-"""
+    get_parser.add_argument(
+        'filename', help='the name of the file in the archive', nargs='+')
+    get_parser.epilog = (
+        'Examples:\n'
+        '- Anonymously getting a public file:\n'
+        '        cadc-data get -v GEMINI 00aug02_002.fits\n'
+        '- Use certificate to get a cutout and save it to a file:\n'
+        '        cadc-data get --cert ~/.ssl/cadcproxy.pem -o '
+        '/tmp/700000o-cutout.fits --cutout [1] CFHT 700000o\n'
+        '- Use default netrc file ($HOME/.netrc) to get FITS header of a '
+        'file:\n'
+        '        cadc-data get -v -n --fhead GEMINI 00aug02_002.fits\n'
+        '- Use a different netrc file to download wcs information:\n'
+        '        cadc-data get -d --netrc ~/mynetrc -o /tmp/700000o-wcs.fits '
+        '--wcs CFHT 700000o\n'
+        '- Connect as user to download two files and uncompress them '
+        '(prompt for password if user not in $HOME/.netrc):\n'
+        '        cadc-data get -v -u auser -z GEMINI 00aug02_002.fits '
+        '00aug02_003.fits')
 
-    put_parser = subparsers.add_parser('put',
-                                       description='Upload files into a CADC archive',
-                                       help='Upload files into a CADC archive')
-    put_parser.add_argument('-s', '--archive-stream', help='specific archive stream to add the file to',
-                            required=False)
+    put_parser = subparsers.add_parser(
+        'put',
+        description='Upload files into a CADC archive',
+        help='Upload files into a CADC archive')
+    put_parser.add_argument(
+        '-s', '--archive-stream',
+        help='specific archive stream to add the file to',
+        required=False)
     put_parser.add_argument('-c', '--compress', help='gzip compress the data',
                             action='store_true', required=False)
     put_parser.add_argument('archive', help='CADC archive')
-    put_parser.add_argument('source',
-                            help='file or directory containing the files to be put', nargs='+')
-    put_parser.epilog = \
-"""
-Examples:
-- Use certificate to put a file in an archive stream:
-        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default TEST myfile.fits.gz
-- Use default netrc file ($HOME/.netrc) to put two files:
-        cadc-data put -v -n TEST myfile1.fits.gz myfile2.fits.gz
-- Use a different netrc file to put files from a directory:
-        cadc-data put -d --netrc ~/mynetrc TEST dir
-- Connect as user to put files from multiple sources (prompt for password if user not in $HOME/.netrc):
-        cadc-data put -v -u auser TEST myfile.fits.gz dir1 dir2
-"""
+    put_parser.add_argument(
+        'source',
+        help='file or directory containing the files to be put', nargs='+')
+    put_parser.epilog = (
+        'Examples:\n'
+        '- Use certificate to put a file in an archive stream:\n'
+        '        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default TEST '
+        'myfile.fits.gz\n'
+        '- Use default netrc file ($HOME/.netrc) to put two files:\n'
+        '        cadc-data put -v -n TEST myfile1.fits.gz myfile2.fits.gz\n'
+        '- Use a different netrc file to put files from a directory:\n'
+        '        cadc-data put -d --netrc ~/mynetrc TEST dir\n'
+        '- Connect as user to put files from multiple sources (prompt for '
+        'password if user not in $HOME/.netrc):\n'
+        '        cadc-data put -v -u auser TEST myfile.fits.gz dir1 dir2')
 
-    info_parser = subparsers.add_parser('info',
-                                        description=('Get information regarding files in a '
-                                                     'CADC archive on the form:\n'
-                                                     'File:\n'
-                                                     '\t -name\n'
-                                                     '\t -size\n'
-                                                     '\t -md5sum\n'
-                                                     '\t -encoding\n'
-                                                     '\t -type\n'
-                                                     '\t -usize\n'
-                                                     '\t -umd5sum\n'
-                                                     # '\t -ingest_date\n'
-                                                     '\t -lastmod'),
-                                        help='Get information regarding files in a CADC archive')
+    info_parser = subparsers.add_parser(
+        'info',
+        description=('Get information regarding files in a '
+                     'CADC archive on the form:\n'
+                     'File:\n'
+                     '\t -name\n'
+                     '\t -size\n'
+                     '\t -md5sum\n'
+                     '\t -encoding\n'
+                     '\t -type\n'
+                     '\t -usize\n'
+                     '\t -umd5sum\n'
+                     # '\t -ingest_date\n'
+                     '\t -lastmod'),
+        help='Get information regarding files in a CADC archive')
     info_parser.add_argument('archive', help='CADC archive')
     info_parser.add_argument('filename',
-                             help='the name of the file in the archive', nargs='+')
-    info_parser.epilog = \
-"""
-Examples:
-- Anonymously getting information about a public file:
-        cadc-data info GEMINI 00aug02_002.fits
-- Use certificate to get information about a file:
-        cadc-data info --cert ~/.ssl/cadcproxy.pem CFHT 700000o
-- Use default netrc file ($HOME/.netrc) to get information about a file:
-        cadc-data info -n GEMINI 00aug02_002.fits
-- Use a different netrc file to get information about a file:
-        cadc-data info --netrc ~/mynetrc CFHT 700000o
-- Connect as user to get information about two files (prompt for password if user not in $HOME/.netrc):
-        cadc-data info -u auser GEMINI 00aug02_002.fits 00aug02_003.fits
-"""
+                             help='the name of the file in the archive',
+                             nargs='+')
+    info_parser.epilog = (
+        'Examples:\n'
+        '- Anonymously getting information about a public file:\n'
+        '        cadc-data info GEMINI 00aug02_002.fits\n'
+        '- Use certificate to get information about a file:\n'
+        '        cadc-data info --cert ~/.ssl/cadcproxy.pem CFHT 700000o\n'
+        '- Use default netrc file ($HOME/.netrc) to get information about '
+        'a file:\n'
+        '        cadc-data info -n GEMINI 00aug02_002.fits\n'
+        '- Use a different netrc file to get information about a file:\n'
+        '        cadc-data info --netrc ~/mynetrc CFHT 700000o\n'
+        '- Connect as user to get information about two files '
+        '(prompt for password if user not in $HOME/.netrc):\n'
+        '        cadc-data info -u auser GEMINI 00aug02_002.fits '
+        '00aug02_003.fits')
 
     # handle errors
     errors = [0]
+
     def handle_error(msg, exit_after=True):
         """
         Prints error message and exit (by default)
         :param msg: error message to print
-        :param exit_after: True if log error message and exit, False if log error message and return
+        :param exit_after: True if log error message and exit,
+        False if log error message and return
         :return:
         """
 
@@ -532,7 +583,8 @@ Examples:
     args = parser.parse_args()
     if len(sys.argv) < 2:
         parser.print_usage(file=sys.stderr)
-        handle_error("{}: error: too few arguments".format(APP_NAME), exit_after=False)
+        handle_error("{}: error: too few arguments".format(APP_NAME),
+                     exit_after=False)
         sys.exit(-1)
     if args.verbose:
         logging.basicConfig(level=logging.INFO, stream=sys.stdout)
@@ -540,7 +592,6 @@ Examples:
         logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
     else:
         logging.basicConfig(level=logging.WARN, stream=sys.stdout)
-
 
     subject = net.Subject.from_cmd_line_args(args)
 
@@ -553,21 +604,27 @@ Examples:
             if args.output is not None:
                 files = args.output.split()
                 if len(files) != len(file_names):
-                    handle_error('Different size of destination files list ({}) and list of file names ({})'.
-                                 format(files, file_names))
+                    handle_error(
+                        'Different size of destination files list ({}) '
+                        'and list of file names ({})'.format(files,
+                                                             file_names))
                 for f, fname in list(zip(files, file_names)):
                     try:
-                        client.get_file(archive, fname, f, decompress=args.decompress,
-                                        fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
+                        client.get_file(
+                            archive, fname, f, decompress=args.decompress,
+                            fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
                     except exceptions.NotFoundException:
-                        handle_error('File name {} not found'.format(fname), exit_after=False)
+                        handle_error('File name {} not found'.format(fname),
+                                     exit_after=False)
             else:
                 for fname in file_names:
                     try:
-                        client.get_file(archive, fname, None, decompress=args.decompress,
-                                        fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
+                        client.get_file(
+                            archive, fname, None, decompress=args.decompress,
+                            fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
                     except exceptions.NotFoundException:
-                        handle_error('File name not found {}'.format(fname), exit_after=False)
+                        handle_error('File name not found {}'.format(fname),
+                                     exit_after=False)
         elif args.cmd == 'info':
             logger.info('info')
             archive = args.archive
@@ -575,8 +632,10 @@ Examples:
                 try:
                     file_info = client.get_file_info(archive, file_name)
                 except exceptions.NotFoundException:
-                    handle_error('File name {} not found in archive {}'.format(file_name, archive),
-                                 exit_after=False)
+                    handle_error(
+                        'File name {} not found in archive {}'.format(
+                            file_name, archive),
+                        exit_after=False)
                     continue
                 print('File {}:'.format(file_name))
                 for field in sorted(file_info):
@@ -595,7 +654,9 @@ Examples:
                         if os.path.isfile(os.path.join(file1, f)):
                             files.append(os.path.join(file1, f))
                         else:
-                            logger.warn('{} not added to the list of files to put'.format(f))
+                            logger.warn(
+                                '{} not added to the list of files to '
+                                'put'.format(f))
             logger.debug('Files to put: {}'.format(files))
             if len(files) == 0:
                 handle_error('No files found to put')

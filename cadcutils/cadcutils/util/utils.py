@@ -81,14 +81,14 @@ __all__ = ['IVOA_DATE_FORMAT', 'date2ivoa', 'str2ivoa',
 IVOA_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 
 DEFAULT_LOG_FORMAT = "%(levelname)s: %(name)s %(message)s"
-DEBUG_LOG_FORMAT = "%(levelname)s: @(%(asctime)s) %(name)s %(module)s.%(funcName)s:%(lineno)d - %(message)s"
+DEBUG_LOG_FORMAT = "%(levelname)s: @(%(asctime)s) %(name)s " \
+                   "%(module)s.%(funcName)s:%(lineno)d - %(message)s"
 
 
 def date2ivoa(d):
     """
     Takes a datetime and returns a string formatted
     to the IVOA date format yyyy-MM-dd'T'HH:mm:ss.SSS
-    
     """
 
     if d is None:
@@ -99,7 +99,6 @@ def date2ivoa(d):
 def str2ivoa(s):
     """
     Takes a IVOA date formatted string and returns a datetime.
-    
     """
 
     if s is None:
@@ -116,32 +115,31 @@ def get_logger(namespace=None, log_level=logging.ERROR):
         default: logging.ERROR
     :param log_level: logging level
     :return the logger object.
-    
     """
-    
+
     if namespace is None:
         frm = inspect.stack()[1]
         mod = inspect.getmodule(frm[0])
         if mod is None:
             namespace = __name__
         else:
-            namespace = mod.__name__ 
-    
+            namespace = mod.__name__
+
     logger = logging.getLogger(namespace)
-    
+
     if not len(logger.handlers):
         handler = logging.StreamHandler(sys.stdout)
         logger.addHandler(handler)
     else:
         handler = logger.handlers[0]
-    
+
     log_format = DEFAULT_LOG_FORMAT
     if log_level == logging.DEBUG:
         log_format = DEBUG_LOG_FORMAT
 
     logger.setLevel(log_level)
     handler.setFormatter(logging.Formatter(fmt=log_format))
-    
+
     return logger
 
 
@@ -168,26 +166,29 @@ def parse_resource_id(resource_id):
     :return: (scheme, netloc, path, params, query, fragment)
     """
     result = urlparse(resource_id)
-    if len(result.netloc) < 2 or len(result.path) < 2 or (result.scheme != 'ivo'):
+    if len(result.netloc) < 2 or len(result.path) < 2 or \
+            (result.scheme != 'ivo'):
         raise ValueError('Invalid resourceID: {}'.format(resource_id))
     return resource_id
 
 
-############################################################################################
+###############################################################################
 # Common command line options and customized format
-############################################################################################
+###############################################################################
 
 class SingleMetavarHelpFormatter(RawDescriptionHelpFormatter):
     """
     Class the customizes the argparse help formatter. It does 2 things:
         - the display of an option with short and long format is shorter
-            e.g '-o, --output OUTPUT' instead of the default '-o OUTPUT, --output OUTPUT'
+            e.g '-o, --output OUTPUT' instead of the default '-o OUTPUT,
+            --output OUTPUT'
         - options are sorted in alphabetical order in command line usage
     """
+
     def _format_action_invocation(self, action):
         """
-        Customized version of the function in HelpFormatter to shorten the display of
-        option with long and short options
+        Customized version of the function in HelpFormatter to shorten the
+        display of option with long and short options
         :param action:
         :return:
         """
@@ -209,20 +210,14 @@ class SingleMetavarHelpFormatter(RawDescriptionHelpFormatter):
                 default = action.dest.upper()
                 args_string = self._format_args(action, default)
 
-                ## THIS IS THE PART REPLACED
-                #~ for option_string in action.option_strings:
-                    #~ parts.append('%s %s' % (option_string, args_string)) ### this is change
-                ## /SECTION REPLACED
-
-                ## NEW CODE:
                 parts.extend(action.option_strings)
                 parts[-1] += ' %s' % args_string
-                ## /NEW CODE
             return ', '.join(parts)
 
     def add_arguments(self, actions):
         """
-        Customized version to sort options in alphabetical order before displaying them
+        Customized version to sort options in alphabetical order before
+        displaying them
         :param actions:
         :return:
         """
@@ -232,8 +227,8 @@ class SingleMetavarHelpFormatter(RawDescriptionHelpFormatter):
 
 class _AugmentAction(object):
     """
-    This automatically adds parents and the formatter class when a new subparser is
-    created in the client code
+    This automatically adds parents and the formatter class when a new
+    subparser is created in the client code
     """
 
     def __init__(self, parser, action):
@@ -248,74 +243,92 @@ class _AugmentAction(object):
 
 class _CustomArgParser(ArgumentParser):
     """
-    Custom arg parses to sort options in alphabetical order before displaying them
+    Custom arg parses to sort options in alphabetical order before displaying
+    them
     """
-    def __init__(self, subparsers=True, common_parser=None, version=None, **kwargs):
+
+    def __init__(self, subparsers=True, common_parser=None, version=None,
+                 **kwargs):
         self.common_parser = common_parser
         self.subparsers = subparsers
         self._subparsers_added = False
         self.kwargs = kwargs
         kwargs['formatter_class'] = SingleMetavarHelpFormatter
         if not self.subparsers:
-            super(_CustomArgParser, self).__init__(parents=[common_parser], **kwargs)
+            super(_CustomArgParser, self).__init__(parents=[common_parser],
+                                                   **kwargs)
         else:
             super(_CustomArgParser, self).__init__(**kwargs)
         if version is not None:
-            self.add_argument('-V', '--version', action='version', version=version)
-
+            self.add_argument('-V', '--version', action='version',
+                              version=version)
 
     def add_subparsers(self, **kwargs):
         if not self.subparsers:
             raise RuntimeError('Parser created to run without subparsers')
         self._subparsers_added = True
         return _AugmentAction(self.common_parser,
-                        super(_CustomArgParser, self).add_subparsers(**kwargs))
+                              super(_CustomArgParser, self).add_subparsers(
+                                  **kwargs))
 
     def parse_args(self, args=None, namespace=None):
-         if self.subparsers and not self._subparsers_added:
-              raise RuntimeError('No subparsers added. Change the parsers flag?')
-         return super(_CustomArgParser, self).parse_args(args=args, namespace=namespace)
+        if self.subparsers and not self._subparsers_added:
+            raise RuntimeError('No subparsers added. Change the parsers flag?')
+        return super(_CustomArgParser, self).parse_args(args=args,
+                                                        namespace=namespace)
 
 
-
-def get_base_parser(subparsers=True, version=None, usecert=True, default_resource_id=None, auth_required=False):
+def get_base_parser(subparsers=True, version=None, usecert=True,
+                    default_resource_id=None, auth_required=False):
     """
-    An ArgumentParser with some common things most CADC clients will want. There are two
-    modes to use this parser: with or without subparsers. With supbarsers (subparsers=True),
-    separate subparsers are created for each subcommand and the common CADC options show
-    up in each subcommand (and not on the parent parser). Without subparsers (subparsers=False)
+    An ArgumentParser with some common things most CADC clients will want.
+    There are two modes to use this parser: with or without subparsers.
+    With supbarsers (subparsers=True), separate subparsers are created for
+    each subcommand and the common CADC options show up in each subcommand
+    (and not on the parent parser). Without subparsers (subparsers=False)
     the common options are automatically added to the base parser.
 
-    :param subparsers: True if the parser will use subparsers (subcommands) otherwise False
+    :param subparsers: True if the parser will use subparsers (subcommands)
+    otherwise False
     :param version: A version number if desired.
     :param usecert: If True add '--cert' argument.
     :param default_resource_id: default resource identifier to use
-    :param auth_required: At least one of the authentication options is required
+    :param auth_required: At least one of the authentication options is
+    required
     :return: An ArgumentParser instance.
     """
-    cparser = ArgumentParser(add_help=False, formatter_class=SingleMetavarHelpFormatter)
+    cparser = ArgumentParser(add_help=False,
+                             formatter_class=SingleMetavarHelpFormatter)
 
     auth_group = cparser.add_mutually_exclusive_group(required=auth_required)
     if usecert:
-        auth_group.add_argument('--cert', type=str,
-                                help='location of your X509 certificate to use for authentication ' +
-                                 '(unencrypted, in PEM format)')
-    auth_group.add_argument('-n', action='store_true', help='use .netrc in $HOME for authentication')
-    auth_group.add_argument('--netrc-file', help='netrc file to use for authentication')
-    auth_group.add_argument('-u', '--user', help='name of user to authenticate. ' +
-                             'Note: application prompts for the corresponding password!')
+        auth_group.add_argument(
+            '--cert', type=str,
+            help='location of your X509 certificate to use for ' +
+                 'authentication (unencrypted, in PEM format)')
+    auth_group.add_argument('-n', action='store_true',
+                            help='use .netrc in $HOME for authentication')
+    auth_group.add_argument('--netrc-file',
+                            help='netrc file to use for authentication')
+    auth_group.add_argument('-u', '--user',
+                            help='name of user to authenticate. ' +
+                                 'Note: application prompts for the '
+                                 'corresponding password!')
     cparser.add_argument('--host',
-                         help='base hostname for services - used mainly for testing ' +
-                                       '(default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)',
+                         help='base hostname for services - used mainly '
+                              'for testing (default: '
+                              'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)',
                          default='www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')
     if default_resource_id is None:
         cparser.add_argument('--resource-id',
                              type=urlparse, required=True,
-                             help='resource identifier (e.g. ivo://cadc.nrc.ca/service)')
+                             help='resource identifier '
+                                  '(e.g. ivo://cadc.nrc.ca/service)')
     else:
-        cparser.add_argument('--resource-id',type=parse_resource_id,
-                             default = default_resource_id,
-                             help='resource identifier (default {})'.format(default_resource_id))
+        cparser.add_argument('--resource-id', type=parse_resource_id,
+                             default=default_resource_id,
+                             help='resource identifier (default {})'.format(
+                                 default_resource_id))
     log_group = cparser.add_mutually_exclusive_group()
     log_group.add_argument('-d', '--debug', action='store_true',
                            help='debug messages')
@@ -324,5 +337,6 @@ def get_base_parser(subparsers=True, version=None, usecert=True, default_resourc
     log_group.add_argument('-v', '--verbose', action='store_true',
                            help='verbose messages')
 
-    argparser = _CustomArgParser(subparsers=subparsers, common_parser=cparser, version=version)
+    argparser = _CustomArgParser(subparsers=subparsers, common_parser=cparser,
+                                 version=version)
     return argparser

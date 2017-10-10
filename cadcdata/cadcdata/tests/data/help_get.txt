@@ -1,0 +1,49 @@
+usage: cadc-data get [-h]
+                     [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                     [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
+                     [-o OUTPUT] [--cutout [CUTOUT [CUTOUT ...]]] [-z] [--wcs]
+                     [--fhead]
+                     archive filename [filename ...]
+
+Retrieve files from a CADC archive
+
+positional arguments:
+  archive               CADC archive
+  filename              the name of the file in the archive
+
+optional arguments:
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  --cutout [CUTOUT [CUTOUT ...]]
+                        specify one or multiple extension and/or pixel range
+                        cutout operations to be performed. Use cfitsio syntax
+  -d, --debug           debug messages
+  -z, --decompress      decompress the data (gzip only)
+  --fhead               return the FITS header information
+  -h, --help            show this help message and exit
+  --host HOST           base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -o, --output OUTPUT   space-separated list of destination files (quotes
+                        required for multiple elements)
+  -q, --quiet           run quietly
+  --resource-id RESOURCE_ID
+                        resource identifier (default ivo://cadc.nrc.ca/data)
+  -u, --user USER       name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+  --wcs                 return the World Coordinate System (WCS) information
+
+Examples:
+- Anonymously getting a public file:
+        cadc-data get -v GEMINI 00aug02_002.fits
+- Use certificate to get a cutout and save it to a file:
+        cadc-data get --cert ~/.ssl/cadcproxy.pem -o /tmp/700000o-cutout.fits --cutout [1] CFHT 700000o
+- Use default netrc file ($HOME/.netrc) to get FITS header of a file:
+        cadc-data get -v -n --fhead GEMINI 00aug02_002.fits
+- Use a different netrc file to download wcs information:
+        cadc-data get -d --netrc ~/mynetrc -o /tmp/700000o-wcs.fits --wcs CFHT 700000o
+- Connect as user to download two files and uncompress them (prompt for password if user not in $HOME/.netrc):
+        cadc-data get -v -u auser -z GEMINI 00aug02_002.fits 00aug02_003.fits

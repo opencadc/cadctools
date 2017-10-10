@@ -60,7 +60,7 @@
 # *  General Public License along         Publique GNU Affero avec
 # *  with OpenCADC.  If not, see          OpenCADC ; si ce n’est
 # *  <http://www.gnu.org/licenses/>.      pas le cas, consultez :
-# *                                       <http://www.gnu.org/licenses/>.six.string_types
+# *                                       <http://www.gnu.org/licenses/>
 # *
 # ************************************************************************
 
@@ -72,38 +72,36 @@ import os
 # VOSpace versions and schema (loaded as needed)
 VOSPACE_20 = 20
 VOSPACE_21 = 21
-VOSPACE_SCHEMA = { VOSPACE_20 : None,
-                   VOSPACE_21 : None }
+VOSPACE_SCHEMA = {VOSPACE_20: None,
+                  VOSPACE_21: None}
 
 # Other constants from the VOSpace standard
 PROTOCOL_HTTP_GET = 'ivo://ivoa.net/vospace/core#httpget'
 PROTOCOL_HTTP_PUT = 'ivo://ivoa.net/vospace/core#httpput'
-DIRECTION_PROTOCOL_MAP = { 'pushToVoSpace' : PROTOCOL_HTTP_PUT,
-                           'pullFromVoSpace' : PROTOCOL_HTTP_GET }
+DIRECTION_PROTOCOL_MAP = {'pushToVoSpace': PROTOCOL_HTTP_PUT,
+                          'pullFromVoSpace': PROTOCOL_HTTP_GET}
 
 # The list of NODE_PROPERTIES is extensive. Any properties listed here are
 # simply special ones that we plan to handle (e.g., length can only be set in
 # > VOSPACE_21)
 # Perhaps a new thing to add: md5? (to verify things without separate HEAD)
 NODE_PROPERTIES = {
-    'LENGTH' : ('uri','ivo://ivoa.net/vospace/core#length',VOSPACE_21)
-    }
+    'LENGTH': ('uri', 'ivo://ivoa.net/vospace/core#length', VOSPACE_21)
+}
 
 # Lookup NODE_PROPERTIES given the property value (e.g., URI)
-NODE_PROPERTIES_LOOKUP = dict()
-for property in NODE_PROPERTIES:
-    (key,val,ver) = NODE_PROPERTIES[property]
-    NODE_PROPERTIES_LOOKUP[val] = property
+NODE_PROPERTIES_LOOKUP = {NODE_PROPERTIES[x][1]: x for x in NODE_PROPERTIES}
 
 # XML-related constants
-VOSPACE_NS = { VOSPACE_20 : 'http://www.ivoa.net/xml/VOSpace/v2.0',
-               VOSPACE_21 : 'http://www.ivoa.net/xml/VOSpace/v2.1' }
+VOSPACE_NS = {VOSPACE_20: 'http://www.ivoa.net/xml/VOSpace/v2.0',
+              VOSPACE_21: 'http://www.ivoa.net/xml/VOSpace/v2.1'}
 
-VOSPACE_SCHEMA_RESOURCE = { VOSPACE_20 : 'VOSpace-2.0.xsd',
-                            VOSPACE_21 : 'VOSpace-2.1.xsd' }
+VOSPACE_SCHEMA_RESOURCE = {VOSPACE_20: 'VOSpace-2.0.xsd',
+                           VOSPACE_21: 'VOSpace-2.1.xsd'}
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 DATA_PKG = 'data'
+
 
 class TransferError(Exception):
     def __init__(self, value):
@@ -111,6 +109,7 @@ class TransferError(Exception):
 
     def __str__(self):
         return repr(self.value)
+
 
 class Protocol(object):
     """ Container for data transfer URIs (put/get) and endpoints (get) """
@@ -148,8 +147,8 @@ class Transfer(object):
 
         # Optional properties from dictionary
         if properties:
-            for property in properties:
-                self.set_property(property, properties[property])
+            for prop in properties:
+                self.set_property(prop, properties[prop])
 
         # Optionally set protocols
         if protocols:
@@ -158,11 +157,12 @@ class Transfer(object):
         elif self.direction == 'pushToVoSpace':
             # If we're doing a put and no protocol specified, set default
             self.add_protocol(
-                Protocol( DIRECTION_PROTOCOL_MAP['pushToVoSpace'] ) )
+                Protocol(DIRECTION_PROTOCOL_MAP['pushToVoSpace'])
+            )
         elif self.direction == 'pullFromVoSpace':
             # If we're doing a pull and no protocol specified, set default
             self.add_protocol(
-                Protocol( DIRECTION_PROTOCOL_MAP['pullFromVoSpace'] ) )
+                Protocol(DIRECTION_PROTOCOL_MAP['pullFromVoSpace']))
 
     def set_version(self, version_in):
         """ Set a valid VOSpace version with validation. """
@@ -188,17 +188,15 @@ class Transfer(object):
         """
 
         if direction_in not in DIRECTION_PROTOCOL_MAP:
-            raise TransferError("Direction %s must be one of: %s" % \
-                                    ( direction_in,
-                                      ', '.join( \
-                        [k for k in DIRECTION_PROTOCOL_MAP]) ) )
+            raise TransferError("Direction %s must be one of: %s" %
+                                (direction_in, ', '.join(
+                                    [k for k in DIRECTION_PROTOCOL_MAP])))
 
         self.direction = direction_in
 
-        def get_endpoints(self):
-            """ Return ordered list of endpoints """
-
-            return [ p.endpoint for p in self.protocols ]
+    def get_endpoints(self):
+        """ Return ordered list of endpoints """
+        return [prot.endpoint for prot in self.protocols]
 
     def add_protocol(self, protocol):
         """ Add to ordered list of protocols """
@@ -208,29 +206,29 @@ class Transfer(object):
         if protocol.uri and \
                 (protocol.uri != DIRECTION_PROTOCOL_MAP[self.direction]):
             raise TransferError(
-                "Protocol URI, %s, incompatible with transfer direction, %s." \
-                    % (protocol.uri, self.direction) )
+                "Protocol URI, %s, incompatible with transfer direction, %s."
+                % (protocol.uri, self.direction))
 
         self.protocols.append(protocol)
 
-    def get_property(self, property):
+    def get_property(self, prop):
         """ Return a property """
 
-        return self.properties[property]
+        return self.properties[prop]
 
-    def set_property(self, property, value):
+    def set_property(self, prop, value):
         """ Set a property. If a handled property, perform version check """
 
-        if property in NODE_PROPERTIES:
-            (key,val,ver) = NODE_PROPERTIES[property]
-            if self.version < ver:
+        if prop in NODE_PROPERTIES:
+            (k, v, vs) = NODE_PROPERTIES[prop]
+            if self.version < vs:
                 raise TransferError(
-                    "%s may only be set in VOSpace documents version >= %i" \
-                        % (property,ver) )
+                    "%s may only be set in VOSpace documents version >= %i"
+                    % (prop, vs))
 
         assert isinstance(value, string_types)
 
-        self.properties[property] = value
+        self.properties[prop] = value
 
 
 class TransferReaderError(Exception):
@@ -247,7 +245,7 @@ class TransferReader(object):
     def __init__(self, validate=False):
         self.validate = validate
 
-    def read(self,xml_string):
+    def read(self, xml_string):
         """ Read XML document string and return a Transfer object """
 
         xml = etree.fromstring(xml_string)
@@ -255,71 +253,72 @@ class TransferReader(object):
         # Get the VOSpace version by performing a reverse name lookup
         # on the namespace string
         try:
-            NS = xml.nsmap['vos']
-            version = dict((v, k) for k, v in iteritems(VOSPACE_NS))[NS]
+            ns = xml.nsmap['vos']
+            version = dict((v, k) for k, v in iteritems(VOSPACE_NS))[ns]
         except Exception:
             raise TransferReaderError(
                 'Unable to establish the VOSpace version of transfer document')
 
-        VOS = '{%s}' % NS                  # VOS namespace string
+        vos = '{%s}' % ns  # VOS namespace string
 
         # Schema validation now that we know the version
         if self.validate:
             if VOSPACE_SCHEMA[version] is None:
                 # .xsd hasn't been loaded in yet
                 filepath = os.path.join(os.path.join(THIS_DIR, DATA_PKG),
-                            VOSPACE_SCHEMA_RESOURCE[version])
+                                        VOSPACE_SCHEMA_RESOURCE[version])
 
                 try:
                     with open(filepath) as f:
                         schema_xml = etree.parse(f)
                         VOSPACE_SCHEMA[version] = etree.XMLSchema(schema_xml)
                 except Exception as e:
-                    raise TransferReaderError('Unable to load schema %s: %s' % \
-                                                  (filepath, str(e)) )
+                    raise TransferReaderError(
+                        'Unable to load schema %s: %s' %
+                        (filepath, str(e)))
             VOSPACE_SCHEMA[version].assertValid(xml)
 
         # Continue with required nodes
         try:
-            target = xml.find(VOS + 'target').text
+            target = xml.find(vos + 'target').text
         except:
             raise TransferReaderError(
-                'Unable to find a target in the transfer document' )
+                'Unable to find a target in the transfer document')
 
         try:
-            direction = xml.find(VOS + 'direction').text
+            direction = xml.find(vos + 'direction').text
         except:
             raise TransferReaderError(
-                'Unable to find direction in the transfer document' )
+                'Unable to find direction in the transfer document')
 
         # Protocols
-        protocols=[]
-        for p in xml.findall(VOS + 'protocol'):
+        protocols = []
+        for p in xml.findall(vos + 'protocol'):
             uri = p.attrib['uri']
-            e = p.find(VOS + 'endpoint')
+            e = p.find(vos + 'endpoint')
             if e is not None:
                 endpoint = e.text
             else:
                 endpoint = None
-            protocols.append( Protocol( uri, endpoint=endpoint ) )
+            protocols.append(Protocol(uri, endpoint=endpoint))
 
         # Properties
         properties = dict()
-        for p in xml.findall(VOS + 'param'):
+        for p in xml.findall(vos + 'param'):
             # We only expect one key per parameter
             key = p.attrib.keys()[0]
-            val = p.attrib[key]
+            value = p.attrib[key]
 
             try:
                 # Try a reverse lookup to find handled NODE_PROPERTY
-                property = NODE_PROPERTIES_LOOKUP[val]
-                properties[property] = p.text
-            except:
-                properties['%s=%s' % (key,val)] = p.text
+                prop = NODE_PROPERTIES_LOOKUP[value]
+                properties[prop] = p.text
+            except Exception:
+                properties['%s=%s' % (key, value)] = p.text
 
         # Create the transfer object
-        return Transfer( target, direction, version=version,
-                         properties=properties, protocols=protocols )
+        return Transfer(target, direction, version=version,
+                        properties=properties, protocols=protocols)
 
 
 class TransferWriterError(Exception):
@@ -328,6 +327,7 @@ class TransferWriterError(Exception):
 
     def __str__(self):
         return repr(self.value)
+
 
 class TransferWriter(object):
     """ Render a Transfer object as an XML string """
@@ -339,48 +339,47 @@ class TransferWriter(object):
 
         # Create the root node
         try:
-            NS = VOSPACE_NS[transfer.version]  # namespace URI
-            NSMAP = {'vos':NS}                 # map for document
-            VOS = '{%s}' % NS                  # VOS namespace string
+            ns = VOSPACE_NS[transfer.version]  # namespace URI
+            nsmap = {'vos': ns}  # map for document
+            vos = '{%s}' % ns  # VOS namespace string
 
         except:
             raise TransferWriterError(
-                'Unexpected transfer version %i encountered' \
-                    % transfer.version )
+                'Unexpected transfer version %i encountered'
+                % transfer.version)
 
-        xml = etree.Element(VOS + 'transfer', nsmap=NSMAP)
+        xml = etree.Element(vos + 'transfer', nsmap=nsmap)
 
         # Other required nodes
-        target = etree.SubElement(xml, VOS + 'target', nsmap=NSMAP)
+        target = etree.SubElement(xml, vos + 'target', nsmap=nsmap)
         target.text = transfer.target
 
-        direction = etree.SubElement(xml, VOS + 'direction', nsmap=NSMAP )
+        direction = etree.SubElement(xml, vos + 'direction', nsmap=nsmap)
         direction.text = transfer.direction
 
         # Protocols
-        for p in transfer.protocols:
-            attrib = { 'uri' : p.uri }
+        for pt in transfer.protocols:
+            attrib = {'uri': pt.uri}
 
-            protocol = etree.SubElement(xml, VOS + 'protocol', attrib=attrib,
-                                        nsmap=NSMAP)
-            if p.endpoint:
-                endpoint = etree.SubElement(protocol, VOS + 'endpoint',
-                                            nsmap=NSMAP)
-                endpoint.text = p.endpoint
+            protocol = etree.SubElement(xml, vos + 'protocol', attrib=attrib,
+                                        nsmap=nsmap)
+            if pt.endpoint:
+                endpoint = etree.SubElement(protocol, vos + 'endpoint',
+                                            nsmap=nsmap)
+                endpoint.text = pt.endpoint
 
         # Properties
-        for property in transfer.properties:
+        for prop in transfer.properties:
             try:
-                (key,val,ver) = NODE_PROPERTIES[property]
-            except:
+                (key, val, ver) = NODE_PROPERTIES[prop]
+            except Exception:
                 # An unhandled property. We need to split the string
                 # into key/val
-                (key,val) = property.split('=')
+                (key, val) = prop.split('=')
 
-            attrib = {key : val }
-            param = etree.SubElement(xml, VOS + 'param', attrib=attrib,
-                                     nsmap=NSMAP)
-            param.text = transfer.properties[property]
+            attrib = {key: val}
+            param = etree.SubElement(xml, vos + 'param', attrib=attrib,
+                                     nsmap=nsmap)
+            param.text = transfer.properties[prop]
 
-        return etree.tostring(xml,encoding='UTF-8',pretty_print=True)
-
+        return etree.tostring(xml, encoding='UTF-8', pretty_print=True)
