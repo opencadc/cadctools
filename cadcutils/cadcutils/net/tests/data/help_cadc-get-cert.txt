@@ -11,7 +11,7 @@ optional arguments:
                         authentication (unencrypted, in PEM format)
   --cert-filename CERT_FILENAME
                         filesystem location to store the proxy certificate.
-                        (default: /Users/adriand/.ssl/cadcproxy.pem)
+                        (default: $HOME/.ssl/cadcproxy.pem)
   --days-valid DAYS_VALID
                         number of days the certificate should be valid.
   -d, --debug           debug messages

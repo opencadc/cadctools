@@ -70,6 +70,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import os
 import sys
+import re
 import unittest
 
 from mock import Mock, patch, mock_open
@@ -141,6 +142,10 @@ Expected /tmp/testcertfile to be a directory.
         with open(os.path.join(TESTDATA_DIR, 'help_cadc-get-cert.txt'),
                   'r') as f:
             usage = f.read()
+        # update the default cert location line
+        usage = re.sub(r'default: .*cadcproxy.pem',
+               'default: {}/.ssl/cadcproxy.pem'.format(os.getenv("HOME")),
+               usage)
 
         # --help
         self.maxDiff = None  # Display the entire difference
