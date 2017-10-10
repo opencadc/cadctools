@@ -143,9 +143,10 @@ Expected /tmp/testcertfile to be a directory.
                   'r') as f:
             usage = f.read()
         # update the default cert location line
-        usage = re.sub(r'default: .*cadcproxy.pem',
-               'default: {}/.ssl/cadcproxy.pem'.format(os.getenv("HOME")),
-               usage)
+        usage = re.sub(
+            r'default: .*cadcproxy.pem',
+            'default: {}/.ssl/cadcproxy.pem'.format(os.getenv("HOME")),
+            usage)
 
         # --help
         self.maxDiff = None  # Display the entire difference
