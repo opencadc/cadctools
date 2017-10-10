@@ -1,0 +1,14 @@
+usage: cadc-data [-h] [-V] {get,put,info} ...
+
+Client for accessing the data Web Service at the Canadian Astronomy Data Centre (www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data)
+
+positional arguments:
+  {get,put,info}  supported commands. Use the -h|--help argument of a command
+                  for more details
+    get           Retrieve files from a CADC archive
+    put           Upload files into a CADC archive
+    info          Get information regarding files in a CADC archive
+
+optional arguments:
+  -h, --help      show this help message and exit
+  -V, --version   show program's version number and exit

@@ -87,7 +87,7 @@ DIRECTION_PROTOCOL_MAP = {'pushToVoSpace': PROTOCOL_HTTP_PUT,
 # Perhaps a new thing to add: md5? (to verify things without separate HEAD)
 NODE_PROPERTIES = {
     'LENGTH': ('uri', 'ivo://ivoa.net/vospace/core#length', VOSPACE_21)
-    }
+}
 
 # Lookup NODE_PROPERTIES given the property value (e.g., URI)
 NODE_PROPERTIES_LOOKUP = {NODE_PROPERTIES[x][1]: x for x in NODE_PROPERTIES}
@@ -190,13 +190,13 @@ class Transfer(object):
         if direction_in not in DIRECTION_PROTOCOL_MAP:
             raise TransferError("Direction %s must be one of: %s" %
                                 (direction_in, ', '.join(
-                                 [k for k in DIRECTION_PROTOCOL_MAP])))
+                                    [k for k in DIRECTION_PROTOCOL_MAP])))
 
         self.direction = direction_in
 
     def get_endpoints(self):
-            """ Return ordered list of endpoints """
-            return [prot.endpoint for prot in self.protocols]
+        """ Return ordered list of endpoints """
+        return [prot.endpoint for prot in self.protocols]
 
     def add_protocol(self, protocol):
         """ Add to ordered list of protocols """
@@ -259,7 +259,7 @@ class TransferReader(object):
             raise TransferReaderError(
                 'Unable to establish the VOSpace version of transfer document')
 
-        vos = '{%s}' % ns                 # VOS namespace string
+        vos = '{%s}' % ns  # VOS namespace string
 
         # Schema validation now that we know the version
         if self.validate:
@@ -340,8 +340,8 @@ class TransferWriter(object):
         # Create the root node
         try:
             ns = VOSPACE_NS[transfer.version]  # namespace URI
-            nsmap = {'vos': ns}                # map for document
-            vos = '{%s}' % ns                  # VOS namespace string
+            nsmap = {'vos': ns}  # map for document
+            vos = '{%s}' % ns  # VOS namespace string
 
         except:
             raise TransferWriterError(

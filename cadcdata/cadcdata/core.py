@@ -98,13 +98,12 @@ TRANSFER_RESOURCE_ID = 'ivo://ivoa.net/std/VOSpace#sync-2.1'
 ARCHIVE_STREAM_HTTP_HEADER = 'X-CADC-Stream'
 APP_NAME = 'cadc-data'
 
-READ_BLOCK_SIZE = 8*1024
+READ_BLOCK_SIZE = 8 * 1024
 
 logger = logging.getLogger(APP_NAME)
 
 
 class CadcDataClient(object):
-
     """Class to access CADC archival data.
 
     Example of usage:
@@ -244,7 +243,7 @@ class CadcDataClient(object):
                         destination = os.path.splitext(destination)[0]
                     self.logger.debug(
                         'Using content disposition destination name: {}'.
-                        format(destination))
+                            format(destination))
                     with open(destination, 'wb') as f:
                         self._save_bytes(response, f, file_info,
                                          decompress=decompress,
@@ -254,7 +253,7 @@ class CadcDataClient(object):
                 # try a different URL
                 self.logger.info(
                     'WARN: Cannot retrieve data from {}. Exception: {}'.
-                    format(url, e))
+                        format(url, e))
                 self.logger.warn('Try the next URL')
                 continue
         raise exceptions.HttpException(
@@ -271,6 +270,7 @@ class CadcDataClient(object):
             Wrapper class to make response.raw.read work as iterator and behave
             the same way as the corresponding response.iter_content
             """
+
             def __init__(self, rsp, decode_content):
                 """
                 :param rsp: HTTP response object
@@ -324,7 +324,7 @@ class CadcDataClient(object):
         self.logger.info(
             'Successfully downloaded file {} as {} in {}s (avg. speed: {}MB/s)'
             ''.format(resource, dest_file.name, round(duration, 2),
-                      round(total_length/1024/1024/duration, 2)))
+                      round(total_length / 1024 / 1024 / duration, 2)))
 
     def put_file(self, archive, src_file, archive_stream=None):
         """
@@ -370,8 +370,8 @@ class CadcDataClient(object):
                 self.logger.info(
                     ('Successfully uploaded archive/file {}/{} in {}s '
                      '(avg. speed: {}MB/s)').format(
-                         archive, src_file, round(duration, 2),
-                         round(stat_info.st_size / 1024 / 1024 / duration, 2)))
+                        archive, src_file, round(duration, 2),
+                        round(stat_info.st_size / 1024 / 1024 / duration, 2)))
                 return
             except (exceptions.HttpException, socket.timeout) as e:
                 # try a different URL
@@ -438,7 +438,7 @@ class CadcDataClient(object):
         self.logger.debug('POST had {} redirects'.format(
             len(response.history)))
         self.logger.debug('Response code: {}, URL: {}'.format(
-                          response.status_code, response.url))
+            response.status_code, response.url))
         self.logger.debug('Full XML response:\n{}'.format(response_str))
 
         tran = self._transfer_reader.read(response_str)
@@ -446,7 +446,6 @@ class CadcDataClient(object):
 
 
 def main_app():
-
     parser = util.get_base_parser(version=version.version,
                                   default_resource_id=DEFAULT_RESOURCE_ID)
 

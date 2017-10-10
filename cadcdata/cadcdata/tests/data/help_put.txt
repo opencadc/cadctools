@@ -1,0 +1,41 @@
+usage: cadc-data put [-h]
+                     [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                     [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
+                     [-s ARCHIVE_STREAM] [-c]
+                     archive source [source ...]
+
+Upload files into a CADC archive
+
+positional arguments:
+  archive               CADC archive
+  source                file or directory containing the files to be put
+
+optional arguments:
+  -s, --archive-stream ARCHIVE_STREAM
+                        specific archive stream to add the file to
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -c, --compress        gzip compress the data
+  -d, --debug           debug messages
+  -h, --help            show this help message and exit
+  --host HOST           base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -q, --quiet           run quietly
+  --resource-id RESOURCE_ID
+                        resource identifier (default ivo://cadc.nrc.ca/data)
+  -u, --user USER       name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+
+Examples:
+- Use certificate to put a file in an archive stream:
+        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default TEST myfile.fits.gz
+- Use default netrc file ($HOME/.netrc) to put two files:
+        cadc-data put -v -n TEST myfile1.fits.gz myfile2.fits.gz
+- Use a different netrc file to put files from a directory:
+        cadc-data put -d --netrc ~/mynetrc TEST dir
+- Connect as user to put files from multiple sources (prompt for password if user not in $HOME/.netrc):
+        cadc-data put -v -u auser TEST myfile.fits.gz dir1 dir2

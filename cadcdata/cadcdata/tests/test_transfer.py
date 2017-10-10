@@ -64,13 +64,11 @@
 # *
 # ************************************************************************
 
-import os
-import sys
 import unittest
 from lxml import etree
 
 # put local code at start of path
-#sys.path.insert(0, os.path.abspath('../../../'))
+# sys.path.insert(0, os.path.abspath('../../../'))
 
 from cadcdata.transfer import Transfer, TransferError, TransferReader, \
     TransferWriter, Protocol
@@ -84,7 +82,6 @@ test_dir_bad = 'push'
 
 
 class TestTransferReaderWriter(unittest.TestCase):
-
     def test_transfer_constructor(self):
         # target not of form vos: or ad:
         with self.assertRaises(TransferError):
@@ -98,7 +95,7 @@ class TestTransferReaderWriter(unittest.TestCase):
         with self.assertRaises(TransferError):
             Transfer(test_target_good, test_dir_put,
                      protocols=[
-                        Protocol(DIRECTION_PROTOCOL_MAP['pullFromVoSpace'])])
+                         Protocol(DIRECTION_PROTOCOL_MAP['pullFromVoSpace'])])
 
         # invalid version
         with self.assertRaises(TransferError):
@@ -108,15 +105,15 @@ class TestTransferReaderWriter(unittest.TestCase):
         with self.assertRaises(TransferError):
             Transfer(test_target_good, test_dir_put,
                      protocols=[
-                        Protocol(DIRECTION_PROTOCOL_MAP['pushToVoSpace'])],
-                        properties={'LENGTH': '1234'})
+                         Protocol(DIRECTION_PROTOCOL_MAP['pushToVoSpace'])],
+                     properties={'LENGTH': '1234'})
 
         # property can be set if using VOSPACE_21
         tran = Transfer(test_target_good, test_dir_put,
                         protocols=[
                             Protocol(DIRECTION_PROTOCOL_MAP['pushToVoSpace'])],
-                            properties={'LENGTH': '1234'},
-                            version=VOSPACE_21)
+                        properties={'LENGTH': '1234'},
+                        version=VOSPACE_21)
 
         self.assertEqual(tran.target, test_target_good,
                          'Wrong target.')
@@ -156,7 +153,6 @@ class TestTransferReaderWriter(unittest.TestCase):
                          'Wrong number of protocols.')
         for i in range(len(tran.protocols)):
             p1 = tran.protocols[i]
-            p2 = tran2.protocols[i]
 
             self.assertEqual(p1.uri, p1.uri, 'Wrong uri, protocol %i' % i)
             self.assertEqual(p1.endpoint, p1.endpoint,
@@ -184,7 +180,6 @@ class TestTransferReaderWriter(unittest.TestCase):
                          'Wrong number of protocols.')
         for i in range(len(tran.protocols)):
             p1 = tran.protocols[i]
-            p2 = tran2.protocols[i]
 
             self.assertEqual(p1.uri, p1.uri, 'Wrong uri, protocol %i' % i)
             self.assertEqual(p1.endpoint, p1.endpoint,
@@ -195,7 +190,7 @@ class TestTransferReaderWriter(unittest.TestCase):
         tran = Transfer(test_target_good, test_dir_put,
                         version=VOSPACE_20)
         xml_str = TransferWriter().write(tran)
-        tran2 = TransferReader(validate=True).read(xml_str)
+        TransferReader(validate=True).read(xml_str)
 
         # VOSPACE_21
         tran = Transfer(test_target_good, test_dir_put,
@@ -205,12 +200,12 @@ class TestTransferReaderWriter(unittest.TestCase):
 
         # introduce an error that schema validation should catch
         xml = etree.fromstring(xml_str)
-        junk = etree.SubElement(xml, 'junk')
+        etree.SubElement(xml, 'junk')
         xml_str2 = etree.tostring(xml, encoding='UTF-8', pretty_print=True)
 
         # should not raise exception because validation turned off by default
-        tran2 = TransferReader().read(xml_str2)
+        TransferReader().read(xml_str2)
 
         # should now raise exception with validation turned on
         with self.assertRaises(etree.DocumentInvalid):
-            tran2 = TransferReader(validate=True).read(xml_str2)
+            TransferReader(validate=True).read(xml_str2)
