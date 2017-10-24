@@ -11,10 +11,3 @@ The main modules and packages in cadcutils are:
     -exceptions: exceptions thrown by the cadcutils libraries
 
 """
-
-try:
-    _PACKAGE_SETUP_
-except NameError:
-    # do any package imports here
-    pass
-

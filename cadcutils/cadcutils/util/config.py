@@ -29,7 +29,8 @@ class Config(object):
         logger.info("Using config file {0}.".format(config_path))
 
         # check config file exists and can be read
-        if not os.path.isfile(config_path) and not os.access(config_path, os.R_OK):
+        if not os.path.isfile(config_path) and not os.access(config_path,
+                                                             os.R_OK):
             error = "Can not read {0}.".format(config_path)
             logger.error(error)
             raise IOError(error)
@@ -39,17 +40,19 @@ class Config(object):
             try:
                 self.parser.readfp(open(default_config_path))
             except configparser.Error as exc:
-                logger.error("Error opening {0} because {1}.".format(default_config_path, exc.message))
+                logger.error("Error opening {0} because {1}.".format(
+                    default_config_path, exc.message))
 
         try:
             self.parser.read(config_path)
         except configparser.Error as exc:
-            logger.error("Error opening {0} because {1}.".format(config_path, exc.message))
+            logger.error("Error opening {0} because {1}.".format(
+                config_path, exc.message))
 
     def get(self, section, option):
         try:
             return self.parser.get(section, option)
-        except configparser.NoOptionError:
+        except (configparser.NoOptionError, configparser.NoSectionError):
             pass
         return None
 
@@ -72,7 +75,8 @@ class Config(object):
         try:
             parser.read(config_path)
         except configparser.Error as exc:
-            logger.error("Error opening {0} because {1}.".format(config_path, exc.message))
+            logger.error("Error opening {0} because {1}.".format(config_path,
+                                                                 exc.message))
             return
 
         # read default config file
@@ -80,7 +84,8 @@ class Config(object):
         try:
             default_parser.read(default_config_path)
         except configparser.Error as exc:
-            logger.error("Error opening {0} because {1}.".format(default_config_path, exc.message))
+            logger.error("Error opening {0} because {1}.".format(
+                default_config_path, exc.message))
             return
 
         # update config file with new options from the default config
@@ -108,4 +113,4 @@ class Config(object):
                 parser.write(config_file)
                 config_file.close()
             except Exception as exc:
-                print (exc.message)
+                print(exc.message)

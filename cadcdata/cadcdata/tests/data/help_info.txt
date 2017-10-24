@@ -1,0 +1,48 @@
+usage: cadc-data info [-h]
+                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                      [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
+                      archive filename [filename ...]
+
+Get information regarding files in a CADC archive on the form:
+File:
+	 -name
+	 -size
+	 -md5sum
+	 -encoding
+	 -type
+	 -usize
+	 -umd5sum
+	 -lastmod
+
+positional arguments:
+  archive               CADC archive
+  filename              the name of the file in the archive
+
+optional arguments:
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -d, --debug           debug messages
+  -h, --help            show this help message and exit
+  --host HOST           base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -q, --quiet           run quietly
+  --resource-id RESOURCE_ID
+                        resource identifier (default ivo://cadc.nrc.ca/data)
+  -u, --user USER       name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+
+Examples:
+- Anonymously getting information about a public file:
+        cadc-data info GEMINI 00aug02_002.fits
+- Use certificate to get information about a file:
+        cadc-data info --cert ~/.ssl/cadcproxy.pem CFHT 700000o
+- Use default netrc file ($HOME/.netrc) to get information about a file:
+        cadc-data info -n GEMINI 00aug02_002.fits
+- Use a different netrc file to get information about a file:
+        cadc-data info --netrc ~/mynetrc CFHT 700000o
+- Connect as user to get information about two files (prompt for password if user not in $HOME/.netrc):
+        cadc-data info -u auser GEMINI 00aug02_002.fits 00aug02_003.fits

@@ -70,6 +70,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import os
 import sys
+import re
 import unittest
 
 from mock import Mock, patch, mock_open
@@ -78,15 +79,16 @@ from six import StringIO
 from cadcutils.net import auth
 from cadcutils.util import get_base_parser
 
+THIS_DIR = os.path.dirname(os.path.realpath(__file__))
+TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
+
 
 class MyExitError(Exception):
     pass
 
 
 class TestAuth(unittest.TestCase):
-
     """ Class for testing networking authorization functionality """
-
 
     @patch('cadcutils.net.auth.get_cert', Mock(return_value='CERTVALUE'))
     @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))
@@ -103,9 +105,10 @@ class TestAuth(unittest.TestCase):
         # get certificate default location
         m = mock_open()
         with patch('six.moves.builtins.open', m, create=True):
-            sys.argv = ["cadc-get-cert", "-u",  "bob"]
+            sys.argv = ["cadc-get-cert", "-u", "bob"]
             auth.get_cert_main()
-        m.assert_called_with(os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'), 'w')
+        m.assert_called_with(
+            os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'), 'w')
         handle = m()
         handle.write.assert_called_once_with(value)
 
@@ -120,54 +123,31 @@ class TestAuth(unittest.TestCase):
         with open(certfile, 'r') as f:
             self.assertEqual(value, f.read())
 
-        # test error when the directory of the cert file is in fact an existing file..
+        # test error when the directory of the cert file is in fact an
+        # existing file..
         errmsg = """[Errno 17] File exists: '{}' : {}
 Expected /tmp/testcertfile to be a directory.
 """.format(certfile, certfile)
-        sys.argv = ["cadc-get-cert", "-u", "bob", "--cert-filename", certfile + "/cert"]
+        sys.argv = ["cadc-get-cert", "-u", "bob", "--cert-filename",
+                    certfile + "/cert"]
         with self.assertRaises(MyExitError):
             with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
                 auth.get_cert_main()
         self.assertEqual(errmsg, stderr_mock.getvalue())
         os.remove(certfile)
 
-
     @patch('sys.exit', Mock(side_effect=[MyExitError]))
     def test_get_cert_main_help(self):
         """ Test the help option of the cadc-get-cert app """
+        with open(os.path.join(TESTDATA_DIR, 'help_cadc-get-cert.txt'),
+                  'r') as f:
+            usage = f.read()
+        # update the default cert location line
+        usage = re.sub(
+            r'default: .*cadcproxy.pem',
+            'default: {}/.ssl/cadcproxy.pem'.format(os.getenv("HOME")),
+            usage)
 
-        usage =\
-"""usage: cadc-get-cert [-h]
-                     (--cert CERT | -n | --netrc-file NETRC_FILE | -u USER)
-                     [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
-                     [-V] [--cert-filename CERT_FILENAME]
-                     [--days-valid DAYS_VALID]
-
-Retrieve a security certificate for interaction with a Web service such as VOSpace. Certificate will be valid for days-valid and stored as local file cert_filename.
-
-optional arguments:
-  --cert CERT           location of your X509 certificate to use for
-                        authentication (unencrypted, in PEM format)
-  --cert-filename CERT_FILENAME
-                        filesystem location to store the proxy certificate.
-                        (default: {})
-  --days-valid DAYS_VALID
-                        number of days the certificate should be valid.
-  -d, --debug           debug messages
-  -h, --help            show this help message and exit
-  --host HOST           base hostname for services - used mainly for testing
-                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  -n                    use .netrc in $HOME for authentication
-  --netrc-file NETRC_FILE
-                        netrc file to use for authentication
-  -q, --quiet           run quietly
-  --resource-id RESOURCE_ID
-                        resource identifier (default ivo://cadc.nrc.ca/cred)
-  -u, --user USER       name of user to authenticate. Note: application
-                        prompts for the corresponding password!
-  -v, --verbose         verbose messages
-  -V, --version         show program's version number and exit
-""".format(os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'))
         # --help
         self.maxDiff = None  # Display the entire difference
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
@@ -203,8 +183,10 @@ optional arguments:
         self.assertEqual(None, subject.get_auth('realm1'))
 
         # netrc with content
-        netrc_content = {'realm1':('user1', None, 'pass1'), 'realm2':('user1', None, 'pass2')}
-        expected_host_auth = {'realm1':('user1', 'pass1'), 'realm2':('user1', 'pass2')}
+        netrc_content = {'realm1': ('user1', None, 'pass1'),
+                         'realm2': ('user1', None, 'pass2')}
+        expected_host_auth = {'realm1': ('user1', 'pass1'),
+                              'realm2': ('user1', 'pass2')}
         os_mock.path.join.return_value = '/home/myhome/.netrc'
         with patch('cadcutils.net.auth.netrclib') as netrclib_mock:
             netrclib_mock.netrc.return_value.hosts = netrc_content
@@ -228,13 +210,13 @@ optional arguments:
             getpass_mock.getpass.return_value = passwd
             self.assertEqual((username, passwd), subject.get_auth('realm1'))
 
-
         parser = get_base_parser(subparsers=False)
         args = parser.parse_args(['--resource-id', 'blah'])
         subject = auth.Subject.from_cmd_line_args(args)
         self.assertTrue(subject.anon)
 
-        sys.argv = ['cadc-client', '--resource-id', 'blah', '--cert', 'mycert.pem']
+        sys.argv = ['cadc-client', '--resource-id', 'blah', '--cert',
+                    'mycert.pem']
         args = parser.parse_args()
         subject = auth.Subject.from_cmd_line_args(args)
         self.assertFalse(subject.anon)

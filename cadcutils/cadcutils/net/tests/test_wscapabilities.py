@@ -71,67 +71,100 @@ from __future__ import (absolute_import, division, print_function,
 import unittest
 
 from six import assertRaisesRegex
-from cadcutils.net import ws, auth, wscapabilities
+
+from cadcutils.net import wscapabilities
 
 
 class TestWsCapabilities(unittest.TestCase):
-
-
-
     def test_parsing(self):
         # tests some error cases
         cr = wscapabilities.CapabilitiesReader()
         with self.assertRaises(ValueError):
             cr.parsexml('blah')
 
-        with assertRaisesRegex(self, ValueError, 'Error parsing capabilities document: No capabilities found'):
+        with assertRaisesRegex(
+                self, ValueError,
+                'Error parsing capabilities document: No capabilities found'):
             cr.parsexml('<capabilities></capabilities>')
 
         with assertRaisesRegex(self, ValueError,
-                                     'Error parsing capabilities document. '
-                                     'Capability standard ID is invalid URL: None'):
-            cr.parsexml('<capabilities><capability></capability></capabilities>')
+                               'Error parsing capabilities document. '
+                               'Capability standard ID is invalid URL: None'):
+            cr.parsexml(
+                '<capabilities><capability></capability></capabilities>')
 
         with assertRaisesRegex(self, ValueError,
-                                     'Error parsing capabilities document. '
-                                     'Capability standard ID is invalid URL: abc'):
-            cr.parsexml('<capabilities><capability standardID="abc"></capability></capabilities>')
+                               'Error parsing capabilities document. '
+                               'Capability standard ID is invalid URL: abc'):
+            cr.parsexml(
+                '<capabilities><capability '
+                'standardID="abc"></capability></capabilities>')
 
-        with assertRaisesRegex(self, ValueError, 'Error parsing capabilities document. '
-                                                 'No interfaces found for capability ivo://provider/service'):
-            cr.parsexml('<capabilities><capability standardID="ivo://provider/service"></capability></capabilities>')
+        with assertRaisesRegex(self, ValueError,
+                               'Error parsing capabilities document. '
+                               'No interfaces found for capability '
+                               'ivo://provider/service'):
+            cr.parsexml(
+                '<capabilities><capability '
+                'standardID="ivo://provider/service">'
+                '</capability></capabilities>')
 
-        with assertRaisesRegex(self, ValueError, 'Error parsing capabilities document. '
-                                                 'No accessURL for interface for ivo://provider/service'):
-            cr.parsexml('<capabilities><capability standardID="ivo://provider/service">'
-                        '<interface></interface></capability></capabilities>')
+        with assertRaisesRegex(
+            self, ValueError,
+            'Error parsing capabilities document. '
+                'No accessURL for interface for ivo://provider/service'):
+            cr.parsexml(
+                '<capabilities><capability '
+                'standardID="ivo://provider/service">'
+                '<interface></interface></capability></capabilities>')
 
-        with assertRaisesRegex(self, ValueError, 'Error parsing capabilities document. '
-                                                 'No accessURL for interface for ivo://provider/service'):
-            cr.parsexml('<capabilities><capability standardID="ivo://provider/service">'
-                        '<interface></interface><accessURL></accessURL></capability></capabilities>')
+        with assertRaisesRegex(
+                self, ValueError,
+                'Error parsing capabilities document. '
+                'No accessURL for interface for ivo://provider/service'):
+            cr.parsexml(
+                '<capabilities><capability '
+                'standardID="ivo://provider/service">'
+                '<interface></interface><accessURL>'
+                '</accessURL></capability></capabilities>')
 
-        with assertRaisesRegex(self, ValueError, 'Error parsing capabilities document. '
-                                                 'No accessURL for interface for ivo://provider/service'):
-            cr.parsexml('<capabilities><capability standardID="ivo://provider/service">'
-                        '<interface><accessURL standardID="abc"></accessURL></interface></capability></capabilities>')
+        with assertRaisesRegex(self, ValueError,
+                               'Error parsing capabilities document. '
+                               'No accessURL for interface for '
+                               'ivo://provider/service'):
+            cr.parsexml(
+                '<capabilities><capability '
+                'standardID="ivo://provider/service">'
+                '<interface><accessURL standardID="abc">'
+                '</accessURL></interface></capability></capabilities>')
 
         # simplest capabilities document that parses successfully
-        cr.parsexml('<capabilities><capability standardID="ivo://provider/service">'
-                    '<interface><accessURL>http://someurl/somepath'
-                    '</accessURL></interface></capability></capabilities>')
+        cr.parsexml(
+            '<capabilities><capability standardID="ivo://provider/service">'
+            '<interface><accessURL>http://someurl/somepath'
+            '</accessURL></interface></capability></capabilities>')
 
         # add security method
-        with assertRaisesRegex(self, ValueError, 'Error parsing capabilities document. '
-                                                 'Invalid security method None for URL '
-                                                 'http://someurl/somepath of capability ivo://provider/service'):
-            cr.parsexml('<capabilities><capability standardID="ivo://provider/service">'
-                        '<interface><accessURL>http://someurl/somepath'
-                        '</accessURL><securityMethod></securityMethod></interface></capability></capabilities>')
+        with assertRaisesRegex(self, ValueError,
+                               'Error parsing capabilities document. '
+                               'Invalid security method None for URL '
+                               'http://someurl/somepath of capability '
+                               'ivo://provider/service'):
+            cr.parsexml(
+                '<capabilities><capability '
+                'standardID="ivo://provider/service">'
+                '<interface><accessURL>http://someurl/somepath'
+                '</accessURL><securityMethod></securityMethod>'
+                '</interface></capability></capabilities>')
 
-        with assertRaisesRegex(self, ValueError, 'Error parsing capabilities document. '
-                                                 'Invalid URL in access URL \(http://someurl/somepath\) or '
-                                                 'security method \(mymethod\)'):
-            cr.parsexml('<capabilities><capability standardID="ivo://provider/service">'
-                        '<interface><accessURL>http://someurl/somepath'
-                        '</accessURL><securityMethod standardID="mymethod"></securityMethod></interface></capability></capabilities>')
+        with assertRaisesRegex(self, ValueError,
+                               'Error parsing capabilities document. '
+                               'Invalid URL in access URL '
+                               '\(http://someurl/somepath\) or '
+                               'security method \(mymethod\)'):
+            cr.parsexml(
+                '<capabilities><capability '
+                'standardID="ivo://provider/service">'
+                '<interface><accessURL>http://someurl/somepath'
+                '</accessURL><securityMethod standardID="mymethod">'
+                '</securityMethod></interface></capability></capabilities>')

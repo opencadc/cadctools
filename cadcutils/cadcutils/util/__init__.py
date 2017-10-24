@@ -1,6 +1,7 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 """
-The cadcutils.util package contains utilities commonly use in CADC applications.
+The cadcutils.util package contains utilities commonly use in CADC
+applications.
 
 The following functions are meant to be imported directly from cadcutils.util:
 
@@ -10,5 +11,5 @@ The following functions are meant to be imported directly from cadcutils.util:
     - get_base_parser: creates a basic parser for CADC web app applications
 
 """
-from .utils import *
-from .config import *
+from .utils import *  # noqa
+from .config import *  # noqa

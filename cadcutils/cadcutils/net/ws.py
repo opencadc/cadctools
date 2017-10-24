@@ -85,7 +85,6 @@ import os
 import requests
 from requests import Session
 from six.moves.urllib.parse import urlparse
-from lxml import etree
 
 from cadcutils import exceptions
 from .. import version as cadctools_version
@@ -96,19 +95,22 @@ from . import wscapabilities
 # prevents the latest versions of the requests library work when pyOpenSSL
 # is installed in the system. The temporary workaround below makes
 # requests ignore the install pyOpenSSL
-#TODO remove after the above issue is closed
+# TODO remove after the above issue is closed
 try:
     from requests.packages.urllib3.contrib import pyopenssl
+
     pyopenssl.extract_from_urllib3()
 except ImportError:
     # it's an earlier version of requests that doesn't use pyOpenSSL
     pass
 
-__all__ = ['BaseWsClient', 'get_resources', 'list_resources', 'DEFAULT_REGISTRY']
+__all__ = ['BaseWsClient', 'get_resources', 'list_resources',
+           'DEFAULT_REGISTRY']
 
 BUFSIZE = 8388608  # Size of read/write buffer
 MAX_RETRY_DELAY = 128  # maximum delay between retries
-DEFAULT_RETRY_DELAY = 30  # start delay between retries when Try_After not sent by server.
+# start delay between retries when Try_After not sent by server.
+DEFAULT_RETRY_DELAY = 30
 MAX_NUM_RETRIES = 6
 
 SERVICE_RETRY = 'Retry-After'
@@ -123,10 +125,12 @@ except:
 
 def get_resources(with_caps=True):
     """
-    Fetches the registry information regarding the available resources and their
-    capabilities
-    :param with_caps: True for including capabilities information, false otherwise
-    :return: List of the form (resource_id, capability url, wscapabilities.Capabilities)}
+    Fetches the registry information regarding the available resources
+    and their capabilities
+    :param with_caps: True for including capabilities information,
+    false otherwise
+    :return: List of the form (resource_id, capability url,
+    wscapabilities.Capabilities)}
     """
     resources = []
     cr = wscapabilities.CapabilitiesReader()
@@ -161,42 +165,53 @@ class BaseWsClient(object):
     """
     Web Service client primarily for CADC services. It is a wrapper class
        around the requests module to facilitate the interaction with the
-       server via the get, put, post, delete and head functions (when the service supports it).
+       server via the get, put, post, delete and head functions (when the
+       service supports it).
 
     Additional functionality that this class transparently offer:
-            - discovery the capabilities of the service and their access methods
+            - discovery the capabilities of the service and their access
+            methods
             - handling of transient errors with retrials
-            - use of the appropriate credentials when interacting with the service
+            - use of the appropriate credentials when interacting with the
+            service
             - proper agent identification for logging on the server
 
     Three arguments are required in order to instantiate this class:
-        1. A valid resource ID corresponding to the Web service that is being accessed.
-        cadcutils.net.get_resources lists all the available resources at BOOTSTRAP_LOCATION location
-        2. A cadcutils.net.Subject instance that contains the user credentials (no arguments
-           for anonymous subject, certificate file or basic authentication).
-        3. Agent is the name and version of the application as it will be presented in the HTTP
+        1. A valid resource ID corresponding to the Web service that is
+        being accessed. cadcutils.net.get_resources lists all the available
+        resources at BOOTSTRAP_LOCATION location
+        2. A cadcutils.net.Subject instance that contains the user credentials
+        (no arguments for anonymous subject, certificate file or basic
+        authentication).
+        3. Agent is the name and version of the application as it will be
+        presented in the HTTP
           request e.g. foo/1.0.2
-    Once the BaseWsClient has been instantiated, the get/put/post/delete/head functions can be
-        called on it.
+    Once the BaseWsClient has been instantiated, the get/put/post/delete/head
+    functions can be called on it.
 
-    TODO: this implementation is very tightly coupled with the requests package, especially the
-        arguments of get/post/put/delete/head that are blindly passed and the response object that
-        is returned and the clients work with.
+    TODO: this implementation is very tightly coupled with the requests
+    package, especially the arguments of get/post/put/delete/head that are
+    blindly passed and the response object that is returned and the clients
+    work with.
        """
 
-    def __init__(self, resource_id, subject, agent, retry=True, host=None, session_headers=None):
+    def __init__(self, resource_id, subject, agent, retry=True, host=None,
+                 session_headers=None):
         """
         Client constructor
-        :param resource_id -- ID of the resource being accessed (URI format) as it appears in
-        the registry.
+        :param resource_id -- ID of the resource being accessed (URI format)
+        as it appears in the registry.
         :param subject -- The subject that is using the service
         :type subject: cadcutil.auth.Subject
-        :param agent -- Name of the agent (application) that accesses the service and its version,
-        e.g. foo/1.0.2
+        :param agent -- Name of the agent (application) that accesses the
+        service and its version, e.g. foo/1.0.2
         :type agent: Subject
-        :param retry -- True if the client retries on transient errors False otherwise
-        :param host -- override the name of the host the service is running on (for testing purposes)
-        :param session_headers -- Headers used throughout the session - dictionary format expected.
+        :param retry -- True if the client retries on transient errors False
+        otherwise
+        :param host -- override the name of the host the service is running on
+        (for testing purposes)
+        :param session_headers -- Headers used throughout the session -
+        dictionary format expected.
         """
 
         self.logger = logging.getLogger('BaseWsClient')
@@ -220,11 +235,13 @@ class BaseWsClient(object):
         self.agent = agent
 
         # Get the package name and version, plus any imported libraries.
-        self.package_info = "cadcutils/{} requests/{}".format(cadctools_version.version,
-                                                              requests.__version__)
+        self.package_info = "cadcutils/{} requests/{}".format(
+            cadctools_version.version,
+            requests.__version__)
         self.python_info = "{}/{}".format(platform.python_implementation(),
                                           platform.python_version())
-        self.system_info = "{}/{}".format(platform.system(), platform.version())
+        self.system_info = "{}/{}".format(platform.system(),
+                                          platform.version())
         o_s = sys.platform
         if o_s.lower().startswith('linux'):
             distname, version, osid = platform.linux_distribution()
@@ -264,10 +281,10 @@ class BaseWsClient(object):
 
     def post(self, resource=None, **kwargs):
         """Wrapper for POST so that we use this client's session
-           :param resource represents the resource to access. It can take two forms:
-           1 - a URL or 2 - a tuple representing a Web Service resource in which the
-           first member of the tuple is the URI of the resource (capability) and
-           the second argument is the path.
+           :param resource represents the resource to access. It can take two
+           forms: 1 - a URL or 2 - a tuple representing a Web Service resource
+           in which the first member of the tuple is the URI of the resource
+           (capability) and the second argument is the path.
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
         """
@@ -275,9 +292,10 @@ class BaseWsClient(object):
 
     def put(self, resource=None, **kwargs):
         """Wrapper for PUT so that we use this client's session
-           :param resource represents the resource to access. It can take two forms:
-           1 - a URL or 2 - a tuple representing a Web Service resource in which the
-           first member of the tuple is the URI of the resource (capability) and
+           :param resource represents the resource to access. It can take two
+           forms: 1 - a URL or 2 - a tuple representing a Web Service resource
+           in which the first member of the tuple is the URI of the resource
+           (capability) and
            the second argument is the path.
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
@@ -286,21 +304,23 @@ class BaseWsClient(object):
 
     def get(self, resource, params=None, **kwargs):
         """Wrapper for GET so that we use this client's session
-           :param resource represents the resource to access. It can take two forms:
-           1 - a URL or 2 - a tuple representing a Web Service resource in which the
-           first member of the tuple is the URI of the resource (capability) and
-           the second argument is the path.
+           :param resource represents the resource to access. It can take two
+           forms: 1 - a URL or 2 - a tuple representing a Web Service resource
+           in which the first member of the tuple is the URI of the resource
+           (capability) and the second argument is the path.
+           :param params parameters to use with get
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
         """
-        return self._get_session().get(self._get_url(resource), params=params, **kwargs)
+        return self._get_session().get(self._get_url(resource), params=params,
+                                       **kwargs)
 
     def delete(self, resource=None, **kwargs):
         """Wrapper for DELETE so that we use this client's session
-           :param resource represents the resource to access. It can take two forms:
-           1 - a URL or 2 - a tuple representing a Web Service resource in which the
-           first member of the tuple is the URI of the resource (capability) and
-           the second argument is the path.
+           :param resource represents the resource to access. It can take two
+           forms: 1 - a URL or 2 - a tuple representing a Web Service resource
+           in which the first member of the tuple is the URI of the resource
+           (capability) and the second argument is the path.
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
         """
@@ -308,10 +328,10 @@ class BaseWsClient(object):
 
     def head(self, resource=None, **kwargs):
         """Wrapper for HEAD so that we use this client's session
-           :param resource represents the resource to access. It can take two forms:
-           1 - a URL or 2 - a tuple representing a Web Service resource in which the
-           first member of the tuple is the URI of the resource (capability) and
-           the second argument is the path.
+           :param resource represents the resource to access. It can take two
+           forms: 1 - a URL or 2 - a tuple representing a Web Service resource
+           in which the first member of the tuple is the URI of the resource
+           (capability) and the second argument is the path.
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
         """
@@ -332,7 +352,7 @@ class BaseWsClient(object):
         if type(resource) is tuple:
             # this is WS feature / path request
             path = ''
-            if (resource[1] is not None) and (len(resource[1])>0):
+            if (resource[1] is not None) and (len(resource[1]) > 0):
                 path = '/{}'.format(resource[1].strip('/'))
             base_url = self.caps.get_access_url(resource[0])
             access_url = '{}{}'.format(base_url, path)
@@ -353,13 +373,15 @@ class BaseWsClient(object):
             self.logger.debug('Creating session.')
             self._session = RetrySession(self.retry)
             if self.subject.certificate is not None:
-                self._session.cert = (self.subject.certificate, self.subject.certificate)
+                self._session.cert = (
+                    self.subject.certificate, self.subject.certificate)
             else:
                 if (not self.subject.anon) and (self.host is not None) and \
                         (self.subject.get_auth(self.host) is not None):
                     self._session.auth = self.subject.get_auth(self.host)
 
-        user_agent = "{} {} {} {} ({})".format(self.agent, self.package_info, self.python_info,
+        user_agent = "{} {} {} {} ({})".format(self.agent, self.package_info,
+                                               self.python_info,
                                                self.system_info, self.os_info)
         self._session.headers.update({"User-Agent": user_agent})
         if self.session_headers is not None:
@@ -370,8 +392,9 @@ class BaseWsClient(object):
 
 
 class RetrySession(Session):
-    """ Session that automatically does a number of retries for failed transient errors. The time between retries
-        double every time until a maximum of 30sec is reached
+    """ Session that automatically does a number of retries for failed
+        transient errors. The time between retries double every time until a
+        maximum of 30sec is reached
 
         The following network errors are considered transient:
             requests.codes.unavailable,
@@ -384,7 +407,8 @@ class RetrySession(Session):
             requests.codes.payment_required,
             requests.codes.payment
 
-        In addition, the Connection error 'Connection reset by remote user' also triggers a retry
+        In addition, the Connection error 'Connection reset by remote user'
+        also triggers a retry
         """
 
     retry_errors = [requests.codes.unavailable,
@@ -400,8 +424,9 @@ class RetrySession(Session):
     def __init__(self, retry=True, start_delay=1, *args, **kwargs):
         """
         ::param retry: set to False if retries not required
-        ::param start_delay: start delay interval between retries (default=1s). Note that for HTTP 503,
-                             this code follows the retry timeout set by the server in Retry-After
+        ::param start_delay: start delay interval between retries (default=1s).
+                Note that for HTTP 503, this code follows the retry timeout
+                set by the server in Retry-After
         """
         self.logger = logging.getLogger('RetrySession')
         self.retry = retry
@@ -410,7 +435,8 @@ class RetrySession(Session):
 
     def send(self, request, **kwargs):
         """
-        Send a given PreparedRequest, wrapping the connection to service in try/except that retries on
+        Send a given PreparedRequest, wrapping the connection to service in
+        try/except that retries on
         Connection reset by peer.
         :param request: The prepared request to send._session
         :param kwargs: Any keywords the adaptor for the request accepts.
@@ -420,18 +446,21 @@ class RetrySession(Session):
         # merge kwargs with env
         proxies = kwargs.get('proxies') or {}
         settings = self.merge_environment_settings(
-            request.url, proxies, kwargs.get('stream'), kwargs.get('verify'), kwargs.get('cert'))
+            request.url, proxies, kwargs.get('stream'), kwargs.get('verify'),
+            kwargs.get('cert'))
         kwargs.update(settings)
 
         if self.retry:
             current_delay = max(self.start_delay, DEFAULT_RETRY_DELAY)
             current_delay = min(current_delay, MAX_RETRY_DELAY)
             num_retries = 0
-            self.logger.debug("Sending request {0}  to server.".format(request))
+            self.logger.debug(
+                "Sending request {0}  to server.".format(request))
             current_error = None
             while num_retries < MAX_NUM_RETRIES:
                 try:
-                    response = super(RetrySession, self).send(request, **kwargs)
+                    response = super(RetrySession, self).send(request,
+                                                              **kwargs)
                     self.check_status(response)
                     return response
                 except requests.HTTPError as e:
@@ -441,27 +470,34 @@ class RetrySession(Session):
                     if e.response.status_code == requests.codes.unavailable:
                         # is there a delay from the server (Retry-After)?
                         try:
-                            current_delay = int(e.response.headers.get(SERVICE_RETRY, current_delay))
+                            current_delay = int(
+                                e.response.headers.get(SERVICE_RETRY,
+                                                       current_delay))
                             current_delay = min(current_delay, MAX_RETRY_DELAY)
                         except Exception:
                             pass
 
                 except requests.ConnectionError as ce:
                     current_error = ce
-                    # TODO not sure this appropriate for all the 'Connection reset by peer' errors.
-                    # A post/put to vospace returns a document. If operation succeeded but the error
-                    # occurs during the response the code below will send the request again. Since the
-                    # resource has been created/updated, a new error (bad request maybe) might be issued
-                    # by the server and that can confuse the caller.
-                    # This code should probably deal with HTTP errors only as the 503s above.
+                    # TODO not sure this appropriate for all the
+                    # 'Connection reset by peer' errors.
+                    # A post/put to vospace returns a document. If operation
+                    # succeeded but the error occurs during the response the
+                    # code below will send the request again. Since the
+                    # resource has been created/updated, a new error (bad
+                    # request maybe) might be issued by the server and that
+                    # can confuse the caller.
+                    # This code should probably deal with HTTP errors only
+                    # as the 503s above.
                     self.logger.debug("Caught exception: {0}".format(ce))
                     if ce.errno != 104:
                         # Only continue trying on a reset by peer error.
                         raise exceptions.HttpException(orig_exception=ce)
-                self.logger.warning("Resending request in {}s ...".format(current_delay))
+                self.logger.warning(
+                    "Resending request in {}s ...".format(current_delay))
                 time.sleep(current_delay)
                 num_retries += 1
-                current_delay = min(current_delay*2, MAX_RETRY_DELAY)
+                current_delay = min(current_delay * 2, MAX_RETRY_DELAY)
             raise exceptions.HttpException(current_error)
         else:
             response = super(RetrySession, self).send(request, **kwargs)
@@ -470,8 +506,8 @@ class RetrySession(Session):
 
     def check_status(self, response):
         """
-        Check the response status. Maps the application related requests error status into Exceptions
-        and raises the others
+        Check the response status. Maps the application related requests
+        error status into Exceptions and raises the others
         :param response: response
         :return:
         """
@@ -488,9 +524,11 @@ class RetrySession(Session):
                 raise exceptions.BadRequestException(orig_exception=e)
             elif e.response.status_code == requests.codes.conflict:
                 raise exceptions.AlreadyExistsException(orig_exception=e)
-            elif e.response.status_code == requests.codes.internal_server_error:
+            elif e.response.status_code == \
+                    requests.codes.internal_server_error:
                 raise exceptions.InternalServerException(orig_exception=e)
-            elif e.response.status_code == requests.codes.request_entity_too_large:
+            elif e.response.status_code == \
+                    requests.codes.request_entity_too_large:
                 raise exceptions.ByteLimitException(orig_exception=e)
             elif self.retry and e.response.status_code in self.retry_errors:
                 raise e
@@ -498,22 +536,27 @@ class RetrySession(Session):
                 raise exceptions.UnexpectedException(orig_exception=e)
 
 
-DEFAULT_REGISTRY = 'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-caps'
-CACHE_REFRESH_INTERVAL = 10*60
-CACHE_LOCATION = os.path.join(os.path.expanduser("~"), '.config', 'cadc-registry')
+DEFAULT_REGISTRY = \
+    'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-caps'
+CACHE_REFRESH_INTERVAL = 10 * 60
+CACHE_LOCATION = os.path.join(os.path.expanduser("~"), '.config',
+                              'cadc-registry')
 REGISTRY_FILE = 'resource-caps'
 
 
 class WsCapabilities(object):
     """
-    Contains the capabilities of Web Services. The most useful function is get_access_url that
-    returns the url corresponding to a feature of a Web Service
+    Contains the capabilities of Web Services. The most useful function is
+    get_access_url that returns the url corresponding to a feature of a
+    Web Service
     """
 
     def __init__(self, ws_client, host=None):
         """
-        :param ws_client: WebService client that the capabilities are required for
-        :param host: use this host rather than the default CADC host for reg lookup
+        :param ws_client: WebService client that the capabilities are required
+        for
+        :param host: use this host rather than the default CADC host for
+        reg lookup
         """
         self.logger = logging.getLogger('WsCapabilities')
         self.ws = ws_client
@@ -528,7 +571,8 @@ class WsCapabilities(object):
         # check the registry file in cache if it requires a refresh
         self.reg_file = os.path.join(cache_location, REGISTRY_FILE)
         resource_id = urlparse(ws_client.resource_id)
-        self.caps_file = os.path.join(cache_location, resource_id.netloc, resource_id.path.strip('/'))
+        self.caps_file = os.path.join(cache_location, resource_id.netloc,
+                                      resource_id.path.strip('/'))
         self.last_regtime = 0
         self.last_capstime = 0
         self._caps_reader = wscapabilities.CapabilitiesReader()
@@ -538,12 +582,13 @@ class WsCapabilities(object):
 
     def get_access_url(self, feature):
         """
-        Returns the access URL corresponding to a feature and the authentication information associated
-        with the subject that created the Web Service client
+        Returns the access URL corresponding to a feature and the
+        authentication information associated with the subject that created
+        the Web Service client
         :param feature: Web Service feature
         :return: corresponding access URL
         """
-        
+
         if (time.time() - self.last_capstime) > CACHE_REFRESH_INTERVAL:
             if self.last_capstime == 0:
                 # startup
@@ -552,14 +597,18 @@ class WsCapabilities(object):
                 except OSError:
                     # cannot read the cache file for whatever reason
                     pass
-            caps = self._get_content(self.caps_file, self._get_capability_url(), self.last_capstime)
-            # caps is a string but it's xml content claims it's utf-8 encode, hence need to encode it before
+            caps = self._get_content(self.caps_file,
+                                     self._get_capability_url(),
+                                     self.last_capstime)
+            # caps is a string but it's xml content claims it's utf-8 encode,
+            # hence need to encode it before
             # parsing it.
-            self.capabilities = self._caps_reader.parsexml(caps.encode('utf-8'))
+            self.capabilities = self._caps_reader.parsexml(
+                caps.encode('utf-8'))
             if (time.time() - self.last_capstime) > CACHE_REFRESH_INTERVAL:
                 self.last_capstime = time.time()
         sms = self.ws.subject.get_security_methods()
-        
+
         return self.capabilities.get_access_url(feature, sms)
 
     @property
@@ -568,14 +617,16 @@ class WsCapabilities(object):
 
     def _get_content(self, resource_file, url, last_accessed):
         """
-         Return content from a local cache file if information is recent (it was accessed
-         less than CACHE_REFRESH_INTERVAL seconds ago). If not, it updates the cache
-         from the provided url before returning the content.
+         Return content from a local cache file if information is recent
+         (it was accessed less than CACHE_REFRESH_INTERVAL seconds ago).
+         If not, it updates the cache from the provided url before
+         returning the content.
         """
         content = None
         if (time.time() - last_accessed) < CACHE_REFRESH_INTERVAL:
             # get reg information from the cached file
-            self.logger.debug('Read cached content of {}'.format(resource_file))
+            self.logger.debug(
+                'Read cached content of {}'.format(resource_file))
             try:
                 with open(resource_file, 'r') as f:
                     content = f.read()
@@ -593,18 +644,20 @@ class WsCapabilities(object):
                 with open(resource_file, 'w') as f:
                     f.write(content)
             except exceptions.HttpException:
-                # problems with the bootstrap registry. Try to use the old local one
-                # regardless of how old it is
+                # problems with the bootstrap registry. Try to use the old
+                # local one regardless of how old it is
                 with open(resource_file, 'r') as f:
                     content = f.read()
         if content is None:
-            raise RuntimeError("Cannot get the registry info from either local or remote source")
+            raise RuntimeError(
+                "Cannot get the registry info from either"
+                "local or remote source")
         return content
 
     def _get_capability_url(self):
         """
-        Parses the registry information and returns the url of the capabilities feature
-        of the Web Service
+        Parses the registry information and returns the url of the
+        capabilities feature of the Web Service
         :return: URL to the capabilities feature
         """
         if (time.time() - self.last_regtime) > CACHE_REFRESH_INTERVAL:
@@ -615,15 +668,17 @@ class WsCapabilities(object):
                 except OSError:
                     # cannot read the cache file for whatever reason
                     pass
-            
+
             # replace registry host name if necessary
             registry_url = DEFAULT_REGISTRY
             url = urlparse(registry_url)
-            if self._host != None and url.netloc != self._host:
-                registry_url = '{}://{}{}'.format(url.scheme, self._host, url.path)
+            if self._host is not None and url.netloc != self._host:
+                registry_url = '{}://{}{}'.format(url.scheme, self._host,
+                                                  url.path)
             self.logger.debug('Resolved URL: {}'.format(registry_url))
-            
-            reg = self._get_content(self.reg_file, registry_url, self.last_regtime)
+
+            reg = self._get_content(self.reg_file, registry_url,
+                                    self.last_regtime)
             self.caps_urls = {}
             if (time.time() - self.last_regtime) > CACHE_REFRESH_INTERVAL:
                 self.last_regtime = time.time()
@@ -633,6 +688,7 @@ class WsCapabilities(object):
                     feature, url = line.split('=')
                     self.caps_urls[feature.strip()] = url.strip()
         if self.ws.resource_id not in self.caps_urls:
-            raise AttributeError('Resource ID {} not found. Available resource IDs: {}'.
-                                               format(self.ws.resource_id, self.caps_urls.keys()))
+            raise AttributeError(
+                'Resource ID {} not found. Available resource IDs: {}'.
+                format(self.ws.resource_id, self.caps_urls.keys()))
         return self.caps_urls[self.ws.resource_id]
