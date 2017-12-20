@@ -580,12 +580,12 @@ def main_app():
         if exit_after:
             sys.exit(-1)  # TODO use different error codes?
 
-    args = parser.parse_args()
     if len(sys.argv) < 2:
         parser.print_usage(file=sys.stderr)
         handle_error("{}: error: too few arguments".format(APP_NAME),
                      exit_after=False)
         sys.exit(-1)
+    args = parser.parse_args()
     if args.verbose:
         logging.basicConfig(level=logging.INFO, stream=sys.stdout)
     elif args.debug:
