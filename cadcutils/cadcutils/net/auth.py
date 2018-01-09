@@ -81,7 +81,6 @@ import netrc as netrclib
 import os
 import signal
 import sys
-import logging
 import html2text
 
 from cadcutils.net import ws
@@ -99,6 +98,7 @@ SECURITY_METHODS_IDS = {
     'basic': 'http://www.w3.org/Protocols/HTTP/1.0/spec.html#BasicAA'}
 
 logger = util.get_logger(__name__)
+
 
 class Subject(object):
     """
