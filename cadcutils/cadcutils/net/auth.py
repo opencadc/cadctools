@@ -98,6 +98,7 @@ SECURITY_METHODS_IDS = {
     'certificate': 'ivo://ivoa.net/sso#tls-with-certificate',
     'basic': 'http://www.w3.org/Protocols/HTTP/1.0/spec.html#BasicAA'}
 
+logger = util.get_logger(__name__)
 
 class Subject(object):
     """
@@ -118,7 +119,6 @@ class Subject(object):
         :param netrc: use information from .netrc. Value can be True (use
         default $HOME/.netrc) or the name of the netrc file to use.
         """
-        self.logger = logging.getLogger('Subject')
         self.username = username
         self._hosts_auth = {}
         self._certificate = None
@@ -207,7 +207,7 @@ class Subject(object):
                     msg = '{} in {}'.format(msg,
                                             self.netrc if self.netrc
                                             is not True else '$HOME/.netrc')
-                self.logger.error(msg)
+                logger.debug(msg)
                 return None
         else:
             if realm in self._hosts_auth \
