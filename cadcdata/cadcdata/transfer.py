@@ -281,13 +281,13 @@ class TransferReader(object):
         # Continue with required nodes
         try:
             target = xml.find(vos + 'target').text
-        except:
+        except Exception:
             raise TransferReaderError(
                 'Unable to find a target in the transfer document')
 
         try:
             direction = xml.find(vos + 'direction').text
-        except:
+        except Exception:
             raise TransferReaderError(
                 'Unable to find direction in the transfer document')
 
@@ -343,7 +343,7 @@ class TransferWriter(object):
             nsmap = {'vos': ns}  # map for document
             vos = '{%s}' % ns  # VOS namespace string
 
-        except:
+        except Exception:
             raise TransferWriterError(
                 'Unexpected transfer version %i encountered'
                 % transfer.version)

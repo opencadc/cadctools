@@ -55,6 +55,10 @@ entry_point_list = conf.items('entry_points')
 for entry_point in entry_point_list:
     entry_points['console_scripts'].append('{0} = {1}'.format(entry_point[0],
                                                               entry_point[1]))
+    if entry_point[0] == 'getcert':
+        #TODO for some reason the case of getCert is lost, hence we need to
+        # manually add it 
+        entry_points['console_scripts'].append('getCert = {}'.format(entry_point[1]))
 
 # add the --cov option to the test command
 class PyTest(TestCommand):
@@ -100,7 +104,6 @@ setup(name=PACKAGENAME,
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6'

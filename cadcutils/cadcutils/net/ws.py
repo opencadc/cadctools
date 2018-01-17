@@ -119,7 +119,7 @@ SERVICE_AVAILABILITY_ID = 'ivo://ivoa.net/std/VOSI#availability'
 # try to disable the unverified HTTPS call warnings
 try:
     requests.packages.urllib3.disable_warnings()
-except:
+except Exception:
     pass
 
 
