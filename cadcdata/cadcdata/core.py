@@ -583,8 +583,7 @@ def main_app():
     args = parser.parse_args()
     if len(sys.argv) < 2:
         parser.print_usage(file=sys.stderr)
-        handle_error("{}: error: too few arguments".format(APP_NAME),
-                     exit_after=False)
+        sys.stderr.write("{}: error: too few arguments\n".format(APP_NAME))
         sys.exit(-1)
     if args.verbose:
         logging.basicConfig(level=logging.INFO, stream=sys.stdout)
