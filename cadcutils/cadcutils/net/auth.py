@@ -137,7 +137,8 @@ class Subject(object):
     @certificate.setter
     def certificate(self, value):
         if value is not None:
-            assert value is not '' and os.path.isfile(value)
+            assert value is not '' and os.path.isfile(value),\
+                'Certificate file {} not found'.format(value)
             self._certificate = value
 
     @property
@@ -213,8 +214,7 @@ class Subject(object):
             if realm in self._hosts_auth \
                     and self.username == self._hosts_auth[realm][0]:
                 return self._hosts_auth[realm]
-            sys.stdout.write("Password for {}@{}. ".format(self.username,
-                                                           realm))
+            sys.stdout.write("{}@{}\n".format(self.username, realm))
             sys.stdout.flush()
             self._hosts_auth[realm] = (self.username,
                                        getpass.getpass().strip('\n'))

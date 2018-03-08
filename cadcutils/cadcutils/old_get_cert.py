@@ -150,8 +150,6 @@ def get_user_password(realm):
         sys.stdout.write("{0} Username: ".format(realm))
         sys.stdout.flush()
         username = sys.stdin.readline().strip('\n')
-        sys.stdout.write("Password: ")
-        sys.stdout.flush()
         password = getpass.getpass().strip('\n')
     else:
         username = auth[0]
