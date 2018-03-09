@@ -4,7 +4,6 @@ import os
 import sys
 from six.moves import configparser
 from shutil import copyfile
-import stat
 
 
 logger = logging.getLogger('config')
