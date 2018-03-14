@@ -182,7 +182,7 @@ class Transfer(object):
         if scheme not in TRANSFER_SCHEMES:
             raise TransferError(
                 'Target scheme {} not in the supported group {}'.
-                    format(scheme, TRANSFER_SCHEMES))
+                format(scheme, TRANSFER_SCHEMES))
         self.target = target_in
 
     def set_direction(self, direction_in):
