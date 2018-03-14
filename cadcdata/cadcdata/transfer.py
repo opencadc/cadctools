@@ -81,6 +81,9 @@ PROTOCOL_HTTP_PUT = 'ivo://ivoa.net/vospace/core#httpput'
 DIRECTION_PROTOCOL_MAP = {'pushToVoSpace': PROTOCOL_HTTP_PUT,
                           'pullFromVoSpace': PROTOCOL_HTTP_GET}
 
+# supported transfer schemes
+TRANSFER_SCHEMES = ['vos', 'ad', 'mast']
+
 # The list of NODE_PROPERTIES is extensive. Any properties listed here are
 # simply special ones that we plan to handle (e.g., length can only be set in
 # > VOSPACE_21)
@@ -176,9 +179,10 @@ class Transfer(object):
         """ Set target with basic validation """
 
         scheme = urlparse(target_in).scheme.lower()
-        if scheme not in ['vos', 'ad']:
+        if scheme not in TRANSFER_SCHEMES:
             raise TransferError(
-                "Target should be of the form vos:... or ad:...")
+                'Target scheme {} not in the supported group {}'.
+                    format(scheme, TRANSFER_SCHEMES))
         self.target = target_in
 
     def set_direction(self, direction_in):
