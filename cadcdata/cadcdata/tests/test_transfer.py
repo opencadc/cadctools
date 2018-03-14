@@ -66,12 +66,13 @@
 
 import unittest
 from lxml import etree
+import pytest
 
 # put local code at start of path
 # sys.path.insert(0, os.path.abspath('../../../'))
 
 from cadcdata.transfer import Transfer, TransferError, TransferReader, \
-    TransferWriter, Protocol
+    TransferWriter, Protocol, TRANSFER_SCHEMES
 from cadcdata.transfer import DIRECTION_PROTOCOL_MAP, VOSPACE_21, VOSPACE_20
 
 test_target_good = 'vos://cadc.nrc.ca~vospace/file'
@@ -132,11 +133,23 @@ class TestTransferReaderWriter(unittest.TestCase):
                          DIRECTION_PROTOCOL_MAP[test_dir_put],
                          'Wrong protocol URI')
 
+        tran = Transfer('mast:HST/foo.fits', test_dir_put)
+        self.assertEqual(1, len(tran.protocols), 'Wrong number of protocols.')
+        self.assertEqual(tran.protocols[0].uri,
+                         DIRECTION_PROTOCOL_MAP[test_dir_put],
+                         'Wrong protocol URI')
+
         # For a get constructor protocol is not set
         tran = Transfer(test_target_good, test_dir_get)
         self.assertEqual(tran.protocols[0].uri,
                          DIRECTION_PROTOCOL_MAP[test_dir_get],
                          'Wrong protocol URI')
+
+        # Bad scheme
+        with pytest.raises(TransferError) as e:
+            Transfer('bad:HST/foo.fits', test_dir_put)
+        assert '"Target scheme bad not in the supported group {}"'.\
+            format(TRANSFER_SCHEMES) == str(e.value)
 
     def test_roundtrip_put(self):
         tran = Transfer(test_target_good, test_dir_put,

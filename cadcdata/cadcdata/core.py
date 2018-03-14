@@ -417,7 +417,10 @@ class CadcDataClient(object):
                                 headers=None, params=None):
         if headers is None:
             headers = {}
-        uri_transfer = 'ad:{}/{}'.format(archive, file_name)
+        if 'MAST' == archive:
+            uri_transfer = 'mast:{}'.format(file_name)
+        else:
+            uri_transfer = 'ad:{}/{}'.format(archive, file_name)
         # Direction-dependent setup
         if is_get:
             tran = Transfer(uri_transfer, 'pullFromVoSpace')
