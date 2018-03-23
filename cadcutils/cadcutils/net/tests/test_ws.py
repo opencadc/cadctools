@@ -623,7 +623,7 @@ class TestWsCapabilities(unittest.TestCase):
 
     @patch('cadcutils.net.ws.os.path.getmtime')
     @patch('cadcutils.net.ws.open', mock=mock_open())
-    @patch('cadcutils.net.ws.BaseWsClient.get')
+    @patch('cadcutils.net.ws.requests.get')
     def test_get_reg(self, get_mock, file_mock, file_modtime_mock):
         """
         Tests the registry part of WsCapabilities
@@ -646,9 +646,6 @@ class TestWsCapabilities(unittest.TestCase):
         fh_mock = Mock()
         file_mock.write = fh_mock
         client = Mock(resource_id=resource_id)
-        response = Mock()
-        response.text = cadcreg_content
-        client.get.return_value = response
         caps = ws.WsCapabilities(client)
         self.assertEqual(os.path.join(ws.CACHE_LOCATION, ws.REGISTRY_FILE),
                          caps.reg_file)
@@ -691,7 +688,7 @@ class TestWsCapabilities(unittest.TestCase):
 
     @patch('cadcutils.net.ws.os.path.getmtime')
     @patch('cadcutils.net.ws.open', mock=mock_open())
-    @patch('cadcutils.net.ws.BaseWsClient.get')
+    @patch('cadcutils.net.ws.requests.get')
     def test_get_caps(self, get_mock, file_mock, file_modtime_mock):
         """
         Tests the capabilities part of WsCapabilities
@@ -707,11 +704,11 @@ class TestWsCapabilities(unittest.TestCase):
         # test anonymous access
         fh_mock = Mock()
         file_mock.write = fh_mock
-        client = Mock(resource_id=resource_id, subject=auth.Subject())
         response = Mock(
             text=capabilities__content.replace('WS_URL', resource_cap_url))
-        client.get.return_value = response
-        caps = ws.WsCapabilities(client)
+        get_mock.return_value = response
+        caps = ws.WsCapabilities(Mock(resource_id=resource_id,
+                                      subject=auth.Subject()))
 
         # mock _get_capability_url to return some url without attempting
         # to access the server
