@@ -452,7 +452,7 @@ class RetrySession(Session):
 
         # requests does not provide a default timeout, hence we might need
         # to add it
-        if 'timeout' not in kwargs:
+        if 'timeout' not in kwargs or kwargs['timeout'] is None:
             kwargs['timeout'] = 30
 
         if self.retry:
