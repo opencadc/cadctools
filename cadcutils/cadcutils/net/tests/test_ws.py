@@ -350,7 +350,13 @@ class TestRetrySession(unittest.TestCase):
         send_mock.return_value = Mock()
         rs = ws.RetrySession(False)
         rs.send(request)
-        send_mock.assert_called_with(request)
+        send_mock.assert_called_with(request, timeout=30)
+
+        # retry to user defined timeout
+        send_mock.return_value = Mock()
+        rs = ws.RetrySession(False)
+        rs.send(request, timeout=77)
+        send_mock.assert_called_with(request, timeout=77)
 
         # mock delays for the 'Connection reset by peer error'
         # one connection error delay = DEFAULT_RETRY_DELAY
