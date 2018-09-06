@@ -512,8 +512,6 @@ def main_app():
         '-s', '--archive-stream',
         help='specific archive stream to add the file to',
         required=False)
-    put_parser.add_argument('-c', '--compress', help='gzip compress the data',
-                            action='store_true', required=False)
     put_parser.add_argument('archive', help='CADC archive')
     put_parser.add_argument(
         'source',
