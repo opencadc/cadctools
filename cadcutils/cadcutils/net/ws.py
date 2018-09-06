@@ -450,6 +450,11 @@ class RetrySession(Session):
             kwargs.get('cert'))
         kwargs.update(settings)
 
+        # requests does not provide a default timeout, hence we might need
+        # to add it
+        if 'timeout' not in kwargs or kwargs['timeout'] is None:
+            kwargs['timeout'] = 30
+
         if self.retry:
             current_delay = max(self.start_delay, DEFAULT_RETRY_DELAY)
             current_delay = min(current_delay, MAX_RETRY_DELAY)
