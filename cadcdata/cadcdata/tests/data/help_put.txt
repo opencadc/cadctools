@@ -1,7 +1,7 @@
 usage: cadc-data put [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                      [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
-                     [-s ARCHIVE_STREAM] [-c]
+                     [-s ARCHIVE_STREAM]
                      archive source [source ...]
 
 Upload files into a CADC archive
@@ -15,7 +15,6 @@ optional arguments:
                         specific archive stream to add the file to
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
-  -c, --compress        gzip compress the data
   -d, --debug           debug messages
   -h, --help            show this help message and exit
   --host HOST           base hostname for services - used mainly for testing
