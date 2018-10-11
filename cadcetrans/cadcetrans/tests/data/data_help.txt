@@ -1,0 +1,34 @@
+usage: cadc-etrans data [-h]
+                        [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                        [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v]
+                        [-c CHECK_FILENAME] [-s STREAM] [--dryrun]
+
+Transfer data to a CADC archive
+
+optional arguments:
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -c, --check-filename CHECK_FILENAME
+                        Namecheck file to check file names against
+  -d, --debug           debug messages
+  --dryrun              Perform all steps with the exception of the actual
+                        file transfer to the CADC
+  -h, --help            show this help message and exit
+  --host HOST           base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -q, --quiet           run quietly
+  --resource-id RESOURCE_ID
+                        resource identifier (e.g. ivo://cadc.nrc.ca/service)
+  -s, --stream STREAM   Process only files in this stream [new, replace]
+  -u, --user USER       name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+
+Examples:
+- Use default netrc file ($HOME/.netrc) to transfer FITS files in        the "current" dir: 
+        cadc-etrans data -v -n current
+- Use a different netrc file transfer the files in dryrun mode:
+        cadc-etrans data -d --netrc ~/mynetrc --dryrun workdir 

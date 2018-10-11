@@ -1,0 +1,20 @@
+# Configuration for e-transfer to CADC.  Note that the
+# scratch and transfer directories must be on the same
+# partition so that files can be moved atomically
+# from one to the other.
+[etransfer]
+archive=TEST
+group=jcmt
+machine=kolea
+key=/home/jsaproc/.ssh/etransfer
+scratchdir=/tmp/etrans/scratch
+transdir=/tmp/etrans/input
+max_files=10
+max_tries=3
+retry_delay=10
+ad_stream=RAW:raw PROCESSED:product
+cleanup_minutes=30
+
+[utilities]
+fitsverify=fitsverify
+

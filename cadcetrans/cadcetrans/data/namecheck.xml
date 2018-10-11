@@ -1,0 +1,31 @@
+<?xml version = "1.0" encoding="UTF-8" standalone="yes" ?>
+<configuration>
+  <!-- -->
+  <!-- All file ids are converted to upper case before comparison entries -->
+  <!-- in this file. -->
+  <!-- -->
+  <!-- A description of pattern syntax may be found in the Javadocs -->
+  <!-- for the java.util.regex.Pattern class. -->
+  <!-- -->
+  <list key = "FILE_ID_PATTERNS">
+    <struct name = "ALL">
+      <list key = "INSTRUMENTS">
+        <value>INSTR1</value>
+	    <value>SCAN</value>
+	    <value>ACSIS</value>
+      </list>
+      <list key = "RAW">
+        <!-- -->
+        <!-- INSTR raw data files -->
+        <!-- template N1234567 -->
+          <value>N[\d]{7}</value>
+        <!-- template astropy_icon -->
+          <value>[\d]{2,7}_icon</value>
+        <!-- -->
+      </list>
+      <list key = "PROCESSED">
+        <!-- -->
+      </list>
+    </struct>
+  </list>
+</configuration>
