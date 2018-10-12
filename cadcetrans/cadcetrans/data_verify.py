@@ -109,10 +109,12 @@ def is_valid_fits(filename, allow_warnings=True):
     # Fitsverify exits with bad status even if there are warnings, so we
     # can't just use subprocess.check_output.
     logger.debug('Running {} on file {}'.format(fitsverify, filename))
-    result = subprocess.run([fitsverify, '-q', filename],
-                            stdout=subprocess.PIPE)
+    process = subprocess.Popen([fitsverify, '-q', filename],
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process.wait()
+    stdout, stderr = process.communicate()
 
-    out = result.stdout.decode('utf-8')
+    out = stdout.decode('utf-8')
     logger.debug(out.rstrip())
 
     if out.startswith('verification OK'):
