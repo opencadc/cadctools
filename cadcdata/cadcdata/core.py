@@ -409,7 +409,6 @@ class CadcDataClient(object):
         raise exceptions.HttpException(
             'Unable to put data from any of the available URLs')
 
-
     def get_file_info(self, archive, file_name):
         """
         Get information regarding a file in the archive
