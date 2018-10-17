@@ -77,6 +77,7 @@ import sys
 import time
 import socket
 from clint.textui import progress
+import magic
 
 from cadcutils import net, util, exceptions
 from cadcdata.transfer import Transfer, TransferReader, TransferWriter
@@ -326,12 +327,15 @@ class CadcDataClient(object):
             ''.format(resource, dest_file.name, round(duration, 2),
                       round(total_length / 1024 / 1024 / duration, 2)))
 
-    def put_file(self, archive, src_file, archive_stream=None):
+    def put_file(self, archive, src_file, archive_stream=None, mime_type=None,
+                 mime_encoding=None):
         """
         Puts a file into the archive storage
         :param archive: name of the archive
         :param src_file: location of the source file
         :param archive_stream: specific archive stream
+        :param mime_type: file mime type
+        :param mime_encoding: file mime encoding
         """
         assert archive is not None
 
@@ -346,6 +350,29 @@ class CadcDataClient(object):
         headers = {}
         if archive_stream is not None:
             headers[ARCHIVE_STREAM_HTTP_HEADER] = str(archive_stream)
+        if mime_type:
+            mtype = mime_type
+        else:
+            m = magic.Magic(mime=True)
+            mtype = m.from_file(os.path.realpath(src_file))
+        if mtype:
+            headers['Content-Type'] = mtype
+            logger.debug('Set MIME type: {}'.format(mtype))
+        else:
+            logger.warn('Could not determine the MIME type for {}'.
+                        format(src_file))
+
+        if mime_encoding:
+            mencoding = mime_encoding
+        else:
+            m = magic.Magic(mime_encoding=True)
+            mencoding = m.from_file(os.path.realpath(src_file))
+        if mencoding:
+            headers['Content-Encoding'] = mencoding
+            logger.debug('Set MIME encoding: {}'.format(mencoding))
+        else:
+            logger.warn('Could not determine the MIME encoding for {}'.
+                        format(src_file))
 
         protocols = self._get_transfer_protocols(
             archive, src_file, is_get=False, headers=headers)
@@ -381,6 +408,7 @@ class CadcDataClient(object):
                 continue
         raise exceptions.HttpException(
             'Unable to put data from any of the available URLs')
+
 
     def get_file_info(self, archive, file_name):
         """
@@ -508,6 +536,14 @@ def main_app():
         'put',
         description='Upload files into a CADC archive',
         help='Upload files into a CADC archive')
+    put_parser.add_argument('-t', '--type',
+                            help="MIME type to set in archive. If missing, the"
+                                 " application will try to deduce it",
+                            required=False)
+    put_parser.add_argument('-e', '--encoding',
+                            help='MIME encoding to set in archive. If missing,'
+                                 ' the application will try to deduce it',
+                            required=False)
     put_parser.add_argument(
         '-s', '--archive-stream',
         help='specific archive stream to add the file to',
@@ -519,8 +555,8 @@ def main_app():
     put_parser.epilog = (
         'Examples:\n'
         '- Use certificate to put a file in an archive stream:\n'
-        '        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default TEST '
-        'myfile.fits.gz\n'
+        '        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default '
+        '-t "text/plain; charset=binary" TEST myfile.fits.gz\n'
         '- Use default netrc file ($HOME/.netrc) to put two files:\n'
         '        cadc-data put -v -n TEST myfile1.fits.gz myfile2.fits.gz\n'
         '- Use a different netrc file to put files from a directory:\n'
@@ -661,7 +697,9 @@ def main_app():
             if len(files) == 0:
                 handle_error('No files found to put')
             for f in files:
-                client.put_file(archive, f, archive_stream=args.archive_stream)
+                client.put_file(archive, f, archive_stream=args.archive_stream,
+                                mime_type=args.type,
+                                mime_encoding=args.encoding)
     except exceptions.UnauthorizedException:
         if subject.anon:
             handle_error('Operation cannot be performed anonymously. '

@@ -243,12 +243,24 @@ class TestCadcDataClient(unittest.TestCase):
 
         client._get_transfer_protocols = mock_get_trans_protocols
         client.put_file('TEST', file_name)
-        put_mock.assert_called_with(transf_end_point, data=ANY, headers={})
+        # Note Content* headers automatically created by cadc-data
+        put_mock.assert_called_with(transf_end_point, data=ANY,
+                                    headers={'Content-Type': 'text/plain',
+                                             'Content-Encoding': 'us-ascii'})
 
         # specify an archive stream
         client.put_file('TEST', file_name, archive_stream='default')
         put_mock.assert_called_with(transf_end_point, data=ANY,
-                                    headers={'X-CADC-Stream': 'default'})
+                                    headers={'Content-Encoding': 'us-ascii',
+                                             'X-CADC-Stream': 'default',
+                                             'Content-Type': 'text/plain'})
+        # specify the mime types
+        client.put_file('TEST', file_name, archive_stream='default',
+                        mime_type='ASCII', mime_encoding='GZIP')
+        put_mock.assert_called_with(transf_end_point, data=ANY,
+                                    headers={'Content-Encoding': 'GZIP',
+                                             'X-CADC-Stream': 'default',
+                                             'Content-Type': 'ASCII'})
         os.remove(file_name)
 
         # test an info
@@ -430,8 +442,10 @@ class TestCadcDataClient(unittest.TestCase):
         sys.argv = ['cadc-data', 'put', 'TEST', put_dir]
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             main_app()
-        calls = [call('TEST', '/tmp/put_dir/file2.txt', archive_stream=None),
-                 call('TEST', '/tmp/put_dir/file1.txt', archive_stream=None)]
+        calls = [call('TEST', '/tmp/put_dir/file2.txt', archive_stream=None,
+                      mime_type=None, mime_encoding=None),
+                 call('TEST', '/tmp/put_dir/file1.txt', archive_stream=None,
+                      mime_type=None, mime_encoding=None)]
         put_mock.assert_has_calls(calls, any_order=True)
         # number of file names does not match the number of file names.
         # logger displays an error
