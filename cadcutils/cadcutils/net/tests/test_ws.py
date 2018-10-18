@@ -610,7 +610,7 @@ capabilities__content = \
                 </accessURL>
                 <securityMethod
                 standardID=
-                "http://www.w3.org/Protocols/HTTP/1.0/spec.html#BasicAA"/>
+                "ivo://ivoa.net/sso#BasicAA"/>
             </interface>
             <interface xsi:type="vs:ParamHTTP" role="std" version="1.0">
                 <accessURL use="base">

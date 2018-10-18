@@ -95,7 +95,7 @@ __all__ = ['get_cert', 'Subject']
 # these are the security methods currently supported
 SECURITY_METHODS_IDS = {
     'certificate': 'ivo://ivoa.net/sso#tls-with-certificate',
-    'basic': 'http://www.w3.org/Protocols/HTTP/1.0/spec.html#BasicAA'}
+    'basic': 'ivo://ivoa.net/sso#BasicAA'}
 
 logger = util.get_logger(__name__)
 
