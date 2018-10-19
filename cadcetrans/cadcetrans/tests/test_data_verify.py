@@ -70,8 +70,10 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import os
+import logging
 import pytest
-from cadcetrans.data_verify import is_valid_png, is_valid_fits
+from cadcetrans.utils import TransferException
+from cadcetrans.data_verify import check_valid_png, check_valid_fits, check_valid_tar
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data/input')
@@ -99,18 +101,26 @@ def is_fitsverify_installed():
                     reason='fitsverify not installed')
 def test_valid_fits():
     # Allowing warnings.
-    assert is_valid_fits(os.path.join(TESTDATA_DIR, 'validfits.fits'))
-    assert is_valid_fits(os.path.join(TESTDATA_DIR, 'warningfits.fits'))
-    assert not is_valid_fits(os.path.join(TESTDATA_DIR, 'invalidfits.fits'))
+    check_valid_fits(os.path.join(TESTDATA_DIR, 'validfits.fits'))
+    check_valid_fits(os.path.join(TESTDATA_DIR, 'warningfits.fits'))
+    with pytest.raises(TransferException):
+        check_valid_fits(os.path.join(TESTDATA_DIR, 'invalidfits.fits'))
 
     # Not allowing warnings.
-    assert is_valid_fits(os.path.join(TESTDATA_DIR, 'validfits.fits'), False)
-    assert not \
-        is_valid_fits(os.path.join(TESTDATA_DIR, 'warningfits.fits'), False)
-    assert not \
-        is_valid_fits(os.path.join(TESTDATA_DIR, 'invalidfits.fits'), False)
+    check_valid_fits(os.path.join(TESTDATA_DIR, 'validfits.fits'), False)
+    with pytest.raises(TransferException):
+        check_valid_fits(os.path.join(TESTDATA_DIR, 'warningfits.fits'), False)
+    with pytest.raises(TransferException):
+        check_valid_fits(os.path.join(TESTDATA_DIR, 'invalidfits.fits'), False)
 
 
 def test_valid_png():
-    assert is_valid_png(os.path.join(TESTDATA_DIR, 'validpng.png'))
-    assert not is_valid_png(os.path.join(TESTDATA_DIR, 'invalid.png'))
+    check_valid_png(os.path.join(TESTDATA_DIR, 'validpng.png'))
+    with pytest.raises(TransferException):
+        assert not check_valid_png(os.path.join(TESTDATA_DIR, 'invalid.png'))\
+
+def test_valid_tar():
+    check_valid_tar(os.path.join(TESTDATA_DIR, 'validtar.tar'))
+    logging.getLogger('cadcetrans.data_verify').setLevel(logging.DEBUG)
+    with pytest.raises(TransferException):
+        check_valid_tar(os.path.join(TESTDATA_DIR, 'invalidtar.tar'))

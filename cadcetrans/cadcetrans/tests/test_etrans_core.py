@@ -97,17 +97,16 @@ class MyExitError(Exception):
 
 def config_get(section, key):
     # this is a mock of the
-    config = {'transdir': PROC_DIR, 'max_files': 10,
-              'ad_stream': 'RAW:raw PROCESSED:product'}
+    config = {'max_files': 10, 'ad_stream': 'RAW:raw PROCESSED:product'}
     return config[key]
 
 
 @patch('cadcetrans.etrans_core.etrans_config')
-def test_transfer(config_mock):
+def test_transfer_dryrun(config_mock):
     config_mock.get = config_get
 
     # no files to transfer
-    transfer('new', True, Subject())
+    transfer(PROC_DIR, 'new', True, Subject())
 
     # copy all the files including the invalid ones:
     src_files = os.listdir(TESTDATA_INPUT_DIR)
@@ -119,7 +118,7 @@ def test_transfer(config_mock):
     invalid_files = [f for f in os.listdir(dest) if 'invalid' in f]
 
     with pytest.raises(CommandError) as e:
-        transfer('new', True, Subject())
+        transfer(PROC_DIR, 'new', True, Subject())
     assert 'Errors occurred during transfer ({} error(s))'\
            .format(len(invalid_files)) in str(e)
 
@@ -127,16 +126,20 @@ def test_transfer(config_mock):
     for f in invalid_files:
         os.unlink(os.path.join(dest, f))
 
-    transfer('new', True, Subject())
+    transfer(PROC_DIR, 'new', True, Subject())
 
     with patch('cadcetrans.etrans_core.put_cadc_file'):
-        transfer('new', False, Subject())  # no more errors
+        transfer(PROC_DIR, 'new', False, Subject())  # no more errors
     # all files processed
     assert not os.listdir(dest)
 
     # stream required in dryrun mode
     with pytest.raises(CommandError):
-        transfer(None, True, Subject())
+        transfer(PROC_DIR, None, True, Subject())
+
+
+def test_transfer():
+    print("TO BE IMPLEMENTED")
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,

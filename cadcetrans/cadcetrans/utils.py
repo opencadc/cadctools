@@ -97,6 +97,19 @@ class TransferFailure(Exception):
     pass
 
 
+class TransferException(Exception):
+    """Class for transfer exceptions.
+
+    Objects in this class have a "reject_code" attribute corresponding
+    to the p-transfer reject subdirectory the file should be moved into.
+    """
+
+    def __init__(self, code):
+        Exception.__init__(
+            self, 'file rejected for p-transfer ({0})'.format(code))
+        self.reject_code = code
+
+
 class CommandError(Exception):
     """
     Class for errors detected running a command.

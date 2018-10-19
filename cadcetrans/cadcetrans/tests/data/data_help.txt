@@ -2,8 +2,12 @@ usage: cadc-etrans data [-h]
                         [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                         [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v]
                         [-c CHECK_FILENAME] [-s STREAM] [--dryrun]
+                        source
 
 Transfer data to a CADC archive
+
+positional arguments:
+  source                Source directory where the files are located.
 
 optional arguments:
   --cert CERT           location of your X509 certificate to use for

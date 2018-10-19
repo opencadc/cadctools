@@ -83,13 +83,13 @@ import os
 import tempfile
 import sys
 
-from .data_verify import get_md5sum, is_valid_fits, is_valid_png
+from .data_verify import get_md5sum, check_valid
 from .utils import etrans_config, fetch_cadc_file_info, put_cadc_file
 from .namecheck import check_file_name
 
 from cadcutils import net, util
 from cadcetrans import version
-from .utils import CommandError, ProcError, TransferFailure
+from .utils import CommandError, ProcError, TransferFailure, TransferException
 
 APP_NAME = 'cadc-etrans'
 
@@ -99,26 +99,17 @@ FileInfo = namedtuple('FileInfo', 'name stream')
 
 allowed_streams = ('new', 'replace')
 
-
-class TransferException(Exception):
-    """Class for transfer exceptions.
-
-    Objects in this class have a "reject_code" attribute corresponding
-    to the p-transfer reject subdirectory the file should be moved into.
-    """
-
-    def __init__(self, code):
-        Exception.__init__(
-            self, 'file rejected for p-transfer ({0})'.format(code))
-        self.reject_code = code
+__all__ = [ 'transfer']
 
 
-def transfer(stream=None, dry_run=False, subject=None, namecheck_file=None):
+
+def transfer(trans_dir, stream=None, dry_run=False,
+             subject=None, namecheck_file=None):
     """
     Attempt to put files into the archive at CADC.
 
-    This function is controlled by the configuration file entries
-    etransfer.transdir and etransfer.maxfiles. It looks in the "new" and
+    This function is controlled by the configuration file entry
+    etransfer.maxfiles. It looks in the "new" and
     "replace" directories inside "transdir" for at most  "max_files" files.
     The files are moved to a temporary processing directory and then either
     moved to a reject directory or deleted on completion.  In the event of
@@ -129,6 +120,7 @@ def transfer(stream=None, dry_run=False, subject=None, namecheck_file=None):
     "replace" directory.  It must be given in the dry_run case since then no
     "proc" directory is created.
 
+    :param trans_dir -- Directory where files to be transferred are located
     :param stream -- Stream to work with
     :param dry_run -- If True the last step (actual transfer of file) not
     executed
@@ -138,7 +130,6 @@ def transfer(stream=None, dry_run=False, subject=None, namecheck_file=None):
 
     """
 
-    trans_dir = etrans_config.get('etransfer', 'transdir')
     max_files = int(etrans_config.get('etransfer', 'max_files'))
 
     files = []
@@ -240,9 +231,11 @@ def transfer(stream=None, dry_run=False, subject=None, namecheck_file=None):
                             format(file.name, ad_stream))
 
             else:
+                type, encoding = _get_mime(file.name)
                 # Transfer the file.
                 put_cadc_file(os.path.join(proc_sub_dir, file.name),
-                              ad_stream, subject)
+                              ad_stream, subject, mime_type=type,
+                              mime_encoding=encoding)
 
                 # # Check it was transferred correctly.
                 # try:
@@ -300,7 +293,8 @@ def transfer(stream=None, dry_run=False, subject=None, namecheck_file=None):
             # Catch any other exception and also put the file back.
             n_err += 1
             logger.exception(
-                'Error while transferring file {}'.format(file.name))
+                'Error while transferring file {} : {}'.
+                format(file.name, str(e)))
 
             if not dry_run:
                 os.rename(
@@ -357,23 +351,6 @@ def transfer_check(proc_dir, filename, stream, md5sum, subject,
     if os.stat(proc_file).st_size == 0:
         raise TransferException('empty')
 
-    # Check extension and validity.
-    (root, ext) = os.path.splitext(filename)
-    # if ext == '.sdf':
-    #    if not valid_hds(proc_file):
-    #        raise TransferException('corrupt')
-
-    if ext == '.fits':
-        if not is_valid_fits(proc_file):
-            raise TransferException('fitsverify')
-
-    elif ext == '.png':
-        if not is_valid_png(proc_file):
-            raise TransferException('corrupt')
-
-    else:
-        raise TransferException('filetype')
-
     # Name-check.
     if namecheck_file:
         namecheck_section = check_file_name(namecheck_file, filename, True)
@@ -404,14 +381,16 @@ def transfer_check(proc_dir, filename, stream, md5sum, subject,
     else:
         raise Exception('unknown stream {0}'.format(stream))
 
+    check_valid(proc_file)
     return ad_stream
 
 
-def clean_up(dry_run=False):
-    """Attempt to clean up orphaned p-tranfer "proc" directories.
-    """
+def clean_up(trans_dir, dry_run=False):
+    """Attempt to clean up orphaned tranfer "proc" directories.
 
-    trans_dir = etrans_config.get('etransfer', 'transdir')
+    :param trans_dir -- the source directory
+    :param dry_run -- perform checks only in dry_run mode
+-    """
 
     # Determine latest start time for which we will consider cleaning up
     # a proc directory.
@@ -511,6 +490,20 @@ def clean_up(dry_run=False):
         os.rmdir(proc_dir)
 
 
+def _get_mime(filename):
+    _, file_extension = os.path.splitext(filename)
+    try:
+        type = etrans_config.get('mime-types', file_extension.strip('.'))
+    except KeyError:
+        type = None
+    try:
+        encoding = \
+            etrans_config.get('mime-encodings', file_extension.strip('.'))
+    except KeyError:
+        encoding = None
+    return type, encoding
+
+
 def main_app():
     parser = util.get_base_parser(version=version.version)
 
@@ -539,6 +532,9 @@ def main_app():
         '--dryrun', help=('Perform all steps with the exception of the actual '
                           'file transfer to the CADC'),
         action='store_true', required=False)
+    get_parser.add_argument('source',
+                            help='Source directory where the files are '
+                                 'located.')
     get_parser.epilog = (
         'Examples:\n'
         '- Use default netrc file ($HOME/.netrc) to transfer FITS files in'
@@ -586,6 +582,6 @@ def main_app():
 
     subject = net.Subject.from_cmd_line_args(args)
 
-    clean_up(dry_run=args.dryrun)
-    transfer(stream=args.stream, dry_run=args.dryrun, subject=subject,
-             namecheck_file=args.check_filename)
+    clean_up(args.source, dry_run=args.dryrun)
+    transfer(args.source, stream=args.stream, dry_run=args.dryrun,
+             subject=subject, namecheck_file=args.check_filename)

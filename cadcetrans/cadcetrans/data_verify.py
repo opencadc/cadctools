@@ -75,6 +75,10 @@ import subprocess
 from hashlib import md5
 import re
 from PIL import Image
+import os
+import tarfile
+import tempfile
+from cadcetrans.utils import TransferException
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +97,23 @@ def get_md5sum(filename):
     return sum.hexdigest()
 
 
-def is_valid_fits(filename, allow_warnings=True):
+def check_valid(filename, allow_warnings=True):
+    _, file_extension = os.path.splitext(filename)
+
+    method_name = etrans_config.get('verifiers', file_extension.strip('.'))
+    if not method_name:
+        logger.warning('No verifier found for file {}'.format(filename))
+        return
+    try:
+        method = globals()[method_name]
+    except KeyError:
+        logger.warning('Configured verifier for file extension {} not found. '
+                       'Check your config file.'.format(file_extension))
+        return
+    method(filename, allow_warnings)
+
+
+def check_valid_fits(filename, allow_warnings=True):
     """
     Check whether a given file is a valid FITS file.
 
@@ -104,12 +124,10 @@ def is_valid_fits(filename, allow_warnings=True):
     :param allow_warnings -- True if fitsverify warnings are allowed to pass
     """
 
-    fitsverify = etrans_config.get('utilities', 'fitsverify')
-
     # Fitsverify exits with bad status even if there are warnings, so we
     # can't just use subprocess.check_output.
-    logger.debug('Running {} on file {}'.format(fitsverify, filename))
-    process = subprocess.Popen([fitsverify, '-q', filename],
+    logger.debug('Running fitsverify on file {}'.format(filename))
+    process = subprocess.Popen(['fitsverify', '-q', filename],
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     process.wait()
     stdout, stderr = process.communicate()
@@ -121,28 +139,118 @@ def is_valid_fits(filename, allow_warnings=True):
         return True
 
     elif not allow_warnings:
-        return False
+        raise TransferException('fits verify')
     m = fitsverify_output.search(out)
     if not m:
-        logger.error('Fitsverify output did not match expected pattern')
-        return False
+        logger.error('fitsverify output did not match expected pattern')
+        raise TransferException('fits verify')
     # warnings = int(m.group(1))
     errors = int(m.group(2))
 
     # Already know we are in "allow_warnings" mode, so just check the
     # number of actual errors.
-    return not errors
+    if errors:
+        raise TransferException('fits verify')
 
 
-def is_valid_png(filename):
+def check_valid_png(filename, allow_warnings=False):
     """
     Determine whether a PNG file is valid.
     :param filename -- name of the file
+    :param allow_warnings -- True for lenient validity check, False otherwise
     """
     try:
         im = Image.open(filename)
         assert im.format == 'PNG'
         im.verify()
-        return True
-    except Exception:
-        return False
+        return
+    except Exception as e:
+        logger.debug('{} not valid png file: {}'.format(filename, str(e)))
+        raise TransferException('png verify')
+
+
+def check_valid_tar(filename, allow_warnings=False):
+    """
+        Determine whether a tar, gz or bz2 file is valid.
+        :param filename -- name of the file
+        """
+    try:
+        if not tarfile.is_tarfile(filename):
+            raise Exception()
+    except Exception as e:
+        logger.debug('{} not valid tar file: {}'.format(filename, str(e)))
+        raise TransferException('tar verify')
+
+
+def check_valid_tar_and_content(filename, allow_warnings=False):
+    """
+    Determine whether a tar, gz or bz2 file is valid. Unlike the check_valid_tar,
+    this method checks the validity of the content files.
+    :param filename -- name of the file
+    :param allow_warnings -- True for lenient validity check, False otherwise
+    """
+    try:
+        tar_file = tarfile.open(filename)
+    except Exception as e:
+        logger.debug('{} not valid tar file: {}'.format(filename, str(e)))
+        raise TransferException('tar verify')
+
+    logger.debug("Verify content of {}".format(filename))
+    tmpdir = tempfile.mkdtemp(prefix='etrans-tarverify')
+    tar_file.extractall(path=tmpdir)
+    tar_file.close()
+    for root, dirs, files in os.walk(tmpdir):
+        for f in files:
+            logger.debug('Checking file {} in ({})'.format(f, filename))
+            check_valid(os.path.join(root, f), allow_warnings)
+
+
+def check_valid_hds(filename):
+    """
+    Checks to see if a given file is a valid hds file.
+
+    TTTTTTTT  BBBBB    DDDDD
+       TT     BB  BB   DD  DD
+       TT     BB   BB  DD   DD
+       TT     BB  BB   DD   DD
+       TT     BBBB     DD   DD
+       TT     BB  BB   DD   DD
+       TT     BB   BB  DD   DD
+       TT     BB  BB   DD  DD
+       TT     BBBBB    DDDDD
+
+    This uses hdstrace, and assumes if it can provide a return
+    code of 0 then the file is valid.
+    It runs hdstrace from the starlink build defined in the
+    run_job.starpath section of the config file.
+
+    parameter:
+    :param filename string
+    full filename including path and suffix.
+
+    returns Boolean
+    True: file is valid hds
+    False: file is not valid hds.
+    """
+
+    raise NotImplementedException()
+
+    # Path to hdstrace.
+    config = get_config()
+    starpath = config.get('job_run', 'starpath')
+    com_path = os.path.join(starpath, 'bin', 'hdstrace')
+
+    # Environmental variables.
+    myenv = os.environ.copy()
+    myenv['ADAM_NOPROMPT'] = '1'
+    myenv['ADAM_EXIT'] = '1'
+    myenv['LD_LIBRARY_PATH'] = os.path.join(starpath, 'lib')
+
+    # Run hdstrace.
+    returncode = subprocess.call([com_path, filepath, 'QUIET'],
+                                 env=myenv,
+                                 stderr=subprocess.STDOUT,
+                                 shell=False)
+
+    # Status is True for returncode=0, False otherwise.
+    return returncode == 0
