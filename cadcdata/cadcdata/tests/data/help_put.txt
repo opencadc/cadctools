@@ -1,7 +1,7 @@
 usage: cadc-data put [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                      [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
-                     [-t TYPE] [-e ENCODING] [-s ARCHIVE_STREAM]
+                     [-t TYPE] [-e ENCODING] [-s ARCHIVE_STREAM] [--nomd5]
                      archive source [source ...]
 
 Upload files into a CADC archive
@@ -25,6 +25,7 @@ optional arguments:
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
+  --nomd5               do not perform md5 check at the end of transfer
   -q, --quiet           run quietly
   --resource-id RESOURCE_ID
                         resource identifier (default ivo://cadc.nrc.ca/data)

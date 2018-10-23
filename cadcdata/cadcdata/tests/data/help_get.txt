@@ -1,8 +1,8 @@
 usage: cadc-data get [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                      [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
-                     [-o OUTPUT] [--cutout [CUTOUT [CUTOUT ...]]] [-z] [--wcs]
-                     [--fhead]
+                     [-o OUTPUT] [--cutout [CUTOUT [CUTOUT ...]]] [--nomd5]
+                     [-z] [--wcs] [--fhead]
                      archive filename [filename ...]
 
 Retrieve files from a CADC archive
@@ -26,6 +26,7 @@ optional arguments:
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
+  --nomd5               do not perform md5 check at the end of transfer
   -o, --output OUTPUT   space-separated list of destination files (quotes
                         required for multiple elements)
   -q, --quiet           run quietly
