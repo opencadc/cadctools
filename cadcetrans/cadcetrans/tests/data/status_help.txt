@@ -1,8 +1,13 @@
-usage: cadc-etrans meta [-h]
-                        [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                        [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v]
+usage: cadc-etrans status [-h]
+                          [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                          [--host HOST] [--resource-id RESOURCE_ID]
+                          [-d | -q | -v]
+                          source
 
-Transfer metadata observation files to a CADC archive
+Displays the status of the system
+
+positional arguments:
+  source                Source directory where the files are located.
 
 optional arguments:
   --cert CERT           location of your X509 certificate to use for
@@ -16,7 +21,7 @@ optional arguments:
                         netrc file to use for authentication
   -q, --quiet           run quietly
   --resource-id RESOURCE_ID
-                        resource identifier (e.g. ivo://cadc.nrc.ca/service)
+                        resource identifier (default False)
   -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages

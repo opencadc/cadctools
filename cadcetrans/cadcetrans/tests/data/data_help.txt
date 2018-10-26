@@ -1,7 +1,8 @@
 usage: cadc-etrans data [-h]
                         [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                        [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v]
-                        [-c CHECK_FILENAME] [-s STREAM] [--dryrun]
+                        [--host HOST] [--resource-id RESOURCE_ID]
+                        [-d | -q | -v] [-c CHECK_FILENAME] [-s STREAM]
+                        [--dryrun]
                         source
 
 Transfer data to a CADC archive
@@ -25,7 +26,7 @@ optional arguments:
                         netrc file to use for authentication
   -q, --quiet           run quietly
   --resource-id RESOURCE_ID
-                        resource identifier (e.g. ivo://cadc.nrc.ca/service)
+                        resource identifier (default False)
   -s, --stream STREAM   Process only files in this stream [new, replace]
   -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!

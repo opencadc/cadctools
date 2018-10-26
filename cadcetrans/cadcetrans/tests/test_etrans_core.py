@@ -77,7 +77,7 @@ from cadcetrans.etrans_core import transfer, main_app
 from cadcetrans.utils import CommandError
 import tempfile
 import shutil
-from mock import patch, Mock
+from mock import patch, Mock, call
 from six import StringIO
 import sys
 
@@ -97,7 +97,7 @@ class MyExitError(Exception):
 
 def config_get(section, key):
     # this is a mock of the
-    config = {'max_files': 10, 'ad_stream': 'RAW:raw PROCESSED:product'}
+    config = {'max_files': 20, 'ad_stream': 'RAW:raw PROCESSED:product'}
     return config[key]
 
 
@@ -138,8 +138,64 @@ def test_transfer_dryrun(config_mock):
         transfer(PROC_DIR, None, True, Subject())
 
 
-def test_transfer():
-    print("TO BE IMPLEMENTED")
+@patch('cadcetrans.etrans_core.etrans_config')
+@patch('cadcetrans.etrans_core.put_cadc_file')
+def test_transfer(put_mock, config_mock):
+    config_mock.get = config_get
+    # cleanup the test directory (dest)
+    for f in os.listdir(dest):
+        ff = os.path.join(dest, f)
+        if os.path.isfile(ff):
+            os.unlink(ff)
+
+    # copy all the files including the invalid ones:
+    src_files = os.listdir(TESTDATA_INPUT_DIR)
+    for file_name in src_files:
+        full_file_name = os.path.join(TESTDATA_INPUT_DIR, file_name)
+        if (os.path.isfile(full_file_name)):
+            shutil.copy(full_file_name, dest)
+
+    invalid_files = [f for f in os.listdir(dest)
+                     if 'invalid' in f or 'bad' in f]
+    valid_files = [f for f in os.listdir(dest) if 'invalid' not in f]
+
+    subject = Subject()
+    with pytest.raises(CommandError) as e:
+        transfer(PROC_DIR, 'new', False, subject,
+                 namecheck_file=os.path.join(TESTDATA_DIR,
+                                             'namecheck.xml'))
+    assert 'Errors occurred during transfer ({} error(s))'\
+           .format(len(invalid_files)) in str(e)
+    assert put_mock.call_count == len(src_files) - len(invalid_files), 'Calls'
+    calls = []
+    for f in valid_files:
+        calls.append(call(os.path.join(dest, 'new', f), None, subject,
+                          mime_type=None, mime_encoding=None))
+    put_mock.asses_has_calls(calls, any_order=True)
+    # check that the left files are all invalid
+    for f in os.listdir(dest):
+        assert f.startswith('invalid')
+    # check to see if rejected files have been moved to the right place
+    for f in invalid_files:
+        if f.startswith('bad'):
+            assert os.path.isfile(os.path.join(PROC_DIR, 'reject', 'name', f))
+        else:
+            _, file_extension = os.path.splitext(f)
+            file_extension = file_extension.strip('.')
+            if file_extension == 'gz':
+                # this corresponds to a tar file with a invalid fits file
+                file_extension = 'fits'
+            if file_extension == 'jpg':
+                file_extension = 'jpeg'
+            assert os.path.isfile(os.path.join(PROC_DIR, 'reject',
+                                               '{} verify'.format(
+                                                   file_extension), f))
+    # run again with the invalid files only
+    put_mock.reset_mock()
+    transfer(PROC_DIR, 'new', False, subject)
+    assert 'Errors occurred during transfer ({} error(s))'\
+           .format(len(invalid_files)) in str(e)
+    assert put_mock.call_count == 0
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
@@ -154,8 +210,8 @@ def test_help():
     with open(
             os.path.join(TESTDATA_DIR, 'data_help.txt'), 'r') as myfile:
         data_usage = myfile.read()
-    with open(os.path.join(TESTDATA_DIR, 'meta_help.txt'), 'r') as myfile:
-        meta_usage = myfile.read()
+    with open(os.path.join(TESTDATA_DIR, 'status_help.txt'), 'r') as myfile:
+        status_usage = myfile.read()
 
     # maxDiff = None  # Display the entire difference
     # --help
@@ -172,7 +228,7 @@ def test_help():
         assert data_usage == stdout_mock.getvalue()
 
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-        sys.argv = ["cadc-etrans", "meta", "--help"]
+        sys.argv = ["cadc-etrans", "status", "--help"]
         with pytest.raises(MyExitError):
             main_app()
-        assert meta_usage == stdout_mock.getvalue()
+        assert status_usage == stdout_mock.getvalue()

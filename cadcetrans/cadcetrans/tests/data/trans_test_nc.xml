@@ -17,12 +17,8 @@
       <list key = "RAW">
         <!-- -->
         <!-- INSTR raw data files -->
-        <!-- template N1234567 -->
-          <value>N[\d]{7}</value>
-        <!-- template valid* invalid* warning* -->
-          <value>[ivw].*</value>
-        <!-- template astropy_icon -->
-          <value>[\d]{2,7}_icon</value>
+        <!-- template valid*, invalid*, warning* -->
+          <value>[ivw]*</value>
         <!-- -->
       </list>
       <list key = "PROCESSED">

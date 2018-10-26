@@ -129,20 +129,18 @@ class TestCadcDataClient(unittest.TestCase):
         expected_content = \
             (''.join([c.decode() for c in file_chunks])).encode()
         with open(file_name, 'rb') as f:
-            self.assertEquals(expected_content, f.read())
+            self.assertEqual(expected_content, f.read())
         os.remove(file_name)
         # do it again with the file now open
         response = Mock()
         response.headers = {'filename': 'orig_file_name',
                             'content-MD5': 'c622054d9e6f17b43814ad5d61cab239'}
-        #response.headers.get.return_value = \
-        #    'filename={}'.format('orig_file_name')
         response.raw.read.side_effect = file_chunks
         basews_mock.return_value.get.return_value = response
         with open(file_name, 'wb') as f:
             client.get_file('TEST', 'afile', destination=f)
         with open(file_name, 'rb') as f:
-            self.assertEquals(expected_content, f.read())
+            self.assertEqual(expected_content, f.read())
         os.remove(file_name)
 
         # test a get with decompress
@@ -158,7 +156,7 @@ class TestCadcDataClient(unittest.TestCase):
         client = CadcDataClient(auth.Subject())
         client.get_file('TEST', 'afile', decompress=True, md5_check=False)
         with open(file_name, 'r') as f:
-            self.assertEquals(file_content, f.read())
+            self.assertEqual(file_content, f.read())
         os.remove(file_name)
 
         # test process_bytes and send the content to /dev/null after.
@@ -182,7 +180,7 @@ class TestCadcDataClient(unittest.TestCase):
         # from server
         client.get_file('TEST', 'afile', destination='/dev/null',
                         process_bytes=concatenate_chunks)
-        self.assertEquals(file_content, mycontent)
+        self.assertEqual(file_content, mycontent)
 
         # failed md5 checksum
         response = Mock()
@@ -196,7 +194,7 @@ class TestCadcDataClient(unittest.TestCase):
         # from server
         with pytest.raises(exceptions.HttpException):
             client.get_file('TEST', 'afile', destination='/dev/null',
-                        process_bytes=concatenate_chunks)
+                            process_bytes=concatenate_chunks)
 
         # test get fhead
         response = Mock()

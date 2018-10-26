@@ -73,7 +73,8 @@ import os
 import logging
 import pytest
 from cadcetrans.utils import TransferException
-from cadcetrans.data_verify import check_valid_png, check_valid_fits, check_valid_tar
+from cadcetrans.data_verify import check_valid_png, check_valid_fits,\
+    check_valid_tar
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data/input')
@@ -117,7 +118,8 @@ def test_valid_fits():
 def test_valid_png():
     check_valid_png(os.path.join(TESTDATA_DIR, 'validpng.png'))
     with pytest.raises(TransferException):
-        assert not check_valid_png(os.path.join(TESTDATA_DIR, 'invalid.png'))\
+        assert not check_valid_png(os.path.join(TESTDATA_DIR, 'invalid.png'))
+
 
 def test_valid_tar():
     check_valid_tar(os.path.join(TESTDATA_DIR, 'validtar.tar'))

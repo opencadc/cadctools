@@ -83,13 +83,15 @@ import os
 import tempfile
 import sys
 
+from termcolor import colored
 from .data_verify import get_md5sum, check_valid
 from .utils import etrans_config, fetch_cadc_file_info, put_cadc_file
 from .namecheck import check_file_name
 
 from cadcutils import net, util
 from cadcetrans import version
-from .utils import CommandError, ProcError, TransferFailure, TransferException
+from .utils import CommandError, ProcError, TransferFailure,\
+    TransferException, get_reverse_translog
 
 APP_NAME = 'cadc-etrans'
 
@@ -99,8 +101,7 @@ FileInfo = namedtuple('FileInfo', 'name stream')
 
 allowed_streams = ('new', 'replace')
 
-__all__ = [ 'transfer']
-
+__all__ = ['transfer']
 
 
 def transfer(trans_dir, stream=None, dry_run=False,
@@ -237,24 +238,6 @@ def transfer(trans_dir, stream=None, dry_run=False,
                               ad_stream, subject, mime_type=type,
                               mime_encoding=encoding)
 
-                # # Check it was transferred correctly.
-                # try:
-                #     cadc_file_info = fetch_cadc_file_info(file.name)
-                # except ProcError:
-                #     raise TransferFailure('Unable to check CADC file info')
-                #
-                # if cadc_file_info is None:
-                #     # File doesn't seem to be there?
-                #     logger.error('File transferred but has no info')
-                #     raise TransferFailure('No file info')
-                #
-                # elif md5sum != cadc_file_info['md5sum']:
-                #     # File corrupted on transfer?  Put it back but in
-                #     # the replace directory for later re-transfer.
-                #     logger.error('File transferred but MD5 sum wrong')
-                #     file = file._replace(stream='replace')
-                #     raise TransferFailure('MD5 sum wrong')
-
                 # On success, delete the file.
                 logger.info('Transferred file {} ({})'.format(file.name,
                                                               ad_stream))
@@ -385,6 +368,17 @@ def transfer_check(proc_dir, filename, stream, md5sum, subject,
     return ad_stream
 
 
+def _get_proc_info(proc_dir):
+    # Check for and read the stamp file.
+    stamp_file = os.path.join(proc_dir, 'transfer.ini')
+    config = ConfigParser()
+    config_files_read = config.read(stamp_file)
+    if not config_files_read:
+        logger.debug('Directory {} has no stamp file'.format(proc_dir))
+        return None
+    return config
+
+
 def clean_up(trans_dir, dry_run=False):
     """Attempt to clean up orphaned tranfer "proc" directories.
 
@@ -407,17 +401,12 @@ def clean_up(trans_dir, dry_run=False):
             continue
 
         logger.debug('Directory {} found'.format(dir_))
-
-        # Check for and read the stamp file.
-        stamp_file = os.path.join(proc_dir, 'transfer.ini')
-        config = ConfigParser()
-        config_files_read = config.read(stamp_file)
-        if not config_files_read:
-            logger.debug('Directory {} has no stamp file'.format(dir_))
+        timestamp_file = _get_proc_info(proc_dir)
+        if not timestamp_file:
             continue
 
         # Check if the transfer started too recently to consider.
-        start = datetime.strptime(config.get('transfer', 'start'),
+        start = datetime.strptime(timestamp_file.get('transfer', 'start'),
                                   '%Y-%m-%d %H:%M:%S')
 
         if start > start_limit:
@@ -425,7 +414,7 @@ def clean_up(trans_dir, dry_run=False):
             continue
 
         # Check if the transfer process is still running (by PID).
-        pid = int(config.get('transfer', 'pid'))
+        pid = int(timestamp_file.get('transfer', 'pid'))
         is_running = True
         try:
             os.kill(pid, 0)
@@ -486,8 +475,80 @@ def clean_up(trans_dir, dry_run=False):
         if n_skipped or dry_run:
             continue
 
-        os.unlink(stamp_file)
+        os.unlink(timestamp_file)
         os.rmdir(proc_dir)
+
+
+def print_status(dirname):
+    print('\nRejected files:')
+    if os.path.isdir(os.path.join(dirname, 'reject')):
+        for d in os.listdir(os.path.join(dirname, 'reject')):
+            dir = os.path.join(dirname, 'reject', d)
+            if os.path.isdir(dir):
+                if d.endswith('verify'):
+                    print('\t {:6} -'.format(d.split()[0]),
+                          colored('{:8d}'.format(len(os.listdir(dir))), 'red'))
+                else:
+                    print('\t {:6} -'.format(d),
+                          colored('{:8d}'.format(len(os.listdir(dir))), 'red'))
+            else:
+                logger.error('Unexpected file in the rejected dir: {}'.
+                             format(dir))
+    else:
+        print('\tNone')
+    print('\nTransferring files:')
+    proc_dir = os.path.join(dirname, 'proc')
+    if os.path.isdir(proc_dir):
+        for d in os.listdir(proc_dir):
+            dir = os.path.join(proc_dir, d)
+            if d.startswith('proc') and os.path.isdir(dir):
+                procinfo = _get_proc_info(dir)
+                pid = int(procinfo.get('transfer', 'pid'))
+                start = procinfo.get('transfer', 'start')
+                print('PID {} (started at: {}):'.format(pid, start))
+                # count the files
+                for input in allowed_streams:
+                    if os.path.isdir(os.path.join(dir, input)):
+                        total = len(os.listdir(os.path.join(dir,
+                                                            input)))
+                        print('\t\t{:8} - {:8d}'.format(input, total))
+            else:
+                logger.warning('Unknown file/dir in proc directory: {}'.
+                               format(d))
+    else:
+        print('\tNo proc directory')
+    print('\nTransferred files*:')
+    lasth = [0, 0]
+    last24h = [0, 0]
+    last7d = [0, 0]
+    now = datetime.now()
+    for r in get_reverse_translog():
+        fields = r.split('---')
+        if len(fields) > 1:
+            logdate = datetime.strptime(fields[0].strip(),
+                                        '%Y-%m-%d %H:%M:%S,%f')
+            timediff = now - logdate
+            index = 1
+            if 'Success' in fields[1]:
+                index = 0
+            if timediff.total_seconds()/60.0/60.0 < 1:
+                lasth[index] += 1
+            if timediff.total_seconds()/60.0/60.0 < 24:
+                last24h[index] += 1
+            if timediff.total_seconds()/60.0/60.0 < 24 * 7:
+                last7d[index] += 1
+            else:
+                # TODO break reading the file here
+                pass
+    print('\tLast hour success -', colored('{:6}'.format(lasth[0]), 'green'),
+          ' error -', colored('{:8d}'.format(lasth[1]), 'red'))
+    print('\tLast day  success -', colored('{:6}'.format(last24h[0]), 'green'),
+          ' error -', colored('{:8d}'.format(last24h[1]), 'red'))
+    print('\tLast week success -', colored('{:6}'.format(last7d[0]), 'green'),
+          ' error -', colored('{:8d}'.format(last7d[1]), 'red'))
+    logdir = etrans_config.get('etransfer', 'transfer_log_dir')
+    trans_log = os.path.join(logdir, 'cadcetrans.log')
+    print('* - details in {}'.format(trans_log))
 
 
 def _get_mime(filename):
@@ -505,7 +566,8 @@ def _get_mime(filename):
 
 
 def main_app():
-    parser = util.get_base_parser(version=version.version)
+    parser = util.get_base_parser(version=version.version,
+                                  default_resource_id=False)
 
     parser.description = (
         'Application for transferring data and metadata electronically '
@@ -518,24 +580,24 @@ def main_app():
         dest='cmd',
         help='Supported commands. Use the -h|--help argument of a command '
              'for more details')
-    get_parser = subparsers.add_parser(
+    data_parser = subparsers.add_parser(
         'data', description='Transfer data to a CADC archive',
         help='Transfer data to a CADC archive')
-    get_parser.add_argument('-c', '--check-filename',
-                            help='Namecheck file to check file names against',
-                            required=False)
-    get_parser.add_argument(
+    data_parser.add_argument('-c', '--check-filename',
+                             help='Namecheck file to check file names against',
+                             required=False)
+    data_parser.add_argument(
         '-s', '--stream',
         help='Process only files in this stream [new, replace]')
     #  TODO limit to range of stream
-    get_parser.add_argument(
+    data_parser.add_argument(
         '--dryrun', help=('Perform all steps with the exception of the actual '
                           'file transfer to the CADC'),
         action='store_true', required=False)
-    get_parser.add_argument('source',
-                            help='Source directory where the files are '
-                                 'located.')
-    get_parser.epilog = (
+    data_parser.add_argument('source',
+                             help='Source directory where the files are '
+                             'located.')
+    data_parser.epilog = (
         'Examples:\n'
         '- Use default netrc file ($HOME/.netrc) to transfer FITS files in'
         '        the "current" dir: \n'
@@ -543,10 +605,13 @@ def main_app():
         '- Use a different netrc file transfer the files in dryrun mode:\n'
         '        cadc-etrans data -d --netrc ~/mynetrc --dryrun workdir ')
 
-    subparsers.add_parser(
-        'meta',
-        description='Transfer metadata observation files to a CADC archive',
-        help='Transfer metadata file to a CADC archive')
+    status_parser = subparsers.\
+        add_parser('status',
+                   description='Displays the status of the system',
+                   help='Display the status of the system')
+    status_parser.add_argument('source',
+                               help='Source directory where the files are '
+                               'located.')
 
     # handle errors
     errors = [0]
@@ -580,8 +645,16 @@ def main_app():
     if args.cmd == 'meta':
         raise NotImplementedError('meta command not implemented yet')
 
-    subject = net.Subject.from_cmd_line_args(args)
+    if args.cmd == 'status':
+        print_status(args.source)
+    elif args.cmd == 'data':
+        subject = net.Subject.from_cmd_line_args(args)
+        clean_up(args.source, dry_run=args.dryrun)
+        transfer(args.source, stream=args.stream, dry_run=args.dryrun,
+                 subject=subject, namecheck_file=args.check_filename)
+    else:
+        print('ERROR - unknown command')
+        sys.exit(-1)
 
-    clean_up(args.source, dry_run=args.dryrun)
-    transfer(args.source, stream=args.stream, dry_run=args.dryrun,
-             subject=subject, namecheck_file=args.check_filename)
+    print('DONE')
+    sys.exit(-1)

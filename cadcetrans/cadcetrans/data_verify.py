@@ -82,7 +82,7 @@ from cadcetrans.utils import TransferException
 
 logger = logging.getLogger(__name__)
 
-fitsverify_output = re.compile(' (\d+) warnings and (\d+) errors')
+fitsverify_output = re.compile(r' (\d+) warnings and (\d+) errors')
 
 
 def get_md5sum(filename):
@@ -169,6 +169,22 @@ def check_valid_png(filename, allow_warnings=False):
         raise TransferException('png verify')
 
 
+def check_valid_jpeg(filename, allow_warnings=False):
+    """
+    Determine whether a PNG file is valid.
+    :param filename -- name of the file
+    :param allow_warnings -- True for lenient validity check, False otherwise
+    """
+    try:
+        im = Image.open(filename)
+        assert im.format == 'JPEG'
+        im.verify()
+        return
+    except Exception as e:
+        logger.debug('{} not valid jpeg file: {}'.format(filename, str(e)))
+        raise TransferException('jpeg verify')
+
+
 def check_valid_tar(filename, allow_warnings=False):
     """
         Determine whether a tar, gz or bz2 file is valid.
@@ -184,8 +200,8 @@ def check_valid_tar(filename, allow_warnings=False):
 
 def check_valid_tar_and_content(filename, allow_warnings=False):
     """
-    Determine whether a tar, gz or bz2 file is valid. Unlike the check_valid_tar,
-    this method checks the validity of the content files.
+    Determine whether a tar, gz or bz2 file is valid. Unlike check_valid_tar,
+    this method also checks the validity of the content files.
     :param filename -- name of the file
     :param allow_warnings -- True for lenient validity check, False otherwise
     """
@@ -205,19 +221,9 @@ def check_valid_tar_and_content(filename, allow_warnings=False):
             check_valid(os.path.join(root, f), allow_warnings)
 
 
-def check_valid_hds(filename):
+def check_valid_hds(filename, allow_warnings=False):
     """
     Checks to see if a given file is a valid hds file.
-
-    TTTTTTTT  BBBBB    DDDDD
-       TT     BB  BB   DD  DD
-       TT     BB   BB  DD   DD
-       TT     BB  BB   DD   DD
-       TT     BBBB     DD   DD
-       TT     BB  BB   DD   DD
-       TT     BB   BB  DD   DD
-       TT     BB  BB   DD  DD
-       TT     BBBBB    DDDDD
 
     This uses hdstrace, and assumes if it can provide a return
     code of 0 then the file is valid.
@@ -231,13 +237,13 @@ def check_valid_hds(filename):
     returns Boolean
     True: file is valid hds
     False: file is not valid hds.
+
+    NOTE: This is used by the JCMT folks only and depends on the STARLINK
+    software. Hence it is not part of the Travis tests.
     """
 
-    raise NotImplementedException()
-
     # Path to hdstrace.
-    config = get_config()
-    starpath = config.get('job_run', 'starpath')
+    starpath = etrans_config.get('job_run', 'starpath')
     com_path = os.path.join(starpath, 'bin', 'hdstrace')
 
     # Environmental variables.
@@ -247,7 +253,7 @@ def check_valid_hds(filename):
     myenv['LD_LIBRARY_PATH'] = os.path.join(starpath, 'lib')
 
     # Run hdstrace.
-    returncode = subprocess.call([com_path, filepath, 'QUIET'],
+    returncode = subprocess.call([com_path, filename, 'QUIET'],
                                  env=myenv,
                                  stderr=subprocess.STDOUT,
                                  shell=False)

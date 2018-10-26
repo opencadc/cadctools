@@ -346,7 +346,7 @@ class CadcDataClient(object):
                 raise DownloadError(
                     'Downloaded file is corrupted: '
                     'expected md5({}) != actual md5({})'.
-                        format(response.headers.get('content-MD5', 0), md5sum))
+                    format(response.headers.get('content-MD5', 0), md5sum))
         duration = time.time() - start
         self.logger.info(
             'Successfully downloaded file {} as {} in {}s (avg. speed: {}MB/s)'
@@ -526,7 +526,6 @@ class DownloadError(Exception):
     """
     def __init__(self, msg=None):
         Exception.__init__(self, msg)
-
 
 
 def main_app():
@@ -751,7 +750,7 @@ def main_app():
                         if os.path.isfile(os.path.join(file1, f)):
                             files.append(os.path.join(file1, f))
                         else:
-                            logger.warn(
+                            logger.warning(
                                 '{} not added to the list of files to '
                                 'put'.format(f))
             logger.debug('Files to put: {}'.format(files))
