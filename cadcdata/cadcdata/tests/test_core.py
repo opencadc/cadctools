@@ -266,23 +266,27 @@ class TestCadcDataClient(unittest.TestCase):
         client._get_transfer_protocols = mock_get_trans_protocols
         client.put_file('TEST', file_name)
         # Note Content* headers automatically created by cadc-data
-        put_mock.assert_called_with(transf_end_point, data=ANY,
-                                    headers={'Content-Type': 'text/plain',
-                                             'Content-Encoding': 'us-ascii'})
+        put_mock.assert_called_with(
+            transf_end_point, data=ANY,
+            headers={'Content-Type': 'text/plain',
+                     'Content-Encoding': 'us-ascii',
+                     'Content-MD5': '835e7e6cd54e18ae21d50af963b0c32b'})
 
         # specify an archive stream
         client.put_file('TEST', file_name, archive_stream='default')
-        put_mock.assert_called_with(transf_end_point, data=ANY,
-                                    headers={'Content-Encoding': 'us-ascii',
-                                             'X-CADC-Stream': 'default',
-                                             'Content-Type': 'text/plain'})
+        put_mock.assert_called_with(
+            transf_end_point, data=ANY,
+            headers={'Content-Encoding': 'us-ascii',
+                     'X-CADC-Stream': 'default', 'Content-Type': 'text/plain',
+                     'Content-MD5': '835e7e6cd54e18ae21d50af963b0c32b'})
         # specify the mime types
         client.put_file('TEST', file_name, archive_stream='default',
                         mime_type='ASCII', mime_encoding='GZIP')
-        put_mock.assert_called_with(transf_end_point, data=ANY,
-                                    headers={'Content-Encoding': 'GZIP',
-                                             'X-CADC-Stream': 'default',
-                                             'Content-Type': 'ASCII'})
+        put_mock.assert_called_with(
+            transf_end_point, data=ANY,
+            headers={'Content-Encoding': 'GZIP',
+                     'X-CADC-Stream': 'default', 'Content-Type': 'ASCII',
+                     'Content-MD5': '835e7e6cd54e18ae21d50af963b0c32b'})
         os.remove(file_name)
 
         # test an info

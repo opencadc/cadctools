@@ -37,7 +37,7 @@ optional arguments:
 
 Examples:
 - Use certificate to put a file in an archive stream:
-        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default -t "text/plain; charset=binary" TEST myfile.fits.gz
+        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default -t "application/gzip" TEST myfile.fits.gz
 - Use default netrc file ($HOME/.netrc) to put two files:
         cadc-data put -v -n TEST myfile1.fits.gz myfile2.fits.gz
 - Use a different netrc file to put files from a directory:

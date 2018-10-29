@@ -288,7 +288,7 @@ class CadcDataClient(object):
             the same way as the corresponding response.iter_content
             """
 
-            def __init__(self, rsp, decode_content, md5_check):
+            def __init__(self, rsp, decode_content):
                 """
                 :param rsp: HTTP response object
                 """
@@ -323,7 +323,7 @@ class CadcDataClient(object):
         except ValueError:
             pass
 
-        rr = RawRange(response, decompress, md5_check)
+        rr = RawRange(response, decompress)
         reader = rr.get_instance
         if self.logger.isEnabledFor(logging.INFO):
             if total_length != 0:
@@ -354,7 +354,7 @@ class CadcDataClient(object):
                       round(total_length / 1024 / 1024 / duration, 2)))
 
     def put_file(self, archive, src_file, archive_stream=None, mime_type=None,
-                 mime_encoding=None, md5_check=False):
+                 mime_encoding=None, md5_check=True):
         """
         Puts a file into the archive storage
         :param archive: name of the archive
@@ -614,7 +614,7 @@ def main_app():
         'Examples:\n'
         '- Use certificate to put a file in an archive stream:\n'
         '        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default '
-        '-t "text/plain; charset=binary" TEST myfile.fits.gz\n'
+        '-t "application/gzip" TEST myfile.fits.gz\n'
         '- Use default netrc file ($HOME/.netrc) to put two files:\n'
         '        cadc-data put -v -n TEST myfile1.fits.gz myfile2.fits.gz\n'
         '- Use a different netrc file to put files from a directory:\n'
