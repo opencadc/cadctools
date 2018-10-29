@@ -83,6 +83,7 @@ from cadcdata import transfer
 from cadcdata import CadcDataClient
 from cadcdata.core import main_app, TRANSFER_RESOURCE_ID
 from mock import Mock, patch, ANY, call
+import pytest
 
 # The following is a temporary workaround for Python issue
 # 25532 (https://bugs.python.org/issue25532)
@@ -123,22 +124,23 @@ class TestCadcDataClient(unittest.TestCase):
         p.endpoint = Mock()
         t.protocols = [p]
         trans_reader_mock.return_value.read.return_value = t
-        client.get_file('TEST', 'afile', destination=file_name)
+        client.get_file('TEST', 'afile', destination=file_name,
+                        md5_check=False)
         expected_content = \
             (''.join([c.decode() for c in file_chunks])).encode()
         with open(file_name, 'rb') as f:
-            self.assertEquals(expected_content, f.read())
+            self.assertEqual(expected_content, f.read())
         os.remove(file_name)
         # do it again with the file now open
         response = Mock()
-        response.headers.get.return_value = \
-            'filename={}'.format('orig_file_name')
+        response.headers = {'filename': 'orig_file_name',
+                            'content-MD5': 'c622054d9e6f17b43814ad5d61cab239'}
         response.raw.read.side_effect = file_chunks
         basews_mock.return_value.get.return_value = response
         with open(file_name, 'wb') as f:
             client.get_file('TEST', 'afile', destination=f)
         with open(file_name, 'rb') as f:
-            self.assertEquals(expected_content, f.read())
+            self.assertEqual(expected_content, f.read())
         os.remove(file_name)
 
         # test a get with decompress
@@ -152,9 +154,9 @@ class TestCadcDataClient(unittest.TestCase):
         response.raw.read.side_effect = file_chunks
         basews_mock.return_value.get.return_value = response
         client = CadcDataClient(auth.Subject())
-        client.get_file('TEST', 'afile', decompress=True)
+        client.get_file('TEST', 'afile', decompress=True, md5_check=False)
         with open(file_name, 'r') as f:
-            self.assertEquals(file_content, f.read())
+            self.assertEqual(file_content, f.read())
         os.remove(file_name)
 
         # test process_bytes and send the content to /dev/null after.
@@ -169,14 +171,30 @@ class TestCadcDataClient(unittest.TestCase):
                        for i in xrange(0, len(file_content), 5)]
         file_chunks.append('')  # last chunk is empty
         response = Mock()
-        response.headers.get.return_value = 'filename={}.gz'.format(file_name)
+        response.headers = {'filename': '{}.gz'.format(file_name)}
         response.raw.read.side_effect = file_chunks
         basews_mock.return_value.get.return_value = response
         client = CadcDataClient(auth.Subject())
         client.logger.setLevel(logging.INFO)
+        # md5_check does not take place because no content-MD5 received
+        # from server
         client.get_file('TEST', 'afile', destination='/dev/null',
                         process_bytes=concatenate_chunks)
-        self.assertEquals(file_content, mycontent)
+        self.assertEqual(file_content, mycontent)
+
+        # failed md5 checksum
+        response = Mock()
+        response.headers = {'filename': '{}.gz'.format(file_name),
+                            'content-MD5': '33'}
+        response.raw.read.side_effect = file_chunks
+        basews_mock.return_value.get.return_value = response
+        client = CadcDataClient(auth.Subject())
+        client.logger.setLevel(logging.INFO)
+        # md5_check does not take place because no content-MD5 received
+        # from server
+        with pytest.raises(exceptions.HttpException):
+            client.get_file('TEST', 'afile', destination='/dev/null',
+                            process_bytes=concatenate_chunks)
 
         # test get fhead
         response = Mock()
@@ -190,7 +208,8 @@ class TestCadcDataClient(unittest.TestCase):
         file_name = 'getfile'
         archive = 'TEST'
         p.endpoint = 'http://someurl/transfer/{}/{}'.format(archive, file_name)
-        client.get_file('TEST', 'getfile', decompress=True, wcs=True)
+        client.get_file('TEST', 'getfile', decompress=True, wcs=True,
+                        md5_check=False)
         trans_doc = \
             ('<vos:transfer xmlns:'
              'vos="http://www.ivoa.net/xml/VOSpace/v2.0">\n  '
@@ -203,13 +222,15 @@ class TestCadcDataClient(unittest.TestCase):
                                      headers={'Content-Type': 'text/xml'})
         response.raw.read.side_effect = file_chunks
         post_mock.reset_mock()
-        client.get_file('TEST', 'getfile', decompress=True, fhead=True)
+        client.get_file('TEST', 'getfile', decompress=True, fhead=True,
+                        md5_check=False)
         post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None),
                                      params={'fhead': True}, data=trans_doc,
                                      headers={'Content-Type': 'text/xml'})
         response.raw.read.side_effect = file_chunks
         post_mock.reset_mock()
-        client.get_file('TEST', 'getfile', decompress=True, cutout='[1:1]')
+        client.get_file('TEST', 'getfile', decompress=True, cutout='[1:1]',
+                        md5_check=False)
         post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None),
                                      params={'cutout': '[1:1]'},
                                      data=trans_doc,
@@ -217,7 +238,8 @@ class TestCadcDataClient(unittest.TestCase):
         response.raw.read.side_effect = file_chunks
         post_mock.reset_mock()
         client.get_file('TEST', 'getfile',
-                        decompress=True, cutout='[[1:1], 2]')
+                        decompress=True, cutout='[[1:1], 2]',
+                        md5_check=False)
         post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None),
                                      params={'cutout': '[[1:1], 2]'},
                                      data=trans_doc,
@@ -243,12 +265,28 @@ class TestCadcDataClient(unittest.TestCase):
 
         client._get_transfer_protocols = mock_get_trans_protocols
         client.put_file('TEST', file_name)
-        put_mock.assert_called_with(transf_end_point, data=ANY, headers={})
+        # Note Content* headers automatically created by cadc-data
+        put_mock.assert_called_with(
+            transf_end_point, data=ANY,
+            headers={'Content-Type': 'text/plain',
+                     'Content-Encoding': 'us-ascii',
+                     'Content-MD5': '835e7e6cd54e18ae21d50af963b0c32b'})
 
         # specify an archive stream
         client.put_file('TEST', file_name, archive_stream='default')
-        put_mock.assert_called_with(transf_end_point, data=ANY,
-                                    headers={'X-CADC-Stream': 'default'})
+        put_mock.assert_called_with(
+            transf_end_point, data=ANY,
+            headers={'Content-Encoding': 'us-ascii',
+                     'X-CADC-Stream': 'default', 'Content-Type': 'text/plain',
+                     'Content-MD5': '835e7e6cd54e18ae21d50af963b0c32b'})
+        # specify the mime types
+        client.put_file('TEST', file_name, archive_stream='default',
+                        mime_type='ASCII', mime_encoding='GZIP')
+        put_mock.assert_called_with(
+            transf_end_point, data=ANY,
+            headers={'Content-Encoding': 'GZIP',
+                     'X-CADC-Stream': 'default', 'Content-Type': 'ASCII',
+                     'Content-MD5': '835e7e6cd54e18ae21d50af963b0c32b'})
         os.remove(file_name)
 
         # test an info
@@ -353,22 +391,24 @@ class TestCadcDataClient(unittest.TestCase):
                     'fileid3']
         main_app()
         calls = [call('TEST', 'fileid1', None, cutout=None, decompress=False,
-                      fhead=False, wcs=False),
+                      fhead=False, wcs=False, md5_check=True),
                  call('TEST', 'fileid2', None, cutout=None, decompress=False,
-                      fhead=False, wcs=False),
+                      fhead=False, wcs=False, md5_check=True),
                  call('TEST', 'fileid3', None, cutout=None, decompress=False,
-                      fhead=False, wcs=False)]
+                      fhead=False, wcs=False, md5_check=True)]
         get_mock.assert_has_calls(calls)
 
         # test with file names
         get_mock.reset_mock()
         sys.argv = ['cadc-data', 'get', 'TEST', '-o', 'file1.txt file2.txt',
-                    'fileid1', 'fileid2']
+                    '--nomd5', 'fileid1', 'fileid2']
         main_app()
         calls = [call('TEST', 'fileid1', 'file1.txt', cutout=None,
-                      decompress=False, fhead=False, wcs=False),
+                      decompress=False, fhead=False, wcs=False,
+                      md5_check=False),
                  call('TEST', 'fileid2', 'file2.txt', cutout=None,
-                      decompress=False, fhead=False, wcs=False)]
+                      decompress=False, fhead=False, wcs=False,
+                      md5_check=False)]
         get_mock.assert_has_calls(calls)
 
         # number of file names does not match the number of file ids.
@@ -430,8 +470,10 @@ class TestCadcDataClient(unittest.TestCase):
         sys.argv = ['cadc-data', 'put', 'TEST', put_dir]
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             main_app()
-        calls = [call('TEST', '/tmp/put_dir/file2.txt', archive_stream=None),
-                 call('TEST', '/tmp/put_dir/file1.txt', archive_stream=None)]
+        calls = [call('TEST', '/tmp/put_dir/file2.txt', archive_stream=None,
+                      mime_type=None, mime_encoding=None, md5_check=True),
+                 call('TEST', '/tmp/put_dir/file1.txt', archive_stream=None,
+                      mime_type=None, mime_encoding=None, md5_check=True)]
         put_mock.assert_has_calls(calls, any_order=True)
         # number of file names does not match the number of file names.
         # logger displays an error

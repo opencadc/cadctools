@@ -158,10 +158,10 @@ class TestWsCapabilities(unittest.TestCase):
                 '</interface></capability></capabilities>')
 
         with assertRaisesRegex(self, ValueError,
-                               'Error parsing capabilities document. '
-                               'Invalid URL in access URL '
-                               '\(http://someurl/somepath\) or '
-                               'security method \(mymethod\)'):
+                               r'Error parsing capabilities document. '
+                               r'Invalid URL in access URL '
+                               r'\(http://someurl/somepath\) or '
+                               r'security method \(mymethod\)'):
             cr.parsexml(
                 '<capabilities><capability '
                 'standardID="ivo://provider/service">'

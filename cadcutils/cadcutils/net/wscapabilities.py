@@ -205,7 +205,7 @@ class CapabilitiesReader(object):
         for cap in doc.iterfind('capability'):
             try:
                 capability = Capability(cap.get('standardID'))
-            except Exception as e:
+            except Exception:
                 raise ValueError('Error parsing capabilities document. '
                                  'Capability standard ID is invalid URL: {}'.
                                  format(cap.get('standardID')))
@@ -232,7 +232,7 @@ class CapabilitiesReader(object):
                                    access_url, capability.standard_id))
                 try:
                     capability.add_interface(access_url, security_method)
-                except ValueError as e:
+                except ValueError:
                     raise ValueError('Error parsing capabilities document. '
                                      'Invalid URL in access URL ({}) '
                                      'or security method ({})'.

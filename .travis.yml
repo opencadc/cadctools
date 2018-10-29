@@ -9,6 +9,10 @@ python:
 # Setting sudo to false opts in to Travis-CI container-based builds.
 sudo: false
 
+before_install:
+    - sudo apt-get update
+    - sudo apt-get install -y fitsverify
+
 install:
     - pip install -U pip
     - pip install twine
