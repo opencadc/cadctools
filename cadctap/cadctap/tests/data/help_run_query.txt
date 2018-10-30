@@ -1,0 +1,44 @@
+usage: cadc-tap run-query [-h]
+                          [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                          [--host HOST] [--resource-id RESOURCE_ID]
+                          [-d | -q | -v] -Q QUERY [-a] [-f FILE_NAME]
+                          [-ff {votable,csv,tsv}] [-s] [-b] [-uf UPLOAD_FILE]
+                          [-un UPLOAD_TABLE_NAME]
+
+Run an adql query
+
+optional arguments:
+  -a, --async           Run the query asynchronously, default is to run
+                        synchronously whichonly outputs the top 2000 results
+  -b, --background      Do not return the results, only the jobid. Only
+                        affects asychronous queries.
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -d, --debug           debug messages
+  -ff, --file-format {votable,csv,tsv}
+                        Format of the output file, votable(default), csv or
+                        tsv
+  -f, --file-name FILE_NAME
+                        Name of the file to output the results, default is
+                        "operation_datetime"
+  -h, --help            show this help message and exit
+  --host HOST           base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -Q, --query QUERY     Location of file with an ADQL query to run
+  -q, --quiet           run quietly
+  --resource-id RESOURCE_ID
+                        resource identifier (default ivo://cadc.nrc.ca/tap)
+  -s, --save-to-file    Save the output to a file instead of outputing to
+                        stdout
+  -uf, --upload-file UPLOAD_FILE
+                        File name of the table to upload for the query
+  -un, --upload-table-name UPLOAD_TABLE_NAME
+                        Required if --upload_resource is used. Name of the
+                        table to upload, to reference the table use
+                        tap_upload.<tablename>
+  -u, --user USER       name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages

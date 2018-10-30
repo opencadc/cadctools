@@ -1,0 +1,20 @@
+usage: cadc-tap [-h] [-V]
+                {get-tables,get-table,run-query,load-async-job,list-async-jobs}
+                ...
+
+Client for accessing databases using TAP service at the Canadian Astronomy Data Centre (www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+
+positional arguments:
+  {get-tables,get-table,run-query,load-async-job,list-async-jobs}
+                        supported commands. Use the -h|--help argument of a
+                        command for more details
+    get-tables          Get a list of the tables in the CADC database
+    get-table           Get the columns of a table
+    run-query           Run an adql query
+    load-async-job      Get the results of a job using the jobid, the query
+                        will be run again
+    list-async-jobs     List all asynchronous jobs that you have created
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -V, --version         show program's version number and exit

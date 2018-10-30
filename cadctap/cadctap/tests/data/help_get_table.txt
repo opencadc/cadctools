@@ -1,0 +1,26 @@
+usage: cadc-tap get-table [-h]
+                          [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                          [--host HOST] [--resource-id RESOURCE_ID]
+                          [-d | -q | -v] -t TABLE
+
+Get the columns of a table
+
+optional arguments:
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -d, --debug           debug messages
+  -h, --help            show this help message and exit
+  --host HOST           base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -q, --quiet           run quietly
+  --resource-id RESOURCE_ID
+                        resource identifier (default ivo://cadc.nrc.ca/tap)
+  -t, --table TABLE     The table name, must be the qualified name, for
+                        example caom2.coam2.Observations.The qualified table
+                        names will be outputed by the get-tables command
+  -u, --user USER       name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages

@@ -1,0 +1,33 @@
+usage: cadc-tap get-tables [-h]
+                           [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                           [--host HOST] [--resource-id RESOURCE_ID]
+                           [-d | -q | -v]
+
+Get a list of the tables in the CADC database
+
+optional arguments:
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -d, --debug           debug messages
+  -h, --help            show this help message and exit
+  --host HOST           base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -q, --quiet           run quietly
+  --resource-id RESOURCE_ID
+                        resource identifier (default ivo://cadc.nrc.ca/tap)
+  -u, --user USER       name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+
+Examples:
+- Anonymously list the tables in the database:
+        cadc-tap get-tables -v
+- Use certificate to get a list of the tables in the database:
+        cadc-tap get-tables --cert ~/.ssl/cadcproxy.pem
+- Use default netrc file ($HOME/.netrc) to the list of tables:
+        cadc-tap get-tables -v -n
+- Use a different netrc file to get the list of tables:
+        cadc-tap get-tables --netrc-file ~/mynetrc
