@@ -1,0 +1,14 @@
+usage: cadc-etrans [-h] [-V] {data,status} ...
+
+Application for transferring data and metadata electronically to the Canadian Astronomy Data Centre.
+It uses the config information in $HOME/.config/cadc/cadc-etrans-config to get the execution context and configuration.
+
+positional arguments:
+  {data,status}  Supported commands. Use the -h|--help argument of a command
+                 for more details
+    data         Transfer data to a CADC archive
+    status       Display the status of the system
+
+optional arguments:
+  -h, --help     show this help message and exit
+  -V, --version  show program's version number and exit
