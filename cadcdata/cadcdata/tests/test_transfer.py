@@ -115,7 +115,7 @@ def test_transfer_constructor():
                     version=VOSPACE_21)
 
     assert tran.target == test_target_good, 'Wrong target.'
-    assert 1, len(tran.protocols) == 'Wrong number of protocols.'
+    assert 2 == len(tran.protocols), 'Wrong number of protocols.'
     assert tran.protocols[0].uri == DIRECTION_PROTOCOL_MAP[test_dir_put][0],\
         'Wrong protocol URI'
     assert tran.protocols[1].uri == DIRECTION_PROTOCOL_MAP[test_dir_put][1], \
