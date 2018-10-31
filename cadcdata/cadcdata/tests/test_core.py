@@ -84,6 +84,7 @@ from cadcdata.core import main_app, TRANSFER_RESOURCE_ID
 import cadcdata
 from mock import Mock, patch, ANY, call
 import pytest
+import hashlib
 
 # The following is a temporary workaround for Python issue
 # 25532 (https://bugs.python.org/issue25532)
@@ -110,6 +111,9 @@ def test_get_file(trans_reader_mock, basews_mock):
     file_name = '/tmp/afile.txt'
     file_chunks = ['aaaa'.encode(), 'bbbb'.encode(), ''.encode()]
     response = Mock()
+    hash_md5 = hashlib.md5()
+    for i in file_chunks:
+        hash_md5.update(i)
     response.headers.get.return_value = \
         'filename={}'.format('orig_file_name')
     response.raw.read.side_effect = file_chunks  # returns multiple blocks
@@ -133,7 +137,7 @@ def test_get_file(trans_reader_mock, basews_mock):
     # do it again with the file now open
     response = Mock()
     response.headers = {'filename': 'orig_file_name',
-                        'content-MD5': 'c622054d9e6f17b43814ad5d61cab239'}
+                        'content-MD5': hash_md5.hexdigest()}
     response.raw.read.side_effect = file_chunks
     basews_mock.return_value.get.return_value = response
     with open(file_name, 'wb') as f:
@@ -142,21 +146,44 @@ def test_get_file(trans_reader_mock, basews_mock):
         assert expected_content == f.read()
     os.remove(file_name)
 
-    # test a get with decompress
+    # test a get with decompress and md5 check enabled
     file_name = 'bfile.txt'
-    file_content = 'ABCDEFGH12345'
-    file_chunks = [file_content[i:i + 5].encode()
-                   for i in xrange(0, len(file_content), 5)]
-    file_chunks.append('')  # last chunk is empty
+    file_content = 'aaaabbbb'
+    hash_md5 = hashlib.md5()
+    hash_md5.update(file_content.encode())
+    file_chunks = [file_content.encode(), ''.encode()]
+    decoded_file_content = 'MNOPRST6789'
+    decoded_file_chunks = [decoded_file_content.encode(), ''.encode()]
     response = Mock()
-    response.headers.get.return_value = 'filename={}.gz'.format(file_name)
+    response.headers = \
+        {'content-MD5': '{}'.format(hash_md5.hexdigest()),
+         'filename': file_name}
     response.raw.read.side_effect = file_chunks
+    response.raw._decode.side_effect = decoded_file_chunks
     basews_mock.return_value.get.return_value = response
     client = CadcDataClient(auth.Subject())
-    client.get_file('TEST', 'afile', decompress=True, md5_check=False)
+    client.get_file('TEST', file_name=file_name, decompress=True,
+                    md5_check=True)
     with open(file_name, 'r') as f:
-        assert file_content == f.read()
+        # note the check against the decoded content
+        assert decoded_file_content == f.read()
     os.remove(file_name)
+
+    # repeat test with a bad md5
+    file_name = 'bfile.txt'
+    file_content = 'ABCDEFGH12345'
+    file_chunks = [file_content.encode(), ''.encode()]
+    decoded_file_content = 'MNOPRST6789'
+    decoded_file_chunks = [decoded_file_content.encode(), ''.encode()]
+    response = Mock()
+    response.headers = {'content-MD5': 'abc', 'filename': file_name}
+    response.raw.read.side_effect = file_chunks
+    response.raw._decode.side_effect = decoded_file_chunks
+    basews_mock.return_value.get.return_value = response
+    client = CadcDataClient(auth.Subject())
+    with pytest.raises(exceptions.HttpException):
+        client.get_file('TEST', file_name=file_name, decompress=True,
+                        md5_check=True)
 
     # test process_bytes and send the content to /dev/null after.
     # Use no decompress
@@ -248,6 +275,9 @@ def test_get_file(trans_reader_mock, basews_mock):
     # test a put
     file_name = '/tmp/putfile.txt'
     file_content = 'ABCDEFGH12345'
+    hash_md5 = hashlib.md5()
+    hash_md5.update(file_content.encode())
+    hash_md5 = hash_md5.hexdigest()
     # write the file
     with open(file_name, 'w') as f:
         f.write(file_content)
@@ -271,7 +301,7 @@ def test_get_file(trans_reader_mock, basews_mock):
         transf_end_point, data=ANY,
         headers={'Content-Type': 'text/plain',
                  'Content-Encoding': 'us-ascii',
-                 'Content-MD5': '835e7e6cd54e18ae21d50af963b0c32b'})
+                 'Content-MD5': '{}'.format(hash_md5)})
 
     # mimic libmagic missing
     cadcdata.core.MAGIC_WARN = 'Some warning'
@@ -288,7 +318,7 @@ def test_get_file(trans_reader_mock, basews_mock):
         transf_end_point, data=ANY,
         headers={'Content-Encoding': 'us-ascii',
                  'X-CADC-Stream': 'default', 'Content-Type': 'text/plain',
-                 'Content-MD5': '835e7e6cd54e18ae21d50af963b0c32b'})
+                 'Content-MD5': '{}'.format(hash_md5)})
     # specify the mime types
     client.put_file('TEST', file_name, archive_stream='default',
                     mime_type='ASCII', mime_encoding='GZIP')
@@ -296,7 +326,7 @@ def test_get_file(trans_reader_mock, basews_mock):
         transf_end_point, data=ANY,
         headers={'Content-Encoding': 'GZIP',
                  'X-CADC-Stream': 'default', 'Content-Type': 'ASCII',
-                 'Content-MD5': '835e7e6cd54e18ae21d50af963b0c32b'})
+                 'Content-MD5': '{}'.format(hash_md5)})
     os.remove(file_name)
 
     # test an info

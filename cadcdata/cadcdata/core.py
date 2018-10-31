@@ -310,6 +310,7 @@ class CadcDataClient(object):
                 """
                 self.decode_content = decode_content
                 self._read = rsp.raw.read
+                self._decode = rsp.raw._decode
                 self.block_size = 0
 
             def __iter__(self):
@@ -320,12 +321,19 @@ class CadcDataClient(object):
 
             def next(self):
                 # reads the next raw block
-                data = self._read(self.block_size,
-                                  decode_content=self.decode_content)
+                # Hack warning:
+                # Not using decode_content argument of the Response.read
+                # method in order to get access to the raw bytes and do the
+                # md5 checksum before decoding (decompressing) them.
+                # Unfortunately, that forces us to use the hidden _decode
+                # method of the urllib3 Response class.
+                data = self._read(self.block_size)
                 if len(data) > 0:
                     if md5_check and\
                             (response.headers.get('content-MD5', 0) != 0):
                         hash_md5.update(data)
+                    if self.decode_content:
+                        data = self._decode(data, True, False)
                     return data
                 else:
                     raise StopIteration()
