@@ -77,13 +77,24 @@ import sys
 import time
 import socket
 from clint.textui import progress
-import magic
 import hashlib
 
 from cadcutils import net, util, exceptions
 from cadcdata.transfer import Transfer, TransferReader, TransferWriter
 
 from cadcdata import version
+
+MAGIC_WARN = None
+try:
+    import magic
+except ImportError as e:
+    if 'libmagic' in str(e):
+        MAGIC_WARN = ('Can not determine the MIME info. Please install '
+                      'libmagic system library or explicitly specify MIME '
+                      'type and encoding for each file.')
+    else:
+        raise e
+
 
 # make the stream bar show up on stdout
 progress.STREAM = sys.stdout
@@ -223,7 +234,6 @@ class CadcDataClient(object):
             self.logger.debug('GET from URL {}'.format(url))
             try:
                 response = self._data_client.get(url, stream=True)
-
                 if destination is not None:
                     if not hasattr(destination, 'read'):
                         # got a destination name?
@@ -245,10 +255,16 @@ class CadcDataClient(object):
                     for content in content_disp.split():
                         if 'filename=' in content:
                             destination = content[9:]
+                            self.logger.debug(
+                                'Content disposition destination name: {}'.
+                                format(destination))
                     if destination.endswith('gz') and decompress:
                         destination = os.path.splitext(destination)[0]
-                    self.logger.debug(
-                        'Using content disposition destination name: {}'.
+                    # remove any path information and save the file in local
+                    # directory
+                    destination = os.path.basename(destination)
+                    self.logger.info(
+                        'Saved file in local directory under: {}'.
                         format(destination))
                     with open(destination, 'wb') as f:
                         self._save_bytes(response, f, file_info,
@@ -294,6 +310,7 @@ class CadcDataClient(object):
                 """
                 self.decode_content = decode_content
                 self._read = rsp.raw.read
+                self._decode = rsp.raw._decode
                 self.block_size = 0
 
             def __iter__(self):
@@ -304,12 +321,19 @@ class CadcDataClient(object):
 
             def next(self):
                 # reads the next raw block
-                data = self._read(self.block_size,
-                                  decode_content=self.decode_content)
+                # Hack warning:
+                # Not using decode_content argument of the Response.read
+                # method in order to get access to the raw bytes and do the
+                # md5 checksum before decoding (decompressing) them.
+                # Unfortunately, that forces us to use the hidden _decode
+                # method of the urllib3 Response class.
+                data = self._read(self.block_size)
                 if len(data) > 0:
                     if md5_check and\
                             (response.headers.get('content-MD5', 0) != 0):
                         hash_md5.update(data)
+                    if self.decode_content:
+                        data = self._decode(data, True, False)
                     return data
                 else:
                     raise StopIteration()
@@ -388,27 +412,28 @@ class CadcDataClient(object):
             headers[ARCHIVE_STREAM_HTTP_HEADER] = str(archive_stream)
         if mime_type is not None:
             mtype = mime_type
+        elif MAGIC_WARN:
+            mtype = None
+            logger.warning(MAGIC_WARN)
         else:
             m = magic.Magic(mime=True)
             mtype = m.from_file(os.path.realpath(src_file))
         if mtype is not None:
             headers['Content-Type'] = mtype
             logger.debug('Set MIME type: {}'.format(mtype))
-        else:
-            logger.warn('Could not determine the MIME type for {}'.
-                        format(src_file))
 
         if mime_encoding:
             mencoding = mime_encoding
+        elif MAGIC_WARN:
+            mencoding = None
+            if mtype:
+                logger.warning(MAGIC_WARN)
         else:
             m = magic.Magic(mime_encoding=True)
             mencoding = m.from_file(os.path.realpath(src_file))
         if mencoding:
             headers['Content-Encoding'] = mencoding
             logger.debug('Set MIME encoding: {}'.format(mencoding))
-        else:
-            logger.warn('Could not determine the MIME encoding for {}'.
-                        format(src_file))
 
         protocols = self._get_transfer_protocols(
             archive, src_file, is_get=False, headers=headers)
