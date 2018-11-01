@@ -108,7 +108,7 @@ class TestCadcTapClient(unittest.TestCase):
     @patch('cadcutils.net.wscapabilities.CapabilitiesReader')
     @patch('cadcutils.net.ws.WsCapabilities')
     @patch('cadctap.core.cadc.CadcTAP')
-    @patch('cadcdata.core.net.BaseWsClient')
+    @patch('cadctap.core.net.BaseWsClient')
     @patch('cadctap.core.CadcTapClient')
     def test_get_tables(self, cadc_mock, basews_mock, cadctap_mock, ws_mock, wscap_mock):
         host='www.host.ca'
@@ -141,7 +141,7 @@ class TestCadcTapClient(unittest.TestCase):
     @patch('cadcutils.net.wscapabilities.CapabilitiesReader')
     @patch('cadcutils.net.ws.WsCapabilities')
     @patch('cadctap.core.cadc.CadcTAP')
-    @patch('cadcdata.core.net.BaseWsClient')
+    @patch('cadctap.core.net.BaseWsClient')
     @patch('cadctap.core.CadcTapClient')
     def test_get_table(self, cadc_mock, basews_mock, cadctap_mock, ws_mock, wscap_mock):
         host='www.host.ca'
@@ -173,7 +173,7 @@ class TestCadcTapClient(unittest.TestCase):
     @patch('cadcutils.net.wscapabilities.CapabilitiesReader')
     @patch('cadcutils.net.ws.WsCapabilities')
     @patch('cadctap.core.cadc.CadcTAP')
-    @patch('cadcdata.core.net.BaseWsClient')
+    @patch('cadctap.core.net.BaseWsClient')
     @patch('cadctap.core.CadcTapClient')
     def test_run_query(self, cadc_mock, basews_mock, cadctap_mock, ws_mock, wscap_mock):
         host='www.host.ca'
@@ -211,7 +211,7 @@ class TestCadcTapClient(unittest.TestCase):
     @patch('cadcutils.net.wscapabilities.CapabilitiesReader')
     @patch('cadcutils.net.ws.WsCapabilities')
     @patch('cadctap.core.cadc.CadcTAP')
-    @patch('cadcdata.core.net.BaseWsClient')
+    @patch('cadctap.core.net.BaseWsClient')
     @patch('cadctap.core.CadcTapClient')
     def test_load_job(self, cadc_mock, basews_mock, cadctap_mock, ws_mock, wscap_mock):
         host='www.host.ca'
@@ -247,7 +247,7 @@ class TestCadcTapClient(unittest.TestCase):
     @patch('cadcutils.net.wscapabilities.CapabilitiesReader')
     @patch('cadcutils.net.ws.WsCapabilities')
     @patch('cadctap.core.cadc.CadcTAP')
-    @patch('cadcdata.core.net.BaseWsClient')
+    @patch('cadctap.core.net.BaseWsClient')
     @patch('cadctap.core.CadcTapClient')
     def test_list_jobs(self, cadc_mock, basews_mock, cadctap_mock, ws_mock, wscap_mock):
         host='www.host.ca'

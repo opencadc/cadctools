@@ -444,8 +444,8 @@ def main_app():
     else:
         method=security_id[0]
     if check_cap.get_interface(method) is None:
-        print("Downgrading authentication type to anonymous,\n"
-              "type {0} not accepted by resource {1}".format(method, args.resource_id))
+        logger.info("Downgrading authentication type to anonymous,\n"
+                    "type {0} not accepted by resource {1}".format(method, args.resource_id))
         subject = net.Subject()
         authentication=auth.AnonAuthMethod()
         security_id=[]
