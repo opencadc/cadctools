@@ -82,16 +82,21 @@ import logging
 import os
 import tempfile
 import sys
+import json
+import glob
 
 from termcolor import colored
 from .data_verify import get_md5sum, check_valid
 from .utils import etrans_config, fetch_cadc_file_info, put_cadc_file
 from .namecheck import check_file_name
+import vos
 
 from cadcutils import net, util
 from cadcetrans import version
 from .utils import CommandError, ProcError, TransferFailure,\
-    TransferException, get_reverse_translog
+    TRANS_ROOT_LOGNAME, TransferException, _get_transfer_log_info,\
+    _get_transfer_log
+import cadcetrans.utils as utils
 
 APP_NAME = 'cadc-etrans'
 
@@ -99,7 +104,7 @@ logger = logging.getLogger(__name__)
 
 FileInfo = namedtuple('FileInfo', 'name stream')
 
-allowed_streams = ('new', 'replace')
+allowed_streams = ('new', 'replace', 'any')
 
 __all__ = ['transfer']
 
@@ -305,11 +310,11 @@ def transfer_check(proc_dir, filename, stream, md5sum, subject,
                    namecheck_file=None):
     """Check if a file is suitable for transfer to CADC.
 
-    Given the directory, file name and stream ("new" or "replace"), determine
-    if a file is acceptable.  This function aims to replicate the checks which
-    would have been made by the CADC e-transfer process.  Checking for
-    decompressibility is not implemented as it is not expected that we will be
-    transferring compressed files.
+    Given the directory, file name and stream ("new", "replace", "any"),
+    determine if a file is acceptable.  This function aims to replicate the
+    checks which would have been made by the CADC e-transfer process.
+    Checking for decompressibility is not implemented as it is not expected
+    that we will be transferring compressed files.
 
     Raises a TransferException (including a rejection code) if a problem
     is detected.  No changes to the filesystem should be made, so this
@@ -345,21 +350,23 @@ def transfer_check(proc_dir, filename, stream, md5sum, subject,
             raise TransferException('stream')
     else:
         ad_stream = None
-    # Check correct new/replacement stream.
-    try:
-        cadc_file_info = fetch_cadc_file_info(filename, subject)
-    except ProcError:
-        raise TransferFailure('Unable to check CADC file info')
 
-    if stream == 'new':
-        if cadc_file_info is not None:
-            raise TransferException('not_new')
+    if stream != 'any':
+        # Check correct new/replacement stream.
+        try:
+            cadc_file_info = fetch_cadc_file_info(filename, subject)
+        except ProcError:
+            raise TransferFailure('Unable to check CADC file info')
 
-    elif stream == 'replace':
-        if cadc_file_info is None:
-            raise TransferException('not_replace')
-        elif md5sum == cadc_file_info['md5sum']:
-            raise TransferException('unchanged')
+        if stream == 'new':
+            if cadc_file_info is not None:
+                raise TransferException('not_new')
+
+        elif stream == 'replace':
+            if cadc_file_info is None:
+                raise TransferException('not_replace')
+            elif md5sum == cadc_file_info['md5sum']:
+                raise TransferException('unchanged')
 
     else:
         raise Exception('unknown stream {0}'.format(stream))
@@ -479,24 +486,33 @@ def clean_up(trans_dir, dry_run=False):
         os.rmdir(proc_dir)
 
 
-def print_status(dirname):
-    print('\nRejected files:')
+def get_rejected_files(dirname):
+    result = {}
     if os.path.isdir(os.path.join(dirname, 'reject')):
         for d in os.listdir(os.path.join(dirname, 'reject')):
             dir = os.path.join(dirname, 'reject', d)
             if os.path.isdir(dir):
                 if d.endswith('verify'):
-                    print('\t {:6} -'.format(d.split()[0]),
-                          colored('{:8d}'.format(len(os.listdir(dir))), 'red'))
+                    result[d.split()[0]] = os.listdir(dir)
                 else:
-                    print('\t {:6} -'.format(d),
-                          colored('{:8d}'.format(len(os.listdir(dir))), 'red'))
+                    result[d] = os.listdir(dir)
             else:
                 logger.error('Unexpected file in the rejected dir: {}'.
                              format(dir))
-    else:
-        print('\tNone')
-    print('\nTransferring files:')
+    return result
+
+
+def get_trans_files(dirname):
+    """
+    Checks a directory for files that are being processed ('proc/proc*')
+    and gets the relevant information (pid, number of files, etc.)
+    :param dirname: directory name to check
+    :return: list with one entry per found directory in proc with each element
+    of the list detailing the pid, time since start and number of remaining
+    files or error message if sub directory not recognized as a
+    processing one.
+    """
+    result = []
     proc_dir = os.path.join(dirname, 'proc')
     if os.path.isdir(proc_dir):
         for d in os.listdir(proc_dir):
@@ -505,41 +521,78 @@ def print_status(dirname):
                 procinfo = _get_proc_info(dir)
                 pid = int(procinfo.get('transfer', 'pid'))
                 start = procinfo.get('transfer', 'start')
-                print('PID {} (started at: {}):'.format(pid, start))
+                proc = {'pid': pid, 'started': start}
                 # count the files
                 for input in allowed_streams:
                     if os.path.isdir(os.path.join(dir, input)):
-                        total = len(os.listdir(os.path.join(dir,
-                                                            input)))
-                        print('\t\t{:8} - {:8d}'.format(input, total))
+                        proc['files'] = len(os.listdir(
+                            os.path.join(dir, input)))
+                result.append(proc)
             else:
-                logger.warning('Unknown file/dir in proc directory: {}'.
-                               format(d))
+                msg = 'Unknown file/dir in proc directory: {}'.format(d)
+                result.append({'error': msg})
     else:
-        print('\tNo proc directory')
+        result = [{'error': 'No proc directory'}]
+    return result
+
+
+def print_status(dirname):
+    """
+    Prints the status of the system using the information from the root (input)
+    directory and the log directory.
+    :param dirname: directory to use
+    """
+    print('\nRejected files:')
+    rfiles = get_rejected_files(dirname)
+    if not rfiles:
+        print('\tNone')
+    else:
+        for f in rfiles.keys():
+            print('\t {:6} -'.format(f),
+                  colored('{:8d}'.format(len(rfiles[f])), 'red'))
+
+    print('\nTransferring files:')
+    tfiles = get_trans_files(dirname)
+    if not tfiles:
+        print('\tNone')
+    else:
+        errors = []
+        for f in tfiles:
+            if 'error' in f:
+                errors.append(f)
+            else:
+                print('\tpid {:7} - {:6} (started at {:15})'.
+                      format(f['pid'], f['files'], f['started']))
+        if errors:
+            print('\tErrors:')
+            for e in errors:
+                print(colored('\t\t{}'.format(e['error']), 'red'))
+
     print('\nTransferred files*:')
     lasth = [0, 0]
     last24h = [0, 0]
     last7d = [0, 0]
     now = datetime.now()
-    for r in get_reverse_translog():
-        fields = r.split('---')
-        if len(fields) > 1:
-            logdate = datetime.strptime(fields[0].strip(),
-                                        '%Y-%m-%d %H:%M:%S,%f')
-            timediff = now - logdate
-            index = 1
-            if 'Success' in fields[1]:
-                index = 0
-            if timediff.total_seconds()/60.0/60.0 < 1:
-                lasth[index] += 1
-            if timediff.total_seconds()/60.0/60.0 < 24:
-                last24h[index] += 1
-            if timediff.total_seconds()/60.0/60.0 < 24 * 7:
-                last7d[index] += 1
-            else:
-                # TODO break reading the file here
-                pass
+    for r in _get_transfer_log_info():
+        if 'put_cadc_file' in r:  # TODO - make it more robust
+            fields = r.split('put_cadc_file')
+            if len(fields) > 1:
+                logdate = datetime.strptime(fields[0].split('[')[0].strip(),
+                                            '%Y-%m-%d %H:%M:%S,%f')
+                timediff = now - logdate
+                index = 1
+                data = json.loads(fields[1].split('-')[1].strip())
+                if data['success']:
+                    index = 0
+                if timediff.total_seconds()/60.0/60.0 < 1:
+                    lasth[index] += 1
+                if timediff.total_seconds()/60.0/60.0 < 24:
+                    last24h[index] += 1
+                if timediff.total_seconds()/60.0/60.0 < 24 * 7:
+                    last7d[index] += 1
+                else:
+                    # TODO break reading the file here
+                    pass
     print('\tLast hour success -', colored('{:6}'.format(lasth[0]), 'green'),
           ' error -', colored('{:8d}'.format(lasth[1]), 'red'))
     print('\tLast day  success -', colored('{:6}'.format(last24h[0]), 'green'),
@@ -551,7 +604,45 @@ def print_status(dirname):
     print('* - details in {}'.format(trans_log))
 
 
+def update_backup(subject, dirname):
+    """
+    Logs an update of the status of processing and rejecting files and
+    transfers the latest logging files to the configured (vos) backup
+    :param subject:
+    :param dirname:
+    :return:
+    """
+    backup_dir = etrans_config.get('etransfer', 'backup_dir')
+    # this should come from the config instance
+    config_file = os.path.join(utils._CONFIG_PATH, 'cadc-etrans-config')
+    if not backup_dir:
+        raise RuntimeError('backup_dir must be specified in {}'.
+                           format(config_file))
+    if not backup_dir.startswith('vos:'):
+        raise RuntimeError(not 'Only back_dir of form vos: supported in {}'.
+                           format(config_file))
+    rfiles = get_rejected_files(dirname)
+    tfiles = get_trans_files(dirname)
+    _get_transfer_log().info('{} - {}'.
+                             format(utils.LOG_STATUS_LABEL,
+                                    json.dumps({'rejected': rfiles,
+                                                'transferring': tfiles})))
+    logger.debug('Rsyncing the transfer logs')
+    translog = etrans_config.get('etransfer', 'transfer_log_dir')
+    client = vos.Client(vospace_certfile=subject.certificate,
+                        transfer_shortcut=True)
+    for f in glob.glob(
+            '{}*'.format(os.path.join(translog, TRANS_ROOT_LOGNAME))):
+        client.copy(f, '{}/{}'.format(backup_dir, os.path.basename(f)))
+
+
 def _get_mime(filename):
+    """
+    Gets mime time of a file according based on its extension and according
+    to the configuration
+    :param filename:
+    :return:
+    """
     _, file_extension = os.path.splitext(filename)
     try:
         type = etrans_config.get('mime-types', file_extension.strip('.'))
@@ -609,6 +700,10 @@ def main_app():
         add_parser('status',
                    description='Displays the status of the system',
                    help='Display the status of the system')
+    status_parser.add_argument('-b', '--backup',
+                               help='sends status and local logs to a backup '
+                                    'location specified in the config file',
+                               action='store_true', required=False)
     status_parser.add_argument('source',
                                help='Source directory where the files are '
                                'located.')
@@ -644,11 +739,13 @@ def main_app():
 
     if args.cmd == 'meta':
         raise NotImplementedError('meta command not implemented yet')
-
+    subject = net.Subject.from_cmd_line_args(args)
     if args.cmd == 'status':
-        print_status(args.source)
+        if args.backup:
+            update_backup(subject, args.source)
+        else:
+            print_status(args.source)
     elif args.cmd == 'data':
-        subject = net.Subject.from_cmd_line_args(args)
         clean_up(args.source, dry_run=args.dryrun)
         transfer(args.source, stream=args.stream, dry_run=args.dryrun,
                  subject=subject, namecheck_file=args.check_filename)
@@ -657,4 +754,3 @@ def main_app():
         sys.exit(-1)
 
     print('DONE')
-    sys.exit(-1)

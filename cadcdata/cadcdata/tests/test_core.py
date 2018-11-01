@@ -530,3 +530,7 @@ def test_main(get_mock, info_mock, put_mock):
 
     # cleanup
     shutil.rmtree(put_dir)
+
+
+def test_md5_import():
+    modules
