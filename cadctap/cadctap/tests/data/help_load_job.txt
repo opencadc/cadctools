@@ -3,7 +3,7 @@ usage: cadc-tap load-async-job [-h]
                                [--host HOST] [--resource-id RESOURCE_ID]
                                [-d | -q | -v] -j JOBID [-f FILE_NAME] [-s]
 
-Get the results of a job using the jobid, the query will be run again. If a job was created using authentication, authentication will be needed to load the job, any type
+Get the results of a job using the jobid, the query will be run again. If a job was created using authentication, authentication will be needed to load the job
 
 optional arguments:
   --cert CERT           location of your X509 certificate to use for

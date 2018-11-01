@@ -71,11 +71,8 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
-import os
 import re
-import os.path
 import sys
-import time
 from datetime import datetime
 from clint.textui import progress
 
@@ -85,7 +82,7 @@ from cadcutils.net import ws
 
 from cadctap import version
 
-import astroquery.cadc as cadc 
+import astroquery.cadc as cadc
 from astroquery.cadc import auth
 
 # make the stream bar show up on stdout
@@ -98,12 +95,13 @@ DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 # resource ID for info
 DEFAULT_RESOURCE_ID = 'ivo://cadc.nrc.ca/tap'
 APP_NAME = 'cadc-tap'
-BASICAA_ID='ivo://ivoa.net/sso#BasicAA'
-CERTIFICATE_ID='ivo://ivoa.net/sso#tls-with-certificate'
-TABLES_CAPABILITY='ivo://ivoa.net/std/VOSI#tables-1.1'
-TAP_CAPABILITY='ivo://ivoa.net/std/TAP'
+BASICAA_ID = 'ivo://ivoa.net/sso#BasicAA'
+CERTIFICATE_ID = 'ivo://ivoa.net/sso#tls-with-certificate'
+TABLES_CAPABILITY = 'ivo://ivoa.net/std/VOSI#tables-1.1'
+TAP_CAPABILITY = 'ivo://ivoa.net/std/TAP'
 
 logger = logging.getLogger(APP_NAME)
+
 
 class CadcTapClient(object):
     """Class to access CADC archival data.
@@ -151,7 +149,6 @@ class CadcTapClient(object):
     print('Processed {} bytes'.format(byte_count))
     """
 
-
     def __init__(self, subject, resource_id=DEFAULT_RESOURCE_ID, host=None):
         """
         Instance of a CadcDataClient
@@ -171,16 +168,17 @@ class CadcTapClient(object):
 
         self._data_client = net.BaseWsClient(resource_id, subject,
                                              agent, retry=True, host=self.host)
-        reader=wscapabilities.CapabilitiesReader()
-        web=ws.WsCapabilities(self._data_client, host)
+        reader = wscapabilities.CapabilitiesReader()
+        web = ws.WsCapabilities(self._data_client, host)
         content = web._get_content(web.caps_file,
                                    web._get_capability_url(),
                                    web.last_capstime)
-        self._capabilities=reader.parsexml(content.encode('utf-8'))
+        self._capabilities = reader.parsexml(content.encode('utf-8'))
 
     def get_tables(self, verbose, authentication, url):
-        Cadc=cadc.CadcTAP(url=url, verbose=verbose)
-        tables=Cadc.get_tables(verbose=verbose, authentication=authentication)
+        Cadc = cadc.CadcTAP(url=url, verbose=verbose)
+        tables = Cadc.get_tables(verbose=verbose,
+                                 authentication=authentication)
         print('-----------')
         print('Tables')
         print('-----------')
@@ -188,9 +186,11 @@ class CadcTapClient(object):
             print(table.get_qualified_name())
 
     def get_table(self, table, verbose, authentication, url):
-        Cadc=cadc.CadcTAP(url=url)
-        columns=Cadc.get_table(table, verbose=verbose, authentication=authentication)
-        if columns is None: 
+        Cadc = cadc.CadcTAP(url=url)
+        columns = Cadc.get_table(table,
+                                 verbose=verbose,
+                                 authentication=authentication)
+        if columns is None:
             raise ValueError("No table exists with the name '%s'" % table)
         print('--------------------')
         print('Columns of ', table)
@@ -198,60 +198,77 @@ class CadcTapClient(object):
         for col in columns.get_columns():
             print(col.get_name())
 
-    def run_query(self, query, async, file_name, file_format, verbose, save_to_file,
-                  background, upload_file, upload_table_name, authentication, url):
+    def run_query(self, query, async, file_name, file_format, verbose,
+                  save_to_file, background, upload_file, upload_table_name,
+                  authentication, url):
         with open(query) as f:
-            file_data=f.read().strip()
-        Cadc=cadc.CadcTAP(url=url)
-        if async == True:
-            operation='async'
+            file_data = f.read().strip()
+        Cadc = cadc.CadcTAP(url=url)
+        if async is True:
+            operation = 'async'
         else:
-            operation='sync'
+            operation = 'sync'
         if upload_table_name is not None:
-            validname=re.match(r'^[aA-zZ][_|aA-zZ|0-9]*$', upload_table_name)
+            validname = re.match(r'^[aA-zZ][_|aA-zZ|0-9]*$', upload_table_name)
             if validname is None:
-                raise ValueError("Upload table name must start with a letter then have only letters, numbers or an underscore")
+                raise ValueError("Upload table name must start with a letter"
+                                 " then have only letters, numbers or an "
+                                 "underscore")
             else:
-                upload_table_name=validname.group()
+                upload_table_name = validname.group()
         try:
-            job=Cadc.run_query(file_data, operation, file_name, file_format, verbose, save_to_file,
-                               background, upload_file, upload_table_name, authentication)
+            job = Cadc.run_query(file_data, operation, file_name, file_format,
+                                 verbose, save_to_file, background,
+                                 upload_file, upload_table_name,
+                                 authentication)
         except Exception as e:
             if e.args[0] == 'Internal Server Error':
-                raise exceptions.HttpException('500 Internal Server Error, probably from an invaild table form')
+                raise exceptions.HttpException(
+                    '500 Internal Server Error, '
+                    'probably from an invaild table form')
             if e.args[0] == 'Bad Request':
-                raise exceptions.HttpException('400 Bad Request, probably from an invaild query')
+                raise exceptions.HttpException(
+                    '400 Bad Request, probably from an invaild query')
             raise exceptions.HttpException(e.args[0])
-        if save_to_file == False and background == False:
+        if save_to_file is False and background is False:
             print('----------------')
             print('Query Results ')
             print('----------------')
-            print(job.get_results(verbose=verbose, authentication=authentication))
-        if background == True:
+            print(job.get_results(verbose=verbose,
+                                  authentication=authentication))
+        if background is True:
             print('----------------')
             if operation == 'async':
-                jobid=job.get_jobid()
+                jobid = job.get_jobid()
             else:
-                jobid='Synchronous queries do not have a jobid'
-            print('Jobid: ',jobid)
+                jobid = 'Synchronous queries do not have a jobid'
+            print('Jobid: ', jobid)
             print('----------------')
-            if save_to_file == True:
+            if save_to_file is True:
                 print('Results not saved becuase -b, --background is set')
-    
-    def load_async_job(self, jobid, file_name, save_to_file, verbose, authentication, url):
-        Cadc=cadc.CadcTAP(url=url)
-        job=Cadc.load_async_job(jobid, output_file=file_name, verbose=verbose, authentication=authentication)
+
+    def load_async_job(self, jobid, file_name, save_to_file,
+                       verbose, authentication, url):
+        Cadc = cadc.CadcTAP(url=url)
+        job = Cadc.load_async_job(jobid,
+                                  output_file=file_name,
+                                  verbose=verbose,
+                                  authentication=authentication)
         if not save_to_file:
             print('-----------')
             print('Query Results')
             print('-----------')
             print(job.get_results(verbose=verbose))
         else:
-            Cadc.save_results(job, authentication=authentication, verbose=verbose)
+            Cadc.save_results(job,
+                              authentication=authentication,
+                              verbose=verbose)
 
-    def list_async_jobs(self, verbose, file_name, save_to_file, authentication, url):
-        Cadc=cadc.CadcTAP(url=url)
-        job_list=Cadc.list_async_jobs(verbose=verbose, authentication=authentication)
+    def list_async_jobs(self, verbose, file_name,
+                        save_to_file, authentication, url):
+        Cadc = cadc.CadcTAP(url=url)
+        job_list = Cadc.list_async_jobs(verbose=verbose,
+                                        authentication=authentication)
         if not save_to_file:
             print('-----------')
             print('Jobids')
@@ -261,24 +278,25 @@ class CadcTapClient(object):
         else:
             if file_name is None:
                 dateTime = datetime.now().strftime("%Y%m%d%H%M%S")
-                file_name='joblist_'+dateTime+'.txt'
+                file_name = 'joblist_' + dateTime + '.txt'
             else:
                 if not file_name.endswith('.txt'):
-                    file_name=file_name+'.txt'
-            jlist='Jobids\n'
+                    file_name = file_name + '.txt'
+            jlist = 'Jobids\n'
             for job in job_list:
-                jlist=jlist+job.get_jobid()+'\n'
+                jlist = jlist + job.get_jobid() + '\n'
             with open(file_name, "w") as f:
                 f.write(jlist)
                 f.close()
+
 
 def main_app():
     parser = util.get_base_parser(version=version.version,
                                   default_resource_id=DEFAULT_RESOURCE_ID)
 
     parser.description = (
-        'Client for accessing databases using TAP service at the Canadian Astronomy '
-        'Data Centre (www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)')
+        'Client for accessing databases using TAP service at the Canadian '
+        'Astronomy Data Centre (www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)')
 
     subparsers = parser.add_subparsers(
         dest='cmd',
@@ -305,8 +323,10 @@ def main_app():
         help='Get the columns of a table')
     get_table_parser.add_argument(
         '-t', '--table',
-        help='The table name, must be the qualified name, for example caom2.coam2.Observations.'
-             'The qualified table names will be outputed by the get-tables command',
+        help='The table name, must be the qualified name, '
+             'for example caom2.coam2.Observations.'
+             'The qualified table names will be outputed '
+             'by the get-tables command',
         required=True)
     run_query_parser = subparsers.add_parser(
         'run-query',
@@ -319,13 +339,14 @@ def main_app():
     run_query_parser.add_argument(
         '-a', '--async',
         action='store_true',
-        help='Run the query asynchronously, default is to run synchronously which'
-             'only outputs the top 2000 results',
+        help='Run the query asynchronously, default is to run'
+             ' synchronously which only outputs the top 2000 results',
         required=False)
     run_query_parser.add_argument(
         '-f', '--file-name',
         default=None,
-        help='Name of the file to output the results, default is "operation_datetime"',
+        help='Name of the file to output the results, default is'
+             ' "operation_datetime"',
         required=False)
     run_query_parser.add_argument(
         '-ff', '--file-format',
@@ -340,7 +361,8 @@ def main_app():
     run_query_parser.add_argument(
         '-b', '--background',
         action='store_true',
-        help='Do not return the results, only the jobid. Only affects asychronous queries.')
+        help='Do not return the results, only the jobid. '
+             'Only affects asychronous queries.')
     run_query_parser.add_argument(
         '-uf', '--upload-file',
         default=None,
@@ -349,15 +371,16 @@ def main_app():
     run_query_parser.add_argument(
         '-un', '--upload-table-name',
         default=None,
-        help='Required if --upload_resource is used. Name of the table to upload, to'
-             ' reference the table use tap_upload.<tablename>',
+        help='Required if --upload_resource is used. Name of the table to '
+             'upload, to reference the table use tap_upload.<tablename>',
         required=False)
     load_async_job_parser = subparsers.add_parser(
         'load-async-job',
-        description=('Get the results of a job using the jobid, the query will be'
-                     ' run again. If a job was created using authentication, authentication'
-                     ' will be needed to load the job, any type'),
-        help='Get the results of a job using the jobid, the query will be run again')
+        description=('Get the results of a job using the jobid, the query will'
+                     ' be run again. If a job was created using authentication'
+                     ', authentication will be needed to load the job'),
+        help='Get the results of a job using the jobid, '
+             'the query will be run again')
     load_async_job_parser.add_argument(
         '-j', '--jobid',
         help='A jobid',
@@ -365,7 +388,8 @@ def main_app():
     load_async_job_parser.add_argument(
         '-f', '--file-name',
         default=None,
-        help='Name of the file to output the results, default is "operation_datetime"',
+        help='Name of the file to output the results, default is'
+             ' "operation_datetime"',
         required=False)
     load_async_job_parser.add_argument(
         '-s', '--save-to-file',
@@ -382,7 +406,8 @@ def main_app():
     list_async_jobs_parser.add_argument(
         '-f', '--file-name',
         default=None,
-        help='Name of the file to output the results, default is "joblist_datetime.txt"',
+        help='Name of the file to output the results, default is'
+             ' "joblist_datetime.txt"',
         required=False)
 
     # handle errors
@@ -407,55 +432,56 @@ def main_app():
         parser.print_usage(file=sys.stderr)
         sys.stderr.write("{}: error: too few arguments\n".format(APP_NAME))
         sys.exit(-1)
-    show_prints=False
+    show_prints = False
     if args.verbose:
-         logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-         show_prints=True
+        logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+        show_prints = True
     elif args.debug:
-         logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
-         show_prints=True
+        logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
+        show_prints = True
     else:
-         logging.basicConfig(level=logging.WARN, stream=sys.stdout)
-   
+        logging.basicConfig(level=logging.WARN, stream=sys.stdout)
+
     subject = net.Subject.from_cmd_line_args(args)
     if args.user is not None:
-       authentication=auth.NetrcAuthMethod(username=args.user)
-       security_id=[BASICAA_ID]
+        authentication = auth.NetrcAuthMethod(username=args.user)
+        security_id = [BASICAA_ID]
     elif args.n is not False:
-        authentication=auth.NetrcAuthMethod()
-        security_id=[BASICAA_ID]
+        authentication = auth.NetrcAuthMethod()
+        security_id = [BASICAA_ID]
     elif args.netrc_file is not None:
-        authentication=auth.NetrcAuthMethod(filename=args.netrc_file)
-        security_id=[BASICAA_ID]
+        authentication = auth.NetrcAuthMethod(filename=args.netrc_file)
+        security_id = [BASICAA_ID]
     elif args.cert is not None:
-        authentication=auth.CertAuthMethod(certificate=args.cert)
-        security_id=[CERTIFICATE_ID]
+        authentication = auth.CertAuthMethod(certificate=args.cert)
+        security_id = [CERTIFICATE_ID]
     else:
-        authentication=auth.AnonAuthMethod()
-        security_id=[]
+        authentication = auth.AnonAuthMethod()
+        security_id = []
     client = CadcTapClient(subject, args.resource_id, host=args.host)
     if args.cmd == 'get-tables' or args.cmd == 'get-table':
-        feature=TABLES_CAPABILITY
+        feature = TABLES_CAPABILITY
     else:
-        feature=TAP_CAPABILITY  
-    check_cap=client._capabilities._caps.get(feature)
+        feature = TAP_CAPABILITY
+    check_cap = client._capabilities._caps.get(feature)
     if not security_id:
-        method=None
+        method = None
     else:
-        method=security_id[0]
+        method = security_id[0]
     if check_cap.get_interface(method) is None:
         logger.info("Downgrading authentication type to anonymous,\n"
-                    "type {0} not accepted by resource {1}".format(method, args.resource_id))
+                    "type {0} not accepted by resource {1}"
+                    .format(method, args.resource_id))
         subject = net.Subject()
-        authentication=auth.AnonAuthMethod()
-        security_id=[]
-    url=client._capabilities.get_access_url(feature, security_id)
+        authentication = auth.AnonAuthMethod()
+        security_id = []
+    url = client._capabilities.get_access_url(feature, security_id)
     if url.endswith('sync') or url.endswith('tables'):
-        index=url.rfind('/')
-        length=len(url)
-        sub_url=url[:-(length-index)]
+        index = url.rfind('/')
+        length = len(url)
+        sub_url = url[:-(length-index)]
     else:
-        sub_url=url
+        sub_url = url
     try:
         if args.cmd == 'get-tables':
             logger.info('get-tables')
@@ -465,17 +491,19 @@ def main_app():
             client.get_table(args.table, show_prints, authentication, sub_url)
         elif args.cmd == 'run-query':
             logger.info('run-query')
-            client.run_query(args.query, args.async, args.file_name, args.file_format,
-                             show_prints, args.save_to_file, args.background,
-                             args.upload_file, args.upload_table_name, authentication, 
-                             sub_url)
+            client.run_query(args.query, args.async, args.file_name,
+                             args.file_format, show_prints, args.save_to_file,
+                             args.background, args.upload_file,
+                             args.upload_table_name, authentication, sub_url)
         elif args.cmd == 'load-async-job':
             logger.info('load-async-job')
-            client.load_async_job(args.jobid, args.file_name, args.save_to_file, show_prints, authentication, sub_url)
+            client.load_async_job(args.jobid, args.file_name,
+                                  args.save_to_file, show_prints,
+                                  authentication, sub_url)
         elif args.cmd == 'list-async-jobs':
             logger.info('list-async-jobs')
-            client.list_async_jobs(show_prints, args.file_name, args.save_to_file, 
-                                   authentication, sub_url)
+            client.list_async_jobs(show_prints, args.file_name,
+                                   args.save_to_file, authentication, sub_url)
     except exceptions.UnauthorizedException:
         if subject.anon:
             handle_error('Operation cannot be performed anonymously. '

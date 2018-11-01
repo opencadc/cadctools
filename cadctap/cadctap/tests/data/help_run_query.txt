@@ -9,7 +9,7 @@ Run an adql query
 
 optional arguments:
   -a, --async           Run the query asynchronously, default is to run
-                        synchronously whichonly outputs the top 2000 results
+                        synchronously which only outputs the top 2000 results
   -b, --background      Do not return the results, only the jobid. Only
                         affects asychronous queries.
   --cert CERT           location of your X509 certificate to use for

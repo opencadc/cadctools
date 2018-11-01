@@ -72,13 +72,9 @@ from __future__ import (absolute_import, division, print_function,
 import os
 import sys
 import unittest
-import logging
-import shutil
 
 from six import StringIO
-from six.moves import xrange
-from cadcutils.net import auth, ws, wscapabilities
-from cadcutils import exceptions
+from cadcutils.net import auth
 from cadctap import CadcTapClient
 from cadctap.core import main_app
 from mock import Mock, patch, ANY, call
@@ -110,172 +106,154 @@ class TestCadcTapClient(unittest.TestCase):
     @patch('cadctap.core.cadc.CadcTAP')
     @patch('cadctap.core.net.BaseWsClient')
     @patch('cadctap.core.CadcTapClient')
-    def test_get_tables(self, cadc_mock, basews_mock, cadctap_mock, ws_mock, wscap_mock):
-        host='www.host.ca'
-        url='http://www.host.ca/tap'
-        ws_mock._get_content="document to parse"
-        wscap_mock.parsexml="xml to parse"
-        client=CadcTapClient(auth.Subject(), host=host)
-        anon=tapauth.AnonAuthMethod()
-        tables=[]
-        table=taptable.TapTableMeta()
+    def test_get_tables(self, cadc_mock, basews_mock, cadctap_mock,
+                        ws_mock, wscap_mock):
+        host = 'www.host.ca'
+        url = 'http://www.host.ca/tap'
+        ws_mock._get_content = "document to parse"
+        wscap_mock.parsexml = "xml to parse"
+        client = CadcTapClient(auth.Subject(), host=host)
+        anon = tapauth.AnonAuthMethod()
+        tables = []
+        table = taptable.TapTableMeta()
         table.set_schema('table')
         table.set_name('one')
         tables.append(table)
-        table=taptable.TapTableMeta()
+        table = taptable.TapTableMeta()
         table.set_schema('table')
         table.set_name('two')
         tables.append(table)
-        table=taptable.TapTableMeta()
+        table = taptable.TapTableMeta()
         table.set_schema('table')
         table.set_name('three')
         tables.append(table)
-        cadctap_mock().get_tables.return_value=tables
+        cadctap_mock().get_tables.return_value = tables
         # get_tables
         with open(os.path.join(TESTDATA_DIR, 'get_tables.txt'), 'r') as myfile:
             usage = myfile.read()
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            client.get_tables(False, anon, url) 
+            client.get_tables(False, anon, url)
+            self.assertEqual(usage, stdout_mock.getvalue())
 
     @patch('cadcutils.net.wscapabilities.CapabilitiesReader')
     @patch('cadcutils.net.ws.WsCapabilities')
     @patch('cadctap.core.cadc.CadcTAP')
     @patch('cadctap.core.net.BaseWsClient')
     @patch('cadctap.core.CadcTapClient')
-    def test_get_table(self, cadc_mock, basews_mock, cadctap_mock, ws_mock, wscap_mock):
-        host='www.host.ca'
-        url='http://www.host.ca/tap'
-        ws_mock._get_content="document to parse"
-        wscap_mock.parsexml="xml to parse"
-        client=CadcTapClient(auth.Subject(), host=host)
-        anon=tapauth.AnonAuthMethod()
-        table=taptable.TapTableMeta()
+    def test_get_table(self, cadc_mock, basews_mock, cadctap_mock,
+                       ws_mock, wscap_mock):
+        host = 'www.host.ca'
+        url = 'http://www.host.ca/tap'
+        ws_mock._get_content = "document to parse"
+        wscap_mock.parsexml = "xml to parse"
+        client = CadcTapClient(auth.Subject(), host=host)
+        anon = tapauth.AnonAuthMethod()
+        table = taptable.TapTableMeta()
         table.set_schema('table')
         table.set_name('one')
-        col=tapcolumn.TapColumn()
+        col = tapcolumn.TapColumn()
         col.set_name('col_one')
         table.add_column(col)
-        col=tapcolumn.TapColumn()
+        col = tapcolumn.TapColumn()
         col.set_name('col_two')
         table.add_column(col)
-        col=tapcolumn.TapColumn()
+        col = tapcolumn.TapColumn()
         col.set_name('col_three')
         table.add_column(col)
-        cadctap_mock().get_table.return_value=table
+        cadctap_mock().get_table.return_value = table
         # get_table
         with open(os.path.join(TESTDATA_DIR, 'get_table.txt'), 'r') as myfile:
             usage = myfile.read()
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            client.get_table('table.one', False, anon, url) 
+            client.get_table('table.one', False, anon, url)
+            self.assertEqual(usage, stdout_mock.getvalue())
 
     @patch('cadcutils.net.wscapabilities.CapabilitiesReader')
     @patch('cadcutils.net.ws.WsCapabilities')
     @patch('cadctap.core.cadc.CadcTAP')
     @patch('cadctap.core.net.BaseWsClient')
     @patch('cadctap.core.CadcTapClient')
-    def test_run_query(self, cadc_mock, basews_mock, cadctap_mock, ws_mock, wscap_mock):
-        host='www.host.ca'
-        url='http://www.host.ca/tap'
-        ws_mock._get_content="document to parse"
-        wscap_mock.parsexml="xml to parse"
-        client=CadcTapClient(auth.Subject(), host=host)
-        anon=tapauth.AnonAuthMethod()
-        job=Mock()
-        job().get_results.return_value='----------------'\
-                                       'Query Results '\
-                                       '----------------'\
-                                       '   observationID'\
-                                       '--------------------'\
-                                       '             1168045'\
-                                       '              760271'\
-                                       '             1741728'\
-                                       '             1168044'\
-                                       'dao_c122_2005_012465'\
-                                       '        n120307.0487'\
-                                       'dao_c122_2005_012466'\
-                                       '             1168043'\
-                                       'dao_c122_2010_022544'\
-                                       'dao_c182_2011_007348'
-        cadctap_mock().run_query.return_value=job
+    def test_run_query(self, cadc_mock, basews_mock, cadctap_mock,
+                       ws_mock, wscap_mock):
+        host = 'www.host.ca'
+        url = 'http://www.host.ca/tap'
+        ws_mock._get_content = "document to parse"
+        wscap_mock.parsexml = "xml to parse"
+        client = CadcTapClient(auth.Subject(), host=host)
+        anon = tapauth.AnonAuthMethod()
+        job = Mock().return_value
+        job.get_results.return_value = 'one\ntwo\nthree'
+        cadctap_mock().run_query.return_value = job
         # run_query
         with open(os.path.join(TESTDATA_DIR, 'run_query.txt'), 'r') as myfile:
             usage = myfile.read()
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            client.run_query(os.path.join(TESTDATA_DIR, 'run_query.txt'), 
-                             False, None, 'votable', False, False, False, 
-                             None, None, anon, url) 
+            client.run_query(os.path.join(TESTDATA_DIR, 'run_query.txt'),
+                             False, None, 'votable', False, False, False,
+                             None, None, anon, url)
+            self.assertEqual(usage, stdout_mock.getvalue())
 
     @patch('cadcutils.net.wscapabilities.CapabilitiesReader')
     @patch('cadcutils.net.ws.WsCapabilities')
     @patch('cadctap.core.cadc.CadcTAP')
     @patch('cadctap.core.net.BaseWsClient')
     @patch('cadctap.core.CadcTapClient')
-    def test_load_job(self, cadc_mock, basews_mock, cadctap_mock, ws_mock, wscap_mock):
-        host='www.host.ca'
-        url='http://www.host.ca/tap'
-        ws_mock._get_content="document to parse"
-        wscap_mock.parsexml="xml to parse"
-        client=CadcTapClient(auth.Subject(), host=host)
-        anon=tapauth.AnonAuthMethod()
-        job=Mock()
-        job().get_results.return_value='----------------'\
-                                       'Query Results '\
-                                       '----------------'\
-                                       '   observationID'\
-                                       '--------------------'\
-                                       '             1168045'\
-                                       '              760271'\
-                                       '             1741728'\
-                                       '             1168044'\
-                                       'dao_c122_2005_012465'\
-                                       '        n120307.0487'\
-                                       'dao_c122_2005_012466'\
-                                       '             1168043'\
-                                       'dao_c122_2010_022544'\
-                                       'dao_c182_2011_007348'
-        cadctap_mock().load_async_job.return_value=job
+    def test_load_job(self, cadc_mock, basews_mock, cadctap_mock,
+                      ws_mock, wscap_mock):
+        host = 'www.host.ca'
+        url = 'http://www.host.ca/tap'
+        ws_mock._get_content = "document to parse"
+        wscap_mock.parsexml = "xml to parse"
+        client = CadcTapClient(auth.Subject(), host=host)
+        anon = tapauth.AnonAuthMethod()
+        job = Mock().return_value
+        job.get_results.return_value = 'one\ntwo\nthree'
+        cadctap_mock().load_async_job.return_value = job
         # load_async_job
         with open(os.path.join(TESTDATA_DIR, 'load_job.txt'), 'r') as myfile:
             usage = myfile.read()
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            client.load_async_job('123', None, False, False, anon, url) 
+            client.load_async_job('123', None, False, False, anon, url)
+            self.assertEqual(usage, stdout_mock.getvalue())
 
     @patch('cadcutils.net.wscapabilities.CapabilitiesReader')
     @patch('cadcutils.net.ws.WsCapabilities')
     @patch('cadctap.core.cadc.CadcTAP')
     @patch('cadctap.core.net.BaseWsClient')
     @patch('cadctap.core.CadcTapClient')
-    def test_list_jobs(self, cadc_mock, basews_mock, cadctap_mock, ws_mock, wscap_mock):
-        host='www.host.ca'
-        url='http://www.host.ca/tap'
-        ws_mock._get_content="document to parse"
-        wscap_mock.parsexml="xml to parse"
-        client=CadcTapClient(auth.Subject(), host=host)
-        anon=tapauth.AnonAuthMethod()
-        jobs=[]
-        job=Mock()
-        job().get_jobid.return_value='123'
+    def test_list_jobs(self, cadc_mock, basews_mock, cadctap_mock,
+                       ws_mock, wscap_mock):
+        host = 'www.host.ca'
+        url = 'http://www.host.ca/tap'
+        ws_mock._get_content = "document to parse"
+        wscap_mock.parsexml = "xml to parse"
+        client = CadcTapClient(auth.Subject(), host=host)
+        anon = tapauth.AnonAuthMethod()
+        jobs = []
+        job = Mock().return_value
+        job.get_jobid.return_value = '123'
         jobs.append(job)
-        job=Mock()
-        job().get_jobid.return_value='456'
+        job = Mock().return_value
+        job.get_jobid.return_value = '456'
         jobs.append(job)
-        job=Mock()
-        job().get_jobid.return_value='789'
+        job = Mock().return_value
+        job.get_jobid.return_value = '789'
         jobs.append(job)
-        job=Mock()
-        job().get_jobid.return_value='101'
+        job = Mock().return_value
+        job.get_jobid.return_value = '101'
         jobs.append(job)
-        cadctap_mock().list_async_jobs.return_value=jobs
+        cadctap_mock().list_async_jobs.return_value = jobs
         # load_async_job
         with open(os.path.join(TESTDATA_DIR, 'list_jobs.txt'), 'r') as myfile:
             usage = myfile.read()
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            client.list_async_jobs(False, None, False, anon, url) 
+            client.list_async_jobs(False, None, False, anon, url)
+            self.assertEqual(usage, stdout_mock.getvalue())
 
     @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
                                          MyExitError, MyExitError,
@@ -283,7 +261,7 @@ class TestCadcTapClient(unittest.TestCase):
     def test_help(self):
         """ Tests the helper displays for commands and subcommands in main"""
         self.maxDiff = None
- 
+
         # help
         with open(os.path.join(TESTDATA_DIR, 'help.txt'), 'r') as myfile:
             usage = myfile.read()
@@ -294,10 +272,12 @@ class TestCadcTapClient(unittest.TestCase):
                 main_app()
             self.assertEqual(usage, stdout_mock.getvalue())
 
-        usage=('usage: cadc-tap [-h] [-V]\n'
-               '                {get-tables,get-table,run-query,load-async-job,list-async-jobs}\n'
-               '                ...\n'
-               'cadc-tap: error: too few arguments\n')
+        usage = ('usage: cadc-tap [-h] [-V]\n'
+                 '                {get-tables,get-table,run-query,'
+                 'load-async-job'
+                 ',list-async-jobs}\n'
+                 '                ...\n'
+                 'cadc-tap: error: too few arguments\n')
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
                 sys.argv = ['cadc-tap']
@@ -306,7 +286,8 @@ class TestCadcTapClient(unittest.TestCase):
                 self.assertEqual(usage, stderr_mock.getvalue())
 
         # get-tables -h
-        with open(os.path.join(TESTDATA_DIR, 'help_get_tables.txt'), 'r') as myfile:
+        with open(os.path.join(TESTDATA_DIR,
+                               'help_get_tables.txt'), 'r') as myfile:
             usage = myfile.read()
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
@@ -316,7 +297,8 @@ class TestCadcTapClient(unittest.TestCase):
             self.assertEqual(usage, stdout_mock.getvalue())
 
         # get-table -h
-        with open(os.path.join(TESTDATA_DIR, 'help_get_table.txt'), 'r') as myfile:
+        with open(os.path.join(TESTDATA_DIR,
+                               'help_get_table.txt'), 'r') as myfile:
             usage = myfile.read()
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
@@ -326,7 +308,8 @@ class TestCadcTapClient(unittest.TestCase):
             self.assertEqual(usage, stdout_mock.getvalue())
 
         # run-query -h
-        with open(os.path.join(TESTDATA_DIR, 'help_run_query.txt'), 'r') as myfile:
+        with open(os.path.join(TESTDATA_DIR,
+                               'help_run_query.txt'), 'r') as myfile:
             usage = myfile.read()
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
@@ -336,7 +319,8 @@ class TestCadcTapClient(unittest.TestCase):
             self.assertEqual(usage, stdout_mock.getvalue())
 
         # load-async-job -h
-        with open(os.path.join(TESTDATA_DIR, 'help_load_job.txt'), 'r') as myfile:
+        with open(os.path.join(TESTDATA_DIR,
+                               'help_load_job.txt'), 'r') as myfile:
             usage = myfile.read()
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
@@ -346,7 +330,8 @@ class TestCadcTapClient(unittest.TestCase):
             self.assertEqual(usage, stdout_mock.getvalue())
 
         # list-async-jobs -h
-        with open(os.path.join(TESTDATA_DIR, 'help_list_jobs.txt'), 'r') as myfile:
+        with open(os.path.join(TESTDATA_DIR,
+                               'help_list_jobs.txt'), 'r') as myfile:
             usage = myfile.read()
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
@@ -360,8 +345,9 @@ class TestCadcTapClient(unittest.TestCase):
     @patch('cadctap.core.CadcTapClient.run_query')
     @patch('cadctap.core.CadcTapClient.get_table')
     @patch('cadctap.core.CadcTapClient.get_tables')
-    def test_main(self, get_tables_mock, get_table_mock, run_query_mock, load_async_mock, list_async_mock):
-        url='http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/tap'
+    def test_main(self, get_tables_mock, get_table_mock, run_query_mock,
+                  load_async_mock, list_async_mock):
+        url = 'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/tap'
         sys.argv = ['cadc-tap', 'get-tables']
         main_app()
         calls = [call(False, ANY, url)]
@@ -372,9 +358,11 @@ class TestCadcTapClient(unittest.TestCase):
         calls = [call('tablename', False, ANY, url)]
         get_table_mock.assert_has_calls(calls)
 
-        sys.argv = ['cadc-tap', 'run-query', '-Q', 'query.sql', '-a', '-f', 'filename', '-b']
+        sys.argv = ['cadc-tap', 'run-query', '-Q', 'query.sql',
+                    '-a', '-f', 'filename', '-b']
         main_app()
-        calls = [call('query.sql', True, 'filename', 'votable', False, False, True, None, None, ANY, url)]
+        calls = [call('query.sql', True, 'filename', 'votable',
+                 False, False, True, None, None, ANY, url)]
         run_query_mock.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'load-async-job', '-j', '123']
@@ -382,10 +370,12 @@ class TestCadcTapClient(unittest.TestCase):
         calls = [call('123', None, False, False, ANY, url)]
         load_async_mock.assert_has_calls(calls)
 
-        sys.argv = ['cadc-tap', 'list-async-jobs', '-n', '-f', 'filename', '-s']
+        sys.argv = ['cadc-tap', 'list-async-jobs',
+                    '-n', '-f', 'filename', '-s']
         main_app()
         calls = [call(False, 'filename', True, ANY, url)]
         list_async_mock.assert_has_calls(calls)
+
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']
