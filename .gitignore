@@ -4,6 +4,7 @@
 *.o
 *.so
 __pycache__
+.pytest_cache
 
 # Ignore .c files by default to avoid including generated code. If you want to
 # add a non-generated .c extension, use `git add -f filename.c`.
@@ -16,6 +17,10 @@ htmlcov
 .coverage
 MANIFEST
 .ipynb_checkpoints
+
+# Generated files from cadccutout
+*.fits
+github_issue.py
 
 # Sphinx
 docs/api
