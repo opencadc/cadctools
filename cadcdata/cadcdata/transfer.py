@@ -78,8 +78,12 @@ VOSPACE_SCHEMA = {VOSPACE_20: None,
 # Other constants from the VOSpace standard
 PROTOCOL_HTTP_GET = 'ivo://ivoa.net/vospace/core#httpget'
 PROTOCOL_HTTP_PUT = 'ivo://ivoa.net/vospace/core#httpput'
-DIRECTION_PROTOCOL_MAP = {'pushToVoSpace': PROTOCOL_HTTP_PUT,
-                          'pullFromVoSpace': PROTOCOL_HTTP_GET}
+PROTOCOL_HTTPS_GET = 'ivo://ivoa.net/vospace/core#httpsget'
+PROTOCOL_HTTPS_PUT = 'ivo://ivoa.net/vospace/core#httpsput'
+DIRECTION_PROTOCOL_MAP = {'pushToVoSpace': [PROTOCOL_HTTP_PUT,
+                                            PROTOCOL_HTTPS_PUT],
+                          'pullFromVoSpace': [PROTOCOL_HTTP_GET,
+                                              PROTOCOL_HTTPS_GET]}
 
 # supported transfer schemes
 TRANSFER_SCHEMES = ['vos', 'ad', 'mast']
@@ -159,13 +163,12 @@ class Transfer(object):
                 self.add_protocol(protocol)
         elif self.direction == 'pushToVoSpace':
             # If we're doing a put and no protocol specified, set default
-            self.add_protocol(
-                Protocol(DIRECTION_PROTOCOL_MAP['pushToVoSpace'])
-            )
+            for p in DIRECTION_PROTOCOL_MAP['pushToVoSpace']:
+                self.add_protocol(Protocol(p))
         elif self.direction == 'pullFromVoSpace':
             # If we're doing a pull and no protocol specified, set default
-            self.add_protocol(
-                Protocol(DIRECTION_PROTOCOL_MAP['pullFromVoSpace']))
+            for p in DIRECTION_PROTOCOL_MAP['pullFromVoSpace']:
+                self.add_protocol(Protocol(p))
 
     def set_version(self, version_in):
         """ Set a valid VOSpace version with validation. """
@@ -208,7 +211,7 @@ class Transfer(object):
         assert isinstance(protocol, Protocol)
 
         if protocol.uri and \
-                (protocol.uri != DIRECTION_PROTOCOL_MAP[self.direction]):
+                (protocol.uri not in DIRECTION_PROTOCOL_MAP[self.direction]):
             raise TransferError(
                 "Protocol URI, %s, incompatible with transfer direction, %s."
                 % (protocol.uri, self.direction))

@@ -1,7 +1,7 @@
 usage: cadc-data put [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                      [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
-                     [-s ARCHIVE_STREAM]
+                     [-t TYPE] [-e ENCODING] [-s ARCHIVE_STREAM] [--nomd5]
                      archive source [source ...]
 
 Upload files into a CADC archive
@@ -16,22 +16,28 @@ optional arguments:
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages
+  -e, --encoding ENCODING
+                        MIME encoding to set in archive. If missing, the
+                        application will try to deduce it
   -h, --help            show this help message and exit
   --host HOST           base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
+  --nomd5               do not perform md5 check at the end of transfer
   -q, --quiet           run quietly
   --resource-id RESOURCE_ID
                         resource identifier (default ivo://cadc.nrc.ca/data)
+  -t, --type TYPE       MIME type to set in archive. If missing, the
+                        application will try to deduce it
   -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
 
 Examples:
 - Use certificate to put a file in an archive stream:
-        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default TEST myfile.fits.gz
+        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default -t "application/gzip" TEST myfile.fits.gz
 - Use default netrc file ($HOME/.netrc) to put two files:
         cadc-data put -v -n TEST myfile1.fits.gz myfile2.fits.gz
 - Use a different netrc file to put files from a directory:

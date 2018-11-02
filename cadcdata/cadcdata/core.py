@@ -77,11 +77,24 @@ import sys
 import time
 import socket
 from clint.textui import progress
+import hashlib
 
 from cadcutils import net, util, exceptions
 from cadcdata.transfer import Transfer, TransferReader, TransferWriter
 
 from cadcdata import version
+
+MAGIC_WARN = None
+try:
+    import magic
+except ImportError as e:
+    if 'libmagic' in str(e):
+        MAGIC_WARN = ('Can not determine the MIME info. Please install '
+                      'libmagic system library or explicitly specify MIME '
+                      'type and encoding for each file.')
+    else:
+        raise e
+
 
 # make the stream bar show up on stdout
 progress.STREAM = sys.stdout
@@ -173,7 +186,8 @@ class CadcDataClient(object):
                                              agent, retry=True, host=self.host)
 
     def get_file(self, archive, file_name, destination=None, decompress=False,
-                 cutout=None, fhead=False, wcs=False, process_bytes=None):
+                 cutout=None, fhead=False, wcs=False, process_bytes=None,
+                 md5_check=True):
         """
         Get a file from an archive. The entire file is delivered unless the
          cutout argument is present specifying a cutout to extract from file.
@@ -190,6 +204,7 @@ class CadcDataClient(object):
         :param fhead: download just the head of a fits file
         :param wcs: True if the wcs is to be included with the file
         :param process_bytes: function to be applied to the received bytes
+        :param md5_check: if True, do md5sum check for corrupted data
         :return: the data stream object
         """
         assert archive is not None
@@ -219,18 +234,19 @@ class CadcDataClient(object):
             self.logger.debug('GET from URL {}'.format(url))
             try:
                 response = self._data_client.get(url, stream=True)
-
                 if destination is not None:
                     if not hasattr(destination, 'read'):
                         # got a destination name?
                         with open(destination, 'wb') as f:
                             self._save_bytes(response, f, file_info,
                                              decompress=decompress,
-                                             process_bytes=process_bytes)
+                                             process_bytes=process_bytes,
+                                             md5_check=md5_check)
                     else:
                         self._save_bytes(response, destination, file_info,
                                          decompress=decompress,
-                                         process_bytes=process_bytes)
+                                         process_bytes=process_bytes,
+                                         md5_check=md5_check)
                 else:
                     # get the destination name from the content disposition
                     content_disp = response.headers.get('content-disposition',
@@ -239,15 +255,22 @@ class CadcDataClient(object):
                     for content in content_disp.split():
                         if 'filename=' in content:
                             destination = content[9:]
+                            self.logger.debug(
+                                'Content disposition destination name: {}'.
+                                format(destination))
                     if destination.endswith('gz') and decompress:
                         destination = os.path.splitext(destination)[0]
-                    self.logger.debug(
-                        'Using content disposition destination name: {}'.
+                    # remove any path information and save the file in local
+                    # directory
+                    destination = os.path.basename(destination)
+                    self.logger.info(
+                        'Saved file in local directory under: {}'.
                         format(destination))
                     with open(destination, 'wb') as f:
                         self._save_bytes(response, f, file_info,
                                          decompress=decompress,
-                                         process_bytes=process_bytes)
+                                         process_bytes=process_bytes,
+                                         md5_check=md5_check)
                 return
             except (exceptions.HttpException, socket.timeout) as e:
                 # try a different URL
@@ -256,14 +279,24 @@ class CadcDataClient(object):
                     format(url, e))
                 self.logger.warn('Try the next URL')
                 continue
+            except DownloadError as e:
+                if not hasattr(destination, 'read'):
+                    # try to cleanup the corrupted file
+                    try:
+                        os.unlink(destination)
+                    except Exception:
+                        # nothing we can do
+                        pass
+                raise exceptions.HttpException(str(e))
         raise exceptions.HttpException(
             'Unable to download data from any of the available URLs')
 
     def _save_bytes(self, response, dest_file, resource, decompress=False,
-                    process_bytes=None):
+                    process_bytes=None, md5_check=True):
         # requests automatically decompresses the data.
         # Tell it to do it only if it had to
         total_length = 0
+        hash_md5 = hashlib.md5()
 
         class RawRange(object):
             """
@@ -277,6 +310,7 @@ class CadcDataClient(object):
                 """
                 self.decode_content = decode_content
                 self._read = rsp.raw.read
+                self._decode = rsp.raw._decode
                 self.block_size = 0
 
             def __iter__(self):
@@ -287,9 +321,19 @@ class CadcDataClient(object):
 
             def next(self):
                 # reads the next raw block
-                data = self._read(self.block_size,
-                                  decode_content=self.decode_content)
+                # Hack warning:
+                # Not using decode_content argument of the Response.read
+                # method in order to get access to the raw bytes and do the
+                # md5 checksum before decoding (decompressing) them.
+                # Unfortunately, that forces us to use the hidden _decode
+                # method of the urllib3 Response class.
+                data = self._read(self.block_size)
                 if len(data) > 0:
+                    if md5_check and\
+                            (response.headers.get('content-MD5', 0) != 0):
+                        hash_md5.update(data)
+                    if self.decode_content:
+                        data = self._decode(data, True, False)
                     return data
                 else:
                     raise StopIteration()
@@ -320,20 +364,33 @@ class CadcDataClient(object):
             if process_bytes is not None:
                 process_bytes(chunk)
             dest_file.write(chunk)
+        if md5_check and (response.headers.get('content-MD5', 0) != 0):
+            md5sum = hash_md5.hexdigest()
+            if md5sum and response.headers.get('content-MD5', 0) != md5sum:
+                raise DownloadError(
+                    'Downloaded file is corrupted: '
+                    'expected md5({}) != actual md5({})'.
+                    format(response.headers.get('content-MD5', 0), md5sum))
         duration = time.time() - start
         self.logger.info(
             'Successfully downloaded file {} as {} in {}s (avg. speed: {}MB/s)'
             ''.format(resource, dest_file.name, round(duration, 2),
                       round(total_length / 1024 / 1024 / duration, 2)))
 
-    def put_file(self, archive, src_file, archive_stream=None):
+    def put_file(self, archive, src_file, archive_stream=None, mime_type=None,
+                 mime_encoding=None, md5_check=True):
         """
         Puts a file into the archive storage
         :param archive: name of the archive
         :param src_file: location of the source file
         :param archive_stream: specific archive stream
+        :param mime_type: file mime type
+        :param mime_encoding: file mime encoding
+        :param md5_check: if True, calculate the md5sum before sending the file
+        Server will fail if it receives a corrupted file.
         """
-        assert archive is not None
+        if not archive:
+            raise AttributeError('No archive specified')
 
         # We actually raise an exception here since the web
         # service will normally respond with a 200 for an
@@ -343,9 +400,40 @@ class CadcDataClient(object):
                 'Must be authenticated to put data')
 
         self.logger.debug('PUT {}/{}'.format(archive, src_file))
+
         headers = {}
+        if md5_check:
+            # calculate the md5sum
+            md5sum = self._get_md5sum(src_file)
+            headers['Content-MD5'] = md5sum
+            logger.debug('Set Content-MD5: {}'.format(md5sum))
+
         if archive_stream is not None:
             headers[ARCHIVE_STREAM_HTTP_HEADER] = str(archive_stream)
+        if mime_type is not None:
+            mtype = mime_type
+        elif MAGIC_WARN:
+            mtype = None
+            logger.warning(MAGIC_WARN)
+        else:
+            m = magic.Magic(mime=True)
+            mtype = m.from_file(os.path.realpath(src_file))
+        if mtype is not None:
+            headers['Content-Type'] = mtype
+            logger.debug('Set MIME type: {}'.format(mtype))
+
+        if mime_encoding:
+            mencoding = mime_encoding
+        elif MAGIC_WARN:
+            mencoding = None
+            if mtype:
+                logger.warning(MAGIC_WARN)
+        else:
+            m = magic.Magic(mime_encoding=True)
+            mencoding = m.from_file(os.path.realpath(src_file))
+        if mencoding:
+            headers['Content-Encoding'] = mencoding
+            logger.debug('Set MIME encoding: {}'.format(mencoding))
 
         protocols = self._get_transfer_protocols(
             archive, src_file, is_get=False, headers=headers)
@@ -447,6 +535,23 @@ class CadcDataClient(object):
         tran = self._transfer_reader.read(response_str)
         return tran.protocols
 
+    def _get_md5sum(self, filename):
+        # return the md5sum of a file
+        hash_md5 = hashlib.md5()
+        with open(filename, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+        return hash_md5.hexdigest()
+
+
+class DownloadError(Exception):
+    """Download error (file corrupted)
+    Attributes:
+        msg
+    """
+    def __init__(self, msg=None):
+        Exception.__init__(self, msg)
+
 
 def main_app():
     parser = util.get_base_parser(version=version.version,
@@ -474,6 +579,9 @@ def main_app():
         help=('specify one or multiple extension and/or pixel range cutout '
               'operations to be performed. Use cfitsio syntax'),
         required=False)
+    get_parser.add_argument(
+        '--nomd5', action='store_true', required=False,
+        help='do not perform md5 check at the end of transfer')
     get_parser.add_argument(
         '-z', '--decompress', help='decompress the data (gzip only)',
         action='store_true', required=False)
@@ -508,19 +616,30 @@ def main_app():
         'put',
         description='Upload files into a CADC archive',
         help='Upload files into a CADC archive')
+    put_parser.add_argument('-t', '--type',
+                            help="MIME type to set in archive. If missing, the"
+                                 " application will try to deduce it",
+                            required=False)
+    put_parser.add_argument('-e', '--encoding',
+                            help='MIME encoding to set in archive. If missing,'
+                                 ' the application will try to deduce it',
+                            required=False)
     put_parser.add_argument(
         '-s', '--archive-stream',
         help='specific archive stream to add the file to',
         required=False)
     put_parser.add_argument('archive', help='CADC archive')
     put_parser.add_argument(
+        '--nomd5', action='store_true', required=False,
+        help='do not perform md5 check at the end of transfer')
+    put_parser.add_argument(
         'source',
         help='file or directory containing the files to be put', nargs='+')
     put_parser.epilog = (
         'Examples:\n'
         '- Use certificate to put a file in an archive stream:\n'
-        '        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default TEST '
-        'myfile.fits.gz\n'
+        '        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default '
+        '-t "application/gzip" TEST myfile.fits.gz\n'
         '- Use default netrc file ($HOME/.netrc) to put two files:\n'
         '        cadc-data put -v -n TEST myfile1.fits.gz myfile2.fits.gz\n'
         '- Use a different netrc file to put files from a directory:\n'
@@ -612,7 +731,8 @@ def main_app():
                     try:
                         client.get_file(
                             archive, fname, f, decompress=args.decompress,
-                            fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
+                            fhead=args.fhead, wcs=args.wcs, cutout=args.cutout,
+                            md5_check=(not args.nomd5))
                     except exceptions.NotFoundException:
                         handle_error('File name {} not found'.format(fname),
                                      exit_after=False)
@@ -621,7 +741,8 @@ def main_app():
                     try:
                         client.get_file(
                             archive, fname, None, decompress=args.decompress,
-                            fhead=args.fhead, wcs=args.wcs, cutout=args.cutout)
+                            fhead=args.fhead, wcs=args.wcs, cutout=args.cutout,
+                            md5_check=(not args.nomd5))
                     except exceptions.NotFoundException:
                         handle_error('File name not found {}'.format(fname),
                                      exit_after=False)
@@ -654,14 +775,17 @@ def main_app():
                         if os.path.isfile(os.path.join(file1, f)):
                             files.append(os.path.join(file1, f))
                         else:
-                            logger.warn(
+                            logger.warning(
                                 '{} not added to the list of files to '
                                 'put'.format(f))
             logger.debug('Files to put: {}'.format(files))
             if len(files) == 0:
                 handle_error('No files found to put')
             for f in files:
-                client.put_file(archive, f, archive_stream=args.archive_stream)
+                client.put_file(archive, f, archive_stream=args.archive_stream,
+                                mime_type=args.type,
+                                mime_encoding=args.encoding,
+                                md5_check=(not args.nomd5))
     except exceptions.UnauthorizedException:
         if subject.anon:
             handle_error('Operation cannot be performed anonymously. '

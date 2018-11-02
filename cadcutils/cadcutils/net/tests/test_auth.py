@@ -116,7 +116,7 @@ class TestAuth(unittest.TestCase):
         certfile = '/tmp/testcertfile'
         try:
             os.remove(certfile)
-        except OSError as ex:
+        except OSError:
             pass
         sys.argv = ["cadc-get-cert", "-u", "bob", "--cert-filename", certfile]
         self.assertEqual(None, auth.get_cert_main())
