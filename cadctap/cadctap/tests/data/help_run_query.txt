@@ -1,9 +1,9 @@
 usage: cadc-tap run-query [-h]
                           [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                           [--host HOST] [--resource-id RESOURCE_ID]
-                          [-d | -q | -v] -Q QUERY [-a] [-f FILE_NAME]
-                          [-ff {votable,csv,tsv}] [-s] [-b] [-uf UPLOAD_FILE]
-                          [-un UPLOAD_TABLE_NAME]
+                          [-d | -q | -v] (-Q QUERY | -QF QUERY_FILE) [-a]
+                          [-f FILE_NAME] [-ff {votable,csv,tsv}] [-s] [-b]
+                          [-uf UPLOAD_FILE] [-un UPLOAD_TABLE_NAME]
 
 Run an adql query
 
@@ -27,7 +27,10 @@ optional arguments:
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
-  -Q, --query QUERY     Location of file with an ADQL query to run
+  -Q, --query QUERY     ADQL query to run, format is a string with quotes
+                        around it, for example "SELECT * FROM table"
+  -QF, --query-file QUERY_FILE
+                        Location of a file with only an ADQL query to run
   -q, --quiet           run quietly
   --resource-id RESOURCE_ID
                         resource identifier (default ivo://cadc.nrc.ca/tap)

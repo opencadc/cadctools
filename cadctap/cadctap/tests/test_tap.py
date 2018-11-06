@@ -191,7 +191,7 @@ class TestCadcTapClient(unittest.TestCase):
             usage = myfile.read()
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            client.run_query(os.path.join(TESTDATA_DIR, 'run_query.txt'),
+            client.run_query(None, os.path.join(TESTDATA_DIR, 'run_query.txt'),
                              False, None, 'votable', False, False, False,
                              None, None, anon, url)
             self.assertEqual(usage, stdout_mock.getvalue())
@@ -358,10 +358,10 @@ class TestCadcTapClient(unittest.TestCase):
         calls = [call('tablename', False, ANY, url)]
         get_table_mock.assert_has_calls(calls)
 
-        sys.argv = ['cadc-tap', 'run-query', '-Q', 'query.sql',
+        sys.argv = ['cadc-tap', 'run-query', '-QF', 'query.sql',
                     '-a', '-f', 'filename', '-b']
         main_app()
-        calls = [call('query.sql', True, 'filename', 'votable',
+        calls = [call(None, 'query.sql', True, 'filename', 'votable',
                  False, False, True, None, None, ANY, url)]
         run_query_mock.assert_has_calls(calls)
 

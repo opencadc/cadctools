@@ -198,11 +198,14 @@ class CadcTapClient(object):
         for col in columns.get_columns():
             print(col.get_name())
 
-    def run_query(self, query, async, file_name, file_format, verbose,
-                  save_to_file, background, upload_file, upload_table_name,
-                  authentication, url):
-        with open(query) as f:
-            file_data = f.read().strip()
+    def run_query(self, query, query_file, async, file_name, file_format,
+                  verbose, save_to_file, background, upload_file,
+                  upload_table_name, authentication, url):
+        if query_file is not None:
+            with open(query_file) as f:
+                adql_query = f.read().strip()
+        else:
+            adql_query = query
         Cadc = cadc.CadcTAP(url=url)
         if async is True:
             operation = 'async'
@@ -217,18 +220,11 @@ class CadcTapClient(object):
             else:
                 upload_table_name = validname.group()
         try:
-            job = Cadc.run_query(file_data, operation, file_name, file_format,
+            job = Cadc.run_query(adql_query, operation, file_name, file_format,
                                  verbose, save_to_file, background,
                                  upload_file, upload_table_name,
                                  authentication)
         except Exception as e:
-            if e.args[0] == 'Internal Server Error':
-                raise exceptions.HttpException(
-                    '500 Internal Server Error, '
-                    'probably from an invaild table form')
-            if e.args[0] == 'Bad Request':
-                raise exceptions.HttpException(
-                    '400 Bad Request, probably from an invaild query')
             raise exceptions.HttpException(e.args[0])
         if save_to_file is False and background is False:
             print('----------------')
@@ -332,10 +328,16 @@ def main_app():
         'run-query',
         description=('Run an adql query'),
         help='Run an adql query')
-    run_query_parser.add_argument(
+    query_parser = run_query_parser.add_mutually_exclusive_group(required=True)
+    query_parser.add_argument(
         '-Q', '--query',
-        help='Location of file with an ADQL query to run',
-        required=True)
+        default=None,
+        help='ADQL query to run, format is a string with quotes around it, '
+              'for example "SELECT * FROM table"')
+    query_parser.add_argument(
+        '-QF', '--query-file',
+        default=None,
+        help='Location of a file with only an ADQL query to run')
     run_query_parser.add_argument(
         '-a', '--async',
         action='store_true',
@@ -491,10 +493,11 @@ def main_app():
             client.get_table(args.table, show_prints, authentication, sub_url)
         elif args.cmd == 'run-query':
             logger.info('run-query')
-            client.run_query(args.query, args.async, args.file_name,
-                             args.file_format, show_prints, args.save_to_file,
-                             args.background, args.upload_file,
-                             args.upload_table_name, authentication, sub_url)
+            client.run_query(args.query, args.query_file, args.async,
+                             args.file_name, args.file_format, show_prints,
+                             args.save_to_file, args.background,
+                             args.upload_file, args.upload_table_name,
+                             authentication, sub_url)
         elif args.cmd == 'load-async-job':
             logger.info('load-async-job')
             client.load_async_job(args.jobid, args.file_name,
