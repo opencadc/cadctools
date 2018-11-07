@@ -94,8 +94,7 @@ class PixelCutoutHDU(object):
             extension.  If string, use the first extension with EXTNAME=string, or use int to get the extension[int].
             This is zero (0) based.
         """
-        self.logger = logging.getLogger()
-        self.logger.setLevel('DEBUG')
+        self.logger = logging.getLogger(__name__)
         self.dimension_ranges = list(map(fix_tuple, dimension_ranges))
         self._extension = str(extension)  # For consistency.
 

@@ -82,6 +82,7 @@ __all__ = ['PixelRangeInputParserError', 'PixelRangeInputParser']
 RANGE_BEGIN_CHAR = '['
 RANGE_END_CHAR = ']'
 
+
 class PixelRangeInputParserError(ValueError):
     pass
 
@@ -92,8 +93,7 @@ class PixelRangeInputParser(object):
     """
 
     def __init__(self, delimiter=':', separator=','):
-        self.logger = logging.getLogger()
-        self.logger.setLevel('DEBUG')
+        self.logger = logging.getLogger(__name__)
         self.delimiter = delimiter
         self.separator = separator
         self.match_pattern = re.compile(
@@ -103,7 +103,7 @@ class PixelRangeInputParser(object):
         # if input_str is not None:
         return input_str and input_str.count(RANGE_BEGIN_CHAR) > 0
         # else:
-            # return False
+        # return False
 
     def _to_range_tuple(self, rs):
         if self.delimiter not in rs:
@@ -140,7 +140,8 @@ class PixelRangeInputParser(object):
         rs = pixel_range_input_str.strip()
 
         if self.is_pixel_cutout(rs) == False:
-            raise PixelRangeInputParserError('Not a valid pixel cutout string "{}".'.format(rs))
+            raise PixelRangeInputParserError(
+                'Not a valid pixel cutout string "{}".'.format(rs))
 
         # List of ranges in format [ext][pixel ranges]
         ranges = re.findall(self.match_pattern, rs)

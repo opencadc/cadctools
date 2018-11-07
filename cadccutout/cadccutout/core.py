@@ -72,10 +72,11 @@ import signal
 import sys
 import os
 
-from opencadc_cutout.file_helper import FileHelperFactory
-from opencadc_cutout.pixel_range_input_parser import PixelRangeInputParser
+from cadccutout.file_helper import FileHelperFactory
+from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
 __all__ = ['OpenCADCCutout']
+
 
 class OpenCADCCutout(object):
     """
@@ -94,7 +95,7 @@ class OpenCADCCutout(object):
 
     Example 1
     --------
-    from opencadc_cutout import OpenCADCCutout
+    from cadccutout import OpenCADCCutout
 
     cutout = OpenCADCCutout()
     output_file = tempfile.mkstemp(suffix='.fits')
@@ -106,13 +107,11 @@ class OpenCADCCutout(object):
     # Needs to have 'append' flag set.  The cutout() method will write out the data.
     with open(output_file, 'ab+') as output_writer, open(input_file, 'rb') as input_reader:
         test_subject.cutout(input_reader, output_writer, cutout_region_string, 'FITS')
-        output_writer.close()
-        input_reader.close()
 
 
     Example 2 (CADC)
     --------
-    from opencadc_cutout import OpenCADCCutout
+    from cadccutout import OpenCADCCutout
     from cadcdata import CadcDataClient
 
     cutout = OpenCADCCutout()
@@ -129,12 +128,9 @@ class OpenCADCCutout(object):
     # Needs to have 'append' flag set.  The cutout() method will write out the data.
     with open(output_file, 'ab+') as output_writer:
         test_subject.cutout(input_stream, output_writer, cutout_region_string, 'FITS')
-        output_writer.close()
-        input_stream.close()
     """
 
     def __init__(self, helper_factory=FileHelperFactory(), input_range_parser=PixelRangeInputParser()):
-        logging.getLogger().setLevel('INFO')
         self.logger = logging.getLogger(__name__)
         self.helper_factory = helper_factory
         self.input_range_parser = input_range_parser

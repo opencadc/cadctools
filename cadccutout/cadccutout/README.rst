@@ -24,7 +24,7 @@ Perform a cutout of a file using the ``cfitsio`` cutout string format.
 .. code:: python
 
        import tempfile
-       from opencadc_cutout import OpenCADCCutout
+       from cadccutout import OpenCADCCutout
 
        test_subject = OpenCADCCutout()
        output_file = tempfile.mkstemp(suffix='.fits')
@@ -45,7 +45,7 @@ Perform a cutout from an input stream from an HTTP request.
 .. code:: python
 
        import tempfile
-       from opencadc_cutout import OpenCADCCutout
+       from cadccutout import OpenCADCCutout
        from cadcdata import CadcDataClient
 
        test_subject = OpenCADCCutout()

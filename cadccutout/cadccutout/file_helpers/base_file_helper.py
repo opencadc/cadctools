@@ -78,17 +78,19 @@ from ..pixel_range_input_parser import PixelRangeInputParser
 
 __all__ = ['BaseFileHelper']
 
+
 class BaseFileHelper(object):
     def __init__(self, input_stream, output_writer, input_range_parser=PixelRangeInputParser()):
-        self.logger = logging.getLogger()
-        self.logger.setLevel('INFO')
+        self.logger = logging.getLogger(__name__)
         if input_stream is None:
-            raise ValueError('An input stream (file-like object or io/stream) is required to read from.')
+            raise ValueError(
+                'An input stream (file-like object or io/stream) is required to read from.')
         else:
             self.input_stream = input_stream
 
         if output_writer is None:
-            raise ValueError('An output stream (file-like object or io/stream) is required to write to.')
+            raise ValueError(
+                'An output stream (file-like object or io/stream) is required to write to.')
         else:
             self.output_writer = output_writer
 

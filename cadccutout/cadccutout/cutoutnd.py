@@ -110,8 +110,7 @@ class CutoutND(object):
     """
 
     def __init__(self, data, wcs=None):
-        self.logger = logging.getLogger()
-        self.logger.setLevel('DEBUG')
+        self.logger = logging.getLogger(__name__)
         self.data = data
         self.wcs = wcs
 
@@ -161,7 +160,8 @@ class CutoutND(object):
         else:
             self.logger.debug('Cutting out {} at {} for extension {} from {}.'.format(
                 shape, position, cutout_region.get_extension(), data.shape))
-            cutout_data, position = extract_array(data, shape, position, mode='partial', return_position=True)
+            cutout_data, position = extract_array(
+                data, shape, position, mode='partial', return_position=True)
 
         if self.wcs is not None:
             cutout_shape = cutout_data.shape

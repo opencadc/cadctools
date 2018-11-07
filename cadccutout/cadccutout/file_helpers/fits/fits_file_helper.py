@@ -79,10 +79,10 @@ from astropy.io import fits
 from astropy.io.fits import PrimaryHDU, ImageHDU
 from astropy.wcs import WCS
 from astropy.nddata import NoOverlapError
-from opencadc_cutout.utils import is_integer
-from opencadc_cutout.file_helpers.base_file_helper import BaseFileHelper
-from opencadc_cutout.no_content_error import NoContentError
-from opencadc_cutout.pixel_range_input_parser import PixelRangeInputParser
+from cadccutout.utils import is_integer
+from cadccutout.file_helpers.base_file_helper import BaseFileHelper
+from cadccutout.no_content_error import NoContentError
+from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
 
 __all__ = ['FITSHelper']
@@ -96,8 +96,7 @@ UNDESIREABLE_HEADER_KEYS = ['DQ1', 'DQ2']
 class FITSHelper(BaseFileHelper):
 
     def __init__(self, input_stream, output_writer, input_range_parser=PixelRangeInputParser()):
-        self.logger = logging.getLogger()
-        self.logger.setLevel('DEBUG')
+        self.logger = logging.getLogger(__name__)
         super(FITSHelper, self).__init__(
             input_stream, output_writer, input_range_parser)
 

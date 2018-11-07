@@ -73,8 +73,8 @@ import pytest
 import os
 import numpy as np
 
-from opencadc_cutout.pixel_cutout_hdu import PixelCutoutHDU
-from opencadc_cutout.pixel_range_input_parser import PixelRangeInputParser, PixelRangeInputParserError
+from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
+from cadccutout.pixel_range_input_parser import PixelRangeInputParser, PixelRangeInputParserError
 
 pytest.main(args=['-s', os.path.abspath(__file__)])
 

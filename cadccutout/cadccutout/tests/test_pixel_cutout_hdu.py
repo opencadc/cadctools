@@ -76,7 +76,7 @@ import os
 import sys
 import pytest
 
-from opencadc_cutout.pixel_cutout_hdu import PixelCutoutHDU
+from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 
 
 def test_create():
