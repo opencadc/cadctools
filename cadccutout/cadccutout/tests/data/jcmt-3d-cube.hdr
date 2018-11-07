@@ -1,0 +1,290 @@
+SIMPLE  =                    T / file does conform to FITS standard             
+BITPIX  =                  -32 / number of bits per data pixel                  
+NAXIS   =                    3 / number of data axes                            
+NAXIS1  =                    4 / length of data axis 1                          
+NAXIS2  =                    4 / length of data axis 2                          
+NAXIS3  =                 7208 / length of data axis 3                          
+EXTEND  =                    T / FITS dataset may contain extensions            
+COMMENT   FITS (Flexible Image Transport System) format is defined in 'Astronomy
+COMMENT   and Astrophysics', volume 376, page 359; bibcode: 2001A&A...376..359H 
+LBOUND1 =                    0 / Pixel origin along axis 1                      
+LBOUND2 =                    0 / Pixel origin along axis 2                      
+LBOUND3 =                -3604 / Pixel origin along axis 3                      
+LABEL   = 'T%s60+%v30+A%^50+%<20+*%+   corrected antenna temperature' / Label of
+BUNIT   = 'K       '           / Units of the primary array                     
+DATE    = '2018-10-23T11:00:30' / file creation date (YYYY-MM-DDThh:mm:ss UT)   
+ORIGIN  = 'East Asian Observatory' / Origin of file                             
+BSCALE  =                  1.0 / True_value = BSCALE * FITS_value + BZERO       
+BZERO   =                  0.0 / True_value = BSCALE * FITS_value + BZERO       
+HDUCLAS1= 'NDF     '           / Starlink NDF (hierarchical n-dim format)       
+HDUCLAS2= 'DATA    '           / Array component subclass                       
+HDSTYPE = 'NDF     '           / HDS data type of the component                 
+TELESCOP= 'JCMT    '           / Name of Telescope                              
+                                                                                
+        ---- x,y,z triplet for JCMT relative to centre of earth ----            
+ALT-OBS =               4120.0 / [m] Height of observatory above sea level      
+LAT-OBS =       19.82283890588 / [deg] Latitude of Observatory                  
+LONG-OBS=      -155.4770278387 / [deg] East longitude of observatory            
+OBSGEO-X=    -5464586.79494294 / [m] Observatory geocentric X                   
+OBSGEO-Y=    -2492997.75300812 / [m] Observatory geocentric Y                   
+OBSGEO-Z=     2150652.49546977 / [m] Observatory geocentric Z                   
+ETAL    =      0.8499577045441 / Telescope efficiency                           
+                                                                                
+        ---- WCS info and axis descriptions ----                                
+                                                                                
+        ---- OMP and ORAC-DR Specific ----                                      
+PROJECT = 'JCMTCAL '           / Project code                                   
+RECIPE  = 'REDUCE_STANDARD'    / ORAC-DR recipe                                 
+DRGROUP =                      / Data Reduction group ID                        
+MSBTITLE= 'N2071IR C18O(3-2) 329.3306 250MHz Best SB' / Title of minimum schedul
+MSBID   = 'CAL     '           / Id of minimum schedulable block                
+MSBTID  =                      / Transaction ID of MSB                          
+SURVEY  =                      / Survey Name                                    
+RMTAGENT=                      / Name of Remote Agent                           
+AGENTID =                      / Unique identifier for remote agent             
+RQ_MNTAU=                      / Requested min tau constraint                   
+RQ_MXTAU=                      / Requested max tau constraint                   
+                                                                                
+        ---- Obs Id, Date, Pointing Info ----                                   
+OBJECT  = 'N2071IR '           / Object of interest                             
+STANDARD=                    T / True if the observation is a calibrator        
+OBSNUM  =                   48 / Observation number                             
+NSUBSCAN=                    1 / Sub-scan number                                
+OBSEND  =                    T / True if file is last in current observation    
+UTDATE  =             20181022 / UT Date as integer in yyyymmdd format          
+DATE-OBS= '2018-10-22T17:07:33.380' / Date of observation                       
+DATE-END= '2018-10-22T17:11:59' / UTC Datetime of end of observation            
+DUT1    =    3.154169182105E-7 / [d] UT1-UTC correction                         
+DTAI    =                 37.0 / [s] TAI-UTC correction                         
+OBSID   = 'acsis_00048_20181022T170637' / Unique observation identifier         
+OBSIDSS = 'acsis_00048_20181022T170637_1' / Unique observation subsys identifier
+INSTAP  = 'H05     '           / Receptor at tracking centre (if any)           
+INSTAP_X=                 15.0 / [arcsec] Aperture X off. rel. to instr centre  
+INSTAP_Y=                 15.0 / [arcsec] Aperture Y off. rel. to instr centre  
+AMSTART =       1.487703093299 / Airmass at start of obervation                 
+AMEND   =       1.536073289168 / Airmass at end of obervation                   
+AZSTART =       251.4448812114 / [deg] Azimuth at obs. start - mount sys.       
+AZEND   =       252.6405372117 / [deg] Azimuth at obs. end - mount sys.         
+ELSTART =       42.24135743904 / [deg] Elevation at obs. start - mount sys.     
+ELEND   =       40.44341636672 / [deg] Elevation at obs. end - mount sys.       
+TRACKSYS= 'J2000   '           / TCS Tracking coordinate system                 
+BASEC1  =       86.77020833333 / [deg] TCS BASE position (longitude) in TRACKSYS
+BASEC2  =      0.3630833333333 / [deg] TCS BASE position (latitude) in TRACKSYS 
+HSTSTART= '2018-10-22T07:06:37' / HST at start of observation                   
+HSTEND  = '2018-10-22T07:11:59' / HST at end of observation                     
+LSTSTART= '08:49:01.4657'      / LST at start of observation                    
+LSTEND  = '08:54:23.9723'      / LST at end of observation                      
+                                                                                
+        ---- Integration time related -----                                     
+INT_TIME=                179.0 / [s] Time spent integrating, entire obs.        
+                                                                                
+        ---- ACSIS Specific ----                                                
+BACKEND = 'ACSIS   '           / Name of the backend                            
+MOLECULE= 'C-18-O  '           / Target molecular species                       
+TRANSITI= '3 - 2   '           / Target transition for MOLECULE                 
+DRRECIPE= 'grid_pssw_dr_recipe.ent' / ACSIS-DR recipe name                      
+BWMODE  = '250MHzx8192'        / ACSIS total bandwidth set up                   
+SUBSYSNR=                    1 / Sub-system number                              
+SUBBANDS= '250MHzx8192'        / ACSIS sub-band set up                          
+NSUBBAND=                    1 / Number of subbands                             
+SUBREFP1=               4096.0 / Reference channel for subband1                 
+SUBREFP2=                      / Reference channel for subband2                 
+NCHNSUBS=                 8192 / No. of channels in this sub-system             
+REFCHAN =               4096.0 / Reference IF channel No.                       
+IFCHANSP=        -30517.578125 / [Hz] TOPO IF channel spacing (signed)          
+FFT_WIN = 'truncate'           / Type of window used for FFT                    
+BEDEGFAC=                 1.23 / Backend degradation factor                     
+MSROOT  = 'raw_grid_pssw'      / Root name of raw measurement sets              
+                                                                                
+        ---- FE Specific ----                                                   
+INSTRUME= 'HARP    '           / Front-end receiver                             
+SB_MODE = 'SSB     '           / Sideband mode                                  
+IFFREQ  =                  5.0 / [GHz] IF Frequency                             
+N_MIX   =                   13 / No. of mixers                                  
+OBS_SB  = 'LSB     '           / The observed sideband                          
+LOFREQS =          334.3255557 / [GHz] LO Frequency at start of obs.            
+LOFREQE =          334.3255491 / [GHz] LO Frequency at end of obs.              
+RECPTORS= 'H01 H02 H03 H04 H05 H06 H07 H08 H09 H10 H11 H12 H15 ' / Active FE rec
+REFRECEP= 'H05     '           / Receptor with unit sensitivity                 
+MEDTSYS =     1132.14147949219 / [K] Median MAKECUBE system temperature         
+TEMPSCAL= 'TA*     '           / Temperature scale in use                       
+DOPPLER = 'radio   '           / Doppler velocity definition                    
+SSYSOBS = 'TOPOCENT'           / Spectral ref. frame during observation         
+NFREQSW =                      / Number of frequency switches                   
+FREQ_THR=                      / [MHz] The throw used in the frequency switch   
+TSPSTART=       282.4018572825 / [K] Spillover temperature at start of observati
+TSPEND  =       282.4018572825 / [K] Spillover temperature at end of observation
+                                                                                
+        ---- Environmental Data ----                                            
+ATSTART =                  2.4 / [degC] Air temp at start                       
+ATEND   =                  2.4 / [degC] Air temp at end                         
+HUMSTART=               36.708 / Rel. Humidity at start                         
+HUMEND  =       41.70880081177 / Rel. Humidity at end                           
+BPSTART =                623.5 / [mbar] Pressure at start                       
+BPEND   =       623.5999755859 / [mbar] Pressure at end                         
+WNDSPDST=                  2.8 / [km/h] Wind Speed at start                     
+WNDSPDEN=                  5.8 / [km/h] Wind Speed at end                       
+WNDDIRST=       111.2969272658 / [deg] Wind direction, azimuth at start         
+WNDDIREN=       121.7916061829 / [deg] Wind direction, azimuth at end           
+TAU225ST=                0.087 / Tau at 225 GHz from CSO at start               
+TAU225EN=                0.087 / Tau at 225 GHz from CSO at end                 
+TAUDATST= '0000-00-00T00:00:00' / Time of TAU225ST observation                  
+TAUDATEN= '0000-00-00T00:00:00' / Time of TAU225EN observation                  
+TAUSRC  = 'UNKNOWN '           / Source of the TAU225 value                     
+WVMTAUST=       0.111624583602 / 183.31 GHz Tau via WVM at start                
+WVMTAUEN=      0.1169336214662 / 183.31 GHz Tau via WVM at end                  
+WVMDATST= '2018-10-22T17:06:07' / Time of WVMTAUST                              
+WVMDATEN= '2018-10-22T17:11:47' / Time of WVMTAUEN                              
+SEEINGST=       1.182212591171 / [arcsec] SAO atmospheric seeing (start)        
+SEEINGEN=       1.073752760887 / [arcsec] SAO atmospheric seeing (end)          
+SEEDATST= '2018-10-22T17:05:27' / Date/Time of SEEINGST                         
+SEEDATEN= '2018-10-22T17:10:58' / Date/Time of SEEINGEN                         
+FRLEGTST=            2.4089775 / [degC] Mean Front leg temperature - Start      
+FRLEGTEN=             2.408597 / [degC] Mean Front Leg temperature -End         
+BKLEGTST=            2.7320585 / [degC] Mean back leg temperature -Start        
+BKLEGTEN=             2.755528 / [degC] Mean back leg temperature -End          
+                                                                                
+        ---- Switching and Map setup for the observation ----                   
+SAM_MODE= 'grid    '           / Sampling Mode                                  
+SW_MODE = 'pssw    '           / Switch Mode: CHOP, PSSW, NONE, etc             
+INBEAM  =                      / Hardware in the beam                           
+SKYREFX = '[OFFSET] 2400 [J2000]' / X co-ord of Reference Position              
+SKYREFY = '[OFFSET] 0 [J2000]' / Y co-ord of Reference Position                 
+OBS_TYPE= 'science '           / Type of observation                            
+CHOP_CRD=                      / Chopping co-ordinate system                    
+CHOP_FRQ=                      / [Hz] Chop frequency                            
+CHOP_PA =                      / [deg] Chop PA; 0=in lat, 90=in long            
+CHOP_THR=                      / [arcsec] Chop throw                            
+JIGL_CNT=                      / Number of offsets in jiggle pattern            
+JIGL_NAM=                      / File containing the jiggle offsets             
+JIG_PA  =                      / [deg] Jiggling PA; 0=in lat, 90=in long        
+JIG_CRD =                      / Jiggling co-ordinate system                    
+JIG_SCAL=                      / [arcsec] Scale of jiggle pattern               
+MAP_HGHT=                      / [arcsec] Requested height of map               
+MAP_PA  =                      / [deg] Requested PA of map                      
+MAP_WDTH=                      / [arcsec] Requested width of map                
+LOCL_CRD=                      / Local offset/map PA co-ordinate system         
+MAP_X   =                      / [arcsec] Requested map offset from tel centre  
+MAP_Y   =                      / [arcsec] Requested map offset from tel centre  
+SCAN_CRD=                      / Co-ordinate system for scanning direction      
+SCAN_VEL=                      / [arcsec/sec] Scan velocity along scan axis     
+SCAN_DY =                      / [arcsec] Scan spacing perp. to scan axis       
+SCAN_PA =                      / [deg] Scan PA relative to SAM_CRDS             
+SCAN_PAT=                      / Scan pattern name                              
+                                                                                
+        ---- SMU ----                                                           
+ALIGN_DX=                -0.39 / SMU tables X axis focus offset                 
+ALIGN_DY=                 0.26 / SMU tables Y axis focus offset                 
+FOCUS_DZ=     0.07749092578888 / SMU tables Z axis focus offset                 
+DAZ     =      -45.08000183105 / SMU azimuth pointing offset                    
+DEL     =       45.50025177002 / SMU elevation pointing offset                  
+UAZ     =      -1.494051609028 / User azimuth pointing offset                   
+UEL     =       2.973898310634 / User elevation pointing offset                 
+                                                                                
+        ---- JOS parameters ----                                                
+STEPTIME=                  1.0 / RTS step time during an RTS sequence           
+NUM_CYC =                    4 / Number of times to repeat entire recipe        
+JOS_MULT=                      / MULT from JOS used in total steps calculation  
+JOS_MIN =                   30 / MIN from JOS used in total steps calculation   
+NUM_NODS=                      / Number of times to repeat nod set              
+NCALSTEP=                    5 / Number of RTS steps for each CAL (if any)      
+NREFSTEP=                   30 / Mean no. of RTS steps for each REF (if any)    
+STBETREF=                   30 / Target number of RTS steps between refs        
+STBETCAL=                 1800 / Target number of RTS steps between cals        
+STARTIDX=                    1 / Index into pattern at start of obs             
+FOCAXIS =                      / Focus Axis to move (X, Y, Z)                   
+NFOCSTEP=                      / Number of focal position steps (odd number)    
+FOCSTEP =                      / Distance between focus steps                   
+                                                                                
+        ---- Miscellaneous ----                                                 
+OCSCFG  = 'acsis_20181022_170513_306441.xml' / OCS config filename              
+DHSVER  = 'MOD     '           / Data Handling System Vers                      
+SIM_CORR=                    F / True if any CORRTASK is simulated              
+SIM_IF  =                    F / True if IF data is simulated                   
+SIM_SMU =                    F / True if SMU data is simulated                  
+SIM_TCS =                    F / True if TCS data is simulated                  
+SIM_RTS =                    F / True if RTS data is simulated                  
+SIM_POL =                    F / True if polarization data is simulated         
+SIMULATE=                    F / True if any data are simulated                 
+STATUS  = 'NORMAL  '           / Status of end of obervation                    
+DOORSTST= 'Open    '           / Status of dome doors at start of observation   
+DOORSTEN= 'Open    '           / Status of dome doors at end of observation     
+ROOFSTST= 'Open    '           / Status of dome roof at start of observation    
+ROOFSTEN= 'Open    '           / Status of dome roof at end of observation      
+WND_BLND= 'GORE-TEX 1'         / Wind blind status                              
+TMU_X   =                0.441 / TMU X Position                                 
+TMU_Y   =      -45.03300094604 / TMU Y Position                                 
+                                                                                
+        ---- Polarimeter Specific ----                                          
+POL_MODE=                      / Step-and-integrate (STOP_START) or Spin (CONSTA
+ROTAFREQ=                      / [Hz] Spin frequency (if spinning) of polarimete
+POL_CRD =                      / Coordinate system of polarimeter               
+POL_FAXS=                      / Frequency dependency of waveplate offset of pol
+                                                                                
+        ---- K-mirror Specific ----                                             
+ROT_PA  =     -0.8457142312535 / [deg] K-mirror angle                           
+PIPEVERS= '6a935cd6d944951d3e2b0195036623d33c2533e2' / Pipeline version         
+ENGVERS = '3ebb1cd462916e6abbd9f40ab1ee5e905a97c5b8' / Algorithm engine version 
+PROCVERS= '20180725201532'     / Date of most recent commit                     
+OBSDEC  =     0.36309045126354 / [deg] Reference ICRS Dec coordinate            
+OBSRABL =     86.7785318095295 / [deg] Bottom left ICRS RA coordinate           
+OBSRATL =     86.7785318326626 / [deg] Top left ICRS RA coordinate              
+OBSRABR =     86.7535313311039 / [deg] Bottom right ICRS RA coordinate          
+OBSDECBR=    0.354757103039646 / [deg] Bottom right ICRS Dec coordinate         
+OBSRATR =     86.7535312851073 / [deg] Top right ICRS RA coordinate             
+FRQSIGLO=     329.191030851432 / [GHz] Lower barycentric freq bound, signal side
+FRQSIGHI=     329.410976070673 / [GHz] Upper barycentric freq bound, signal side
+FRQIMGLO=     339.189574112449 / [GHz] Lower barycentric freq bound, image sideb
+FRQIMGHI=      339.40951933169 / [GHz] Upper barycentric freq bound, image sideb
+OBSRA   =     86.7701983166332 / [deg] Reference ICRS RA coordinate             
+MJD-OBS =     58413.7135807823 / Modified Julian Date of observation            
+CRPIX1  =                  2.0 / Reference pixel on axis 1                      
+CRPIX2  =                  2.0 / Reference pixel on axis 2                      
+CRPIX3  =               3605.0 / Reference pixel on axis 3                      
+CRVAL1  =     86.7702083333333 / Value at ref. pixel on axis 1                  
+CRVAL2  =    0.363083333333332 / Value at ref. pixel on axis 2                  
+CRVAL3  =     329.301018718074 / Value at ref. pixel on axis 3                  
+CTYPE1  = 'RA---TAN'           / Type of co-ordinate on axis 1                  
+CTYPE2  = 'DEC--TAN'           / Type of co-ordinate on axis 2                  
+CTYPE3  = 'FREQ    '           / Type of co-ordinate on axis 3                  
+CD1_1   =  -0.0083333333333338 / Transformation matrix element                  
+CD2_2   =   0.0083333333333338 / Transformation matrix element                  
+CD3_3   =  3.05140426249188E-5 / Transformation matrix element                  
+CUNIT3  = 'GHz     '           / Units for axis 3
+RADESYS = 'FK5     '           / Reference frame for RA/DEC values              
+EQUINOX =               2000.0 / [yr] Epoch of reference equinox                
+SPECSYS = 'BARYCENT'           / Standard of rest for spectral axis             
+SSYSSRC = 'LSRK    '           / Standard of rest for source redshift           
+ZSOURCE =  3.33575222069005E-5 / [] Redshift of source                          
+VELOSYS =    -22668.4205250478 / [m/s] Topo. apparent velocity of rest frame    
+RESTFRQ =       329330545300.0 / [Hz] Rest frequency                            
+IMAGFREQ=     339330698345.924 / [Hz] Image frequency                           
+MJD-END =     58413.7166550926 / MJD of end of observation                      
+ASN_TYPE= 'obs     '           / Time-based selection criterion                 
+PRODUCT = 'reduced '           / Pipeline product                               
+PRODID  = 'reduced-329331MHz-250MHzx8192-1' / Product ID                        
+ROT_CRD = 'TRACKING'           / K-mirror coordinate system                     
+                                                                                
+        ---- Data Processing ----                                               
+EXP_TIME=                240.0 / [s] Median MAKECUBE exposure time              
+EFF_TIME=                240.0 / [s] Median MAKECUBE effective integration time 
+NUMTILES=                    1 / No. of tiles covering the field                
+OBSDECBL=    0.354757114206706 / [deg] Bottom left ICRS Dec coordinate          
+OBSDECTL=    0.379757113413415 / [deg] Top left ICRS Dec coordinate             
+OBSDECTR=    0.379757101453055 / [deg] Top right ICRS Dec coordinate            
+TILENUM =                    1 / Index of this tile (1->NUMTILES)               
+RMS_MAP =               1.0333                                                  
+INSTREAM= 'JCMT    '           / Source of input stream                         
+DPDATE  = '2018-10-23T11:00:26' / Data processing date                          
+DPRCINST= 'jac-234823'         / Data processing recipe instance ID             
+
+
+PRVCNT  =                    1 / Number of parents                              
+PRV1    = 'a20181022_00048_01_0001' / Name of the 1st parent                    
+OBSCNT  =                    1 / Number of root-ancestor headers                
+OBS1    = 'acsis_00048_20181022T170637_1' / Name of the 1st root ancestor       
+FILEID  = 'jcmth20181022_00048_01_reduced001_obs_000' / Filename minus extension
+                                                                                
+CHECKSUM= 'YAGQa6ENZAENa3EN'   / HDU checksum updated 2018-10-23T11:00:30       
+DATASUM = '3245995286'         / data unit checksum updated 2018-10-23T11:00:30 
+END                                                                             
