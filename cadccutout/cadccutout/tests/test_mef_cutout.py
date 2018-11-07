@@ -76,14 +76,15 @@ import os
 import sys
 import pytest
 import tempfile
+import context as test_context
 
 from astropy.io import fits
 from astropy.wcs import WCS
 
-from .context import cadccutout, random_test_file_name_path
-from cadccutout.core import OpenCADCCutout
-from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
-from cadccutout.no_content_error import NoContentError
+# from .context import random_test_file_name_path
+from opencadc_cutout.core import OpenCADCCutout
+from opencadc_cutout.pixel_cutout_hdu import PixelCutoutHDU
+from opencadc_cutout.no_content_error import NoContentError
 
 
 pytest.main(args=['-s', os.path.abspath(__file__)])
@@ -93,7 +94,7 @@ logger = logging.getLogger()
 
 
 def _create_mef_file(dir_name='/tmp'):
-    mef_file = random_test_file_name_path(dir_name=dir_name)
+    mef_file = test_context.random_test_file_name_path(dir_name=dir_name)
     hdu0 = fits.PrimaryHDU()
 
     data1 = np.arange(10000).reshape(100, 100)
@@ -114,7 +115,7 @@ def _create_mef_file(dir_name='/tmp'):
 def test_mef_cutout_no_overlap():
     test_subject = OpenCADCCutout()
     target_file_name = _create_mef_file()
-    cutout_file_name_path = random_test_file_name_path()
+    cutout_file_name_path = test_context.random_test_file_name_path()
     logger.info('Testing with {}'.format(cutout_file_name_path))
     cutout_region_str = '[1][300:800,810:1000]'
 
@@ -133,7 +134,7 @@ def test_mef_cutout_no_overlap():
 def test_mef_cutout():
     test_subject = OpenCADCCutout()
     target_file_name = _create_mef_file()
-    cutout_file_name_path = random_test_file_name_path()
+    cutout_file_name_path = test_context.random_test_file_name_path()
     logger.info('Testing with {}'.format(cutout_file_name_path))
     cutout_region_str = '[2][20:35,40:50][3]'
 

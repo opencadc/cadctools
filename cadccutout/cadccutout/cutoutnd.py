@@ -79,6 +79,8 @@ from astropy.wcs import Sip
 from astropy.nddata.utils import extract_array
 from .no_content_error import NoContentError
 
+__all__ = ['CutoutResult', 'CutoutND']
+
 
 class CutoutResult(object):
     """
@@ -98,7 +100,7 @@ class CutoutND(object):
       data : `~numpy.ndarray`
           The N-dimensional data array from which to extract the cutout array.
       cutout_region : `PixelCutoutHDU`
-          The Pixel HDU Cutout description.  See cadccutout.pixel_cutout_hdu.py.
+          The Pixel HDU Cutout description.  See opencadc_cutout.pixel_cutout_hdu.py.
       wcs : `~astropy.wcs.WCS` or `None`
           A WCS object associated with the cutout array.  If it's specified, reset the WCS values for the cutout.
 

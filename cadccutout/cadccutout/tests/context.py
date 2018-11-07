@@ -9,7 +9,7 @@ import tempfile
 sys.path.insert(0, os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..')))
 
-import cadccutout
+import opencadc_cutout
 
 
 TEST_FILE_DIR='/tmp'

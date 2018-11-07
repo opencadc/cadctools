@@ -1,3 +1,6 @@
+
+__all__ = ['to_num', 'is_integer']
+
 def to_num(s):
     try:
         return int(s)

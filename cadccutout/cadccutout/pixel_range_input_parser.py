@@ -76,10 +76,11 @@ import re
 from .pixel_cutout_hdu import PixelCutoutHDU
 from .utils import to_num
 
+__all__ = ['PixelRangeInputParserError', 'PixelRangeInputParser']
+
 
 RANGE_BEGIN_CHAR = '['
 RANGE_END_CHAR = ']'
-
 
 class PixelRangeInputParserError(ValueError):
     pass

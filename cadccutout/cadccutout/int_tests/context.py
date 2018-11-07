@@ -14,8 +14,8 @@ from cadcutils import net
 sys.path.insert(0, os.path.abspath(
     os.path.join(os.path.dirname(__file__), '..')))
 
-import cadccutout
-from cadccutout.tests.context import *
+import opencadc_cutout
+from opencadc_cutout.tests.context import *
 
 def get_file(archive, file_name, cutout=None, destination=None):
     anonSubject = net.Subject()

@@ -74,8 +74,8 @@ import logging
 import pytest
 import io
 
-from cadccutout.file_helpers.fits.fits_file_helper import FITSHelper
-from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
+from opencadc_cutout.file_helpers.fits.fits_file_helper import FITSHelper
+from opencadc_cutout.pixel_cutout_hdu import PixelCutoutHDU
 
 
 def test_is_extension_requested():

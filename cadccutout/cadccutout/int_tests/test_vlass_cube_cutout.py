@@ -81,10 +81,10 @@ from cadcdata import CadcDataClient
 from astropy.io import fits
 from astropy.wcs import WCS
 
-from .context import cadccutout, random_test_file_name_path, get_file
-from cadccutout.core import OpenCADCCutout
-from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
-from cadccutout.no_content_error import NoContentError
+from .context import opencadc_cutout, random_test_file_name_path, get_file
+from opencadc_cutout.core import OpenCADCCutout
+from opencadc_cutout.pixel_cutout_hdu import PixelCutoutHDU
+from opencadc_cutout.no_content_error import NoContentError
 
 
 pytest.main(args=['-s', os.path.abspath(__file__)])

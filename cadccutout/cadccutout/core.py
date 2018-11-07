@@ -72,9 +72,10 @@ import signal
 import sys
 import os
 
-from .file_helper import FileHelperFactory
-from .pixel_range_input_parser import PixelRangeInputParser
+from opencadc_cutout.file_helper import FileHelperFactory
+from opencadc_cutout.pixel_range_input_parser import PixelRangeInputParser
 
+__all__ = ['OpenCADCCutout']
 
 class OpenCADCCutout(object):
     """
@@ -93,7 +94,7 @@ class OpenCADCCutout(object):
 
     Example 1
     --------
-    from cadccutout import OpenCADCCutout
+    from opencadc_cutout import OpenCADCCutout
 
     cutout = OpenCADCCutout()
     output_file = tempfile.mkstemp(suffix='.fits')
@@ -111,7 +112,7 @@ class OpenCADCCutout(object):
 
     Example 2 (CADC)
     --------
-    from cadccutout import OpenCADCCutout
+    from opencadc_cutout import OpenCADCCutout
     from cadcdata import CadcDataClient
 
     cutout = OpenCADCCutout()

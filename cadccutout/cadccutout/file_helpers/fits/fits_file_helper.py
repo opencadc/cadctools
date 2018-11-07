@@ -79,13 +79,13 @@ from astropy.io import fits
 from astropy.io.fits import PrimaryHDU, ImageHDU
 from astropy.wcs import WCS
 from astropy.nddata import NoOverlapError
-from ...utils import is_integer
-from ..base_file_helper import BaseFileHelper
-from ...no_content_error import NoContentError
-from ...pixel_range_input_parser import PixelRangeInputParser
+from opencadc_cutout.utils import is_integer
+from opencadc_cutout.file_helpers.base_file_helper import BaseFileHelper
+from opencadc_cutout.no_content_error import NoContentError
+from opencadc_cutout.pixel_range_input_parser import PixelRangeInputParser
 
 
-def current_milli_time(): return int(round(time.time() * 1000))
+__all__ = ['FITSHelper']
 
 
 # Remove the DQ1 and DQ2 headers until the issue with wcslib is resolved:

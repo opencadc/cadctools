@@ -1,1 +1,1 @@
-from . import fits
+from . import *

@@ -73,6 +73,7 @@ import numpy as np
 from math import ceil
 from .utils import is_integer
 
+__all__ = ['PixelCutoutHDU']
 
 def fix_tuple(t):
     if np.isscalar(t):

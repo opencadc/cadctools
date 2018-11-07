@@ -75,6 +75,7 @@ import os
 from enum import Enum
 from .file_helpers.fits.fits_file_helper import FITSHelper
 
+__all__ = ['FileTypeHelpers', 'FileHelperFactory']
 
 class FileTypeHelpers(Enum):
     """
