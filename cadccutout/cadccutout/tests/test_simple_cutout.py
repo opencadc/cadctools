@@ -69,36 +69,62 @@
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-import pytest
-import os
-import numpy as np
 
-from .context import opencadc_cutout
-from opencadc_cutout.pixel_cutout_hdu import PixelCutoutHDU
-from opencadc_cutout.pixel_range_input_parser import PixelRangeInputParser, PixelRangeInputParserError
+import logging
+import numpy as np
+import os
+import sys
+import pytest
+import tempfile
+
+from astropy.io import fits
+from astropy.wcs import WCS
+
+from .context import cadccutout, random_test_file_name_path
+from cadccutout.core import OpenCADCCutout
+from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
+from cadccutout.no_content_error import NoContentError
+from cadccutout.file_helper import FileTypeHelpers
+
 
 pytest.main(args=['-s', os.path.abspath(__file__)])
+THIS_DIR = os.path.dirname(os.path.realpath(__file__))
+TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
+target_file_name = os.path.join(TESTDATA_DIR, 'test-simple.fits')
+expected_cutout_file_name = os.path.join(TESTDATA_DIR, 'test-simple-cutout.fits')
+logger = logging.getLogger()
 
+def test_simple_cutout():
+    test_subject = OpenCADCCutout()
+    cutout_file_name_path = random_test_file_name_path()
+    logger.info('Testing with {}'.format(cutout_file_name_path))
+    cutout_region_str = '[300:800,810:1000]'
 
-def test_parse():
-  test_subject = PixelRangeInputParser()
+    # Write out a test file with the test result FITS data.
+    with open(cutout_file_name_path, 'ab+') as output_writer, open(target_file_name, 'rb') as input_reader:
+        test_subject.cutout(input_reader, output_writer, cutout_region_str, 'FITS')
+        output_writer.close()
+        input_reader.close()
 
-  try:
-    result = test_subject.parse('BOGUS=78 9')
-    assert False, 'Should throw error.'
-  except PixelRangeInputParserError as err:
-    assert str(err) == 'Not a valid pixel cutout string "BOGUS=78 9".'
+    with fits.open(expected_cutout_file_name, mode='readonly') as expected_hdu_list, fits.open(cutout_file_name_path, mode='readonly') as result_hdu_list:
+        fits_diff = fits.FITSDiff(expected_hdu_list, result_hdu_list)
+        np.testing.assert_array_equal(
+            (), fits_diff.diff_hdu_count, 'HDU count diff should be empty.')
 
-  result = test_subject.parse('[9][500:600]')
-  assert result[0].get_extension() == 9, 'Wrong extension.'
+        for extension, result_hdu in enumerate(result_hdu_list):
+            expected_hdu = expected_hdu_list[extension]
+            expected_wcs = WCS(header=expected_hdu.header)
+            result_wcs = WCS(header=result_hdu.header)
 
-  result = test_subject.parse('[3]')
-  assert result[0].get_extension() == 3, 'Wrong extension.'
-
-  result = test_subject.parse('[35:78]')
-  assert result[0].get_extension() == 0, 'Wrong extension.'
-  assert result[0].dimension_ranges == [(35, 78)], 'Wrong ranges.'
-
-  result = test_subject.parse('[0][500:600,700:1200,6:10]')
-  assert result[0].get_extension() == 0, 'Wrong extension.'
-  assert result[0].dimension_ranges == [(500,600),(700,1200),(6,10)], 'Wrong ranges.'
+            np.testing.assert_array_equal(
+                expected_wcs.wcs.crpix, result_wcs.wcs.crpix, 'Wrong CRPIX values.')
+            np.testing.assert_array_equal(
+                expected_wcs.wcs.crval, result_wcs.wcs.crval, 'Wrong CRVAL values.')
+            assert expected_hdu.header['NAXIS1'] == result_hdu.header['NAXIS1'], 'Wrong NAXIS1 values.'
+            assert expected_hdu.header['NAXIS2'] == result_hdu.header['NAXIS2'], 'Wrong NAXIS2 values.'
+            assert expected_hdu.header.get(
+                'CHECKSUM') is None, 'Should not contain CHECKSUM.'
+            assert expected_hdu.header.get(
+                'DATASUM') is None, 'Should not contain DATASUM.'
+            np.testing.assert_array_equal(
+                np.squeeze(expected_hdu.data), result_hdu.data, 'Arrays do not match.')

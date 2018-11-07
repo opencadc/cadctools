@@ -77,36 +77,41 @@ import sys
 import pytest
 import tempfile
 
+from cadcdata import CadcDataClient
 from astropy.io import fits
 from astropy.wcs import WCS
 
-from .context import opencadc_cutout, random_test_file_name_path
-from opencadc_cutout.core import OpenCADCCutout
-from opencadc_cutout.pixel_cutout_hdu import PixelCutoutHDU
-from opencadc_cutout.no_content_error import NoContentError
-from opencadc_cutout.file_helper import FileTypeHelpers
+from .context import cadccutout, random_test_file_name_path, get_file
+from cadccutout.core import OpenCADCCutout
+from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
+from cadccutout.no_content_error import NoContentError
 
 
 pytest.main(args=['-s', os.path.abspath(__file__)])
-THIS_DIR = os.path.dirname(os.path.realpath(__file__))
-TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
-target_file_name = os.path.join(TESTDATA_DIR, 'test-simple.fits')
-expected_cutout_file_name = os.path.join(TESTDATA_DIR, 'test-simple-cutout.fits')
+archive = 'VLASS'
+target_file_name = '/usr/src/data/test-vlass-cube.fits'
+expected_cutout_file_path = '/usr/src/data/test-vlass-cube-cutout.fits'
+# target_file_name = 'VLASS1.1.cc.T29t05.J110448+763000.10.2048.v1.fits'
+# data_dir = '/usr/src/data'
+cutout_region_string = '[500:900,300:1000,8:12]'
 logger = logging.getLogger()
 
-def test_simple_cutout():
+
+def test_vlass_cube_cutout():
     test_subject = OpenCADCCutout()
-    cutout_file_name_path = random_test_file_name_path()
-    logger.info('Testing with {}'.format(cutout_file_name_path))
-    cutout_region_str = '[300:800,810:1000]'
+    result_cutout_file_path = random_test_file_name_path()
+    # expected_cutout_file_path = random_test_file_name_path()
+
+    logger.info('Testing output to {}'.format(result_cutout_file_path))
 
     # Write out a test file with the test result FITS data.
-    with open(cutout_file_name_path, 'ab+') as output_writer, open(target_file_name, 'rb') as input_reader:
-        test_subject.cutout(input_reader, output_writer, cutout_region_str, 'FITS')
-        output_writer.close()
-        input_reader.close()
+    with open(result_cutout_file_path, 'ab+') as test_file_handle, open(target_file_name, 'rb') as input_file_handle:
+        test_subject.cutout(input_file_handle, test_file_handle,
+                            cutout_region_string, 'FITS')
+        test_file_handle.close()
+        input_file_handle.close()
 
-    with fits.open(expected_cutout_file_name, mode='readonly') as expected_hdu_list, fits.open(cutout_file_name_path, mode='readonly') as result_hdu_list:
+    with fits.open(expected_cutout_file_path, mode='readonly') as expected_hdu_list, fits.open(result_cutout_file_path, mode='readonly') as result_hdu_list:
         fits_diff = fits.FITSDiff(expected_hdu_list, result_hdu_list)
         np.testing.assert_array_equal(
             (), fits_diff.diff_hdu_count, 'HDU count diff should be empty.')

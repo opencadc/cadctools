@@ -71,20 +71,60 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
+import numpy as np
+import os
+import sys
 import pytest
-import io
+import tempfile
 
-from opencadc_cutout.file_helpers.fits.fits_file_helper import FITSHelper
-from opencadc_cutout.pixel_cutout_hdu import PixelCutoutHDU
+from astropy.io import fits
+from astropy.wcs import WCS
+
+from .context import cadccutout, random_test_file_name_path
+from cadccutout.core import OpenCADCCutout
+from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
+from cadccutout.no_content_error import NoContentError
 
 
-def test_is_extension_requested():
-    test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
-    dimension = PixelCutoutHDU(['400:800'], extension=1)
-    assert test_subject._is_extension_requested('4', ('EXN', 4), dimension) == False
+pytest.main(args=['-s', os.path.abspath(__file__)])
+archive = 'CFHT'
+target_file_name = '/usr/src/data/test-sitelle-cube.fits'
+expected_cutout_file_name = '/usr/src/data/test-sitelle-cube-cutout.fits'
+logger = logging.getLogger()
 
-    dimension = PixelCutoutHDU(['400:800'])
-    assert test_subject._is_extension_requested('4', ('NOM', 1), dimension) == False
 
-    dimension = PixelCutoutHDU(['400:800'], extension=2)
-    assert test_subject._is_extension_requested('2', ('NOM', 7), dimension) == True
+
+def test_sitelle_cube_cutout():
+    test_subject = OpenCADCCutout()
+    result_cutout_file_path = random_test_file_name_path()
+    logger.info('Testing with {}'.format(result_cutout_file_path))
+    cutout_region_string = '[1000:1200,800:1000,160:200]'
+
+    # Write out a test file with the test result FITS data.
+    with open(result_cutout_file_path, 'ab+') as test_file_handle, open(target_file_name, 'rb') as input_file_handle:
+        test_subject.cutout(input_file_handle,
+                            test_file_handle, cutout_region_string, 'FITS')
+        test_file_handle.close()
+        input_file_handle.close()
+
+    with fits.open(expected_cutout_file_name, mode='readonly', do_not_scale_image_data=True) as expected_hdu_list, fits.open(result_cutout_file_path, mode='readonly', do_not_scale_image_data=True) as result_hdu_list:
+        for extension, result_hdu in enumerate(result_hdu_list):
+            expected_hdu = expected_hdu_list[extension]
+
+            # SITELLE Cube has distortions, which limits the WCS to 2 axes.
+            expected_wcs = WCS(header=expected_hdu.header, naxis=2)
+            result_wcs = WCS(header=result_hdu.header, naxis=2)
+
+            np.testing.assert_array_equal(
+                expected_wcs.wcs.crpix, result_wcs.wcs.crpix, 'Wrong CRPIX values: differnce is ({}).'.format(result_wcs.wcs.crpix - expected_wcs.wcs.crpix))
+            np.testing.assert_array_equal(
+                expected_wcs.wcs.crval, result_wcs.wcs.crval, 'Wrong CRVAL values.')
+            np.testing.assert_array_equal(
+                expected_wcs.wcs.naxis, result_wcs.wcs.naxis, 'Wrong NAXIS values.')
+            assert expected_hdu.header.get(
+                'CHECKSUM') is None, 'Should not contain CHECKSUM.'
+            assert expected_hdu.header.get(
+                'DATASUM') is None, 'Should not contain DATASUM.'
+            logger.debug('\n\nX shape: {} \n\nY shape: {}.'.format(
+                expected_hdu.data.shape, result_hdu.data.shape))
+            np.testing.assert_array_equal(expected_hdu.data, result_hdu.data)

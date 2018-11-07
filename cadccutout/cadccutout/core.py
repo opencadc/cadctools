@@ -67,64 +67,98 @@
 # ***********************************************************************
 #
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import logging
-import numpy as np
-import os
+import signal
 import sys
-import pytest
-import tempfile
+import os
 
-from astropy.io import fits
-from astropy.wcs import WCS
-
-from .context import opencadc_cutout, random_test_file_name_path
-from opencadc_cutout.core import OpenCADCCutout
-from opencadc_cutout.pixel_cutout_hdu import PixelCutoutHDU
-from opencadc_cutout.no_content_error import NoContentError
+from .file_helper import FileHelperFactory
+from .pixel_range_input_parser import PixelRangeInputParser
 
 
-pytest.main(args=['-s', os.path.abspath(__file__)])
-archive = 'CGPS'
-target_file_name = '/usr/src/data/test-cgps-cube.fits'
-expected_cutout_file_name = '/usr/src/data/test-cgps-cube-cutout.fits'
-logger = logging.getLogger()
+class OpenCADCCutout(object):
+    """
+    Main cutout class.  This is mainly used as a parent class for concrete instances, like from a FITS file, but
+    can be called by itself if need be.
+
+    Parameters
+    ----------
+    helper_factory : `.file_helper.FileHelperFactory`
+        The Helper Factory instance to load a file helper appropriate to the file type.  Defaults to
+        file_helper.FileHelperFactory().
+
+    input_range_parser : `.pixel_range_input_parser.PixelRangeInputParser`
+        Parser to parse the input string.  This defaults to the provided
+        pixel_range_input_parser.PixelRangeInputParser() class.
+
+    Example 1
+    --------
+    from cadccutout import OpenCADCCutout
+
+    cutout = OpenCADCCutout()
+    output_file = tempfile.mkstemp(suffix='.fits')
+    input_file = '/path/to/file.fits'
+
+    # Cutouts are in cfitsio format.
+    cutout_region_string = '[300:800,810:1000]'  # HDU 0 along two axes.
+
+    # Needs to have 'append' flag set.  The cutout() method will write out the data.
+    with open(output_file, 'ab+') as output_writer, open(input_file, 'rb') as input_reader:
+        test_subject.cutout(input_reader, output_writer, cutout_region_string, 'FITS')
+        output_writer.close()
+        input_reader.close()
 
 
-def test_cgps_cube_cutout():
-    test_subject = OpenCADCCutout()
-    result_cutout_file_path = random_test_file_name_path()
-    logger.info('Testing with {}'.format(result_cutout_file_path))
-    cutout_region_string = '[200:400,500:1000,10:20]'
+    Example 2 (CADC)
+    --------
+    from cadccutout import OpenCADCCutout
+    from cadcdata import CadcDataClient
 
-    # Write out a test file with the test result FITS data.
-    with open(result_cutout_file_path, 'ab+') as test_file_handle, open(target_file_name, 'rb') as input_file_handle:
-        test_subject.cutout(input_file_handle,
-                            test_file_handle, cutout_region_string, 'FITS')
-        test_file_handle.close()
-        input_file_handle.close()
+    cutout = OpenCADCCutout()
+    anonSubject = net.Subject()
+    data_client = CadcDataClient(anonSubject)
+    output_file = tempfile.mkstemp(suffix='.fits')
+    archive = 'HST'
+    file_name = 'n8i311hiq_raw.fits'
+    input_stream = data_client.get_file(archive, file_name)
 
-    with fits.open(expected_cutout_file_name, mode='readonly') as expected_hdu_list, fits.open(result_cutout_file_path, mode='readonly') as result_hdu_list:
-        fits_diff = fits.FITSDiff(expected_hdu_list, result_hdu_list)
-        np.testing.assert_array_equal(
-            (), fits_diff.diff_hdu_count, 'HDU count diff should be empty.')
+    # Cutouts are in cfitsio format.
+    cutout_region_string = '[SCI,10][80:220,100:150]'  # SCI version 10, along two axes.
 
-        for extension, result_hdu in enumerate(result_hdu_list):
-            expected_hdu = expected_hdu_list[extension]
-            expected_wcs = WCS(header=expected_hdu.header)
-            result_wcs = WCS(header=result_hdu.header)
+    # Needs to have 'append' flag set.  The cutout() method will write out the data.
+    with open(output_file, 'ab+') as output_writer:
+        test_subject.cutout(input_stream, output_writer, cutout_region_string, 'FITS')
+        output_writer.close()
+        input_stream.close()
+    """
 
-            np.testing.assert_array_equal(
-                expected_wcs.wcs.crpix, result_wcs.wcs.crpix, 'Wrong CRPIX values.')
-            np.testing.assert_array_equal(
-                expected_wcs.wcs.crval, result_wcs.wcs.crval, 'Wrong CRVAL values.')
-            assert expected_hdu.header['NAXIS1'] == result_hdu.header['NAXIS1'], 'Wrong NAXIS1 values.'
-            assert expected_hdu.header['NAXIS2'] == result_hdu.header['NAXIS2'], 'Wrong NAXIS2 values.'
-            assert expected_hdu.header.get(
-                'CHECKSUM') is None, 'Should not contain CHECKSUM.'
-            assert expected_hdu.header.get(
-                'DATASUM') is None, 'Should not contain DATASUM.'
-            np.testing.assert_array_equal(
-                np.squeeze(expected_hdu.data), result_hdu.data, 'Arrays do not match.')
+    def __init__(self, helper_factory=FileHelperFactory(), input_range_parser=PixelRangeInputParser()):
+        logging.getLogger().setLevel('INFO')
+        self.logger = logging.getLogger(__name__)
+        self.helper_factory = helper_factory
+        self.input_range_parser = input_range_parser
+
+    def cutout(self, input_reader, output_writer, cutout_dimensions_str, file_type):
+        """
+        Perform a Cutout of the given data at the given position and size.
+
+        Parameters
+        ----------
+        input_reader: File-like object, Reader stream
+            The file location.  The file extension is important as it's used to determine how to process it.
+
+        output_writer: File-like object, Writer stream
+            The writer to push the cutout array to.
+
+        cutout_dimensions_str: string of WCS coordinates, or extension and pixel coordinates.
+            The requested dimensions expressed as PixelCutoutHDU objects.
+
+        file_type: string
+            The file type, in upper case.  Will usually be 'FITS'.
+        """
+        file_helper = self._get_file_helper(
+            file_type, input_reader, output_writer)
+        file_helper.cutout(cutout_dimensions_str)
+
+    def _get_file_helper(self, file_type, input_reader, output_writer):
+        return self.helper_factory.get_instance(file_type, input_reader, output_writer, self.input_range_parser)

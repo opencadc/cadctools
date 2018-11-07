@@ -1,4 +1,4 @@
-# opencadc_cutout
+# cadccutout
 Cutout library written in Python that uses Astropy APIs.
 
 ## API
@@ -11,7 +11,7 @@ Python 3.x has a potential issue when appending to an output stream where Astrop
 Perform a cutout of a file using the `cfitsio` cutout string format.
 ```python
     import tempfile
-    from opencadc_cutout import OpenCADCCutout
+    from cadccutout import OpenCADCCutout
 
     cutout = OpenCADCCutout()
     output_file = tempfile.mkstemp(suffix='.fits')
@@ -31,7 +31,7 @@ Perform a cutout of a file using the `cfitsio` cutout string format.
 Perform a cutout from an input stream from an HTTP request.
 ```python
     import tempfile
-    from opencadc_cutout import OpenCADCCutout
+    from cadccutout import OpenCADCCutout
     from cadcdata import CadcDataClient
 
     cutout = OpenCADCCutout()

@@ -33,12 +33,12 @@ Ideally, these would be downloaded as needed, but would need a lot of extra time
 
 ##### Python 2.7
 ```shell
-$ cd /path/to/opencadc_cutout/project
+$ cd /path/to/cadccutout/project
 $ docker run --rm -t -v $(pwd):/usr/src/app -v /path/to/data:/usr/src/data opencadc/astroquery:2.7-alpine python setup.py int_test
 ```
 
 ##### Python 3.7 (Astropy bug prevents 3.x for now.  See [Astropy GitHub 7856](https://github.com/astropy/astropy/pull/7856))
 ```shell
-$ cd /path/to/opencadc_cutout/project
+$ cd /path/to/cadccutout/project
 $ docker run --rm -t -v $(pwd):/usr/src/app -v /path/to/data:/usr/src/data opencadc/astroquery:3.7-alpine python setup.py int_test
 ```

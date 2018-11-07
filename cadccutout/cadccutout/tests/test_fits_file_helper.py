@@ -71,62 +71,20 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
-import numpy as np
-import os
-import io
-import sys
 import pytest
-import tempfile
+import io
 
-from astropy.io import fits
-from astropy.wcs import WCS
-
-from .context import opencadc_cutout, random_test_file_name_path, get_file, get_vos_file
-from opencadc_cutout.core import OpenCADCCutout
-from opencadc_cutout.pixel_cutout_hdu import PixelCutoutHDU
-from opencadc_cutout.no_content_error import NoContentError
+from cadccutout.file_helpers.fits.fits_file_helper import FITSHelper
+from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 
 
-pytest.main(args=['-s', os.path.abspath(__file__)])
-archive = 'ALMA'
-target_file_name = '/usr/src/data/test-alma-cube.fits'
-expected_cutout_file_path = '/usr/src/data/test-alma-cube-cutout.fits'
-# target_file_name = 'source_calibrated_line_image_162608-24202.image.fits'
-# vos_uri = 'vos://cadc.nrc.ca!vospace/helenkirk/ALMA_fits_files/2013.1.00187.S/{}'.format(target_file_name)
-# data_dir = '/usr/src/data'
-cutout_region_string = '[80:220,100:150,100:150]'
-logger = logging.getLogger()
+def test_is_extension_requested():
+    test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
+    dimension = PixelCutoutHDU(['400:800'], extension=1)
+    assert test_subject._is_extension_requested('4', ('EXN', 4), dimension) == False
 
-def test_alma_cube_cutout():
-    test_subject = OpenCADCCutout()
-    result_cutout_file_path = random_test_file_name_path()
+    dimension = PixelCutoutHDU(['400:800'])
+    assert test_subject._is_extension_requested('4', ('NOM', 1), dimension) == False
 
-    logger.info('Testing output to {}'.format(result_cutout_file_path))
-
-    # Write out a test file with the test result FITS data.
-    with open(result_cutout_file_path, 'ab+') as test_file_handle, open(target_file_name, 'rb') as input_file_handle:
-        test_subject.cutout(input_file_handle,
-                            test_file_handle, cutout_region_string, 'FITS')
-        test_file_handle.close()
-        input_file_handle.close()
-
-    with fits.open(expected_cutout_file_path, mode='readonly') as expected_hdu_list, fits.open(result_cutout_file_path, mode='readonly') as result_hdu_list:
-        fits_diff = fits.FITSDiff(expected_hdu_list, result_hdu_list)
-        np.testing.assert_array_equal(
-            (), fits_diff.diff_hdu_count, 'HDU count diff should be empty.')
-
-        for extension, result_hdu in enumerate(result_hdu_list):
-            expected_hdu = expected_hdu_list[extension]
-            expected_wcs = WCS(header=expected_hdu.header)
-            result_wcs = WCS(header=result_hdu.header)
-
-            np.testing.assert_array_equal(
-                expected_wcs.wcs.crpix, result_wcs.wcs.crpix, 'Wrong CRPIX values.')
-            np.testing.assert_array_equal(
-                expected_wcs.wcs.crval, result_wcs.wcs.crval, 'Wrong CRVAL values.')
-            assert expected_hdu.header['NAXIS1'] == result_hdu.header['NAXIS1'], 'Wrong NAXIS1 values.'
-            assert expected_hdu.header['NAXIS2'] == result_hdu.header['NAXIS2'], 'Wrong NAXIS2 values.'
-            assert expected_hdu.header.get('CHECKSUM') is None, 'Should not contain CHECKSUM.'
-            assert expected_hdu.header.get('DATASUM') is None, 'Should not contain DATASUM.'
-            np.testing.assert_array_equal(
-                np.squeeze(expected_hdu.data), result_hdu.data, 'Arrays do not match.')
+    dimension = PixelCutoutHDU(['400:800'], extension=2)
+    assert test_subject._is_extension_requested('2', ('NOM', 7), dimension) == True

@@ -72,46 +72,116 @@ from __future__ import (absolute_import, division, print_function,
 
 import logging
 import numpy as np
-import os
-import sys
-import pytest
 
-from opencadc_cutout.pixel_cutout_hdu import PixelCutoutHDU
+from copy import deepcopy
+
+from astropy.wcs import Sip
+from astropy.nddata.utils import extract_array
+from .no_content_error import NoContentError
 
 
-def test_create():
-    test_subject = PixelCutoutHDU([(1,200), (305,600)], 7)
-    assert test_subject.get_extension() == 7, 'Wrong extension.'
+class CutoutResult(object):
+    """
+    Just a DTO to move results of a cutout.  It's more readable than a plain tuple.
+    """
 
-    test_subject = PixelCutoutHDU([(1,200), (30)], 'SCI,5')
-    assert test_subject.get_extension() == ('SCI',5), 'Wrong extension.'
+    def __init__(self, data, wcs=None, wcs_crpix=None):
+        self.data = data
+        self.wcs = wcs
+        self.wcs_crpix = wcs_crpix
 
-    test_subject = PixelCutoutHDU(extension='5')
-    assert test_subject.get_extension() == 5, 'Wrong extension.'
 
-def test_get_shape():
-    test_subject = PixelCutoutHDU([(1,200), (305,600)])
-    shape = test_subject.get_shape()
-    assert shape == (200, 296), 'Wrong shape output.'
+class CutoutND(object):
+    """
+      Parameters
+      ----------
+      data : `~numpy.ndarray`
+          The N-dimensional data array from which to extract the cutout array.
+      cutout_region : `PixelCutoutHDU`
+          The Pixel HDU Cutout description.  See cadccutout.pixel_cutout_hdu.py.
+      wcs : `~astropy.wcs.WCS` or `None`
+          A WCS object associated with the cutout array.  If it's specified, reset the WCS values for the cutout.
 
-    test_subject = PixelCutoutHDU([(10,20), (30)])
-    shape = test_subject.get_shape()
-    assert shape == (11, 1), 'Wrong shape output.'
+      Returns
+      -------
+      CutoutResult instance
+    """
 
-def test_get_ranges():
-    test_subject = PixelCutoutHDU([(1,200), (305,600)])
-    ranges = test_subject.get_ranges()
-    assert ranges == ((1, 200), (305, 600)), 'Wrong ranges output.'
+    def __init__(self, data, wcs=None):
+        self.logger = logging.getLogger()
+        self.logger.setLevel('DEBUG')
+        self.data = data
+        self.wcs = wcs
 
-    test_subject = PixelCutoutHDU([(10,20), (30)])
-    ranges = test_subject.get_ranges()
-    assert ranges == ((10, 20), (30, 30)), 'Wrong ranges output.'
+    def _get_position_shape(self, data_shape, cutout_region):
+        requested_shape = cutout_region.get_shape()
+        requested_position = cutout_region.get_position()
 
-def test_get_position():
-    test_subject = PixelCutoutHDU([(1,200), (305,360), (400,1000)])
-    position = test_subject.get_position()
-    assert position == (99, 331, 699), 'Wrong position output.'
+        # reverse position because extract_array uses reverse ordering (i.e. x,y -> y,x).
+        r_position = tuple(reversed(requested_position))
+        r_shape = tuple(reversed(requested_shape))
 
-    test_subject = PixelCutoutHDU([(10,20), (30), (400,406)])
-    position = test_subject.get_position()
-    assert position == (14, 29, 402), 'Wrong position output.'
+        len_data = len(data_shape)
+        len_pos = len(r_position)
+        len_shape = len(r_shape)
+
+        if len_shape > len_data:
+            raise NoContentError('Invalid shape requested (tried to extract {} from {}).'.format(
+                r_shape, data_shape))
+
+        if r_shape:
+            shape = tuple((data_shape[:(len_data - len_shape)]) + r_shape)
+        else:
+            shape = None
+
+        if len_pos > len_data:
+            raise NoContentError('Invalid position requested (tried to extract {} from {}).'.format(
+                r_position, data_shape))
+
+        if r_position:
+            position = tuple((data_shape[:(len_data - len_pos)]) + r_position)
+        else:
+            position = None
+
+        return (position, shape)
+
+    def extract(self, cutout_region):
+        data = self.data
+        data_shape = data.shape
+        position, shape = self._get_position_shape(data_shape, cutout_region)
+        self.logger.debug('Position {} and Shape {}'.format(position, shape))
+
+        # No pixels specified, so return the entire HDU
+        if (not position and not shape) or shape == data_shape:
+            self.logger.debug('Returning entire HDU data for {}'.format(
+                cutout_region.get_extension()))
+            cutout_data = data
+        else:
+            self.logger.debug('Cutting out {} at {} for extension {} from {}.'.format(
+                shape, position, cutout_region.get_extension(), data.shape))
+            cutout_data, position = extract_array(data, shape, position, mode='partial', return_position=True)
+
+        if self.wcs is not None:
+            cutout_shape = cutout_data.shape
+            output_wcs = deepcopy(self.wcs)
+            wcs_crpix = output_wcs.wcs.crpix
+            ranges = cutout_region.get_ranges()
+            l_ranges = len(ranges)
+
+            while len(wcs_crpix) < l_ranges:
+                wcs_crpix = np.append(wcs_crpix, 1.0)
+
+            for idx, _ in enumerate(ranges):
+                wcs_crpix[idx] -= (ranges[idx][0] - 1)
+
+            output_wcs._naxis = list(cutout_shape)
+
+            if self.wcs.sip is not None:
+                curr_sip = self.wcs.sip
+                output_wcs.sip = Sip(curr_sip.a, curr_sip.b,
+                                     curr_sip.ap, curr_sip.bp,
+                                     wcs_crpix[0:2])
+        else:
+            output_wcs = None
+
+        return CutoutResult(data=cutout_data, wcs=output_wcs, wcs_crpix=wcs_crpix)
