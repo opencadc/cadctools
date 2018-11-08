@@ -139,8 +139,31 @@ class OpenCADCCutout(object):
         self.helper_factory = helper_factory
         self.input_range_parser = input_range_parser
 
-    def cutout(self, input_reader, output_writer, cutout_dimensions_str,
-               file_type):
+    def cutout(self, input_reader, output_writer, cutout_dimensions, file_type):
+        """
+        Perform a Cutout of the given data at the given position and size.
+
+        Parameters
+        ----------
+        input_reader: File-like object, Reader stream
+            The file location.  The file extension is important as it's used to
+            determine how to process it.
+
+        output_writer: File-like object, Writer stream
+            The writer to push the cutout array to.
+
+        cutout_dimensions: List of PixelCutoutHDU objects, or WCS objects.
+            The requested dimensions expressed as PixelCutoutHDU objects.
+
+        file_type: string
+            The file type, in upper case.  Will usually be 'FITS'.
+        """
+        file_helper = self._get_file_helper(
+            file_type, input_reader, output_writer)
+        file_helper.cutout(cutout_dimensions)
+
+    def cutout_from_string(self, input_reader, output_writer,
+                           cutout_dimensions_str, file_type):
         """
         Perform a Cutout of the given data at the given position and size.
 
@@ -160,11 +183,23 @@ class OpenCADCCutout(object):
         file_type: string
             The file type, in upper case.  Will usually be 'FITS'.
         """
+
+        if type(cutout_dimensions_str) != str:
+            raise ValueError('Input is expected to be a string')
+
         file_helper = self._get_file_helper(
             file_type, input_reader, output_writer)
-        file_helper.cutout(cutout_dimensions_str)
+        if self.input_range_parser.is_pixel_cutout(cutout_dimensions_str):
+            parsed_cutout_dimensions = self.input_range_parser.parse(
+                cutout_dimensions_str)
+            file_helper.cutout(parsed_cutout_dimensions)
 
     def _get_file_helper(self, file_type, input_reader, output_writer):
         return self.helper_factory.get_instance(file_type, input_reader,
                                                 output_writer,
                                                 self.input_range_parser)
+
+
+if __name__ == "__main__":
+    # Execute only if run as a script.
+    pass

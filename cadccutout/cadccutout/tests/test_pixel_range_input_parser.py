@@ -71,33 +71,34 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import pytest
 import os
-import numpy as np
 
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
-from cadccutout.pixel_range_input_parser import PixelRangeInputParser, PixelRangeInputParserError
+from cadccutout.pixel_range_input_parser \
+    import PixelRangeInputParser, PixelRangeInputParserError
 
 pytest.main(args=['-s', os.path.abspath(__file__)])
 
 
 def test_parse():
-  test_subject = PixelRangeInputParser()
+    test_subject = PixelRangeInputParser()
 
-  try:
-    result = test_subject.parse('BOGUS=78 9')
-    assert False, 'Should throw error.'
-  except PixelRangeInputParserError as err:
-    assert str(err) == 'Not a valid pixel cutout string "BOGUS=78 9".'
+    try:
+        result = test_subject.parse('BOGUS=78 9')
+        assert False, 'Should throw error.'
+    except PixelRangeInputParserError as err:
+        assert str(err) == 'Not a valid pixel cutout string "BOGUS=78 9".'
 
-  result = test_subject.parse('[9][500:600]')
-  assert result[0].get_extension() == 9, 'Wrong extension.'
+    result = test_subject.parse('[9][500:600]')
+    assert result[0].get_extension() == 9, 'Wrong extension.'
 
-  result = test_subject.parse('[3]')
-  assert result[0].get_extension() == 3, 'Wrong extension.'
+    result = test_subject.parse('[3]')
+    assert result[0].get_extension() == 3, 'Wrong extension.'
 
-  result = test_subject.parse('[35:78]')
-  assert result[0].get_extension() == 0, 'Wrong extension.'
-  assert result[0].dimension_ranges == [(35, 78)], 'Wrong ranges.'
+    result = test_subject.parse('[35:78]')
+    assert result[0].get_extension() == 0, 'Wrong extension.'
+    assert result[0].dimension_ranges == [(35, 78)], 'Wrong ranges.'
 
-  result = test_subject.parse('[0][500:600,700:1200,6:10]')
-  assert result[0].get_extension() == 0, 'Wrong extension.'
-  assert result[0].dimension_ranges == [(500,600),(700,1200),(6,10)], 'Wrong ranges.'
+    result = test_subject.parse('[0][500:600,700:1200,6:10]')
+    assert result[0].get_extension() == 0, 'Wrong extension.'
+    assert result[0].dimension_ranges == [
+        (500, 600), (700, 1200), (6, 10)], 'Wrong ranges.'

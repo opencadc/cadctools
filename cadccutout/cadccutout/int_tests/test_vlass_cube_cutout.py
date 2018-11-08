@@ -73,18 +73,14 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import numpy as np
 import os
-import sys
 import pytest
-import tempfile
 
 from cadcdata import CadcDataClient
 from astropy.io import fits
 from astropy.wcs import WCS
 
-from .context import opencadc_cutout, random_test_file_name_path, get_file
+from .context import random_test_file_name_path
 from cadccutout.core import OpenCADCCutout
-from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
-from cadccutout.no_content_error import NoContentError
 
 
 pytest.main(args=['-s', os.path.abspath(__file__)])
@@ -105,13 +101,17 @@ def test_vlass_cube_cutout():
     logger.info('Testing output to {}'.format(result_cutout_file_path))
 
     # Write out a test file with the test result FITS data.
-    with open(result_cutout_file_path, 'ab+') as test_file_handle, open(target_file_name, 'rb') as input_file_handle:
-        test_subject.cutout(input_file_handle, test_file_handle,
-                            cutout_region_string, 'FITS')
+    with open(result_cutout_file_path, 'ab+') as test_file_handle, \
+            open(target_file_name, 'rb') as input_file_handle:
+        test_subject.cutout_from_string(input_file_handle, test_file_handle,
+                                        cutout_region_string, 'FITS')
         test_file_handle.close()
         input_file_handle.close()
 
-    with fits.open(expected_cutout_file_path, mode='readonly') as expected_hdu_list, fits.open(result_cutout_file_path, mode='readonly') as result_hdu_list:
+    with fits.open(expected_cutout_file_path, mode='readonly') \
+            as expected_hdu_list, \
+            fits.open(result_cutout_file_path, mode='readonly') \
+            as result_hdu_list:
         fits_diff = fits.FITSDiff(expected_hdu_list, result_hdu_list)
         np.testing.assert_array_equal(
             (), fits_diff.diff_hdu_count, 'HDU count diff should be empty.')
@@ -122,14 +122,19 @@ def test_vlass_cube_cutout():
             result_wcs = WCS(header=result_hdu.header)
 
             np.testing.assert_array_equal(
-                expected_wcs.wcs.crpix, result_wcs.wcs.crpix, 'Wrong CRPIX values.')
+                expected_wcs.wcs.crpix, result_wcs.wcs.crpix,
+                'Wrong CRPIX values.')
             np.testing.assert_array_equal(
-                expected_wcs.wcs.crval, result_wcs.wcs.crval, 'Wrong CRVAL values.')
-            assert expected_hdu.header['NAXIS1'] == result_hdu.header['NAXIS1'], 'Wrong NAXIS1 values.'
-            assert expected_hdu.header['NAXIS2'] == result_hdu.header['NAXIS2'], 'Wrong NAXIS2 values.'
+                expected_wcs.wcs.crval, result_wcs.wcs.crval,
+                'Wrong CRVAL values.')
+            assert expected_hdu.header['NAXIS1'] \
+                == result_hdu.header['NAXIS1'], 'Wrong NAXIS1 values.'
+            assert expected_hdu.header['NAXIS2'] \
+                == result_hdu.header['NAXIS2'], 'Wrong NAXIS2 values.'
             assert expected_hdu.header.get(
                 'CHECKSUM') is None, 'Should not contain CHECKSUM.'
             assert expected_hdu.header.get(
                 'DATASUM') is None, 'Should not contain DATASUM.'
             np.testing.assert_array_equal(
-                np.squeeze(expected_hdu.data), result_hdu.data, 'Arrays do not match.')
+                np.squeeze(expected_hdu.data),
+                result_hdu.data, 'Arrays do not match.')

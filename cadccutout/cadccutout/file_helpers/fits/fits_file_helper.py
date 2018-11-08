@@ -72,7 +72,6 @@ from __future__ import (absolute_import, division, print_function,
 
 import logging
 
-from copy import copy
 from astropy.io import fits
 from astropy.io.fits import PrimaryHDU, ImageHDU
 from astropy.wcs import WCS
@@ -81,6 +80,7 @@ from cadccutout.utils import is_integer
 from cadccutout.file_helpers.base_file_helper import BaseFileHelper
 from cadccutout.no_content_error import NoContentError
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
+from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 
 
 __all__ = ['FITSHelper']
@@ -228,14 +228,15 @@ class FITSHelper(BaseFileHelper):
 
         return matches
 
-    def _iterate_cutout(self, pixel_cutout_dimensions):
+    def _iterate_cutout(self, cutout_dimensions):
         # Start with the first extension
         hdu_list = fits.open(
             name=self.input_stream, memmap=True, mode='readonly',
             do_not_scale_image_data=True)
 
         for curr_extension_idx, hdu in enumerate(hdu_list):
-            if isinstance(hdu, PrimaryHDU) == True:
+            # If we encounter a PrimaryHDU, write it at the top and continue.
+            if isinstance(hdu, PrimaryHDU):
                 self.logger.debug('Primary at {}'.format(curr_extension_idx))
                 fits.append(
                     filename=self.output_writer, header=hdu.header, data=None,
@@ -250,43 +251,40 @@ class FITSHelper(BaseFileHelper):
                 if ext_name is not None:
                     curr_ext_name_ver = (ext_name, ext_ver)
 
-                if pixel_cutout_dimensions is None:
-                    # TODO - Do WCS transformation and check for overlap.
-                    pass
-                else:
-                    for cutout_dimension in pixel_cutout_dimensions:
-                        is_ext_req = self._is_extension_requested(
-                            curr_extension_idx, curr_ext_name_ver,
-                            cutout_dimension)
-                        if is_ext_req:
+                for cutout_dimension in cutout_dimensions:
+                    if isinstance(cutout_dimension, PixelCutoutHDU):
+                        if self._is_extension_requested(
+                                curr_extension_idx, curr_ext_name_ver,
+                                cutout_dimension):
                             self.logger.debug(
                                 '*** Extension {} does match ({} | {})'.format(
                                     cutout_dimension.get_extension(),
                                     curr_extension_idx, curr_ext_name_ver))
                             self._pixel_cutout(
                                 header, hdu.data, cutout_dimension)
+                    else:
+                        # Handle WCS transform.
+                        pass
             else:
                 self.logger.warn(
                     'Unsupported HDU at extension {}.'.format(
                         curr_extension_idx))
 
-    def _iterate_pixel_cutout(self, pixel_cutout_dimensions):
-        if pixel_cutout_dimensions is not None \
-                and len(pixel_cutout_dimensions) == 1:
-            cutout_dimension = pixel_cutout_dimensions[0]
-            hdu_list = fits.open(self.input_stream, memmap=True,
-                                 mode='readonly', do_not_scale_image_data=True)
-            ext_idx = hdu_list.index_of(cutout_dimension.get_extension())
-            if ext_idx >= 0:
-                hdu = hdu_list.pop(ext_idx)
-                self._pixel_cutout(hdu.header, hdu.data, cutout_dimension)
-        else:
-            self._iterate_cutout(pixel_cutout_dimensions)
+    def _quick_pixel_cutout(self, cutout_dimension):
+        hdu_list = fits.open(self.input_stream, memmap=True,
+                             mode='readonly', do_not_scale_image_data=True)
+        ext_idx = hdu_list.index_of(cutout_dimension.get_extension())
+        if ext_idx >= 0:
+            hdu = hdu_list.pop(ext_idx)
+            self._pixel_cutout(hdu.header, hdu.data, cutout_dimension)
 
-    def cutout(self, cutout_dimensions_str):
-        if self.input_range_parser.is_pixel_cutout(cutout_dimensions_str):
-            cutout_dimensions = self.input_range_parser.parse(
-                cutout_dimensions_str)
-            self._iterate_pixel_cutout(cutout_dimensions)
+    def _is_single_hdu_cutout(self, cutout_dimensions):
+        return cutout_dimensions is not None \
+            and len(cutout_dimensions) == 1 \
+            and isinstance(cutout_dimensions[0], PixelCutoutHDU)
+
+    def cutout(self, cutout_dimensions):
+        if self._is_single_hdu_cutout(cutout_dimensions):
+            self._quick_pixel_cutout(cutout_dimensions[0])
         else:
-            self._iterate_cutout(None)
+            self._iterate_cutout(cutout_dimensions)

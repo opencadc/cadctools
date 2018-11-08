@@ -99,10 +99,7 @@ class PixelRangeInputParser(object):
             r'[\[?[\w]*,?\d*\]?]?[\[?[\d*:?\d*,?]*\]?]')
 
     def is_pixel_cutout(self, input_str):
-        # if input_str is not None:
         return input_str and input_str.count(RANGE_BEGIN_CHAR) > 0
-        # else:
-        # return False
 
     def _to_range_tuple(self, rs):
         if self.delimiter not in rs:
@@ -120,6 +117,7 @@ class PixelRangeInputParser(object):
         """
         Parse a string range.
         :param  pixel_range_input_str: The string to parse.
+        :return List of PixelCutoutHDU instances
 
         Example:
 

@@ -100,13 +100,13 @@ def test_simple_cutout():
     test_subject = OpenCADCCutout()
     cutout_file_name_path = test_context.random_test_file_name_path()
     logger.info('Testing with {}'.format(cutout_file_name_path))
-    cutout_region_str = '[300:800,810:1000]'
+    cutout_regions = [PixelCutoutHDU([(300, 800), (810, 1000)])]
 
     # Write out a test file with the test result FITS data.
     with open(cutout_file_name_path, 'ab+') as output_writer, \
             open(target_file_name, 'rb') as input_reader:
-        test_subject.cutout(input_reader, output_writer,
-                            cutout_region_str, 'FITS')
+        test_subject.cutout_from_string(input_reader, output_writer,
+                                        cutout_regions, 'FITS')
 
     with fits.open(expected_cutout_file_name, mode='readonly') \
             as expected_hdu_list, \

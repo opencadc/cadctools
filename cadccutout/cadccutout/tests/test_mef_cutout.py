@@ -73,9 +73,7 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import numpy as np
 import os
-import sys
 import pytest
-import tempfile
 import context as test_context
 
 from astropy.io import fits
@@ -83,7 +81,6 @@ from astropy.wcs import WCS
 
 # from .context import random_test_file_name_path
 from cadccutout.core import OpenCADCCutout
-from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 from cadccutout.no_content_error import NoContentError
 
 
@@ -121,14 +118,16 @@ def test_mef_cutout_no_overlap():
 
     try:
         # Write out a test file with the test result FITS data.
-        with open(cutout_file_name_path, 'ab+') as output_writer, open(target_file_name, 'rb') as input_reader:
-            test_subject.cutout(input_reader, output_writer,
-                                cutout_region_str, 'FITS')
+        with open(cutout_file_name_path, 'ab+') as output_writer, \
+                open(target_file_name, 'rb') as input_reader:
+            test_subject.cutout_from_string(input_reader, output_writer,
+                                            cutout_region_str, 'FITS')
             output_writer.close()
             input_reader.close()
         assert False
     except NoContentError as err:
-        assert str(err) == 'No content (arrays do not overlap).', 'Wrong message.'
+        assert str(err) == 'No content (arrays do not overlap).', \
+            'Wrong message.'
 
 
 def test_mef_cutout():
@@ -139,9 +138,10 @@ def test_mef_cutout():
     cutout_region_str = '[2][20:35,40:50][3]'
 
     # Write out a test file with the test result FITS data.
-    with open(cutout_file_name_path, 'ab+') as output_writer, open(target_file_name, 'rb') as input_reader:
-        test_subject.cutout(input_reader, output_writer,
-                            cutout_region_str, 'FITS')
+    with open(cutout_file_name_path, 'ab+') as output_writer, \
+            open(target_file_name, 'rb') as input_reader:
+        test_subject.cutout_from_string(input_reader, output_writer,
+                                        cutout_region_str, 'FITS')
         output_writer.close()
         input_reader.close()
 
