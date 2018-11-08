@@ -70,11 +70,10 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import itertools
 import logging
 import re
-from .pixel_cutout_hdu import PixelCutoutHDU
-from .utils import to_num
+from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
+from cadccutout.utils import to_num
 
 __all__ = ['PixelRangeInputParserError', 'PixelRangeInputParser']
 
@@ -132,14 +131,16 @@ class PixelRangeInputParser(object):
         => [PixelCutoutHDU((99,112), extension='0')]
 
         rp.parse('[SCI][99:112][5]')
-        => [PixelCutoutHDU((99,112), extension=SCI),PixelCutoutHDU(extension='5')]
+        => [PixelCutoutHDU((99,112), extension=SCI),
+            PixelCutoutHDU(extension='5')]
 
         rp.parse('[IMG,2][100:112][6][300:600]')
-        => [PixelCutoutHDU((100,112), extension='IMG,2'),PixelCutoutHDU((300,600), extension='6')]
+        => [PixelCutoutHDU((100,112), extension='IMG,2'),
+            PixelCutoutHDU((300,600), extension='6')]
         """
         rs = pixel_range_input_str.strip()
 
-        if self.is_pixel_cutout(rs) == False:
+        if not self.is_pixel_cutout(rs):
             raise PixelRangeInputParserError(
                 'Not a valid pixel cutout string "{}".'.format(rs))
 
@@ -148,7 +149,9 @@ class PixelRangeInputParser(object):
 
         if not ranges:
             raise PixelRangeInputParserError(
-                'Invalid range specified.  Should be in the format of {} (i.e. [0][8:35]), or single digit (i.e. 9).'.format(self.match_pattern))
+                'Invalid range specified.  Should be in the format of {}  \
+                (i.e.[0][8:35]), or single digit(i.e. 9). '.format(
+                    self.match_pattern))
 
         parsed_items = []
 
@@ -161,13 +164,13 @@ class PixelRangeInputParser(object):
 
             if l_items == 2:
                 extension = split_items[0]
-                pixel_ranges = list(
-                    map(self._to_range_tuple, list(filter(None, split_items[1].split(self.separator)))))
+                pixel_ranges = list(map(self._to_range_tuple, list(
+                    filter(None, split_items[1].split(self.separator)))))
             elif l_items == 1:
                 item = split_items[0]
                 if item.count(self.delimiter) > 0:
-                    pixel_ranges = list(
-                        map(self._to_range_tuple, list(filter(None, item.split(self.separator)))))
+                    pixel_ranges = list(map(self._to_range_tuple, list(
+                        filter(None, item.split(self.separator)))))
                 else:
                     extension = item
             else:

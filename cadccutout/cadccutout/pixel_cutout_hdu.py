@@ -75,6 +75,7 @@ from .utils import is_integer
 
 __all__ = ['PixelCutoutHDU']
 
+
 def fix_tuple(t):
     if np.isscalar(t):
         return (t, t)
@@ -88,10 +89,13 @@ class PixelCutoutHDU(object):
     def __init__(self, dimension_ranges=[], extension='0'):
         """
         A Pixel cutout.
-        :param dimension_ranges: list    Dimension ranges expressed as tuples (i.e. (lower,upper)).
+        :param dimension_ranges: list    Dimension ranges expressed as tuples
+        (i.e. (lower,upper)).
         :param extension: tuple, int, string
-            The Extension specification to use.  If tuple, use (str, int) to get the nth count of the EXTNAME=str
-            extension.  If string, use the first extension with EXTNAME=string, or use int to get the extension[int].
+            The Extension specification to use.  If tuple, use (str, int) to
+             get the nth count of the EXTNAME=str
+            extension.  If string, use the first extension with EXTNAME=string,
+             or use int to get the extension[int].
             This is zero (0) based.
         """
         self.logger = logging.getLogger(__name__)
@@ -126,7 +130,9 @@ class PixelCutoutHDU(object):
         acc = []
         for range_tuple in self.dimension_ranges:
             acc.append(int(ceil(
-                range_tuple[0] - 0.5) + int(ceil(((range_tuple[1] - range_tuple[0]) / 2) - 0.5))) - 1)
+                range_tuple[0] - 0.5) + int(ceil(((range_tuple[1]
+                                                   - range_tuple[0]) / 2)
+                                                 - 0.5))) - 1)
 
         return tuple(acc)
 

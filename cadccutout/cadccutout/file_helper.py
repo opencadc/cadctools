@@ -70,21 +70,22 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import os
-
 from enum import Enum
 from .file_helpers.fits.fits_file_helper import FITSHelper
 
 __all__ = ['FileTypeHelpers', 'FileHelperFactory']
 
+
 class FileTypeHelpers(Enum):
     """
-    Supported file types with their respective file helper classes.  Add more as necessary.
+    Supported file types with their respective file helper classes.  Add more
+    as necessary.
     """
     FITS = FITSHelper
 
 
 class FileHelperFactory(object):
-    def get_instance(self, file_type, input_stream, output_writer, input_range_parser):
+    def get_instance(self, file_type, input_stream, output_writer,
+                     input_range_parser):
         helper_class = FileTypeHelpers[file_type.upper()].value
         return helper_class(input_stream, output_writer, input_range_parser)

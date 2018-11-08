@@ -91,8 +91,10 @@ pytest.main(args=['-s', os.path.abspath(__file__)])
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
 target_file_name = os.path.join(TESTDATA_DIR, 'test-simple.fits')
-expected_cutout_file_name = os.path.join(TESTDATA_DIR, 'test-simple-cutout.fits')
+expected_cutout_file_name = os.path.join(
+    TESTDATA_DIR, 'test-simple-cutout.fits')
 logger = logging.getLogger()
+
 
 def test_simple_cutout():
     test_subject = OpenCADCCutout()
@@ -101,12 +103,15 @@ def test_simple_cutout():
     cutout_region_str = '[300:800,810:1000]'
 
     # Write out a test file with the test result FITS data.
-    with open(cutout_file_name_path, 'ab+') as output_writer, open(target_file_name, 'rb') as input_reader:
-        test_subject.cutout(input_reader, output_writer, cutout_region_str, 'FITS')
-        output_writer.close()
-        input_reader.close()
+    with open(cutout_file_name_path, 'ab+') as output_writer, \
+            open(target_file_name, 'rb') as input_reader:
+        test_subject.cutout(input_reader, output_writer,
+                            cutout_region_str, 'FITS')
 
-    with fits.open(expected_cutout_file_name, mode='readonly') as expected_hdu_list, fits.open(cutout_file_name_path, mode='readonly') as result_hdu_list:
+    with fits.open(expected_cutout_file_name, mode='readonly') \
+            as expected_hdu_list, \
+            fits.open(cutout_file_name_path, mode='readonly') \
+            as result_hdu_list:
         fits_diff = fits.FITSDiff(expected_hdu_list, result_hdu_list)
         np.testing.assert_array_equal(
             (), fits_diff.diff_hdu_count, 'HDU count diff should be empty.')
@@ -117,14 +122,19 @@ def test_simple_cutout():
             result_wcs = WCS(header=result_hdu.header)
 
             np.testing.assert_array_equal(
-                expected_wcs.wcs.crpix, result_wcs.wcs.crpix, 'Wrong CRPIX values.')
+                expected_wcs.wcs.crpix, result_wcs.wcs.crpix,
+                'Wrong CRPIX values.')
             np.testing.assert_array_equal(
-                expected_wcs.wcs.crval, result_wcs.wcs.crval, 'Wrong CRVAL values.')
-            assert expected_hdu.header['NAXIS1'] == result_hdu.header['NAXIS1'], 'Wrong NAXIS1 values.'
-            assert expected_hdu.header['NAXIS2'] == result_hdu.header['NAXIS2'], 'Wrong NAXIS2 values.'
+                expected_wcs.wcs.crval, result_wcs.wcs.crval,
+                'Wrong CRVAL values.')
+            assert expected_hdu.header['NAXIS1'] \
+                == result_hdu.header['NAXIS1'], 'Wrong NAXIS1 values.'
+            assert expected_hdu.header['NAXIS2'] \
+                == result_hdu.header['NAXIS2'], 'Wrong NAXIS2 values.'
             assert expected_hdu.header.get(
                 'CHECKSUM') is None, 'Should not contain CHECKSUM.'
             assert expected_hdu.header.get(
                 'DATASUM') is None, 'Should not contain DATASUM.'
             np.testing.assert_array_equal(
-                np.squeeze(expected_hdu.data), result_hdu.data, 'Arrays do not match.')
+                np.squeeze(expected_hdu.data), result_hdu.data,
+                'Arrays do not match.')

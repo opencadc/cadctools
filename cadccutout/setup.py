@@ -14,11 +14,9 @@ import distutils.cmd
 import distutils.log
 import subprocess
 
-# read the README.md file and return as string.
-
-
+# read the README.rst file and return as string.
 def readme():
-    with open('README.md') as r_obj:
+    with open('README.rst') as r_obj:
         return r_obj.read()
 
 
@@ -47,9 +45,9 @@ VERSION = metadata.get('version', 'none')
 with open(os.path.join(PACKAGENAME, 'version.py'), 'w') as f:
     f.write('version = \'{}\'\n'.format(VERSION))
 
-# Treat everything in scripts except README.md as a script to be installed
+# Treat everything in scripts except README.rst as a script to be installed
 scripts = [fname for fname in glob.glob(os.path.join('scripts', '*'))
-           if os.path.basename(fname) != 'README.md']
+           if os.path.basename(fname) != 'README.rst']
 
 # Define entry points for command-line scripts
 entry_points = {'console_scripts': []}
@@ -96,13 +94,15 @@ class PyIntTest(TestCommand):
         err_no = pytest.main(self.pytest_args)
         sys.exit(err_no)
 
+
 install_requires = metadata.get('install_requires', '').strip().split()
 all_install_requires = [install_requires]
 dependency_links = metadata.get('dependency_links', '').strip().split()
 runtime_env = os.getenv('ENV', 'PROD')
 
 if runtime_env == 'DEV':
-    all_install_requires.append(metadata.get('dev_install_requires', '').strip().split())
+    all_install_requires.append(metadata.get(
+        'dev_install_requires', '').strip().split())
 
 setup(name=PACKAGENAME,
       version=VERSION,

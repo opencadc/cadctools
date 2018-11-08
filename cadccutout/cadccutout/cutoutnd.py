@@ -77,14 +77,15 @@ from copy import deepcopy
 
 from astropy.wcs import Sip
 from astropy.nddata.utils import extract_array
-from .no_content_error import NoContentError
+from cadccutout.no_content_error import NoContentError
 
 __all__ = ['CutoutResult', 'CutoutND']
 
 
 class CutoutResult(object):
     """
-    Just a DTO to move results of a cutout.  It's more readable than a plain tuple.
+    Just a DTO to move results of a cutout.  It's more readable than a plain
+    tuple.
     """
 
     def __init__(self, data, wcs=None, wcs_crpix=None):
@@ -101,9 +102,11 @@ class CutoutND(object):
         data : `~numpy.ndarray`
             The N-dimensional data array from which to extract the cutout array.
         cutout_region : `PixelCutoutHDU`
-            The Pixel HDU Cutout description.  See opencadc_cutout.pixel_cutout_hdu.py.
+            The Pixel HDU Cutout description.  See
+            cadccutout.pixel_cutout_hdu.py.
         wcs : `~astropy.wcs.WCS` or `None`
-            A WCS object associated with the cutout array.  If it's specified, reset the WCS values for the cutout.
+            A WCS object associated with the cutout array.  If it's specified,
+            reset the WCS values for the cutout.
 
         Returns
         -------
@@ -117,7 +120,8 @@ class CutoutND(object):
         requested_shape = cutout_region.get_shape()
         requested_position = cutout_region.get_position()
 
-        # reverse position because extract_array uses reverse ordering (i.e. x,y -> y,x).
+        # reverse position because extract_array uses reverse ordering
+        # (i.e. x,y -> y,x).
         r_position = tuple(reversed(requested_position))
         r_shape = tuple(reversed(requested_shape))
 
@@ -126,8 +130,8 @@ class CutoutND(object):
         len_shape = len(r_shape)
 
         if len_shape > len_data:
-            raise NoContentError('Invalid shape requested (tried to extract {} from {}).'.format(
-                r_shape, data_shape))
+            raise NoContentError('Invalid shape requested (tried to extract {} \
+            from {}).'.format(r_shape, data_shape))
 
         if r_shape:
             shape = (data_shape[:(len_data - len_shape)]) + r_shape
@@ -135,7 +139,8 @@ class CutoutND(object):
             shape = None
 
         if len_pos > len_data:
-            raise NoContentError('Invalid position requested (tried to extract {} from {}).'.format(
+            raise NoContentError('Invalid position requested (tried to extract \
+             {} from {}).'.format(
                 r_position, data_shape))
 
         if r_position:
@@ -157,7 +162,8 @@ class CutoutND(object):
                 cutout_region.get_extension()))
             cutout_data = data
         else:
-            self.logger.debug('Cutting out {} at {} for extension {} from {}.'.format(
+            self.logger.debug('Cutting out {} at {} for extension {} from  \
+            {}.'.format(
                 shape, position, cutout_region.get_extension(), data.shape))
             cutout_data, position = extract_array(
                 data, shape, position, mode='partial', return_position=True)
@@ -185,4 +191,5 @@ class CutoutND(object):
         else:
             output_wcs = None
 
-        return CutoutResult(data=cutout_data, wcs=output_wcs, wcs_crpix=wcs_crpix)
+        return CutoutResult(data=cutout_data, wcs=output_wcs,
+                            wcs_crpix=wcs_crpix)

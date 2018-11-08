@@ -68,9 +68,6 @@
 #
 
 import logging
-import signal
-import sys
-import os
 
 from cadccutout.file_helper import FileHelperFactory
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
@@ -80,14 +77,14 @@ __all__ = ['OpenCADCCutout']
 
 class OpenCADCCutout(object):
     """
-    Main cutout class.  This is mainly used as a parent class for concrete instances, like from a FITS file, but
-    can be called by itself if need be.
+    Main cutout class.  This is mainly used as a parent class for concrete
+    instances, like from a FITS file, but can be called by itself if need be.
 
     Parameters
     ----------
     helper_factory : `.file_helper.FileHelperFactory`
-        The Helper Factory instance to load a file helper appropriate to the file type.  Defaults to
-        file_helper.FileHelperFactory().
+        The Helper Factory instance to load a file helper appropriate to the
+        file type.  Defaults to file_helper.FileHelperFactory().
 
     input_range_parser : `.pixel_range_input_parser.PixelRangeInputParser`
         Parser to parse the input string.  This defaults to the provided
@@ -104,9 +101,12 @@ class OpenCADCCutout(object):
     # Cutouts are in cfitsio format.
     cutout_region_string = '[300:800,810:1000]'  # HDU 0 along two axes.
 
-    # Needs to have 'append' flag set.  The cutout() method will write out the data.
-    with open(output_file, 'ab+') as output_writer, open(input_file, 'rb') as input_reader:
-        test_subject.cutout(input_reader, output_writer, cutout_region_string, 'FITS')
+    # Needs to have 'append' flag set.  The cutout() method will write out the
+    # data.
+    with open(output_file, 'ab+') as output_writer, open(input_file, 'rb') as
+     input_reader:
+        test_subject.cutout(input_reader, output_writer, cutout_region_string,
+        'FITS')
 
 
     Example 2 (CADC)
@@ -123,31 +123,38 @@ class OpenCADCCutout(object):
     input_stream = data_client.get_file(archive, file_name)
 
     # Cutouts are in cfitsio format.
-    cutout_region_string = '[SCI,10][80:220,100:150]'  # SCI version 10, along two axes.
+    cutout_region_string = '[SCI,10][80:220,100:150]'  # SCI version 10, along
+    two axes.
 
-    # Needs to have 'append' flag set.  The cutout() method will write out the data.
+    # Needs to have 'append' flag set.  The cutout() method will write out the
+    # data.
     with open(output_file, 'ab+') as output_writer:
-        test_subject.cutout(input_stream, output_writer, cutout_region_string, 'FITS')
+        test_subject.cutout(input_stream, output_writer, cutout_region_string,
+        'FITS')
     """
 
-    def __init__(self, helper_factory=FileHelperFactory(), input_range_parser=PixelRangeInputParser()):
+    def __init__(self, helper_factory=FileHelperFactory(),
+                 input_range_parser=PixelRangeInputParser()):
         self.logger = logging.getLogger(__name__)
         self.helper_factory = helper_factory
         self.input_range_parser = input_range_parser
 
-    def cutout(self, input_reader, output_writer, cutout_dimensions_str, file_type):
+    def cutout(self, input_reader, output_writer, cutout_dimensions_str,
+               file_type):
         """
         Perform a Cutout of the given data at the given position and size.
 
         Parameters
         ----------
         input_reader: File-like object, Reader stream
-            The file location.  The file extension is important as it's used to determine how to process it.
+            The file location.  The file extension is important as it's used to
+            determine how to process it.
 
         output_writer: File-like object, Writer stream
             The writer to push the cutout array to.
 
-        cutout_dimensions_str: string of WCS coordinates, or extension and pixel coordinates.
+        cutout_dimensions_str: string of WCS coordinates, or extension and
+            pixel coordinates.
             The requested dimensions expressed as PixelCutoutHDU objects.
 
         file_type: string
@@ -158,4 +165,6 @@ class OpenCADCCutout(object):
         file_helper.cutout(cutout_dimensions_str)
 
     def _get_file_helper(self, file_type, input_reader, output_writer):
-        return self.helper_factory.get_instance(file_type, input_reader, output_writer, self.input_range_parser)
+        return self.helper_factory.get_instance(file_type, input_reader,
+                                                output_writer,
+                                                self.input_range_parser)

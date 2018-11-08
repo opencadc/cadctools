@@ -72,6 +72,9 @@ from __future__ import (absolute_import, division, print_function,
 
 __all__ = ['NoContentError']
 
+
 class NoContentError(ValueError):
-  '''Raised when the specified cutout contains no content (does not overlap).'''
-  pass
+    """
+    Raised when the specified cutout contains no content (does not overlap).
+    """
+    pass

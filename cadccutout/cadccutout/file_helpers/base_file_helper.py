@@ -80,25 +80,29 @@ __all__ = ['BaseFileHelper']
 
 
 class BaseFileHelper(object):
-    def __init__(self, input_stream, output_writer, input_range_parser=PixelRangeInputParser()):
+    def __init__(self, input_stream, output_writer,
+                 input_range_parser=PixelRangeInputParser()):
         """
-        Create a new BaseFileHelper used for different file types.  Concrete instances are expected to extend this
-        class to provide some common state.
+        Create a new BaseFileHelper used for different file types.  Concrete
+        instances are expected to extend this class to provide some common
+        state.
 
         :param input_stream:    The Reader to read the file data from.
         :param output_writer:   The Writer to write the cutout to.
-        :param input_range_parser:  Parser instance to parse the range of inputs.
+        :param input_range_parser:  Parser instance to parse the range of
+        inputs.
         """
         self.logger = logging.getLogger(__name__)
         if input_stream is None:
             raise ValueError(
-                'An input stream (file-like object or io/stream) is required to read from.')
+                'An input stream(file-like object or io/stream) is required \
+                 to read from.')
         else:
             self.input_stream = input_stream
 
         if output_writer is None:
-            raise ValueError(
-                'An output stream (file-like object or io/stream) is required to write to.')
+            raise ValueError('An output stream(file-like object or io/stream) \
+             is required to write to.')
         else:
             self.output_writer = output_writer
 
@@ -109,7 +113,8 @@ class BaseFileHelper(object):
         Perform a Cutout of the given data at the given position and size.
         :param data:  The data to cutout from
         :param cutout_dimension:  `PixelCutoutHDU`       Cutout object.
-        :param wcs:    The WCS object to use with the cutout to return a copy of the WCS object.
+        :param wcs:    The WCS object to use with the cutout to return a copy
+         of the WCS object.
 
         :return: CutoutND instance
         """

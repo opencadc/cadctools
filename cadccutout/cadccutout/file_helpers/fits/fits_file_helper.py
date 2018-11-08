@@ -71,8 +71,6 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
-import time
-import astropy
 
 from copy import copy
 from astropy.io import fits
@@ -95,14 +93,17 @@ UNDESIREABLE_HEADER_KEYS = ['DQ1', 'DQ2']
 
 class FITSHelper(BaseFileHelper):
 
-    def __init__(self, input_stream, output_writer, input_range_parser=PixelRangeInputParser()):
+    def __init__(self, input_stream, output_writer,
+                 input_range_parser=PixelRangeInputParser()):
         """
-        Create a new BaseFileHelper used for different file types.  Concrete instances are expected to extend this
+        Create a new BaseFileHelper used for different file types.  Concrete
+         instances are expected to extend this
         class to provide some common state.
 
         :param input_stream:    The Reader to read the file data from.
         :param output_writer:   The Writer to write the cutout to.
-        :param input_range_parser:  Parser instance to parse the range of inputs.
+        :param input_range_parser:  Parser instance to parse the range of
+         inputs.
         """
         self.logger = logging.getLogger(__name__)
         super(FITSHelper, self).__init__(
@@ -120,7 +121,8 @@ class FITSHelper(BaseFileHelper):
         wcsaxes_keyword = 'WCSAXES'
         ctype1_keyword = 'CTYPE1'
 
-        # Only proceed with this if both the WCSAXES and CTYPE1 cards are present.
+        # Only proceed with this if both the WCSAXES and CTYPE1 cards are
+        # present.
         if header.get(wcsaxes_keyword) and header.get(ctype1_keyword):
             wcsaxes_index = header.index(wcsaxes_keyword)
             ctype1_index = header.index('CTYPE1')
@@ -184,12 +186,14 @@ class FITSHelper(BaseFileHelper):
 
             self._post_sanitize_header(header, cutout_result)
 
-            fits.append(filename=self.output_writer, header=header, data=cutout_result.data,
-                        overwrite=False, output_verify='silentfix', checksum='remove')
+            fits.append(filename=self.output_writer, header=header,
+                        data=cutout_result.data, overwrite=False,
+                        output_verify='silentfix', checksum='remove')
             self.output_writer.flush()
         except NoContentError:
-            self.logger.warn('No cutout possible on extension {}.  Skipping...'.format(
-                cutout_dimension.get_extension()))
+            self.logger.warn(
+                'No cutout possible on extension {}.  Skipping...'.format(
+                    cutout_dimension.get_extension()))
 
     def _pixel_cutout(self, header, data, cutout_dimension):
         extension = cutout_dimension.get_extension()
@@ -204,16 +208,19 @@ class FITSHelper(BaseFileHelper):
                 'No overlap found for extension {}'.format(extension))
             raise NoContentError('No content (arrays do not overlap).')
 
-    def _is_extension_requested(self, extension_idx, ext_name_ver, cutout_dimension):
+    def _is_extension_requested(
+            self, extension_idx, ext_name_ver, cutout_dimension):
         requested_extension = cutout_dimension.get_extension()
 
         matches = False
 
         if ext_name_ver is not None:
-            matches = (ext_name_ver ==
-                       requested_extension or requested_extension == ext_name_ver[0])
+            matches = (
+                ext_name_ver == requested_extension or requested_extension ==
+                ext_name_ver[0])
 
-        if not matches and is_integer(requested_extension) and is_integer(extension_idx):
+        if not matches and is_integer(requested_extension) and is_integer(
+                extension_idx):
             matches = (int(requested_extension) == int(extension_idx))
 
         if not matches:
@@ -223,14 +230,17 @@ class FITSHelper(BaseFileHelper):
 
     def _iterate_cutout(self, pixel_cutout_dimensions):
         # Start with the first extension
-        hdu_list = fits.open(name=self.input_stream,
-                             memmap=True, mode='readonly', do_not_scale_image_data=True)
+        hdu_list = fits.open(
+            name=self.input_stream, memmap=True, mode='readonly',
+            do_not_scale_image_data=True)
 
         for curr_extension_idx, hdu in enumerate(hdu_list):
             if isinstance(hdu, PrimaryHDU) == True:
                 self.logger.debug('Primary at {}'.format(curr_extension_idx))
-                fits.append(filename=self.output_writer, header=hdu.header, data=None,
-                            overwrite=False, output_verify='silentfix', checksum='remove')
+                fits.append(
+                    filename=self.output_writer, header=hdu.header, data=None,
+                    overwrite=False, output_verify='silentfix',
+                    checksum='remove')
             elif isinstance(hdu, ImageHDU):
                 header = hdu.header
                 ext_name = header.get('EXTNAME')
@@ -246,18 +256,23 @@ class FITSHelper(BaseFileHelper):
                 else:
                     for cutout_dimension in pixel_cutout_dimensions:
                         is_ext_req = self._is_extension_requested(
-                            curr_extension_idx, curr_ext_name_ver, cutout_dimension)
-                        if is_ext_req == True:
-                            self.logger.debug('*** Extension {} does match ({} | {})'.format(
-                                cutout_dimension.get_extension(), curr_extension_idx, curr_ext_name_ver))
+                            curr_extension_idx, curr_ext_name_ver,
+                            cutout_dimension)
+                        if is_ext_req:
+                            self.logger.debug(
+                                '*** Extension {} does match ({} | {})'.format(
+                                    cutout_dimension.get_extension(),
+                                    curr_extension_idx, curr_ext_name_ver))
                             self._pixel_cutout(
                                 header, hdu.data, cutout_dimension)
             else:
                 self.logger.warn(
-                    'Unsupported HDU at extension {}.'.format(curr_extension_idx))
+                    'Unsupported HDU at extension {}.'.format(
+                        curr_extension_idx))
 
     def _iterate_pixel_cutout(self, pixel_cutout_dimensions):
-        if pixel_cutout_dimensions is not None and len(pixel_cutout_dimensions) == 1:
+        if pixel_cutout_dimensions is not None \
+                and len(pixel_cutout_dimensions) == 1:
             cutout_dimension = pixel_cutout_dimensions[0]
             hdu_list = fits.open(self.input_stream, memmap=True,
                                  mode='readonly', do_not_scale_image_data=True)
