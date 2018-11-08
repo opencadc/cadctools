@@ -73,9 +73,7 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import numpy as np
 import os
-import sys
 import pytest
-import tempfile
 import context as test_context
 
 from astropy.io import fits
@@ -105,8 +103,8 @@ def test_simple_cutout():
     # Write out a test file with the test result FITS data.
     with open(cutout_file_name_path, 'ab+') as output_writer, \
             open(target_file_name, 'rb') as input_reader:
-        test_subject.cutout_from_string(input_reader, output_writer,
-                                        cutout_regions, 'FITS')
+        test_subject.cutout(input_reader, output_writer, cutout_regions,
+                            'FITS')
 
     with fits.open(expected_cutout_file_name, mode='readonly') \
             as expected_hdu_list, \

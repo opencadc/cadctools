@@ -11,10 +11,10 @@ from setuptools import find_packages
 from setuptools import setup
 
 import distutils.cmd
-import distutils.log
-import subprocess
 
 # read the README.rst file and return as string.
+
+
 def readme():
     with open('README.rst') as r_obj:
         return r_obj.read()
@@ -61,8 +61,8 @@ for entry_point in entry_point_list:
 
 
 class PyTest(TestCommand):
-    """class py.test for the testing
-
+    """
+    Class py.test for the testing
     """
     user_options = []
 
@@ -78,7 +78,8 @@ class PyTest(TestCommand):
 
 
 class PyIntTest(TestCommand):
-    """class py.test for the int testing
+    """
+    Class py.test for the int testing
     """
     user_options = []
 

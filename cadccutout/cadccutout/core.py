@@ -68,11 +68,17 @@
 #
 
 import logging
+import sys
+
+
+from cadcutils import net, util
 
 from cadccutout.file_helper import FileHelperFactory
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
 __all__ = ['OpenCADCCutout']
+
+APP_NAME = 'cadccutout'
 
 
 class OpenCADCCutout(object):
@@ -158,9 +164,22 @@ class OpenCADCCutout(object):
         file_type: string
             The file type, in upper case.  Will usually be 'FITS'.
         """
+        if not input_reader:
+            raise ValueError('No input source specified.')
+        elif not output_writer:
+            raise ValueError('No output target specified.')
+        elif not cutout_dimensions or len(cutout_dimensions) == 0:
+            raise ValueError('No Cutout regions specified.')
+
         file_helper = self._get_file_helper(
             file_type, input_reader, output_writer)
-        file_helper.cutout(cutout_dimensions)
+
+        try:
+            file_helper.cutout(cutout_dimensions)
+        except OSError:
+            raise ValueError(
+                'Output target or input source unusable (Did you specify an '
+                'input and output?).')
 
     def cutout_from_string(self, input_reader, output_writer,
                            cutout_dimensions_str, file_type):
@@ -184,22 +203,20 @@ class OpenCADCCutout(object):
             The file type, in upper case.  Will usually be 'FITS'.
         """
 
-        if type(cutout_dimensions_str) != str:
-            raise ValueError('Input is expected to be a string')
+        if cutout_dimensions_str != str(cutout_dimensions_str):
+            raise ValueError('Input is expected to be a string but was {}'
+                             .format(cutout_dimensions_str))
 
-        file_helper = self._get_file_helper(
-            file_type, input_reader, output_writer)
         if self.input_range_parser.is_pixel_cutout(cutout_dimensions_str):
             parsed_cutout_dimensions = self.input_range_parser.parse(
                 cutout_dimensions_str)
-            file_helper.cutout(parsed_cutout_dimensions)
+            self.cutout(input_reader, output_writer, parsed_cutout_dimensions,
+                        file_type)
+        else:
+            # Parse WCS into appropriate objects.
+            pass
 
     def _get_file_helper(self, file_type, input_reader, output_writer):
         return self.helper_factory.get_instance(file_type, input_reader,
                                                 output_writer,
                                                 self.input_range_parser)
-
-
-if __name__ == "__main__":
-    # Execute only if run as a script.
-    pass
