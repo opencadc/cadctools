@@ -76,7 +76,6 @@ import pytest
 from astropy.io import fits
 
 from cadccutout.no_content_error import NoContentError
-from cadccutout.transform import AxisType, Shape, Transform
 
 pytest.main(args=['-s', os.path.abspath(__file__)])
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -97,8 +96,9 @@ VLASS_4D_CUBE_HEADER = 'vlass-4d-cube.hdr'
 JCMT_3D_CUBE_HEADER = 'jcmt-3d-cube.hdr'
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_axis_type():
+    from cadccutout.transform import AxisType, Shape, Transform
     header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
     header = fits.Header.fromtextfile(header_filename)
 
@@ -120,7 +120,7 @@ def test_axis_type():
     assert polarization == 4
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_parse_world_to_shapes():
     test_subject = Transform()
 
@@ -250,7 +250,7 @@ def test_parse_world_to_shapes():
     assert coordinates[0] == 'LL'
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_world_to_pixels_no_content():
     header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
     header = fits.Header.fromtextfile(header_filename)
@@ -296,7 +296,7 @@ def test_world_to_pixels_no_content():
         assert True
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_get_circle_cutout_pixels_vlass():
     header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
     header = fits.Header.fromtextfile(header_filename)
@@ -314,7 +314,7 @@ def test_get_circle_cutout_pixels_vlass():
     assert pixels[3] == 4314
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_get_circle_cutout_pixels_cgps_galactic():
     header_filename = os.path.join(TESTDATA_DIR, CGPS_4D_CUBE_HEADER)
     header = fits.Header.fromtextfile(header_filename)
@@ -332,7 +332,7 @@ def test_get_circle_cutout_pixels_cgps_galactic():
     assert pixels[3] == 353
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_get_circle_cutout_pixels_iris_no_overlap():
     header_filename = os.path.join(TESTDATA_DIR, IRIS_3D_CUBE_HEADER)
     header = fits.Header.fromtextfile(header_filename)
@@ -347,7 +347,7 @@ def test_get_circle_cutout_pixels_iris_no_overlap():
         assert True
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_get_circle_cutout_pixels_iris_all_overlap():
     header_filename = os.path.join(TESTDATA_DIR, IRIS_3D_CUBE_HEADER)
     header = fits.Header.fromtextfile(header_filename)
@@ -367,7 +367,7 @@ def test_get_circle_cutout_pixels_iris_all_overlap():
     assert pixels[3] == 500
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_get_polygon_cutout_pixels_vlass():
     header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
     header = fits.Header.fromtextfile(header_filename)
@@ -386,7 +386,7 @@ def test_get_polygon_cutout_pixels_vlass():
     assert pixels[3] == 4272
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_get_energy_cutout_pixels_vlass():
     """
     BAND 0.04456576 0.11662493
@@ -408,7 +408,7 @@ def test_get_energy_cutout_pixels_vlass():
     assert pixels[1] == 3
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_get_energy_cutout_pixels_cgps_raises_error():
     """
         CPGS cube lacks rest wavelength or frequency for wcslib
@@ -451,7 +451,7 @@ def test_get_energy_cutout_pixels_jcmt():
     assert pixels[1] == 6810
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_get_polarization_cutout_pixels_vlass():
     """
     Polarization states for header are I, Q, U, V (1, 2, 3, 4)
@@ -511,7 +511,7 @@ def test_get_polarization_cutout_pixels_vlass():
     assert pixels[1] == 4
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_get_polarization_cutout_pixels_cgps():
     """
     CTYPE4  = 'STOKES  '           / 4TH COORDINATE TYPE
@@ -535,7 +535,7 @@ def test_get_polarization_cutout_pixels_cgps():
     assert pixels[1] == 1
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 def test_world_to_pixels_vlass():
     """
     CIRCLE 168.34719985367971 76.18699791158396 0.01 BAND 0.04456576 0.11662493 POL I

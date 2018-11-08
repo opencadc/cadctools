@@ -96,6 +96,14 @@ UNDESIREABLE_HEADER_KEYS = ['DQ1', 'DQ2']
 class FITSHelper(BaseFileHelper):
 
     def __init__(self, input_stream, output_writer, input_range_parser=PixelRangeInputParser()):
+        """
+        Create a new BaseFileHelper used for different file types.  Concrete instances are expected to extend this
+        class to provide some common state.
+
+        :param input_stream:    The Reader to read the file data from.
+        :param output_writer:   The Writer to write the cutout to.
+        :param input_range_parser:  Parser instance to parse the range of inputs.
+        """
         self.logger = logging.getLogger(__name__)
         super(FITSHelper, self).__init__(
             input_stream, output_writer, input_range_parser)
@@ -105,8 +113,8 @@ class FITSHelper(BaseFileHelper):
         Remove headers that don't belong in the cutout output.
         """
         # Remove known keys
-        [header.remove(x, ignore_missing=True, remove_all=True)
-         for x in UNDESIREABLE_HEADER_KEYS]
+        for x in UNDESIREABLE_HEADER_KEYS:
+            header.remove(x, ignore_missing=True, remove_all=True)
 
         # If a WCSAXES card exists, ensure that it comes before the CTYPE1 card.
         wcsaxes_keyword = 'WCSAXES'
@@ -138,7 +146,7 @@ class FITSHelper(BaseFileHelper):
             # Remove the CDi_j headers in favour of the PCi_j equivalents
             for i in range(naxis):
                 for j in range(naxis):
-                    idx_val = '{}_{}'.format(str(i + 1), str(j + 1))
+                    idx_val = '{}_{}'.format(i + 1, j + 1)
                     cd_key = 'CD{}'.format(idx_val)
                     cd_val = header.get(cd_key)
 
@@ -158,7 +166,7 @@ class FITSHelper(BaseFileHelper):
 
         if naxis_value is not None and int(naxis_value) > 0:
             for nax in range(1, naxis_value + 1):
-                ctype = header.get('CTYPE{0}{1}'.format(nax, ' '))
+                ctype = header.get('CTYPE{0} '.format(nax))
                 if ctype is not None and ctype.endswith('-SIP'):
                     naxis = 2
                     break
@@ -205,10 +213,10 @@ class FITSHelper(BaseFileHelper):
             matches = (ext_name_ver ==
                        requested_extension or requested_extension == ext_name_ver[0])
 
-        if matches == False and is_integer(requested_extension) and is_integer(extension_idx):
+        if not matches and is_integer(requested_extension) and is_integer(extension_idx):
             matches = (int(requested_extension) == int(extension_idx))
 
-        if matches == False:
+        if not matches:
             matches = (requested_extension == extension_idx)
 
         return matches

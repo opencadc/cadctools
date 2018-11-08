@@ -94,22 +94,21 @@ class CutoutResult(object):
 
 
 class CutoutND(object):
-    """
-      Parameters
-      ----------
-      data : `~numpy.ndarray`
-          The N-dimensional data array from which to extract the cutout array.
-      cutout_region : `PixelCutoutHDU`
-          The Pixel HDU Cutout description.  See opencadc_cutout.pixel_cutout_hdu.py.
-      wcs : `~astropy.wcs.WCS` or `None`
-          A WCS object associated with the cutout array.  If it's specified, reset the WCS values for the cutout.
-
-      Returns
-      -------
-      CutoutResult instance
-    """
-
     def __init__(self, data, wcs=None):
+        """
+        Parameters
+        ----------
+        data : `~numpy.ndarray`
+            The N-dimensional data array from which to extract the cutout array.
+        cutout_region : `PixelCutoutHDU`
+            The Pixel HDU Cutout description.  See opencadc_cutout.pixel_cutout_hdu.py.
+        wcs : `~astropy.wcs.WCS` or `None`
+            A WCS object associated with the cutout array.  If it's specified, reset the WCS values for the cutout.
+
+        Returns
+        -------
+        CutoutResult instance
+        """
         self.logger = logging.getLogger(__name__)
         self.data = data
         self.wcs = wcs
@@ -131,7 +130,7 @@ class CutoutND(object):
                 r_shape, data_shape))
 
         if r_shape:
-            shape = tuple((data_shape[:(len_data - len_shape)]) + r_shape)
+            shape = (data_shape[:(len_data - len_shape)]) + r_shape
         else:
             shape = None
 
@@ -140,7 +139,7 @@ class CutoutND(object):
                 r_position, data_shape))
 
         if r_position:
-            position = tuple((data_shape[:(len_data - len_pos)]) + r_position)
+            position = (data_shape[:(len_data - len_pos)]) + r_position
         else:
             position = None
 

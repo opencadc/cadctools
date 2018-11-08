@@ -73,14 +73,22 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import numpy as np
 
-from ..cutoutnd import CutoutND
-from ..pixel_range_input_parser import PixelRangeInputParser
+from cadccutout.cutoutnd import CutoutND
+from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
 __all__ = ['BaseFileHelper']
 
 
 class BaseFileHelper(object):
     def __init__(self, input_stream, output_writer, input_range_parser=PixelRangeInputParser()):
+        """
+        Create a new BaseFileHelper used for different file types.  Concrete instances are expected to extend this
+        class to provide some common state.
+
+        :param input_stream:    The Reader to read the file data from.
+        :param output_writer:   The Writer to write the cutout to.
+        :param input_range_parser:  Parser instance to parse the range of inputs.
+        """
         self.logger = logging.getLogger(__name__)
         if input_stream is None:
             raise ValueError(
