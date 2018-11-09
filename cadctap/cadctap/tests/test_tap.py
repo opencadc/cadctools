@@ -272,11 +272,7 @@ class TestCadcTapClient(unittest.TestCase):
                 main_app()
             self.assertEqual(usage, stdout_mock.getvalue())
 
-        usage = ('usage: cadc-tap [-h] [-V]\n'
-                 '                {get-tables,get-table,run-query,'
-                 'load-async-job'
-                 ',list-async-jobs}\n'
-                 '                ...\n'
+        usage = ('usage: cadc-tap [-h] [-V] {tables,query} ...\n'
                  'cadc-tap: error: too few arguments\n')
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
@@ -285,60 +281,28 @@ class TestCadcTapClient(unittest.TestCase):
                     main_app()
                 self.assertEqual(usage, stderr_mock.getvalue())
 
-        # get-tables -h
+        # tables -h
         with open(os.path.join(TESTDATA_DIR,
-                               'help_get_tables.txt'), 'r') as myfile:
+                               'help_tables.txt'), 'r') as myfile:
             usage = myfile.read()
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'get-tables', '--help']
+            sys.argv = ['cadc-tap', 'tables', '--help']
             with self.assertRaises(MyExitError):
                 main_app()
             self.assertEqual(usage, stdout_mock.getvalue())
 
-        # get-table -h
+        # query -h
         with open(os.path.join(TESTDATA_DIR,
-                               'help_get_table.txt'), 'r') as myfile:
+                               'help_query.txt'), 'r') as myfile:
             usage = myfile.read()
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'get-table', '-h']
+            sys.argv = ['cadc-tap', 'query', '--help']
             with self.assertRaises(MyExitError):
                 main_app()
             self.assertEqual(usage, stdout_mock.getvalue())
 
-        # run-query -h
-        with open(os.path.join(TESTDATA_DIR,
-                               'help_run_query.txt'), 'r') as myfile:
-            usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'run-query', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            self.assertEqual(usage, stdout_mock.getvalue())
-
-        # load-async-job -h
-        with open(os.path.join(TESTDATA_DIR,
-                               'help_load_job.txt'), 'r') as myfile:
-            usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'load-async-job', '-h']
-            with self.assertRaises(MyExitError):
-                main_app()
-            self.assertEqual(usage, stdout_mock.getvalue())
-
-        # list-async-jobs -h
-        with open(os.path.join(TESTDATA_DIR,
-                               'help_list_jobs.txt'), 'r') as myfile:
-            usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'list-async-jobs', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            self.assertEqual(usage, stdout_mock.getvalue())
 
     @patch('cadctap.core.CadcTapClient.list_async_jobs')
     @patch('cadctap.core.CadcTapClient.load_async_job')
@@ -348,29 +312,29 @@ class TestCadcTapClient(unittest.TestCase):
     def test_main(self, get_tables_mock, get_table_mock, run_query_mock,
                   load_async_mock, list_async_mock):
         url = 'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/tap'
-        sys.argv = ['cadc-tap', 'get-tables']
+        sys.argv = ['cadc-tap', 'tables']
         main_app()
         calls = [call(False, ANY, url)]
         get_tables_mock.assert_has_calls(calls)
 
-        sys.argv = ['cadc-tap', 'get-table', '-t', 'tablename']
+        sys.argv = ['cadc-tap', 'tables', '-t', 'tablename']
         main_app()
         calls = [call('tablename', False, ANY, url)]
         get_table_mock.assert_has_calls(calls)
 
-        sys.argv = ['cadc-tap', 'run-query', '-QF', 'query.sql',
+        sys.argv = ['cadc-tap', 'query', '-Q', 'query.sql',
                     '-a', '-f', 'filename', '-b']
         main_app()
         calls = [call(None, 'query.sql', True, 'filename', 'votable',
                  False, False, True, None, None, ANY, url)]
         run_query_mock.assert_has_calls(calls)
 
-        sys.argv = ['cadc-tap', 'load-async-job', '-j', '123']
+        sys.argv = ['cadc-tap', 'query', '-j', '123']
         main_app()
         calls = [call('123', None, False, False, ANY, url)]
         load_async_mock.assert_has_calls(calls)
 
-        sys.argv = ['cadc-tap', 'list-async-jobs',
+        sys.argv = ['cadc-tap', 'query', '--list',
                     '-n', '-f', 'filename', '-s']
         main_app()
         calls = [call(False, 'filename', True, ANY, url)]
