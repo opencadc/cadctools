@@ -85,6 +85,9 @@ from cadctap import version
 import astroquery.cadc as cadc
 from astroquery.cadc import auth
 
+import warnings
+warnings.filterwarnings("ignore", module='astropy.io.votable.tree')
+
 # make the stream bar show up on stdout
 progress.STREAM = sys.stdout
 
@@ -247,9 +250,10 @@ class CadcTapClient(object):
                        verbose, authentication, url):
         Cadc = cadc.CadcTAP(url=url)
         job = Cadc.load_async_job(jobid,
-                                  output_file=file_name,
                                   verbose=verbose,
                                   authentication=authentication)
+        if file_name is not None:
+            job.set_output_file(file_name)
         if not save_to_file:
             print('-----------')
             print('Query Results')
@@ -298,118 +302,98 @@ def main_app():
         dest='cmd',
         help='supported commands. Use the -h|--help argument of a command '
              'for more details')
-    get_tables_parser = subparsers.add_parser(
-        'get-tables',
-        description='Get a list of the tables in the CADC database',
-        help='Get a list of the tables in the CADC database')
-    get_tables_parser.epilog = (
-        'Examples:\n'
-        '- Anonymously list the tables in the database:\n'
-        '        cadc-tap get-tables -v\n'
-        '- Use certificate to get a list of the tables in the database:\n'
-        '        cadc-tap get-tables --cert ~/.ssl/cadcproxy.pem\n'
-        '- Use default netrc file ($HOME/.netrc) to the list of tables:\n'
-        '        cadc-tap get-tables -v -n\n'
-        '- Use a different netrc file to get the list of tables:\n'
-        '        cadc-tap get-tables --netrc-file ~/mynetrc\n')
-
-    get_table_parser = subparsers.add_parser(
-        'get-table',
-        description='Get the columns of a table',
-        help='Get the columns of a table')
-    get_table_parser.add_argument(
+    tables_parser = subparsers.add_parser(
+        'tables',
+        description='Get a list of the tables in the database or a list'
+                    ' of columns in a table',
+        help='Get a list of the tables in the database or a list of columns'
+             ' in a table')
+    tables_parser.add_argument(
         '-t', '--table',
+        default=None,
         help='The table name, must be the qualified name, '
              'for example caom2.coam2.Observations.'
              'The qualified table names will be outputed '
-             'by the get-tables command',
-        required=True)
-    run_query_parser = subparsers.add_parser(
-        'run-query',
+             'by the tables command')
+    tables_parser.epilog = (
+        'Examples:\n'
+        '- Anonymously list the tables in the database:\n'
+        '      cadc-tap tables -v\n'
+        '- Use certificate to get a list of the tables in the database:\n'
+        '      cadc-tap tables --cert ~/.ssl/cadcproxy.pem\n'
+        '- Use default netrc file ($HOME/.netrc) to get the list of columns:\n'
+        '      cadc-tap tables -t caom2.Observation -v -n\n'
+        '- Use a different netrc file to get the list of columns:\n'
+        '      cadc-tap tables -t caom2.Observation --netrc-file ~/mynetrc\n')
+
+    query_parser = subparsers.add_parser(
+        'query',
         description=('Run an adql query'),
         help='Run an adql query')
-    query_parser = run_query_parser.add_mutually_exclusive_group(required=True)
     query_parser.add_argument(
-        '-Q', '--query',
-        default=None,
-        help='ADQL query to run, format is a string with quotes around it, '
-              'for example "SELECT * FROM table"')
-    query_parser.add_argument(
-        '-QF', '--query-file',
-        default=None,
-        help='Location of a file with only an ADQL query to run')
-    run_query_parser.add_argument(
-        '-a', '--async',
-        action='store_true',
-        help='Run the query asynchronously, default is to run'
-             ' synchronously which only outputs the top 2000 results',
-        required=False)
-    run_query_parser.add_argument(
         '-f', '--file-name',
         default=None,
         help='Name of the file to output the results, default is'
-             ' "operation_datetime"',
+             ' "operation_datetime" for query results and '
+             '"joblist_dateime" for --list option',
         required=False)
-    run_query_parser.add_argument(
-        '-ff', '--file-format',
-        default='votable',
-        choices=['votable', 'csv', 'tsv'],
-        help='Format of the output file, votable(default), csv or tsv',
-        required=False)
-    run_query_parser.add_argument(
+    query_parser.add_argument(
         '-s', '--save-to-file',
         action='store_true',
         help='Save the output to a file instead of outputing to stdout')
-    run_query_parser.add_argument(
+    options_parser = query_parser.add_mutually_exclusive_group(required=True)
+    options_parser.add_argument(
+        'query',
+        default=None,
+        nargs='?',
+        help='ADQL query to run, format is a string with quotes around it, '
+             'for example "SELECT observationURI FROM caom2.Observation"')
+    options_parser.add_argument(
+        '-Q', '--query-file',
+        default=None,
+        help='Location of a file that contains only an ADQL query to run. Use'
+             ' instead of the query string.')
+    options_parser.add_argument(
+        '-j', '--load-job',
+        default=None,
+        help='Get the results of a job using the jobid, '
+             'the query will be run again. If a job was created using'
+             ' authentication, authentication will be needed to run the'
+             ' job again.')
+    options_parser.add_argument(
+        '--list',
+        action='store_true',
+        help='List all asynchronous jobs that you have created')
+    query_parser.add_argument(
+        '-a', '--async',
+        action='store_true',
+        help='Query Option. Run the query asynchronously, default is to run'
+             ' synchronously which only outputs the top 2000 results',
+        required=False)
+    query_parser.add_argument(
+        '-ff', '--file-format',
+        default=None,
+        choices=['votable', 'csv', 'tsv'],
+        help='Query Option. Format of the output file: '
+             'votable(default), csv or tsv',
+        required=False)
+    query_parser.add_argument(
         '-b', '--background',
         action='store_true',
-        help='Do not return the results, only the jobid. '
-             'Only affects asychronous queries.')
-    run_query_parser.add_argument(
+        help='Query Option. Do not return the results of a query,'
+             ' only the jobid. Only for asychronous queries.')
+    query_parser.add_argument(
         '-uf', '--upload-file',
         default=None,
-        help='File name of the table to upload for the query',
+        help='Query Option. Name of the file that contains the table to upload'
+             ' for the query',
         required=False)
-    run_query_parser.add_argument(
-        '-un', '--upload-table-name',
+    query_parser.add_argument(
+        '-un', '--upload-name',
         default=None,
-        help='Required if --upload_resource is used. Name of the table to '
-             'upload, to reference the table use tap_upload.<tablename>',
-        required=False)
-    load_async_job_parser = subparsers.add_parser(
-        'load-async-job',
-        description=('Get the results of a job using the jobid, the query will'
-                     ' be run again. If a job was created using authentication'
-                     ', authentication will be needed to load the job'),
-        help='Get the results of a job using the jobid, '
-             'the query will be run again')
-    load_async_job_parser.add_argument(
-        '-j', '--jobid',
-        help='A jobid',
-        required=True)
-    load_async_job_parser.add_argument(
-        '-f', '--file-name',
-        default=None,
-        help='Name of the file to output the results, default is'
-             ' "operation_datetime"',
-        required=False)
-    load_async_job_parser.add_argument(
-        '-s', '--save-to-file',
-        action='store_true',
-        help='Flag to save results to a file')
-    list_async_jobs_parser = subparsers.add_parser(
-        'list-async-jobs',
-        description=('List all asynchronous jobs that you have created'),
-        help='List all asynchronous jobs that you have created')
-    list_async_jobs_parser.add_argument(
-        '-s', '--save-to-file',
-        action='store_true',
-        help='Flag to have list of jobs saved to a text file')
-    list_async_jobs_parser.add_argument(
-        '-f', '--file-name',
-        default=None,
-        help='Name of the file to output the results, default is'
-             ' "joblist_datetime.txt"',
+        help='Query Option. Required if --upload_resource is used. Name of the'
+             ' table to upload. To reference the table use '
+             'tap_upload.<tablename>',
         required=False)
 
     # handle errors
@@ -428,6 +412,26 @@ def main_app():
         logger.error(msg)
         if exit_after:
             sys.exit(-1)  # TODO use different error codes?
+
+    def check_args(args, arg):
+        """
+        Checks to make sure none of the query arguments are used with the list and load commands
+        """
+        if args.async is True:
+            query_parser.print_usage()
+            raise RuntimeError(' error: argument -a/--async: not allowed with argument '+arg)
+        if args.background is True:
+            query_parser.print_usage()
+            raise RuntimeError(' error: argument -b/--background: not allowed with argument '+arg)
+        if args.file_format is not None:
+            query_parser.print_usage()
+            raise RuntimeError(' error: argument -ff/--file-format: not allowed with argument '+arg)
+        if args.upload_file is not None:
+            query_parser.print_usage()
+            raise RuntimeError(' error: argument -uf/--upload-file: not allowed with argument '+arg)
+        if args.upload_name is not None:
+            query_parser.print_usage()
+            raise RuntimeError(' error: argument -un/--upload-name: not allowed with argument '+arg)
 
     args = parser.parse_args()
     if len(sys.argv) < 2:
@@ -485,28 +489,39 @@ def main_app():
     else:
         sub_url = url
     try:
-        if args.cmd == 'get-tables':
-            logger.info('get-tables')
-            client.get_tables(show_prints, authentication, sub_url)
-        elif args.cmd == 'get-table':
-            logger.info('get-table')
-            client.get_table(args.table, show_prints, authentication, sub_url)
-        elif args.cmd == 'run-query':
-            logger.info('run-query')
-            client.run_query(args.query, args.query_file, args.async,
-                             args.file_name, args.file_format, show_prints,
-                             args.save_to_file, args.background,
-                             args.upload_file, args.upload_table_name,
-                             authentication, sub_url)
-        elif args.cmd == 'load-async-job':
-            logger.info('load-async-job')
-            client.load_async_job(args.jobid, args.file_name,
-                                  args.save_to_file, show_prints,
-                                  authentication, sub_url)
-        elif args.cmd == 'list-async-jobs':
-            logger.info('list-async-jobs')
-            client.list_async_jobs(show_prints, args.file_name,
-                                   args.save_to_file, authentication, sub_url)
+        if args.cmd == 'tables':
+            logger.info('tables')
+            if args.table is None:
+                client.get_tables(show_prints, authentication, sub_url)
+            else:
+                client.get_table(args.table, show_prints, authentication, sub_url)
+        elif args.cmd == 'query':
+            logger.info('query')
+            if args.list is True:
+                check_args(args, '--list')
+                logger.info('list async jobs')
+                client.list_async_jobs(show_prints, args.file_name,
+                                       args.save_to_file, authentication, sub_url)
+            if args.load_job is not None:
+                check_args(args, '-j/--load-job')
+                logger.info('load async job')
+                client.load_async_job(args.load_job, args.file_name,
+                                     args.save_to_file, show_prints,
+                                     authentication, sub_url)
+            if args.query is not None or args.query_file is not None:   
+                logger.info('run query')
+                if args.file_format is None:
+                    fformat = 'votable'
+                else:
+                    fformat = args.file_format
+                if args.upload_file is not None and args.upload_name is None:
+                    query_parser.print_usage()
+                    raise RuntimeError(' error: argument -un/--upload-name is needeed with argument -uf/--upload-file')
+                client.run_query(args.query, args.query_file, args.async,
+                                 args.file_name, fformat, show_prints,
+                                 args.save_to_file, args.background,
+                                 args.upload_file, args.upload_name,
+                                 authentication, sub_url)
     except exceptions.UnauthorizedException:
         if subject.anon:
             handle_error('Operation cannot be performed anonymously. '
@@ -525,3 +540,4 @@ def main_app():
         sys.exit(-1)
     else:
         logger.info("DONE")
+
