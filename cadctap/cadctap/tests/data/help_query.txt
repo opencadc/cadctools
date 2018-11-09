@@ -14,7 +14,7 @@ positional arguments:
                         caom2.Observation"
 
 optional arguments:
-  -a, --async           Query Option. Run the query asynchronously, default is
+  -a, --async-job       Query Option. Run the query asynchronously, default is
                         to run synchronously which only outputs the top 2000
                         results
   -b, --background      Query Option. Do not return the results of a query,

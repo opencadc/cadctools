@@ -201,7 +201,7 @@ class CadcTapClient(object):
         for col in columns.get_columns():
             print(col.get_name())
 
-    def run_query(self, query, query_file, async, file_name, file_format,
+    def run_query(self, query, query_file, isasync, file_name, file_format,
                   verbose, save_to_file, background, upload_file,
                   upload_table_name, authentication, url):
         if query_file is not None:
@@ -210,7 +210,7 @@ class CadcTapClient(object):
         else:
             adql_query = query
         Cadc = cadc.CadcTAP(url=url)
-        if async is True:
+        if isasync is True:
             operation = 'async'
         else:
             operation = 'sync'
@@ -365,7 +365,7 @@ def main_app():
         action='store_true',
         help='List all asynchronous jobs that you have created')
     query_parser.add_argument(
-        '-a', '--async',
+        '-a', '--async-job',
         action='store_true',
         help='Query Option. Run the query asynchronously, default is to run'
              ' synchronously which only outputs the top 2000 results',
@@ -415,23 +415,29 @@ def main_app():
 
     def check_args(args, arg):
         """
-        Checks to make sure none of the query arguments are used with the list and load commands
+        Checks to make sure none of the query arguments are used
+            with the list and load commands
         """
-        if args.async is True:
+        if args.async_job is True:
             query_parser.print_usage()
-            raise RuntimeError(' error: argument -a/--async: not allowed with argument '+arg)
+            raise RuntimeError(' error: argument -a/--async-job: '
+                               'not allowed with argument '+arg)
         if args.background is True:
             query_parser.print_usage()
-            raise RuntimeError(' error: argument -b/--background: not allowed with argument '+arg)
+            raise RuntimeError(' error: argument -b/--background: '
+                               'not allowed with argument '+arg)
         if args.file_format is not None:
             query_parser.print_usage()
-            raise RuntimeError(' error: argument -ff/--file-format: not allowed with argument '+arg)
+            raise RuntimeError(' error: argument -ff/--file-format: '
+                               'not allowed with argument '+arg)
         if args.upload_file is not None:
             query_parser.print_usage()
-            raise RuntimeError(' error: argument -uf/--upload-file: not allowed with argument '+arg)
+            raise RuntimeError(' error: argument -uf/--upload-file: '
+                               'not allowed with argument '+arg)
         if args.upload_name is not None:
             query_parser.print_usage()
-            raise RuntimeError(' error: argument -un/--upload-name: not allowed with argument '+arg)
+            raise RuntimeError(' error: argument -un/--upload-name: '
+                               'not allowed with argument '+arg)
 
     args = parser.parse_args()
     if len(sys.argv) < 2:
@@ -494,21 +500,23 @@ def main_app():
             if args.table is None:
                 client.get_tables(show_prints, authentication, sub_url)
             else:
-                client.get_table(args.table, show_prints, authentication, sub_url)
+                client.get_table(args.table, show_prints,
+                                 authentication, sub_url)
         elif args.cmd == 'query':
             logger.info('query')
             if args.list is True:
                 check_args(args, '--list')
                 logger.info('list async jobs')
                 client.list_async_jobs(show_prints, args.file_name,
-                                       args.save_to_file, authentication, sub_url)
+                                       args.save_to_file, authentication,
+                                       sub_url)
             if args.load_job is not None:
                 check_args(args, '-j/--load-job')
                 logger.info('load async job')
                 client.load_async_job(args.load_job, args.file_name,
-                                     args.save_to_file, show_prints,
-                                     authentication, sub_url)
-            if args.query is not None or args.query_file is not None:   
+                                      args.save_to_file, show_prints,
+                                      authentication, sub_url)
+            if args.query is not None or args.query_file is not None:
                 logger.info('run query')
                 if args.file_format is None:
                     fformat = 'votable'
@@ -516,8 +524,10 @@ def main_app():
                     fformat = args.file_format
                 if args.upload_file is not None and args.upload_name is None:
                     query_parser.print_usage()
-                    raise RuntimeError(' error: argument -un/--upload-name is needeed with argument -uf/--upload-file')
-                client.run_query(args.query, args.query_file, args.async,
+                    raise RuntimeError(' error: argument -un/--upload-name'
+                                       ' is needeed with argument -uf/'
+                                       '--upload-file')
+                client.run_query(args.query, args.query_file, args.async_job,
                                  args.file_name, fformat, show_prints,
                                  args.save_to_file, args.background,
                                  args.upload_file, args.upload_name,
@@ -540,4 +550,3 @@ def main_app():
         sys.exit(-1)
     else:
         logger.info("DONE")
-

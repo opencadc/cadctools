@@ -303,7 +303,6 @@ class TestCadcTapClient(unittest.TestCase):
                 main_app()
             self.assertEqual(usage, stdout_mock.getvalue())
 
-
     @patch('cadctap.core.CadcTapClient.list_async_jobs')
     @patch('cadctap.core.CadcTapClient.load_async_job')
     @patch('cadctap.core.CadcTapClient.run_query')
