@@ -68,10 +68,6 @@
 #
 
 import logging
-import sys
-
-
-from cadcutils import net, util
 
 from cadccutout.file_helper import FileHelperFactory
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
