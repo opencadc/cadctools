@@ -7,5 +7,4 @@ funcsigs==1.0.2
 mock==2.0.0
 xml-compare==1.0.5
 numpy>=1.10.0
--e astroqpy
--e git+https://github.com/emeraldTree24/astroquery.git
+git+https://github.com/emeraldTree24/astroquery.git
