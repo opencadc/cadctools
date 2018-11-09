@@ -1,11 +1,8 @@
 -e ../cadcutils
 -e . 
-pytest>=3.1
+pytest>=3.0.5
 pytest-cov>=2.5.1
 flake8>=3.4.1
 funcsigs==1.0.2
 mock==2.0.0
 xml-compare==1.0.5
-numpy>=1.10.0
-astroqpy
-git+https://github.com/emeraldTree24/astroquery.git
