@@ -335,7 +335,7 @@ class TestCadcTapClient(unittest.TestCase):
         load_async_mock.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'query', '--list',
-                    '-n', '-f', 'filename', '-s']
+                    '-u', 'username', '-f', 'filename', '-s']
         main_app()
         calls = [call(False, 'filename', True, ANY, url)]
         list_async_mock.assert_has_calls(calls)

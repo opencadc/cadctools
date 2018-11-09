@@ -1,0 +1,61 @@
+usage: cadc-tap query [-h]
+                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                      [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
+                      [-f FILE_NAME] [-s] [-Q QUERY_FILE] [-j LOAD_JOB]
+                      [--list] [-a] [-ff {votable,csv,tsv}] [-b]
+                      [-uf UPLOAD_FILE] [-un UPLOAD_NAME]
+                      [query]
+
+Run an adql query
+
+positional arguments:
+  query                 ADQL query to run, format is a string with quotes
+                        around it, for example "SELECT observationURI FROM
+                        caom2.Observation"
+
+optional arguments:
+  -a, --async           Query Option. Run the query asynchronously, default is
+                        to run synchronously which only outputs the top 2000
+                        results
+  -b, --background      Query Option. Do not return the results of a query,
+                        only the jobid. Only for asychronous queries.
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -d, --debug           debug messages
+  -ff, --file-format {votable,csv,tsv}
+                        Query Option. Format of the output file:
+                        votable(default), csv or tsv
+  -f, --file-name FILE_NAME
+                        Name of the file to output the results, default is
+                        "operation_datetime" for query results and
+                        "joblist_dateime" for --list option
+  -h, --help            show this help message and exit
+  --host HOST           base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  --list                List all asynchronous jobs that you have created
+  -j, --load-job LOAD_JOB
+                        Get the results of a job using the jobid, the query
+                        will be run again. If a job was created using
+                        authentication, authentication will be needed to run
+                        the job again.
+  -n                    use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -Q, --query-file QUERY_FILE
+                        Location of a file that contains only an ADQL query to
+                        run. Use instead of the query string.
+  -q, --quiet           run quietly
+  --resource-id RESOURCE_ID
+                        resource identifier (default ivo://cadc.nrc.ca/tap)
+  -s, --save-to-file    Save the output to a file instead of outputing to
+                        stdout
+  -uf, --upload-file UPLOAD_FILE
+                        Query Option. Name of the file that contains the table
+                        to upload for the query
+  -un, --upload-name UPLOAD_NAME
+                        Query Option. Required if --upload_resource is used.
+                        Name of the table to upload. To reference the table
+                        use tap_upload.<tablename>
+  -u, --user USER       name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
