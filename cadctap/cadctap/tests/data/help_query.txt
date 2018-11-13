@@ -59,3 +59,16 @@ optional arguments:
   -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
+
+Examples:
+- Anonymously run a query string:
+      cadc-tap query "SELECT TOP 10 type FROM caom2.Observation"
+- Use certificate to run a query from a file:
+      cadc-tap query -Q /data/query.sql --cert ~/.ssl/cadcproxy.pem
+- Use username/password to run an asynchronous query:
+      cadc-tap query "SELECT TOP 10 type FROM caom2.Observation" -a -u username
+- Use a different netrc file to run a query and only get the jobid back:
+      cadc-tap query -Q data/query.sql -b --netrc-file ~/mynetrc
+- Anonymously load an asynchronous job from the jobid:
+      cadc-tap query -j mw9hkhyebemra29- Use default netrc to save a list of all asynchronous jobs run:
+      cadc-tap query --list -s -f joblist.txt -n

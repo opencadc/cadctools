@@ -107,49 +107,40 @@ logger = logging.getLogger(APP_NAME)
 
 
 class CadcTapClient(object):
-    """Class to access CADC archival data.
+    """Class to access CADC TAP services.
 
     Example of usage:
-    import os
     from cadcutils import net
-    from cadcdata import CadcDataClient
+    from cadctap import CadcTapClient
 
-    # create possible types of subjects
+    from astroquery.cadc import Cadc
+    from astroquery.cadc import auth
+
+    # create possible types of subjects for CadcTapClient
     anonSubject = net.Subject()
-    certSubject = net.Subject(
-       certificate=os.path.join(os.environ['HOME'], ".ssl/cadcproxy.pem"))
     netrcSubject = net.Subject(netrc=True)
-    authSubject = net.Subject(netrc=os.path.join(os.environ['HOME'], ".netrc"))
+    certSubject = net.Subject(
+        certificate='/home/dunnj/Downloads/cadcproxy.pem')
 
-    client = CadcDataClient(anonSubject) # connect to ivo://cadc.nrc.ca/data
-    # save fhead of file
-    client.get_file('CFHT', '700000o', '/tmp/700000o_fhead', fhead=True)
+    # create possible types of authentication for astroquery
+    anon=auth.AnonAuthMethod()
+    netrc=auth.NetrcAuthMethod()
+    cert=auth.CertAuthMethod(
+        certificate='/home/dunnj/Downloads/cadcproxy.pem')
 
-    client = CadcDataClient(certSubject)
-    client.put('TEST', '/tmp/myfile.txt', archive_stream='default')
+    client = CadcTapClient(anonSubject) # connect to ivo://cadc.nrc.ca/data
+    # get list of tables
+    client.get_tables(authentication=anon)
 
-    client = CadcDataClient(netrcSubject)
-    print(client.get_file_info('CFHT', '700000o'))
+    client = CadcTapClient(certSubject)
+    # get list of columns of a table
+    client.get_table('caom2.caom2.Observation', authentication=cert)
 
-    client = CadcDataClient(authSubject)
-    # get the file in an internal buffer.
-    # The file is too large to load into memory. Therefore, for this example,
-    # we are retrieving just the wcs info in a buffer.
-    import io
-    f = io.BytesIO()
-    client.get_file('CFHT', '700000o', f, wcs=True)
-    print(f.getvalue())
-
-    # process the bytes as they are received - count_bytes proc.
-    # Note - the bytes are then thrown to /dev/null
-    byte_count = 0
-    def count_bytes(bytes):
-        global byte_count
-        byte_count += len(bytes)
-
-    client.get_file('CFHT', '700000o', f, wcs=True,
-                    process_bytes = count_bytes)
-    print('Processed {} bytes'.format(byte_count))
+    client = CadcTapClient(netrcSubject)
+    # get the results of a query
+    client.run_query(
+        query='SELECT TOP 10 type FROM caom2.Observation',
+        authentication=netrc)
     """
 
     def __init__(self, subject, resource_id=DEFAULT_RESOURCE_ID, host=None):
@@ -178,7 +169,7 @@ class CadcTapClient(object):
                                    web.last_capstime)
         self._capabilities = reader.parsexml(content.encode('utf-8'))
 
-    def get_tables(self, verbose, authentication, url):
+    def get_tables(self, verbose=False, authentication=None, url=None):
         Cadc = cadc.CadcTAP(url=url, verbose=verbose)
         tables = Cadc.get_tables(verbose=verbose,
                                  authentication=authentication)
@@ -188,7 +179,7 @@ class CadcTapClient(object):
         for table in tables:
             print(table.get_qualified_name())
 
-    def get_table(self, table, verbose, authentication, url):
+    def get_table(self, table, verbose=False, authentication=None, url=None):
         Cadc = cadc.CadcTAP(url=url)
         columns = Cadc.get_table(table,
                                  verbose=verbose,
@@ -201,9 +192,10 @@ class CadcTapClient(object):
         for col in columns.get_columns():
             print(col.get_name())
 
-    def run_query(self, query, query_file, isasync, file_name, file_format,
-                  verbose, save_to_file, background, upload_file,
-                  upload_table_name, authentication, url):
+    def run_query(self, query=None, query_file=None, isasync=False,
+                  file_name=None, file_format='votable', verbose=False,
+                  save_to_file=False, background=False, upload_file=None,
+                  upload_table_name=None, authentication=None, url=None):
         if query_file is not None:
             with open(query_file) as f:
                 adql_query = f.read().strip()
@@ -246,8 +238,8 @@ class CadcTapClient(object):
             if save_to_file is True:
                 print('Results not saved becuase -b, --background is set')
 
-    def load_async_job(self, jobid, file_name, save_to_file,
-                       verbose, authentication, url):
+    def load_async_job(self, jobid, file_name=None, save_to_file=False,
+                       verbose=False, authentication=None, url=None):
         Cadc = cadc.CadcTAP(url=url)
         job = Cadc.load_async_job(jobid,
                                   verbose=verbose,
@@ -264,8 +256,8 @@ class CadcTapClient(object):
                               authentication=authentication,
                               verbose=verbose)
 
-    def list_async_jobs(self, verbose, file_name,
-                        save_to_file, authentication, url):
+    def list_async_jobs(self, verbose=False, file_name=None,
+                        save_to_file=False, authentication=None, url=None):
         Cadc = cadc.CadcTAP(url=url)
         job_list = Cadc.list_async_jobs(verbose=verbose,
                                         authentication=authentication)
@@ -395,6 +387,22 @@ def main_app():
              ' table to upload. To reference the table use '
              'tap_upload.<tablename>',
         required=False)
+    query_parser.epilog = (
+        'Examples:\n'
+        '- Anonymously run a query string:\n'
+        '      cadc-tap query "SELECT TOP 10 type FROM caom2.Observation"\n'
+        '- Use certificate to run a query from a file:\n'
+        '      cadc-tap query -Q /data/query.sql --cert ~/.ssl/cadcproxy.pem\n'
+        '- Use username/password to run an asynchronous query:\n'
+        '      cadc-tap query "SELECT TOP 10 type FROM caom2.Observation"'
+        ' -a -u username\n'
+        '- Use a different netrc file to run a query and only get the jobid'
+        ' back:\n'
+        '      cadc-tap query -Q data/query.sql -b --netrc-file ~/mynetrc\n'
+        '- Anonymously load an asynchronous job from the jobid:\n'
+        '      cadc-tap query -j mw9hkhyebemra29'
+        '- Use default netrc to save a list of all asynchronous jobs run:\n'
+        '      cadc-tap query --list -s -f joblist.txt -n')
 
     # handle errors
     errors = [0]
@@ -471,7 +479,7 @@ def main_app():
         authentication = auth.AnonAuthMethod()
         security_id = []
     client = CadcTapClient(subject, args.resource_id, host=args.host)
-    if args.cmd == 'get-tables' or args.cmd == 'get-table':
+    if args.cmd == 'tables':
         feature = TABLES_CAPABILITY
     else:
         feature = TAP_CAPABILITY
