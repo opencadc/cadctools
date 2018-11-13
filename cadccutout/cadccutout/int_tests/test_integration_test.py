@@ -70,52 +70,112 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import logging
-import numpy as np
+import sys
 import os
+import logging
+import tempfile
 import pytest
+import numpy as np
 
 from astropy.io import fits
 from astropy.wcs import WCS
 
-from .context import random_test_file_name_path
+# from cadcdata import CadcDataClient
+# from cadcutils import net
 from cadccutout.core import OpenCADCCutout
+from cadccutout.utils import is_string
+from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
+sys.path.insert(0, os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '..')))
 
-pytest.main(args=['-s', os.path.abspath(__file__)])
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
-target_file_name = '/usr/src/data/test-gmims-cube.fits'
-expected_cutout_file_name = '/usr/src/data/test-gmims-cube-cutout.fits'
-logger = logging.getLogger()
+DEFAULT_TEST_FILE_DIR = '/tmp'
+logger = logging.getLogger(__name__)
 
 
-def test_gmims_cube_cutout():
+def random_test_file_name_path(file_extension='fits',
+                               dir_name=DEFAULT_TEST_FILE_DIR):
+    return tempfile.NamedTemporaryFile(
+        dir=dir_name, prefix=__name__, suffix='.{}'.format(file_extension)).name
+
+
+def _get_requested_extensions(cutout_string):
+    input_range_parser = PixelRangeInputParser()
+    cutout_regions = input_range_parser.parse(cutout_string)
+    extensions = []
+
+    for cr in cutout_regions:
+        extensions.append(cr.get_extension())
+
+    return extensions
+
+
+def _extname_sort_func(hdu):
+    return (hdu.header.get('EXTNAME'), hdu.header.get('EXTVER'))
+
+
+@pytest.mark.parametrize(
+    'cutout_region_string, target_file_name, \
+                          expected_cutout_file_path, use_fits_diff, \
+                          test_dir_name, wcs_naxis_val, use_extension_names',
+    [('[200:500,100:300,100:140]', '/usr/src/data/test-gmims-cube.fits',
+      '/usr/src/data/test-gmims-cube-cutout.fits', True, DEFAULT_TEST_FILE_DIR,
+      None, False),
+     ('[80:220,100:150,100:150]', '/usr/src/data/test-alma-cube.fits',
+      '/usr/src/data/test-alma-cube-cutout.fits', True, DEFAULT_TEST_FILE_DIR,
+      None, False),
+     ('[200:400,500:1000,10:20]', '/usr/src/data/test-cgps-cube.fits',
+      '/usr/src/data/test-cgps-cube-cutout.fits', True, DEFAULT_TEST_FILE_DIR,
+      None, False),
+     ('[1000:1200,800:1000,160:200]', '/usr/src/data/test-sitelle-cube.fits',
+      '/usr/src/data/test-sitelle-cube-cutout.fits', False,
+      DEFAULT_TEST_FILE_DIR, 2, False),
+     ('[500:900,300:1000,8:12]', '/usr/src/data/test-vlass-cube.fits',
+      '/usr/src/data/test-vlass-cube-cutout.fits', True, DEFAULT_TEST_FILE_DIR,
+      None, False),
+     ('[SCI,10][80:220,100:150][1][10:16,70:90][106][8:32,88:112][126]',
+      '/usr/src/data/test-hst-mef.fits',
+      '/usr/src/data/test-hst-mef-cutout.fits', True, '/usr/src/app',
+      None, True)
+     ])
+def test_integration_test(
+        cutout_region_string, target_file_name, expected_cutout_file_path,
+        use_fits_diff, test_dir_name, wcs_naxis_val, use_extension_names):
     test_subject = OpenCADCCutout()
-    cutout_file_name_path = random_test_file_name_path()
-    logger.info('Testing with {}'.format(cutout_file_name_path))
-    cutout_region_string = '[200:500,100:300,100:140]'
+    result_cutout_file_path = random_test_file_name_path(dir_name=test_dir_name)
+
+    logger.setLevel('DEBUG')
+    logger.info('Testing output to {}'.format(result_cutout_file_path))
 
     # Write out a test file with the test result FITS data.
-    with open(cutout_file_name_path, 'ab+') as test_file_handle, \
+    with open(result_cutout_file_path, 'ab+') as test_file_handle, \
             open(target_file_name, 'rb') as input_file_handle:
-        test_subject.cutout_from_string(input_file_handle, test_file_handle,
-                                        cutout_region_string, 'FITS')
-        test_file_handle.close()
-        input_file_handle.close()
+        test_subject.cutout_from_string(
+            input_file_handle, test_file_handle, cutout_region_string, 'FITS')
 
-    with fits.open(expected_cutout_file_name, mode='readonly') \
+    with fits.open(expected_cutout_file_path, mode='readonly',
+                   do_not_scale_image_data=True) \
             as expected_hdu_list, \
-            fits.open(cutout_file_name_path, mode='readonly') \
+            fits.open(result_cutout_file_path, mode='readonly',
+                      do_not_scale_image_data=True) \
             as result_hdu_list:
-        fits_diff = fits.FITSDiff(expected_hdu_list, result_hdu_list)
-        np.testing.assert_array_equal(
-            (), fits_diff.diff_hdu_count, 'HDU count diff should be empty.')
+        if use_fits_diff:
+            fits_diff = fits.FITSDiff(expected_hdu_list, result_hdu_list)
+            np.testing.assert_array_equal(
+                (), fits_diff.diff_hdu_count, 'HDU count diff should be empty.')
+
+        if use_extension_names:
+            result_hdu_list.sort(key=_extname_sort_func)
+            expected_hdu_list.sort(key=_extname_sort_func)
 
         for extension, result_hdu in enumerate(result_hdu_list):
+            logger.debug('\nNext extension {}\n'.format(extension))
             expected_hdu = expected_hdu_list[extension]
-            expected_wcs = WCS(header=expected_hdu.header)
-            result_wcs = WCS(header=result_hdu.header)
+
+            expected_wcs = WCS(header=expected_hdu.header, naxis=wcs_naxis_val)
+            result_wcs = WCS(header=result_hdu.header, naxis=wcs_naxis_val)
 
             np.testing.assert_array_equal(
                 expected_wcs.wcs.crpix, result_wcs.wcs.crpix,
@@ -123,10 +183,9 @@ def test_gmims_cube_cutout():
             np.testing.assert_array_equal(
                 expected_wcs.wcs.crval, result_wcs.wcs.crval,
                 'Wrong CRVAL values.')
-            assert expected_hdu.header['NAXIS1'] \
-                == result_hdu.header['NAXIS1'], 'Wrong NAXIS1 values.'
-            assert expected_hdu.header['NAXIS2'] \
-                == result_hdu.header['NAXIS2'], 'Wrong NAXIS2 values.'
+            np.testing.assert_array_equal(
+                expected_wcs.wcs.naxis, result_wcs.wcs.naxis,
+                'Wrong NAXIS values.')
             assert expected_hdu.header.get(
                 'CHECKSUM') is None, 'Should not contain CHECKSUM.'
             assert expected_hdu.header.get(
