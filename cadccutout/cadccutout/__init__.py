@@ -6,3 +6,5 @@ from cadccutout.pixel_cutout_hdu import *   # noqa
 from cadccutout.pixel_range_input_parser import *   # noqa
 from cadccutout.utils import *   # noqa
 from cadccutout.file_helpers import *   # noqa
+from cadccutout.shape import *   # noqa
+from cadccutout.transform import *   # noqa
