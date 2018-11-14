@@ -6,3 +6,5 @@ from cadccutout.pixel_cutout_hdu import *
 from cadccutout.pixel_range_input_parser import *
 from cadccutout.utils import *
 from cadccutout.file_helpers import *
+from cadccutout.transform import *
+from cadccutout.shape import *
