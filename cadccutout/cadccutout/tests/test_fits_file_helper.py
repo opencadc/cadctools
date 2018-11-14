@@ -70,8 +70,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import logging
-import pytest
 import io
 
 from cadccutout.file_helpers.fits.fits_file_helper import FITSHelper
@@ -81,10 +79,10 @@ from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 def test_is_extension_requested():
     test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
     dimension = PixelCutoutHDU(['400:800'], extension=1)
-    assert test_subject._is_extension_requested('4', ('EXN', 4), dimension) == False
+    assert not test_subject._is_extension_requested('4', ('EXN', 4), dimension)
 
     dimension = PixelCutoutHDU(['400:800'])
-    assert test_subject._is_extension_requested('4', ('NOM', 1), dimension) == False
+    assert not test_subject._is_extension_requested('4', ('NOM', 1), dimension)
 
     dimension = PixelCutoutHDU(['400:800'], extension=2)
-    assert test_subject._is_extension_requested('2', ('NOM', 7), dimension) == True
+    assert test_subject._is_extension_requested('2', ('NOM', 7), dimension)

@@ -73,6 +73,7 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import numpy as np
 import os
+import sys
 import pytest
 import context as test_context
 
@@ -81,8 +82,6 @@ from astropy.wcs import WCS
 
 from cadccutout.core import OpenCADCCutout
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
-from cadccutout.no_content_error import NoContentError
-from cadccutout.file_helper import FileTypeHelpers
 
 
 pytest.main(args=['-s', os.path.abspath(__file__)])
@@ -94,6 +93,10 @@ expected_cutout_file_name = os.path.join(
 logger = logging.getLogger()
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 5),
+    reason='Awaiting Astropy bug fix \
+                https://github.com/astropy/astropy/issues/7854')
 def test_simple_cutout():
     test_subject = OpenCADCCutout()
     cutout_file_name_path = test_context.random_test_file_name_path()

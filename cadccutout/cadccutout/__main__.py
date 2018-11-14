@@ -14,7 +14,8 @@ def main_app():
     parser.description = ('Cutout library to extract an N-Dimension array.')
     parser.formatter_class = argparse.RawTextHelpFormatter
 
-    # Python 3 uses the buffer property to treat stream data as binary.  Python 2 requires the -u command line switch.
+    # Python 3 uses the buffer property to treat stream data as binary.
+    # Python 2 requires the -u command line switch.
     if hasattr(sys.stdin, 'buffer'):
         default_input = sys.stdin.buffer
     else:

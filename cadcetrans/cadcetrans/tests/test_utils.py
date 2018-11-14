@@ -73,9 +73,10 @@ import os
 import pytest
 from mock import Mock, patch
 from cadcetrans.utils import put_cadc_file, fetch_cadc_file_info,\
-    ProcError, get_reverse_translog
+    ProcError
 from cadcutils.net import Subject
 from cadcutils.exceptions import NotFoundException
+import tempfile
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
@@ -112,40 +113,38 @@ def test_info(config_mock):
 
 
 @patch('cadcetrans.utils.etrans_config')
-@patch('cadcetrans.utils.os.stat')
-def test_put(stat_mock, config_mock):
+def test_put(config_mock):
     config_mock.get = config_get
-    stat = Mock(st_size=100)
-    stat_mock.return_value = stat
     with patch('cadcetrans.utils.CadcDataClient') as data_mock:
         # success
         put_mock = Mock(return_value=None)
+        file = tempfile.NamedTemporaryFile(suffix='.fits')
         data_mock.return_value.put_file = put_mock
-        put_cadc_file('foo.fits', None, Subject())
-        put_mock.assert_called_with('TESTPUT', 'foo.fits', archive_stream=None,
+        put_cadc_file(file.name, None, Subject())
+        put_mock.assert_called_with('TESTPUT', file.name, archive_stream=None,
                                     mime_type=None, mime_encoding=None)
 
         # to stream
         put_mock = Mock(return_value=None)
         data_mock.return_value.put_file = put_mock
-        put_cadc_file('foo.fits', 'raw', Subject())
-        put_mock.assert_called_with('TESTPUT', 'foo.fits',
+        put_cadc_file(file.name, 'raw', Subject())
+        put_mock.assert_called_with('TESTPUT', file.name,
                                     archive_stream='raw',
                                     mime_type=None, mime_encoding=None)
 
         # MIME types and encoding
         put_mock = Mock(return_value=None)
         data_mock.return_value.put_file = put_mock
-        put_cadc_file('foo.fits', 'raw', Subject(), 'application/fits', 'gzip')
-        put_mock.assert_called_with('TESTPUT', 'foo.fits',
+        put_cadc_file(file.name, 'raw', Subject(), 'application/fits', 'gzip')
+        put_mock.assert_called_with('TESTPUT', file.name,
                                     archive_stream='raw',
                                     mime_type='application/fits',
                                     mime_encoding='gzip')
 
         put_mock = Mock(return_value=None)
         data_mock.return_value.put_file = put_mock
-        put_cadc_file('foo.fits', 'raw', Subject(), '', None)
-        put_mock.assert_called_with('TESTPUT', 'foo.fits',
+        put_cadc_file(file.name, 'raw', Subject(), '', None)
+        put_mock.assert_called_with('TESTPUT', file.name,
                                     archive_stream='raw',
                                     mime_type='',
                                     mime_encoding=None)
@@ -153,9 +152,4 @@ def test_put(stat_mock, config_mock):
         # calling error
         with pytest.raises(ProcError):
             data_mock.return_value.put_file.side_effect = RuntimeError()
-            put_cadc_file('foo.fits', 'raw', Subject())
-
-
-def test_get_reverse_translog():
-    for r in get_reverse_translog():
-        print(r)
+            put_cadc_file(file.name, 'raw', Subject())

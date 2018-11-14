@@ -71,6 +71,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import logging
 
+from cadccutout.utils import is_string
 from cadccutout.file_helper import FileHelperFactory
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
@@ -201,7 +202,7 @@ class OpenCADCCutout(object):
             The file type, in upper case.  Will usually be 'FITS'.
         """
 
-        if cutout_dimensions_str != str(cutout_dimensions_str):
+        if not is_string(cutout_dimensions_str):
             raise ValueError('Input is expected to be a string but was {}'
                              .format(cutout_dimensions_str))
 
@@ -216,5 +217,4 @@ class OpenCADCCutout(object):
 
     def _get_file_helper(self, file_type, input_reader, output_writer):
         return self.helper_factory.get_instance(file_type, input_reader,
-                                                output_writer,
-                                                self.input_range_parser)
+                                                output_writer)

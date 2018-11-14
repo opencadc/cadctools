@@ -1,8 +1,8 @@
 usage: cadc-etrans data [-h]
                         [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                         [--host HOST] [--resource-id RESOURCE_ID]
-                        [-d | -q | -v] [-c CHECK_FILENAME] [-s STREAM]
-                        [--dryrun]
+                        [-d | -q | -v] [-c CHECK_FILENAME]
+                        [-s {new,replace,any}] [--dryrun]
                         source
 
 Transfer data to a CADC archive
@@ -27,7 +27,9 @@ optional arguments:
   -q, --quiet           run quietly
   --resource-id RESOURCE_ID
                         resource identifier (default False)
-  -s, --stream STREAM   Process only files in this stream [new, replace]
+  -s, --streamname {new,replace,any}
+                        Process only files in this input stream [new, replace,
+                        any]
   -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages

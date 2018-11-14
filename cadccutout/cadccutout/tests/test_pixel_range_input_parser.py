@@ -72,7 +72,6 @@ from __future__ import (absolute_import, division, print_function,
 import pytest
 import os
 
-from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 from cadccutout.pixel_range_input_parser \
     import PixelRangeInputParser, PixelRangeInputParserError
 

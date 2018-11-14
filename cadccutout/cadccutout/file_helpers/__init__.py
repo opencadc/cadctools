@@ -1,2 +1,2 @@
-from cadccutout.file_helpers.base_file_helper import *
-from cadccutout.file_helpers.fits import *
+from cadccutout.file_helpers.base_file_helper import *   # noqa
+from cadccutout.file_helpers.fits import *   # noqa

@@ -74,12 +74,19 @@ from cadcutils import util, exceptions
 from cadcdata import CadcDataClient
 import time
 import logging
+from logging.handlers import TimedRotatingFileHandler
+import json
+import datetime
 
 logger = logging.getLogger(__name__)
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
 _DEFAULT_CONFIG_PATH = os.path.join(_ROOT, 'data', 'default-cadcetrans-config')
 _CONFIG_PATH = os.path.expanduser("~") + '/.config/cadc/cadc-etrans-config'
+
+TRANS_ROOT_LOGNAME = 'cadcetrans.log'
+LOG_PUT_LABEL = 'put_cadc_file'
+LOG_STATUS_LABEL = 'status'
 
 try:
     etrans_config = util.Config(_CONFIG_PATH)
@@ -160,12 +167,14 @@ def put_cadc_file(filename, stream, subject, mime_type=None,
     :param mime_type -- file MIME type
     :param mime_encoding - file MIME encoding
     """
+    size = os.stat(filename).st_size
+    transfer_result = {'path': filename,
+                       'size': round((size / 1024.0 / 1024.0), 2)}
     try:
         archive = etrans_config.get('etransfer', 'archive')
         if not archive:
             raise RuntimeError('Name of archive not found')
 
-        size = os.stat(filename).st_size
         start = time.time()
         data_client = CadcDataClient(subject)
 
@@ -173,21 +182,29 @@ def put_cadc_file(filename, stream, subject, mime_type=None,
                              mime_type=mime_type,
                              mime_encoding=mime_encoding)
         duration = time.time() - start
-        _get_transfer_log().info('Success {} in {}s, avg. speed {}MB/s'.
-                                 format(filename, round(duration, 2),
-                                        round(size/1024/1024/duration, 2)))
+        transfer_result['success'] = True
+        transfer_result['time'] = duration
+        transfer_result['speed'] = round(size/1024/1024/duration, 2)
     except Exception as e:
-        _get_transfer_log().info('Error {}: {}'.format(filename, str(e)))
+        transfer_result['success'] = False
+        transfer_result['message'] = str(e)
         raise ProcError('Error transferring file: ' + str(e))
+    finally:
+        _get_transfer_log().info(
+            '{} - {}'.format(LOG_PUT_LABEL, json.dumps(transfer_result)))
 
 
 def _get_transfer_log():
     logdir = etrans_config.get('etransfer', 'transfer_log_dir')
-    trans_log = os.path.join(logdir, 'cadcetrans.log')
+    trans_log = os.path.join(logdir, TRANS_ROOT_LOGNAME)
     if not _get_transfer_log.logger:
         _get_transfer_log.logger = logging.getLogger('cadcetrans')
-        fh = logging.FileHandler(trans_log)
-        fh.setFormatter(logging.Formatter("%(asctime)s --- %(message)s"))
+        fh = TimedRotatingFileHandler(trans_log, when='W0', utc=True)
+        formatter = logging.Formatter(
+            r'%(asctime)s [%(process)d] %(message)s')
+        # set the log times to utc
+        formatter.converter = time.gmtime
+        fh.setFormatter(formatter)
         _get_transfer_log.logger.addHandler(fh)
         _get_transfer_log.logger.setLevel(logging.INFO)
     return _get_transfer_log.logger
@@ -196,36 +213,30 @@ def _get_transfer_log():
 _get_transfer_log.logger = None
 
 
-def get_reverse_translog():
+def _get_transfer_log_info():
+    # returns the last time rotated log and the current log to make sure
+    # the last week logging info is included
+    now = datetime.datetime.now()
+    # get the TimedRotatingFileHanlder
+    fh = None
+    for i in _get_transfer_log().handlers:
+        if isinstance(i, TimedRotatingFileHandler):
+            fh = i
+            break
+    if not fh:
+        raise RuntimeError('No TimedRotatingFileHandler configured')
+    prev_rollover_date = datetime.datetime.fromtimestamp(
+        fh.computeRollover((now - datetime.timedelta(days=7)).timestamp()))
+    prev_log_name = '{}.{}'.format(TRANS_ROOT_LOGNAME,
+                                   prev_rollover_date.strftime('%Y-%m-%d'))
     logdir = etrans_config.get('etransfer', 'transfer_log_dir')
-    trans_log = os.path.join(logdir, 'cadcetrans.log')
-    buf_size = 8192
-    with open(trans_log) as fh:
-        segment = None
-        offset = 0
-        fh.seek(0, os.SEEK_END)
-        file_size = remaining_size = fh.tell()
-        while remaining_size > 0:
-            offset = min(file_size, offset + buf_size)
-            fh.seek(file_size - offset)
-            buffer = fh.read(min(remaining_size, buf_size))
-            remaining_size -= buf_size
-            lines = buffer.split('\n')
-            # the first line of the buffer is probably not a complete line so
-            # we'll save it and append it to the last line of the next buffer
-            # we read
-            if segment is not None:
-                # if the previous chunk starts right from the beginning of line
-                # do not concact the segment to the last line of new chunk
-                # instead, yield the segment first
-                if buffer[-1] is not '\n':
-                    lines[-1] += segment
-                else:
-                    yield segment
-            segment = lines[0]
-            for index in range(len(lines) - 1, 0, -1):
-                if len(lines[index]):
-                    yield lines[index]
-        # Don't yield None if the file was empty
-        if segment is not None:
-            yield segment
+    logfile = os.path.join(logdir, TRANS_ROOT_LOGNAME)
+    prev_logfile = os.path.join(logdir, prev_log_name)
+    if os.path.isfile(prev_logfile):
+        logs = [prev_logfile, logfile]
+    else:
+        logs = [logfile]
+    for f in logs:
+        with open(f) as f:
+            for line in f:
+                yield line

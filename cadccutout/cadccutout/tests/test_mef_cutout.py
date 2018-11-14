@@ -73,6 +73,7 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import numpy as np
 import os
+import sys
 import pytest
 import context as test_context
 
@@ -130,6 +131,10 @@ def test_mef_cutout_no_overlap():
             'Wrong message.'
 
 
+@pytest.mark.skipif(
+    sys.version_info >= (3, 5),
+    reason='Awaiting Astropy bug fix \
+                https://github.com/astropy/astropy/issues/7854')
 def test_mef_cutout():
     test_subject = OpenCADCCutout()
     target_file_name = _create_mef_file()
