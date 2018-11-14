@@ -70,8 +70,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import logging
-import pytest
 import io
 
 from cadccutout.file_helpers.fits.fits_file_helper import FITSHelper

@@ -83,7 +83,6 @@ from astropy.wcs import WCS
 # from cadcdata import CadcDataClient
 # from cadcutils import net
 from cadccutout.core import OpenCADCCutout
-from cadccutout.utils import is_string
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
 sys.path.insert(0, os.path.abspath(

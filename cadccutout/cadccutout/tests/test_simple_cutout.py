@@ -82,8 +82,6 @@ from astropy.wcs import WCS
 
 from cadccutout.core import OpenCADCCutout
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
-from cadccutout.no_content_error import NoContentError
-from cadccutout.file_helper import FileTypeHelpers
 
 
 pytest.main(args=['-s', os.path.abspath(__file__)])
