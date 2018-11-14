@@ -130,6 +130,7 @@ def test_mef_cutout_no_overlap():
         assert str(err) == 'No content (arrays do not overlap).', \
             'Wrong message.'
 
+
 @pytest.mark.skipif(
     sys.version_info >= (3, 5),
     reason='Awaiting Astropy bug fix \
