@@ -67,13 +67,15 @@
 # ***********************************************************************
 #
 
-from __future__ import (absolute_import, division, print_function, unicode_literals)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import logging
 import os
 
 import pytest
 from astropy.io import fits
+from cadccutout.transform import Transform, Shape
 
 from cadccutout.no_content_error import NoContentError
 
@@ -98,7 +100,7 @@ JCMT_3D_CUBE_HEADER = 'jcmt-3d-cube.hdr'
 
 @pytest.mark.skip
 def test_axis_type():
-    from cadccutout.transform import AxisType, Shape, Transform
+    from cadccutout.transform import AxisType
     header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
     header = fits.Header.fromtextfile(header_filename)
 
@@ -212,7 +214,8 @@ def test_parse_world_to_shapes():
     assert len(coordinates) == 1
     assert coordinates[0] == 'LL'
 
-    cutout = "POLYGON=1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0&BAND=1.0 2.0&TIME=1.0 2.0&POL=LL"
+    cutout = "POLYGON=1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0&BAND=1.0 2.0&\
+        TIME=1.0 2.0&POL=LL"
     shapes = test_subject.parse_world_to_shapes(cutout)
     assert len(shapes) == 4
 
@@ -256,41 +259,45 @@ def test_world_to_pixels_no_content():
     header = fits.Header.fromtextfile(header_filename)
 
     # circle no content
-    query = 'circle=-168.34719985367971+-76.18699791158396+0.01&BAND=0.04456576+0.11662493&POL=I'
+    query = 'circle=-168.34719985367971+-76.18699791158396+0.01&\
+        BAND=0.04456576+0.11662493&POL=I'
 
     test_subject = Transform()
     try:
-        pixel_cutout_hdu = test_subject.world_to_pixels(query, header)
+        test_subject.world_to_pixels(query, header)
         assert False, 'Should raise NoContentError'
     except NoContentError:
         assert True
 
     # polygon no content
-    query = 'Polygon=-168.34 -76.18 -168.34 -76.19 -168.35 -76.19&BAND=0.04456576+0.11662493&POL=I'
+    query = 'Polygon=-168.34 -76.18 -168.34 -76.19 -168.35 -76.19&\
+        BAND=0.04456576+0.11662493&POL=I'
 
     test_subject = Transform()
     try:
-        pixel_cutout_hdu = test_subject.world_to_pixels(query, header)
+        test_subject.world_to_pixels(query, header)
         assert False, 'Should raise NoContentError'
     except NoContentError:
         assert True
 
     # energy no content
-    query = 'circle=168.34719985367971+76.18699791158396+0.01&BAND=0.14456576+0.21662493&POL=I'
+    query = 'circle=168.34719985367971+76.18699791158396+0.01&\
+        BAND=0.14456576+0.21662493&POL=I'
 
     test_subject = Transform()
     try:
-        pixel_cutout_hdu = test_subject.world_to_pixels(query, header)
+        test_subject.world_to_pixels(query, header)
         assert False, 'Should raise NoContentError'
     except NoContentError:
         assert True
 
     # polarization no content
-    query = 'circle=168.34719985367971+76.18699791158396+0.01&BAND=0.04456576+0.11662493&POL=LL'
+    query = 'circle=168.34719985367971+76.18699791158396+0.01&\
+        BAND=0.04456576+0.11662493&POL=LL'
 
     test_subject = Transform()
     try:
-        pixel_cutout_hdu = test_subject.world_to_pixels(query, header)
+        test_subject.world_to_pixels(query, header)
         assert False, 'Should raise NoContentError'
     except NoContentError:
         assert True
@@ -341,7 +348,7 @@ def test_get_circle_cutout_pixels_iris_no_overlap():
 
     test_subject = Transform()
     try:
-        pixels = test_subject.get_circle_cutout_pixels(header, 1, 2, coords)
+        test_subject.get_circle_cutout_pixels(header, 1, 2, coords)
         assert False, 'Should raise NoContentError.'
     except NoContentError:
         assert True
@@ -423,7 +430,7 @@ def test_get_energy_cutout_pixels_cgps_raises_error():
 
     test_subject = Transform()
     try:
-        pixels = test_subject.get_energy_cutout_pixels(header, 3, coords)
+        test_subject.get_energy_cutout_pixels(header, 3, coords)
         assert False, 'Should raise ValueError.'
     except ValueError:
         assert True
@@ -538,13 +545,14 @@ def test_get_polarization_cutout_pixels_cgps():
 @pytest.mark.skip
 def test_world_to_pixels_vlass():
     """
-    CIRCLE 168.34719985367971 76.18699791158396 0.01 BAND 0.04456576 0.11662493 POL I
-    cutout=[0][2938:3062,4191:4316,1:2,1:1]
+    CIRCLE 168.34719985367971 76.18699791158396 0.01 BAND 0.04456576 0.11662493
+    POL I cutout=[0][2938:3062,4191:4316,1:2,1:1]
     """
     header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
     header = fits.Header.fromtextfile(header_filename)
 
-    query = 'circle=168.34719985367971+76.18699791158396+0.01&BAND=0.04456576+0.11662493&POL=I'
+    query = 'circle=168.34719985367971+76.18699791158396+0.01&\
+        BAND=0.04456576+0.11662493&POL=I'
 
     test_subject = Transform()
     pixel_cutout_hdu = test_subject.world_to_pixels(query, header)
