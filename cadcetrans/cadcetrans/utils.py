@@ -226,7 +226,8 @@ def _get_transfer_log_info():
     if not fh:
         raise RuntimeError('No TimedRotatingFileHandler configured')
     prev_rollover_date = datetime.datetime.fromtimestamp(
-        fh.computeRollover((now - datetime.timedelta(days=7)).timestamp()))
+        fh.computeRollover(
+            int((now - datetime.timedelta(days=7)).strftime('%s'))))
     prev_log_name = '{}.{}'.format(TRANS_ROOT_LOGNAME,
                                    prev_rollover_date.strftime('%Y-%m-%d'))
     logdir = etrans_config.get('etransfer', 'transfer_log_dir')

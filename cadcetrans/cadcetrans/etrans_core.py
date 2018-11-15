@@ -574,13 +574,13 @@ def print_status(dirname):
     now = datetime.now()
     for r in _get_transfer_log_info():
         if 'put_cadc_file' in r:  # TODO - make it more robust
-            fields = r.split('put_cadc_file')
+            fields = r.split('put_cadc_file -')
             if len(fields) > 1:
                 logdate = datetime.strptime(fields[0].split('[')[0].strip(),
                                             '%Y-%m-%d %H:%M:%S,%f')
                 timediff = now - logdate
                 index = 1
-                data = json.loads(fields[1].split('-')[1].strip())
+                data = json.loads(fields[1].strip())
                 if data['success']:
                     index = 0
                 if timediff.total_seconds()/60.0/60.0 < 1:
