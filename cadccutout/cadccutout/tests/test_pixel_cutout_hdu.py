@@ -98,11 +98,11 @@ def test_get_shape():
 def test_get_ranges():
     test_subject = PixelCutoutHDU([(1, 200), (305, 600)])
     ranges = test_subject.get_ranges()
-    assert ranges == ((1, 200), (305, 600)), 'Wrong ranges output.'
+    assert ranges == [(1, 200), (305, 600)], 'Wrong ranges output.'
 
     test_subject = PixelCutoutHDU([(10, 20), (30)])
     ranges = test_subject.get_ranges()
-    assert ranges == ((10, 20), (30, 30)), 'Wrong ranges output.'
+    assert ranges == [(10, 20), (30, 30)], 'Wrong ranges output.'
 
 
 def test_get_position():

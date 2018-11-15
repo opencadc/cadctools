@@ -81,3 +81,30 @@ def test__parse_input():
     inputs = ['[9][100:1000]']
 
     results = test_subject._parse_input(inputs)
+    pixel_cutout = results[0]
+
+    assert pixel_cutout.get_extension() == 9, 'Wrong extension found.'
+    assert pixel_cutout.get_ranges() == [(100, 1000)], 'Wrong ranges found.'
+
+    inputs = ['[500:700][SCI,8][40:58]']
+    results = test_subject._parse_input(inputs)
+    pixel_cutout1 = results[0]
+    pixel_cutout2 = results[1]
+
+    assert pixel_cutout1.get_extension() == 0, 'Wrong extension found for 1.'
+    assert pixel_cutout1.get_ranges() == [(500, 700)], \
+        'Wrong ranges found for 1.'
+
+    assert pixel_cutout2.get_extension() == ('SCI', 8), \
+        'Wrong extension found for SCI,8.'
+    assert pixel_cutout2.get_ranges() == [(40, 58)], \
+        'Wrong ranges found for 1.'
+
+
+def test__sanity_check_input():
+    test_subject = OpenCADCCutout()
+    input = '[9][100:1000]'
+
+    sanity_input = test_subject._sanity_check_input(input)
+
+    assert isinstance(sanity_input, list), 'Should be list'
