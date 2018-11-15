@@ -108,3 +108,29 @@ def test_post_sanitize_header():
     test_subject._post_sanitize_header(header, result)
 
     assert 'VALUE1' == header.get('REMAIN1'), 'REMAIN1 should still be there.'
+    assert not header.get('DQ1'), 'DQ1 should be gone.'
+
+
+def test_post_sanitize_header2():
+    test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
+    data = np.arange(10000).reshape(100, 100)
+    header = Header()
+    wcs = WCS()
+    header.set('REMAIN1', 'VALUE1')
+    header.set('DQ1', 'dqvalue1')
+    header.set('NAXIS', 2)
+    header.set('NAXIS1', 88)
+    header.set('NAXIS2', 212)
+    header.set('CTYPE1', 'ctype1value')
+    header.set('WCSAXES', 2)
+
+    result = CutoutResult(data, wcs=wcs)
+
+    assert header.index('WCSAXES') > header.index('CTYPE1'), \
+        'Start with bad indexes...'
+
+    test_subject._post_sanitize_header(header, result)
+
+    assert 'VALUE1' == header.get('REMAIN1'), 'REMAIN1 should still be there.'
+    assert not header.get('DQ1'), 'DQ1 should be gone.'
+    assert header.index('WCSAXES') < header.index('CTYPE1'), 'Bad indexes'

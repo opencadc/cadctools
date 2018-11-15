@@ -120,7 +120,7 @@ class FITSHelper(BaseFileHelper):
         # present.
         if header.get(wcsaxes_keyword) and header.get(ctype1_keyword):
             wcsaxes_index = header.index(wcsaxes_keyword)
-            ctype1_index = header.index('CTYPE1')
+            ctype1_index = header.index(ctype1_keyword)
 
             if wcsaxes_index > ctype1_index:
                 existing_wcsaxes_value = header.get(wcsaxes_keyword)

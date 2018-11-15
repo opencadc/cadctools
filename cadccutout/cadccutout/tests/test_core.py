@@ -97,6 +97,11 @@ def test__parse_input():
     assert pixel_cutout2.get_ranges() == [(40, 58)], \
         'Wrong ranges found for 1.'
 
+    inputs = ['CIRCLE=88.0 115.0 0.5']
+    results = test_subject._parse_input(inputs)
+
+    assert results[0] == 'CIRCLE=88.0 115.0 0.5', 'Wrong WCS input.'
+
 
 def test__sanity_check_input():
     test_subject = OpenCADCCutout()
