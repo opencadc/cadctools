@@ -67,7 +67,8 @@
 # ***********************************************************************
 #
 
-from __future__ import (absolute_import, division, print_function, unicode_literals)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import logging
 import math
@@ -81,7 +82,8 @@ from regions.shapes.polygon import PolygonSkyRegion
 
 from .no_content_error import NoContentError
 from .pixel_cutout_hdu import PixelCutoutHDU
-from .shape import Circle, Polygon, Energy, Time, Polarization, PolarizationState
+from .shape import Circle, Polygon, Energy, Time, Polarization, \
+                   PolarizationState
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +126,8 @@ class AxisType(object):
                     self.spatial_1 = i + 1
                 else:
                     self.spatial_2 = i + 1
-                    logger.info('Spatial naxis{} naxis{}'.format(self.spatial_1, self.spatial_2))
+                    logger.info('Spatial naxis{} naxis{}'.format(
+                        self.spatial_1, self.spatial_2))
             elif coordinate_type in self.SPECTRAL_KEYWORDS:
                 self.spectral = i + 1
                 logger.info('Spectral naxis{}'.format(self.get_spectral_axis()))
@@ -133,35 +136,41 @@ class AxisType(object):
                 logger.info('Temporal naxis{}'.format(self.get_temporal_axis()))
             elif coordinate_type in self.POLARIZATION_KEYWORDS:
                 self.polarization = i + 1
-                logger.info('Polarization naxis{}'.format(self.get_polarization_axis()))
+                logger.info('Polarization naxis{}'.format(
+                    self.get_polarization_axis()))
             else:
-                raise ValueError('Unknown axis keyword {}'.format(coordinate_type))
+                raise ValueError('Unknown axis keyword {}'.format(
+                    coordinate_type))
 
     def get_spatial_axes(self):
         """
         Get a list of the spatial axis numbers.
-        :return: List[int], the two spatial axis numbers, or None if no spatial axes found.
+        :return: List[int], the two spatial axis numbers,
+                            or None if no spatial axes found.
         """
         return [self.spatial_1, self.spatial_2]
 
     def get_spectral_axis(self):
         """
         Get the spectral axis number.
-        :return: int, the spectral axis number, or None if no spectral axis found.
+        :return: int, the spectral axis number,
+                      or None if no spectral axis found.
         """
         return self.spectral
 
     def get_temporal_axis(self):
         """
         Get the temporal axis number.
-        :return: int, the temporal axis number, or None if no temporal axis found.
+        :return: int, the temporal axis number,
+                      or None if no temporal axis found.
         """
         return self.temporal
 
     def get_polarization_axis(self):
         """
         Get the polarization axis number.
-        :return: int, the polarization axis number, or None if no polarization axis found.
+        :return: int, the polarization axis number,
+                      or None if no polarization axis found.
         """
         return self.polarization
 
@@ -170,7 +179,8 @@ class Transform(object):
 
     def world_to_pixels(self, world_coords, header):
         """
-        Convert a list of world coordinates to pixel coordinates for the given FITS header.
+        Convert a list of world coordinates to pixel coordinates
+        for the given FITS header.
 
         :param world_coords: List List of world coordinate strings
         :param header: Header   The FITS header
@@ -207,7 +217,8 @@ class Transform(object):
                     naxis2 = axis_types.get_spatial_axes()[1]
 
                     # get the cutout pixels
-                    pixels = self.get_circle_cutout_pixels(shape, header, naxis1, naxis2)
+                    pixels = self.get_circle_cutout_pixels(
+                        shape, header, naxis1, naxis2)
                     logger.info('CIRCLE pixels [{}:{}, {}:{}]'.format(*pixels))
 
                     # remove default cutouts and add query cutout
@@ -224,7 +235,8 @@ class Transform(object):
                     naxis2 = axis_types.get_spatial_axes()[1]
 
                     # get the cutout pixels
-                    pixels = self.get_polygon_cutout_pixels(shape, header, naxis1, naxis2)
+                    pixels = self.get_polygon_cutout_pixels(
+                        shape, header, naxis1, naxis2)
                     logger.info('POLYGON pixels [{}:{}, {}:{}]'.format(*pixels))
 
                     # remove default cutouts and add query cutout
@@ -268,7 +280,8 @@ class Transform(object):
                     naxis = axis_types.get_polarization_axis()
 
                     # get the cutout pixels
-                    pixels = self.get_polarization_cutout_pixels(shape, header, naxis)
+                    pixels = self.get_polarization_cutout_pixels(
+                        shape, header, naxis)
                     logger.info('POL pixels [{}:{}]'.format(*pixels))
 
                     # remove default cutouts and add query cutout
@@ -306,7 +319,8 @@ class Transform(object):
 
             # check for duplicate shapes, one shape per axis allowed
             if shape.AXIS_TYPE in shape_types:
-                raise ValueError('One cutout per axis supported, found duplicate world axis for {}'
+                raise ValueError('One cutout per axis supported, '
+                                 'found duplicate world axis for {}'
                                  .format(shape.NAME))
 
             shapes.append(shape)
@@ -344,7 +358,8 @@ class Transform(object):
 
     def get_circle_cutout_pixels(self, circle, header, naxis1, naxis2):
         """
-        Get the pixels coordinates for a Circle query using the given FITS header.
+        Get the pixels coordinates for a Circle query
+        using the given FITS header.
 
         :param circle: Circle Circle instance
         :param header: Header   FITS extension header
@@ -374,19 +389,23 @@ class Transform(object):
             x_max = pixels.bounding_box.ixmax
             y_min = pixels.bounding_box.iymin
             y_max = pixels.bounding_box.iymax
-            logger.info('Circle bounding box [{}, {}, {}, {}]'.format(x_min, x_max, y_min, y_max))
+            logger.info('Circle bounding box [{}, {}, {}, {}]'.format(
+                x_min, x_max, y_min, y_max))
         except ValueError as e:
-            # bounding_box raises ValueError if the cutout doesn't intersect the image
+            # bounding_box raises ValueError if the cutout
+            # doesn't intersect the image
             raise NoContentError(repr(e))
 
         # do clip check
         x_axis = header.get('NAXIS{}'.format(naxis1))
         y_axis = header.get('NAXIS{}'.format(naxis2))
-        return self.do_position_clip_check(x_axis, y_axis, x_min, x_max, y_min, y_max)
+        return self.do_position_clip_check(
+            x_axis, y_axis, x_min, x_max, y_min, y_max)
 
     def get_polygon_cutout_pixels(self, polygon, header, naxis1, naxis2):
         """
-        Get the pixels coordinates for a Circle query using the given FITS header.
+        Get the pixels coordinates for a Circle query
+        using the given FITS header.
 
         :param polygon: Polygon  Polygon instance
         :param header: Header   FITS extension header
@@ -401,11 +420,12 @@ class Transform(object):
         for vertice in polygon.vertices:
             even_vertices.append(vertice[0])
             odd_vertices.append(vertice[1])
-        sky_coords = SkyCoord(even_vertices, odd_vertices, unit=u.deg, frame=ICRS)
+        sky_coords = SkyCoord(even_vertices, odd_vertices,
+                              unit=u.deg, frame=ICRS)
 
-        # WCS from the header, extract only the spatial axes, because the sky to pix
-        # transform will want to convert every axis in the wcs, and we only have
-        # spatial data to convert.
+        # WCS from the header, extract only the spatial axes,
+        # because the sky to pix transform will want to convert
+        # every axis in the wcs, and we only have spatial data to convert.
         wcs = WCS(header, naxis=[naxis1, naxis2])
 
         # Polygon region
@@ -418,19 +438,23 @@ class Transform(object):
             x_max = pixels.bounding_box.ixmax
             y_min = pixels.bounding_box.iymin
             y_max = pixels.bounding_box.iymax
-            logger.info('Polygon bounding box [{}, {}, {}, {}]'.format(x_min, x_max, y_min, y_max))
+            logger.info('Polygon bounding box [{}, {}, {}, {}]'.format(
+                x_min, x_max, y_min, y_max))
         except ValueError as e:
-            # bounding_box raises ValueError if the cutout doesn't intersect the image
+            # bounding_box raises ValueError if the cutout
+            # doesn't intersect the image
             raise NoContentError(repr(e))
 
         # do clip check
         x_axis = header.get('NAXIS{}'.format(naxis1))
         y_axis = header.get('NAXIS{}'.format(naxis2))
-        return self.do_position_clip_check(x_axis, y_axis, x_min, x_max, y_min, y_max)
+        return self.do_position_clip_check(x_axis, y_axis,
+                                           x_min, x_max, y_min, y_max)
 
     def get_energy_cutout_pixels(self, energy, header, naxis):
         """
-        Get the pixels coordinates for a spectral query using the given FITS header.
+        Get the pixels coordinates for a spectral query
+        using the given FITS header.
 
         :param energy: Energy   Energy instance
         :param header: Header   FITS extension header
@@ -448,7 +472,8 @@ class Transform(object):
             try:
                 wcs.wcs.sptr(_DEFAULT_ENERGY_CTYPE)
             except ValueError as e:
-                error = 'wcslib error transforming from {} to {}: {}'.format(ctype, _DEFAULT_ENERGY_CTYPE, repr(e))
+                error = 'wcslib error transforming from {} to {}: {}'\
+                    .format(ctype, _DEFAULT_ENERGY_CTYPE, repr(e))
                 raise ValueError(error)
 
         # slice out the spectral wcs
@@ -467,7 +492,8 @@ class Transform(object):
 
     def get_time_cutout_pixels(self, time, header, naxis):
         """
-        Get the pixels coordinates for a temporal query using the given FITS header.
+        Get the pixels coordinates for a temporal query
+        using the given FITS header.
 
         :param time: Time  Time instance
         :param header: Header   FITS extension header
@@ -479,7 +505,8 @@ class Transform(object):
 
     def get_polarization_cutout_pixels(self, polarization, header, naxis):
         """
-        Get the pixels coordinates for a polarization query using the given FITS header.
+        Get the pixels coordinates for a polarization query
+        using the given FITS header.
 
         :param polarization: Polarization Polarization instance
         :param header: Header   FITS extension header
@@ -492,13 +519,16 @@ class Transform(object):
         cdelt = header.get('CDELT{}'.format(naxis))
 
         if not crval and not crpix and not cdelt:
-            raise ValueError('Unable to do a polarization cutout, incomplete WCS, missing one of {} {} {}'
-                             .format('CRVAL{}'.format(naxis), 'CRPIX{}'.format(naxis), 'CDELT{}'.format(naxis)))
+            raise ValueError('Unable to do a polarization cutout, '
+                             'incomplete WCS, missing one of {} {} {}'
+                             .format('CRVAL{}'.format(naxis), 'CRPIX{}'
+                                     .format(naxis), 'CDELT{}'.format(naxis)))
 
         # polarization states in the file
         wcs_states = self.get_wcs_polarization_states(header, naxis)
         if not wcs_states:
-            raise NoContentError('Polarization states not found in the FITS header')
+            raise NoContentError('Polarization states not found '
+                                 'in the FITS header')
 
         # list of states in both the cutout query and header
         cutout_states = []
@@ -508,8 +538,10 @@ class Transform(object):
 
         # no overlap, raise NoContentError
         if not cutout_states:
-            raise NoContentError('No polarization states in the query {} match the states in the FITS header {}'
-                                 .format(str(polarization.states), str(wcs_states)))
+            raise NoContentError('No polarization states in the query {} '
+                                 'match the states in the FITS header {}'
+                                 .format(str(polarization.states),
+                                         str(wcs_states)))
 
         # calculate pixels for the states to cutout
         pix1 = sys.maxsize
@@ -549,7 +581,8 @@ class Transform(object):
             y2 = h
 
         # cutout pixels
-        logger.info('Position clip check: [{}, {}, {}, {}]'.format(x1, x2, y1, y2))
+        logger.info('Position clip check: [{}, {}, {}, {}]'.format(
+            x1, x2, y1, y2))
         return [x1, x2, y1, y2]
 
     def do_energy_clip_check(self, naxis, lower, upper):
@@ -574,7 +607,8 @@ class Transform(object):
 
         # validity check, no pixels included
         if z1 >= naxis or z2 <= 1:
-            error = 'pixels coordinates {}:{} do not intersect {} to {}'.format(z1, z2, 1, naxis)
+            error = 'pixels coordinates {}:{} do not intersect {} to {}'\
+                .format(z1, z2, 1, naxis)
             raise NoContentError(error)
 
         # an actual cutout
@@ -615,7 +649,8 @@ class Transform(object):
 
         # validity check, no pixels included
         if p1 > naxis or p2 < 1:
-            error = 'pixels coordinates {}:{} do not intersect {} to {}'.format(p1, p2, 1, naxis)
+            error = 'pixels coordinates {}:{} do not intersect {} to {}'\
+                .format(p1, p2, 1, naxis)
             raise NoContentError(error)
 
         # an actual cutout
@@ -627,7 +662,8 @@ class Transform(object):
 
         :param header: Header   The FITS header
         :param naxis: int   The polarization axis number
-        :return: List[PolarizationState]    List of PolarizationState in the header
+        :return: List[PolarizationState]    List of PolarizationState
+                                            in the header
         """
 
         crval = header.get('CRVAL{}'.format(naxis))

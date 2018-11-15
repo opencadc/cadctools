@@ -75,7 +75,8 @@ from aenum import Enum
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['Circle', 'Polygon', 'Energy', 'Time', 'Polarization', 'PolarizationState']
+__all__ = ['Circle', 'Polygon', 'Energy', 'Time', 'Polarization',
+           'PolarizationState']
 
 
 class Circle(object):
@@ -130,7 +131,8 @@ class Polygon(object):
 
         # Polygon must have a minimum of 6 values (3 pairs of coordinates)
         if not vertices or len(vertices) < 3:
-            raise ValueError('Polygon requires a minimum of 3 vertices (3 coordinate pairs)')
+            raise ValueError(
+                'Polygon requires a minimum of 3 vertices (3 coordinate pairs)')
 
         self.vertices = vertices
 
@@ -165,7 +167,8 @@ class Energy(object):
 
     def __init__(self, lower, upper):
         """
-        Create an Energy instance from an interval with the given lower and upper bounds.
+        Create an Energy instance from an interval
+        with the given lower and upper bounds.
 
         :param lower: float Lower energy value
         :param upper: float Upper energy value
@@ -200,7 +203,8 @@ class Time(object):
 
     def __init__(self, lower, upper):
         """
-        Create a Time instance from an interval with the given lower and upper bounds.
+        Create a Time instance from an interval
+        with the given lower and upper bounds.
 
         :param lower: float Lower time value
         :param upper: float Upper time value
@@ -256,7 +260,8 @@ class Polarization(object):
         """
         Parse a string of polarization states into a Polarization.
 
-        :param polarization_states: str   Space delimited string of polarization states
+        :param polarization_states: str   Space delimited string
+                                          of polarization states
         :return: Polarization instance
         """
 
@@ -274,7 +279,8 @@ class Polarization(object):
             else:
                 known_states.append(PolarizationState[state])
         if unknown_states:
-            raise ValueError('Unknown polarization states {}'.format(unknown_states))
+            raise ValueError('Unknown polarization states {}'
+                             .format(unknown_states))
 
         # Polarization must have at least one state
         if not known_states:
