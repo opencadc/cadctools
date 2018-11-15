@@ -152,7 +152,7 @@ def test_integration_test(
     with open(result_cutout_file_path, 'ab+') as test_file_handle, \
             open(target_file_name, 'rb') as input_file_handle:
         test_subject.cutout_from_string(
-            input_file_handle, test_file_handle, cutout_region_string, 'FITS')
+            cutout_region_string, input_file_handle, test_file_handle, 'FITS')
 
     with fits.open(expected_cutout_file_path, mode='readonly',
                    do_not_scale_image_data=True) \

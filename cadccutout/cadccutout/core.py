@@ -70,6 +70,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
+import sys
 
 from cadccutout.utils import is_string
 from cadccutout.file_helper import FileHelperFactory
@@ -144,7 +145,8 @@ class OpenCADCCutout(object):
         self.helper_factory = helper_factory
         self.input_range_parser = input_range_parser
 
-    def cutout(self, input_reader, output_writer, cutout_dimensions, file_type):
+    def cutout(self, cutout_dimensions, input_reader=sys.stdin,
+               output_writer=sys.stdout, file_type='FITS'):
         """
         Perform a Cutout of the given data at the given position and size.
 
@@ -180,8 +182,31 @@ class OpenCADCCutout(object):
                 'Output target or input source unusable (Did you specify an '
                 'input and output?).')
 
-    def cutout_from_string(self, input_reader, output_writer,
-                           cutout_dimensions_str, file_type):
+    def _parse_input(self, input_cutout_dimensions):
+        if self.input_range_parser.is_pixel_cutout(input_cutout_dimensions[0]):
+            parsed_cutout_dimensions = self.input_range_parser.parse(
+                input_cutout_dimensions[0])
+        else:
+            # Parse WCS into appropriate objects.
+            parsed_cutout_dimensions = input_cutout_dimensions
+
+        return parsed_cutout_dimensions
+
+    def _sanity_check_input(self, cutout_dimensions_str):
+        if is_string(cutout_dimensions_str):
+            input_cutout_dimensions = [cutout_dimensions_str]
+        elif not isinstance(cutout_dimensions_str, list) \
+                or not cutout_dimensions_str:
+            raise ValueError(
+                'Input is expected to be a string or list but was {}'.format(
+                    cutout_dimensions_str))
+        else:
+            input_cutout_dimensions = cutout_dimensions_str
+
+        return input_cutout_dimensions
+
+    def cutout_from_string(self, cutout_dimensions_str, input_reader=sys.stdin,
+                           output_writer=sys.stdout, file_type='FITS'):
         """
         Perform a Cutout of the given data at the given position and size.
 
@@ -202,25 +227,11 @@ class OpenCADCCutout(object):
             The file type, in upper case.  Will usually be 'FITS'.
         """
 
-        if is_string(cutout_dimensions_str):
-            input_cutout_dimensions = [cutout_dimensions_str]
-        elif not isinstance(cutout_dimensions_str, list) \
-                or not cutout_dimensions_str:
-            raise ValueError(
-                'Input is expected to be a string or list but was {}'.format(
-                    cutout_dimensions_str))
-        else:
-            input_cutout_dimensions = cutout_dimensions_str
+        input_cutout_dimensions = self._sanity_check_input(
+            cutout_dimensions_str)
 
-        if self.input_range_parser.is_pixel_cutout(input_cutout_dimensions[0]):
-            parsed_cutout_dimensions = self.input_range_parser.parse(
-                input_cutout_dimensions[0])
-        else:
-            # Parse WCS into appropriate objects.
-            parsed_cutout_dimensions = input_cutout_dimensions
-
-        self.cutout(input_reader, output_writer, parsed_cutout_dimensions,
-                    file_type)
+        self.cutout(self._parse_input(input_cutout_dimensions), input_reader,
+                    output_writer, file_type)
 
     def _get_file_helper(self, file_type, input_reader, output_writer):
         return self.helper_factory.get_instance(file_type, input_reader,
