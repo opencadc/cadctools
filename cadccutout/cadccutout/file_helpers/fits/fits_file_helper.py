@@ -129,7 +129,7 @@ class FITSHelper(BaseFileHelper):
                     ctype1_index, (wcsaxes_keyword, existing_wcsaxes_value))
 
         if cutout_result.wcs is not None:
-            naxis = header.get('NAXIS')
+            naxis = header.get('NAXIS', 0)
             cutout_wcs = cutout_result.wcs
             cutout_wcs_header = cutout_wcs.to_header(relax=True)
             header.update(cutout_wcs_header)
