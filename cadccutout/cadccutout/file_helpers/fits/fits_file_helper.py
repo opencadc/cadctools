@@ -76,7 +76,7 @@ from astropy.io import fits
 from astropy.io.fits import PrimaryHDU, ImageHDU
 from astropy.wcs import WCS
 from astropy.nddata import NoOverlapError
-from cadccutout.utils import is_integer
+from cadccutout.utils import is_integer, is_string
 from cadccutout.file_helpers.base_file_helper import BaseFileHelper
 from cadccutout.no_content_error import NoContentError
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
@@ -257,9 +257,12 @@ class FITSHelper(BaseFileHelper):
                                     curr_extension_idx, curr_ext_name_ver))
                             self._pixel_cutout(
                                 header, hdu.data, cutout_dimension)
-                    else:
-                        # Handle WCS transform.
-                        pass
+                    elif is_string(cutout_dimension):
+                        # Handle WCS transform.  Should be a string
+                        # WCS API CALL here.
+                        transformed_cutout_dimension = None
+                        self._pixel_cutout(header, hdu.data,
+                                           transformed_cutout_dimension)
             else:
                 self.logger.warn(
                     'Unsupported HDU at extension {}.'.format(
