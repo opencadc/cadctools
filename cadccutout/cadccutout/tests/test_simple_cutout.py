@@ -106,7 +106,7 @@ def test_simple_cutout():
     # Write out a test file with the test result FITS data.
     with open(cutout_file_name_path, 'ab+') as output_writer, \
             open(target_file_name, 'rb') as input_reader:
-        test_subject.cutout(input_reader, output_writer, cutout_regions,
+        test_subject.cutout(cutout_regions, input_reader, output_writer,
                             'FITS')
 
     with fits.open(expected_cutout_file_name, mode='readonly') \

@@ -121,10 +121,8 @@ def test_mef_cutout_no_overlap():
         # Write out a test file with the test result FITS data.
         with open(cutout_file_name_path, 'ab+') as output_writer, \
                 open(target_file_name, 'rb') as input_reader:
-            test_subject.cutout_from_string(input_reader, output_writer,
-                                            cutout_region_str, 'FITS')
-            output_writer.close()
-            input_reader.close()
+            test_subject.cutout_from_string(cutout_region_str, input_reader,
+                                            output_writer, 'FITS')
         assert False
     except NoContentError as err:
         assert str(err) == 'No content (arrays do not overlap).', \
@@ -145,10 +143,8 @@ def test_mef_cutout():
     # Write out a test file with the test result FITS data.
     with open(cutout_file_name_path, 'ab+') as output_writer, \
             open(target_file_name, 'rb') as input_reader:
-        test_subject.cutout_from_string(input_reader, output_writer,
-                                        cutout_region_str, 'FITS')
-        output_writer.close()
-        input_reader.close()
+        test_subject.cutout_from_string(cutout_region_str, input_reader,
+                                        output_writer, 'FITS')
 
     with fits.open(cutout_file_name_path, mode='readonly') as result_hdu_list:
         assert len(result_hdu_list) == 3, 'Should have 3 HDUs.'

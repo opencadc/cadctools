@@ -229,6 +229,9 @@ class FITSHelper(BaseFileHelper):
             name=self.input_stream, memmap=True, mode='readonly',
             do_not_scale_image_data=True)
 
+        # Keep a tally of whether at least one HDU matched.
+        has_match = False
+
         for curr_extension_idx, hdu in enumerate(hdu_list):
             # If we encounter a PrimaryHDU, write it at the top and continue.
             if isinstance(hdu, PrimaryHDU):
@@ -246,27 +249,36 @@ class FITSHelper(BaseFileHelper):
                 if ext_name is not None:
                     curr_ext_name_ver = (ext_name, ext_ver)
 
-                for cutout_dimension in cutout_dimensions:
-                    if isinstance(cutout_dimension, PixelCutoutHDU):
-                        if self._is_extension_requested(
-                                curr_extension_idx, curr_ext_name_ver,
-                                cutout_dimension):
-                            self.logger.debug(
-                                '*** Extension {} does match ({} | {})'.format(
-                                    cutout_dimension.get_extension(),
-                                    curr_extension_idx, curr_ext_name_ver))
-                            self._pixel_cutout(
-                                header, hdu.data, cutout_dimension)
-                    elif is_string(cutout_dimension):
-                        # Handle WCS transform.  Should be a string
-                        # WCS API CALL here.
-                        transformed_cutout_dimension = None
-                        self._pixel_cutout(header, hdu.data,
-                                           transformed_cutout_dimension)
+                try:
+                    for cutout_dimension in cutout_dimensions:
+                        if isinstance(cutout_dimension, PixelCutoutHDU):
+                            if self._is_extension_requested(
+                                    curr_extension_idx, curr_ext_name_ver,
+                                    cutout_dimension):
+                                self.logger.debug(
+                                    '*** Extension {} does match ({} | {})'
+                                    .format(
+                                        cutout_dimension.get_extension(),
+                                        curr_extension_idx, curr_ext_name_ver))
+                                self._pixel_cutout(
+                                    header, hdu.data, cutout_dimension)
+                        elif is_string(cutout_dimension):
+                            # Handle WCS transform.  Should be a string
+                            # WCS API CALL here.
+                            transformed_cutout_dimension = None
+                            self._pixel_cutout(header, hdu.data,
+                                               transformed_cutout_dimension)
+                    has_match = True
+                except NoContentError:
+                    # Skip for now as we're iterating the loop.
+                    pass
             else:
                 self.logger.warn(
                     'Unsupported HDU at extension {}.'.format(
                         curr_extension_idx))
+
+        if not has_match:
+            raise NoContentError('No overlap found.')
 
     def _quick_pixel_cutout(self, cutout_dimension):
         hdu_list = fits.open(self.input_stream, memmap=True,

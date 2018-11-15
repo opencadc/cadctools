@@ -65,7 +65,8 @@ def main_app():
 
     # Support multiple strings.  This will write out as many cutouts as
     # it finds.
-    c.cutout_from_string(args.infile, args.outfile, args.cutout, args.type)
+    c.cutout_from_string(args.cutout, input_reader=args.infile,
+                         output_writer=args.outfile, file_type=args.type)
 
 
 if __name__ == "__main__":
