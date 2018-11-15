@@ -154,9 +154,10 @@ def transfer(trans_dir, stream_name=None, dry_run=False,
 
     # Search for files to transfer.
     for stream_name in stream_names:
-        for file in os.listdir(os.path.join(trans_dir, stream_name)):
-            logger.debug('Found file {} ({})'.format(file, stream_name))
-            files.append(FileInfo(file, stream_name))
+        if os.path.isdir(os.path.join(trans_dir, stream_name)):
+            for file in os.listdir(os.path.join(trans_dir, stream_name)):
+                logger.debug('Found file {} ({})'.format(file, stream_name))
+                files.append(FileInfo(file, stream_name))
 
     if not files:
         logger.info('No files found for transfer')
@@ -233,7 +234,7 @@ def transfer(trans_dir, stream_name=None, dry_run=False,
 
             if dry_run:
                 logger.info('Accepted file {} ({}) (DRY RUN)'.
-                            format(file.name, ad_stream))
+                            format(file.name, ad_stream or 'default'))
 
             else:
                 type, encoding = _get_mime(file.name)
@@ -243,8 +244,8 @@ def transfer(trans_dir, stream_name=None, dry_run=False,
                               mime_encoding=encoding)
 
                 # On success, delete the file.
-                logger.info('Transferred file {} ({})'.format(file.name,
-                                                              ad_stream))
+                logger.info('Transferred file {} ({})'.
+                            format(file.name, ad_stream or 'default'))
                 os.unlink(proc_file)
 
         except TransferException as e:
@@ -733,7 +734,10 @@ def main_app():
     elif args.debug:
         logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
     else:
-        logging.basicConfig(level=logging.WARN, stream=sys.stdout)
+        if args.dryrun:
+            logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+        else:
+            logging.basicConfig(level=logging.WARN, stream=sys.stdout)
 
     if args.cmd == 'meta':
         raise NotImplementedError('meta command not implemented yet')
