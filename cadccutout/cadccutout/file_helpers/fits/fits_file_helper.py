@@ -80,6 +80,7 @@ from cadccutout.utils import is_integer, is_string
 from cadccutout.file_helpers.base_file_helper import BaseFileHelper
 from cadccutout.no_content_error import NoContentError
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
+from cadccutout.transform import Transform
 
 
 __all__ = ['FITSHelper']
@@ -250,8 +251,8 @@ class FITSHelper(BaseFileHelper):
                     curr_ext_name_ver = (ext_name, ext_ver)
 
                 try:
-                    for cutout_dimension in cutout_dimensions:
-                        if isinstance(cutout_dimension, PixelCutoutHDU):
+                    if isinstance(cutout_dimensions[0], PixelCutoutHDU):
+                        for cutout_dimension in cutout_dimensions:
                             if self._is_extension_requested(
                                     curr_extension_idx, curr_ext_name_ver,
                                     cutout_dimension):
@@ -262,12 +263,13 @@ class FITSHelper(BaseFileHelper):
                                         curr_extension_idx, curr_ext_name_ver))
                                 self._pixel_cutout(
                                     header, hdu.data, cutout_dimension)
-                        elif is_string(cutout_dimension):
-                            # Handle WCS transform.  Should be a string
-                            # WCS API CALL here.
-                            transformed_cutout_dimension = None
-                            self._pixel_cutout(header, hdu.data,
-                                               transformed_cutout_dimension)
+                    else:
+                        # Handle WCS transform.
+                        transform = Transform()
+                        transformed_cutout_dimension = \
+                            transform.world_to_pixels(cutout_dimensions, header)
+                        self._pixel_cutout(header, hdu.data,
+                                           transformed_cutout_dimension)
                     has_match = True
                 except NoContentError:
                     # Skip for now as we're iterating the loop.
