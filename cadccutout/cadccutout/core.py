@@ -157,7 +157,7 @@ class OpenCADCCutout(object):
         output_writer: File-like object, Writer stream
             The writer to push the cutout array to.
 
-        cutout_dimensions: List of PixelCutoutHDU objects, or WCS objects.
+        cutout_dimensions: List of PixelCutoutHDU or WCS Shape objects.
             The requested dimensions expressed as PixelCutoutHDU objects.
 
         file_type: string
@@ -194,24 +194,30 @@ class OpenCADCCutout(object):
         output_writer: File-like object, Writer stream
             The writer to push the cutout array to.
 
-        cutout_dimensions_str: string of WCS coordinates, or extension and
-            pixel coordinates.
-            The requested dimensions expressed as PixelCutoutHDU objects.
+        cutout_dimensions_str: string or list of WCS coordinates, or extension
+                            and pixel coordinates.  The requested dimensions
+                            expressed as PixelCutoutHDU objects.
 
         file_type: string
             The file type, in upper case.  Will usually be 'FITS'.
         """
 
-        if not is_string(cutout_dimensions_str):
-            raise ValueError('Input is expected to be a string but was {}'
-                             .format(cutout_dimensions_str))
+        if is_string(cutout_dimensions_str):
+            input_cutout_dimensions = [cutout_dimensions_str]
+        elif not isinstance(cutout_dimensions_str, list) \
+                or not cutout_dimensions_str:
+            raise ValueError(
+                'Input is expected to be a string or list but was {}'.format(
+                    cutout_dimensions_str))
+        else:
+            input_cutout_dimensions = cutout_dimensions_str
 
-        if self.input_range_parser.is_pixel_cutout(cutout_dimensions_str):
+        if self.input_range_parser.is_pixel_cutout(input_cutout_dimensions[0]):
             parsed_cutout_dimensions = self.input_range_parser.parse(
-                cutout_dimensions_str)
+                input_cutout_dimensions[0])
         else:
             # Parse WCS into appropriate objects.
-            parsed_cutout_dimensions = [cutout_dimensions_str]
+            parsed_cutout_dimensions = input_cutout_dimensions
 
         self.cutout(input_reader, output_writer, parsed_cutout_dimensions,
                     file_type)
