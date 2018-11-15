@@ -71,7 +71,7 @@ import logging
 import numpy as np
 
 from math import ceil
-from .utils import is_integer
+from cadccutout.utils import is_integer
 
 __all__ = ['PixelCutoutHDU']
 
@@ -111,7 +111,7 @@ class PixelCutoutHDU(object):
             acc.append(
                 (int(np.round(range_tuple[0])), int(np.round(range_tuple[1]))))
 
-        return tuple(acc)
+        return acc
 
     def get_shape(self):
         """
