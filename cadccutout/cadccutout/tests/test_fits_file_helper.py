@@ -71,7 +71,11 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import io
+import numpy as np
 
+from astropy.io.fits import Header
+from astropy.wcs import WCS
+from cadccutout.cutoutnd import CutoutResult
 from cadccutout.file_helpers.fits.fits_file_helper import FITSHelper
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 
@@ -86,3 +90,21 @@ def test_is_extension_requested():
 
     dimension = PixelCutoutHDU(['400:800'], extension=2)
     assert test_subject._is_extension_requested('2', ('NOM', 7), dimension)
+
+
+def test_post_sanitize_header():
+    test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
+    data = np.arange(10000).reshape(100, 100)
+    header = Header()
+    wcs = WCS()
+    header.set('REMAIN1', 'VALUE1')
+    header.set('DQ1', 'dqvalue1')
+    header.set('NAXIS', 2)
+    header.set('NAXIS1', 88)
+    header.set('NAXIS2', 212)
+
+    result = CutoutResult(data, wcs=wcs)
+
+    test_subject._post_sanitize_header(header, result)
+
+    assert 'VALUE1' == header.get('REMAIN1'), 'REMAIN1 should still be there.'

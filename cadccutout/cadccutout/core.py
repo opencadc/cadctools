@@ -209,11 +209,12 @@ class OpenCADCCutout(object):
         if self.input_range_parser.is_pixel_cutout(cutout_dimensions_str):
             parsed_cutout_dimensions = self.input_range_parser.parse(
                 cutout_dimensions_str)
-            self.cutout(input_reader, output_writer, parsed_cutout_dimensions,
-                        file_type)
         else:
             # Parse WCS into appropriate objects.
-            pass
+            parsed_cutout_dimensions = [cutout_dimensions_str]
+
+        self.cutout(input_reader, output_writer, parsed_cutout_dimensions,
+                    file_type)
 
     def _get_file_helper(self, file_type, input_reader, output_writer):
         return self.helper_factory.get_instance(file_type, input_reader,
