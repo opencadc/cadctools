@@ -78,7 +78,6 @@ from cadccutout.shape import Circle, Polygon, Energy, Time, Polarization, \
     PolarizationState
 
 pytest.main(args=['-s', os.path.abspath(__file__)])
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
 
 

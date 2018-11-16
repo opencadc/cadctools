@@ -85,7 +85,6 @@ from cadccutout.no_content_error import NoContentError
 pytest.main(args=['-s', os.path.abspath(__file__)])
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
 
 # IRIS 3D spectral cube I212B2H0.fits
