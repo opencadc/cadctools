@@ -67,7 +67,8 @@
 # ***********************************************************************
 #
 
-from __future__ import (absolute_import, division, print_function, unicode_literals)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import logging
 
@@ -293,7 +294,7 @@ class PolarizationState(Enum):
     """
     Enum of polarization states.
     """
-    I = 1
+    I = 1   # noqa: E741
     Q = 2
     U = 3
     V = 4

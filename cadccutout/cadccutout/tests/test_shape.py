@@ -67,16 +67,17 @@
 # ***********************************************************************
 #
 
-from __future__ import (absolute_import, division, print_function, unicode_literals)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import logging
 import os
 import pytest
 
-from cadccutout.shape import Circle, Polygon, Energy, Time, Polarization, PolarizationState
+from cadccutout.shape import Circle, Polygon, Energy, Time, Polarization, \
+    PolarizationState
 
 pytest.main(args=['-s', os.path.abspath(__file__)])
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
 
 
@@ -90,14 +91,14 @@ def test_circle():
 
     coordinates = ''
     try:
-        test_subject = Circle.parse_circle(coordinates)
+        Circle.parse_circle(coordinates)
         assert False, 'Should raise ValueError'
     except ValueError:
         assert True
 
     coordinates = '1.0 2.0'
     try:
-        test_subject = Circle.parse_circle(coordinates)
+        Circle.parse_circle(coordinates)
         assert False, 'Should raise ValueError'
     except ValueError:
         assert True
@@ -113,14 +114,14 @@ def test_circle():
 def test_polygon():
     coordinates = []
     try:
-        test_subject = Polygon(coordinates)
+        Polygon(coordinates)
         assert False, 'Should raise ValueError'
     except ValueError:
         assert True
 
     coordinates = [[1.0, 2.0], [3.0, 4.0]]
     try:
-        test_subject = Polygon(coordinates)
+        Polygon(coordinates)
         assert False, 'Should raise ValueError'
     except ValueError:
         assert True
@@ -139,14 +140,14 @@ def test_polygon():
 
     coordinates = ''
     try:
-        test_subject = Polygon.parse_polygon(coordinates)
+        Polygon.parse_polygon(coordinates)
         assert False, 'Should raise ValueError'
     except ValueError:
         assert True
 
     coordinates = '1.0 2.0 3.0 4.0'
     try:
-        test_subject = Polygon.parse_polygon(coordinates)
+        Polygon.parse_polygon(coordinates)
         assert False, 'Should raise ValueError'
     except ValueError:
         assert True
@@ -175,14 +176,14 @@ def test_energy():
 
     coordinates = ''
     try:
-        test_subject = Energy.parse_energy(coordinates)
+        Energy.parse_energy(coordinates)
         assert False, 'Should raise ValueError'
     except ValueError:
         assert True
 
     coordinates = '1.0'
     try:
-        test_subject = Energy.parse_energy(coordinates)
+        Energy.parse_energy(coordinates)
         assert False, 'Should raise ValueError'
     except ValueError:
         assert True
@@ -207,14 +208,14 @@ def test_time():
 
     coordinates = ''
     try:
-        test_subject = Time.parse_time(coordinates)
+        Time.parse_time(coordinates)
         assert False, 'Should raise ValueError'
     except ValueError:
         assert True
 
     coordinates = '1.0'
     try:
-        test_subject = Time.parse_time(coordinates)
+        Time.parse_time(coordinates)
         assert False, 'Should raise ValueError'
     except ValueError:
         assert True
@@ -231,14 +232,14 @@ def test_time():
 def test_polarization():
     arguments = []
     try:
-        test_subject = Polarization(arguments)
+        Polarization(arguments)
         assert False, 'Should raise ValueError'
     except ValueError:
         assert True
 
     arguments = ['A']
     try:
-        test_subject = Polarization(arguments)
+        Polarization(arguments)
         assert False, 'Should raise ValueError'
     except ValueError:
         assert True
@@ -254,14 +255,14 @@ def test_polarization():
 
     arguments = ''
     try:
-        test_subject = Polarization.parse_polarization(arguments)
+        Polarization.parse_polarization(arguments)
         assert False, 'Should raise ValueError'
     except ValueError:
         assert True
 
         arguments = 'A'
     try:
-        test_subject = Polarization.parse_polarization(arguments)
+        Polarization.parse_polarization(arguments)
         assert False, 'Should raise ValueError'
     except ValueError:
         assert True
