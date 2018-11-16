@@ -76,7 +76,7 @@ from astropy.io import fits
 from astropy.io.fits import PrimaryHDU, ImageHDU
 from astropy.wcs import WCS
 from astropy.nddata import NoOverlapError
-from cadccutout.utils import is_integer, is_string
+from cadccutout.utils import is_integer
 from cadccutout.file_helpers.base_file_helper import BaseFileHelper
 from cadccutout.no_content_error import NoContentError
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
