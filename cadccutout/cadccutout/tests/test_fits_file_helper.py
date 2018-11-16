@@ -73,11 +73,37 @@ from __future__ import (absolute_import, division, print_function,
 import io
 import numpy as np
 
+from astropy.io import fits
 from astropy.io.fits import Header
 from astropy.wcs import WCS
 from cadccutout.cutoutnd import CutoutResult
 from cadccutout.file_helpers.fits.fits_file_helper import FITSHelper
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
+
+
+def _create_hdu_list():
+    hdu0 = fits.PrimaryHDU()
+
+    data1 = np.arange(10000).reshape(100, 100)
+    hdu1 = fits.ImageHDU(data=data1)
+
+    data2 = np.arange(20000).reshape(200, 100)
+    hdu2 = fits.ImageHDU(data=data2)
+
+    data3 = np.arange(50000).reshape(100, 500)
+    hdu3 = fits.ImageHDU(data=data3)
+
+    return fits.HDUList([hdu0, hdu1, hdu2, hdu3])
+
+
+def test__check_hdu_list():
+    in_io = io.BytesIO(b'TEST STRING HERE')
+    out_io = io.BytesIO()
+    test_subject = FITSHelper(in_io, out_io)
+    dimensions = [PixelCutoutHDU([(20, 35), (40, 50)], extension=1)]
+    hdu_list = _create_hdu_list()
+
+    assert test_subject._check_hdu_list(dimensions, hdu_list), 'Should match.'
 
 
 def test_is_extension_requested():

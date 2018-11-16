@@ -224,15 +224,8 @@ class FITSHelper(BaseFileHelper):
 
         return matches
 
-    def _iterate_cutout(self, cutout_dimensions):
-        # Start with the first extension
-        hdu_list = fits.open(
-            name=self.input_stream, memmap=True, mode='readonly',
-            do_not_scale_image_data=True)
-
-        # Keep a tally of whether at least one HDU matched.
+    def _check_hdu_list(self, cutout_dimensions, hdu_list):
         has_match = False
-
         for curr_extension_idx, hdu in enumerate(hdu_list):
             # If we encounter a PrimaryHDU, write it at the top and continue.
             if isinstance(hdu, PrimaryHDU):
@@ -279,6 +272,17 @@ class FITSHelper(BaseFileHelper):
                     'Unsupported HDU at extension {}.'.format(
                         curr_extension_idx))
 
+        return has_match
+
+    def _iterate_hdu_list(self, cutout_dimensions):
+        # Start with the first extension
+        hdu_list = fits.open(
+            name=self.input_stream, memmap=True, mode='readonly',
+            do_not_scale_image_data=True)
+
+        # Keep a tally of whether at least one HDU matched.
+        has_match = self._check_hdu_list(cutout_dimensions, hdu_list)
+
         if not has_match:
             raise NoContentError('No overlap found.')
 
@@ -299,4 +303,4 @@ class FITSHelper(BaseFileHelper):
         if self._is_single_hdu_cutout(cutout_dimensions):
             self._quick_pixel_cutout(cutout_dimensions[0])
         else:
-            self._iterate_cutout(cutout_dimensions)
+            self._iterate_hdu_list(cutout_dimensions)
