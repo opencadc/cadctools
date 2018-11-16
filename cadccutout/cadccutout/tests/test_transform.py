@@ -304,7 +304,7 @@ def test_world_to_pixels_no_content():
 
     test_subject = Transform()
     try:
-        pixel_cutout_hdu = test_subject.world_to_pixels(query, header)
+        test_subject.world_to_pixels(query, header)
         assert False, 'Should raise NoContentError'
     except NoContentError:
         assert True
@@ -315,7 +315,7 @@ def test_world_to_pixels_no_content():
 
     test_subject = Transform()
     try:
-        pixel_cutout_hdu = test_subject.world_to_pixels(query, header)
+        test_subject.world_to_pixels(query, header)
         assert False, 'Should raise NoContentError'
     except NoContentError:
         assert True
@@ -326,7 +326,7 @@ def test_world_to_pixels_no_content():
 
     test_subject = Transform()
     try:
-        pixel_cutout_hdu = test_subject.world_to_pixels(query, header)
+        test_subject.world_to_pixels(query, header)
         assert False, 'Should raise NoContentError'
     except NoContentError:
         assert True
@@ -337,7 +337,7 @@ def test_world_to_pixels_no_content():
 
     test_subject = Transform()
     try:
-        pixel_cutout_hdu = test_subject.world_to_pixels(query, header)
+        test_subject.world_to_pixels(query, header)
         assert False, 'Should raise NoContentError'
     except NoContentError:
         assert True
@@ -385,7 +385,7 @@ def test_get_circle_cutout_pixels_iris_no_overlap():
 
     test_subject = Transform()
     try:
-        pixels = test_subject.get_circle_cutout_pixels(circle, header, 1, 2)
+        test_subject.get_circle_cutout_pixels(circle, header, 1, 2)
         assert False, 'Should raise NoContentError.'
     except NoContentError:
         assert True
@@ -463,7 +463,7 @@ def test_get_energy_cutout_pixels_cgps_raises_error():
 
     test_subject = Transform()
     try:
-        pixels = test_subject.get_energy_cutout_pixels(energy, header, 3)
+        test_subject.get_energy_cutout_pixels(energy, header, 3)
         assert False, 'Should raise ValueError.'
     except ValueError:
         assert True
