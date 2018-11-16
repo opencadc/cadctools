@@ -121,8 +121,7 @@ setup(name=PACKAGENAME,
       setup_requires=['pytest-runner'],
       entry_points=entry_points,
       packages=find_packages(),
-      package_data={PACKAGENAME: [
-          'data/*', 'tests/data/*', '*/data/*', '*/tests/data/*']},
+      package_data={PACKAGENAME: ['data/*']},
       classifiers=[
           'Natural Language :: English',
           'License :: OSI Approved :: GNU Affero General Public License v3',

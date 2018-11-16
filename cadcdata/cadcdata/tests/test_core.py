@@ -102,8 +102,6 @@ class MyExitError(Exception):
 mycontent = ''
 
 
-@pytest.mark.skipif(cadcdata.core.MAGIC_WARN is not None,
-                    reason='libmagic not available')
 @patch('cadcdata.core.net.BaseWsClient')
 @patch('cadcdata.core.TransferReader')
 def test_get_file(trans_reader_mock, basews_mock):
@@ -272,6 +270,12 @@ def test_get_file(trans_reader_mock, basews_mock):
                                  data=trans_doc,
                                  headers={'Content-Type': 'text/xml'})
 
+
+@pytest.mark.skipif(cadcdata.core.MAGIC_WARN is not None,
+                    reason='libmagic not available')
+@patch('cadcdata.core.net.BaseWsClient')
+def test_put_file(basews_mock):
+    client = CadcDataClient(auth.Subject())
     # test a put
     file_name = '/tmp/putfile.txt'
     file_content = 'ABCDEFGH12345'
@@ -290,7 +294,7 @@ def test_get_file(trans_reader_mock, basews_mock):
 
     def mock_get_trans_protocols(archive, file_name, is_get, headers):
         protocol = Mock()
-        protocol.endpoint = transf_end_point
+        protocol.endpoint = '{}/{}'.format(transf_end_point, file_name)
         return [protocol]
 
     client._get_transfer_protocols = mock_get_trans_protocols
@@ -298,24 +302,29 @@ def test_get_file(trans_reader_mock, basews_mock):
     # Note Content* headers automatically created by cadc-data except when
     # MAGIC_WANT -- libmagic not present
     put_mock.assert_called_with(
-        transf_end_point, data=ANY,
+        '{}/{}'.format(transf_end_point, os.path.basename(file_name)),
+        data=ANY,
         headers={'Content-Type': 'text/plain',
                  'Content-Encoding': 'us-ascii',
                  'Content-MD5': '{}'.format(hash_md5)})
+
 
     # mimic libmagic missing
     cadcdata.core.MAGIC_WARN = 'Some warning'
     put_mock.reset_mock()
     client.put_file('TEST', file_name)
     put_mock.assert_called_with(
-        transf_end_point, data=ANY,
+        '{}/{}'.format(transf_end_point, os.path.basename(file_name)),
+        data=ANY,
         headers={'Content-MD5': '835e7e6cd54e18ae21d50af963b0c32b'})
     cadcdata.core.MAGIC_WARN = None
 
-    # specify an archive stream
-    client.put_file('TEST', file_name, archive_stream='default')
+    # specify an archive stream and override the name of the file
+    input_name = 'abc'
+    client.put_file('TEST', file_name, archive_stream='default',
+                    input_name=input_name)
     put_mock.assert_called_with(
-        transf_end_point, data=ANY,
+        '{}/{}'.format(transf_end_point, input_name), data=ANY,
         headers={'Content-Encoding': 'us-ascii',
                  'X-CADC-Stream': 'default', 'Content-Type': 'text/plain',
                  'Content-MD5': '{}'.format(hash_md5)})
@@ -323,12 +332,17 @@ def test_get_file(trans_reader_mock, basews_mock):
     client.put_file('TEST', file_name, archive_stream='default',
                     mime_type='ASCII', mime_encoding='GZIP')
     put_mock.assert_called_with(
-        transf_end_point, data=ANY,
+        '{}/{}'.format(transf_end_point, os.path.basename(file_name)),
+        data=ANY,
         headers={'Content-Encoding': 'GZIP',
                  'X-CADC-Stream': 'default', 'Content-Type': 'ASCII',
                  'Content-MD5': '{}'.format(hash_md5)})
     os.remove(file_name)
 
+
+@patch('cadcdata.core.net.BaseWsClient')
+def test_info_file(basews_mock):
+    client = CadcDataClient(auth.Subject())
     # test an info
     file_name = 'myfile'
     file_name = 'myfile.txt'
@@ -514,7 +528,22 @@ def test_main(get_mock, info_mock, put_mock):
                   mime_type=None, mime_encoding=None, md5_check=True),
              call('TEST', '/tmp/put_dir/file1.txt', archive_stream=None,
                   mime_type=None, mime_encoding=None, md5_check=True)]
+    # put with rename files
     put_mock.assert_has_calls(calls, any_order=True)
+    put_mock.reset_mock()
+    sys.argv = ['cadc-data', 'put', '-i', 'a.txt b.txt', 'TEST', put_dir]
+    with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+        main_app()
+    calls = [call('TEST', '/tmp/put_dir/file2.txt', archive_stream=None,
+                  mime_type=None, mime_encoding=None, md5_check=True,
+                  input_name='a.txt'),
+             call('TEST', '/tmp/put_dir/file1.txt', archive_stream=None,
+                  mime_type=None, mime_encoding=None, md5_check=True,
+                  input_name='b.txt')]
+    put_mock.assert_has_calls(calls, any_order=True)
+
+    # put with file rename
+
     # number of file names does not match the number of file names.
     # logger displays an error
     get_mock.reset_mock()
@@ -530,3 +559,13 @@ def test_main(get_mock, info_mock, put_mock):
 
     # cleanup
     shutil.rmtree(put_dir)
+
+    # mistmatched number of input names and source files
+    b = StringIO()
+    sys.argv = ['cadc-data', 'put', '-i', 'A', 'TEST', TESTDATA_DIR]
+    logger.addHandler(logging.StreamHandler(b))
+    with pytest.raises(MyExitError):
+        main_app()
+    assert 'The input names does not match number of sources: 1 vs ' \
+           in b.getvalue()
+

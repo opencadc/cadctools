@@ -1,7 +1,8 @@
 usage: cadc-data put [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                      [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
-                     [-t TYPE] [-e ENCODING] [-s ARCHIVE_STREAM] [--nomd5]
+                     [-t TYPE] [-e ENCODING] [-s ARCHIVE_STREAM] [-i INPUT]
+                     [--nomd5]
                      archive source [source ...]
 
 Upload files into a CADC archive
@@ -22,6 +23,9 @@ optional arguments:
   -h, --help            show this help message and exit
   --host HOST           base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -i, --input INPUT     space-separasted list of input name to use in archive
+                        - overrides the actual file names in source. (quotes
+                        required for multiple elements)
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
@@ -36,8 +40,9 @@ optional arguments:
   -v, --verbose         verbose messages
 
 Examples:
-- Use certificate to put a file in an archive stream:
-        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default -t "application/gzip" TEST myfile.fits.gz
+- Use certificate to put a file in an archive stream under a different name :
+        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default 
+                  -t "application/gzip" -i newfilename.fits.gz TEST myfile.fits.gz
 - Use default netrc file ($HOME/.netrc) to put two files:
         cadc-data put -v -n TEST myfile1.fits.gz myfile2.fits.gz
 - Use a different netrc file to put files from a directory:
