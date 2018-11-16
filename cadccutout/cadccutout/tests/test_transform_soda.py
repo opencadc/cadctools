@@ -67,6 +67,9 @@
 # ***********************************************************************
 #
 
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import logging
 import os
 
@@ -122,7 +125,8 @@ def test_polygon():
     header = fits.Header.fromtextfile(header_filename)
 
     # CCW winding direction
-    polygon = Polygon([[139.9, 0.1], [140.1, 0.1], [140.1, -0.1], [139.9, -0.1]])
+    polygon = Polygon([[139.9, 0.1], [140.1, 0.1],
+                       [140.1, -0.1], [139.9, -0.1]])
 
     test_subject = Transform()
     pixels = test_subject.get_polygon_cutout_pixels(polygon, header, 1, 2)
@@ -143,12 +147,15 @@ def test_interval_polygon():
     header = fits.Header.fromtextfile(header_filename)
 
     # CW winding direction
-    polygon = Polygon([[139.9, -0.1], [140.1, -0.1], [140.1, 0.1], [139.9, 0.1]])
+    polygon = Polygon([[139.9, -0.1], [140.1, -0.1],
+                       [140.1, 0.1], [139.9, 0.1]])
 
     test_subject = Transform()
-    pixels = test_subject.get_polygon_cutout_pixels(polygon, header, 1, 2)
-    # should fail
-    assert pixels is None
+    try:
+        test_subject.get_polygon_cutout_pixels(polygon, header, 1, 2)
+        assert False
+    except ValueError:
+        assert True
 
 
 def test_pos_circle_upper():
@@ -185,7 +192,7 @@ def test_circle_no_overlap():
 
     test_subject = Transform()
     try:
-        pixels = test_subject.get_circle_cutout_pixels(circle, header, 1, 2)
+        test_subject.get_circle_cutout_pixels(circle, header, 1, 2)
         assert False, 'Should raise NoContentError.'
     except NoContentError:
         assert True
@@ -238,7 +245,7 @@ def test_band_no_overlap():
 
     test_subject = Transform()
     try:
-        pixels = test_subject.get_energy_cutout_pixels(energy, header, 3)
+        test_subject.get_energy_cutout_pixels(energy, header, 3)
         assert False, 'Should raise NoContentError'
     except NoContentError as e:
         assert isinstance(e, NoContentError)

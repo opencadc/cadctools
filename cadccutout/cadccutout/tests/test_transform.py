@@ -67,7 +67,8 @@
 # ***********************************************************************
 #
 
-from __future__ import (absolute_import, division, print_function, unicode_literals)
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import logging
 import os
@@ -76,7 +77,8 @@ import pytest
 from astropy.io import fits
 
 from cadccutout.transform import AxisType, Transform
-from cadccutout.shape import Circle, Polygon, Energy, Time, Polarization, PolarizationState
+from cadccutout.shape import Circle, Polygon, Energy, Time, Polarization, \
+    PolarizationState
 
 from cadccutout.no_content_error import NoContentError
 
@@ -191,7 +193,8 @@ def test_world_to_shape():
     except ValueError:
         assert True
 
-    world = ['POLYGON 1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0', 'POLYGON 1.5 2.5 3.5 4.5 5.5 6.5 7.5 8.5']
+    world = ['POLYGON 1.0 2.0 3.0 4.0 5.0 6.0 7.0 8.0',
+             'POLYGON 1.5 2.5 3.5 4.5 5.5 6.5 7.5 8.5']
     try:
         shapes = test_subject.world_to_shape(world)
         assert False, 'Should raise ValueError'
@@ -252,7 +255,8 @@ def test_world_to_shape():
     assert states[0] == PolarizationState.I
     assert states[1] == PolarizationState.V
 
-    world = ['POLYGON 1.0 1.5 2.0 2.5 3.0 3.5', 'BAND 4.0 5.0', 'TIME 6.0 7.0', 'POL I V']
+    world = ['POLYGON 1.0 1.5 2.0 2.5 3.0 3.5', 'BAND 4.0 5.0',
+             'TIME 6.0 7.0', 'POL I V']
     shapes = test_subject.world_to_shape(world)
 
     assert shapes is not None
@@ -296,7 +300,8 @@ def test_world_to_pixels_no_content():
     header = fits.Header.fromtextfile(header_filename)
 
     # circle no content
-    query = ['CIRCLE -168.34719985367971 -76.18699791158396 0.01', 'BAND 0.04456576 0.11662493', 'POL I']
+    query = ['CIRCLE -168.34719985367971 -76.18699791158396 0.01',
+             'BAND 0.04456576 0.11662493', 'POL I']
 
     test_subject = Transform()
     try:
@@ -306,7 +311,8 @@ def test_world_to_pixels_no_content():
         assert True
 
     # polygon no content
-    query = ['POLYGON -168.34 -76.18 -168.34 -76.19 -168.35 -76.19', 'BAND 0.04456576 0.11662493', 'POL I']
+    query = ['POLYGON -168.34 -76.18 -168.34 -76.19 -168.35 -76.19',
+             'BAND 0.04456576 0.11662493', 'POL I']
 
     test_subject = Transform()
     try:
@@ -316,7 +322,8 @@ def test_world_to_pixels_no_content():
         assert True
 
     # energy no content
-    query = ['CIRCLE 168.34719985367971 76.18699791158396 0.01', 'BAND 0.14456576 0.21662493', 'POL I']
+    query = ['CIRCLE 168.34719985367971 76.18699791158396 0.01',
+             'BAND 0.14456576 0.21662493', 'POL I']
 
     test_subject = Transform()
     try:
@@ -326,7 +333,8 @@ def test_world_to_pixels_no_content():
         assert True
 
     # polarization no content
-    query = ['CIRCLE 168.34719985367971 76.18699791158396 0.01', 'BAND 0.04456576 0.11662493', 'POL LL']
+    query = ['CIRCLE 168.34719985367971 76.18699791158396 0.01',
+             'BAND 0.04456576 0.11662493', 'POL LL']
 
     test_subject = Transform()
     try:
@@ -493,7 +501,8 @@ def test_get_polarization_cutout_pixels_vlass():
     polarization = Polarization([PolarizationState.I])
 
     test_subject = Transform()
-    pixels = test_subject.get_polarization_cutout_pixels(polarization, header, 4)
+    pixels = test_subject.get_polarization_cutout_pixels(polarization,
+                                                         header, 4)
 
     # SODA returns [*,*,*,1:1]
     assert pixels is not None
@@ -503,7 +512,8 @@ def test_get_polarization_cutout_pixels_vlass():
 
     polarization = Polarization([PolarizationState.I, PolarizationState.Q])
 
-    pixels = test_subject.get_polarization_cutout_pixels(polarization, header, 4)
+    pixels = test_subject.get_polarization_cutout_pixels(polarization,
+                                                         header, 4)
 
     # should return [1:2]
     assert pixels is not None
@@ -511,9 +521,11 @@ def test_get_polarization_cutout_pixels_vlass():
     assert pixels[0] == 1
     assert pixels[1] == 2
 
-    polarization = Polarization([PolarizationState.I, PolarizationState.Q, PolarizationState.U])
+    polarization = Polarization([PolarizationState.I, PolarizationState.Q,
+                                 PolarizationState.U])
 
-    pixels = test_subject.get_polarization_cutout_pixels(polarization, header, 4)
+    pixels = test_subject.get_polarization_cutout_pixels(polarization,
+                                                         header, 4)
 
     # should return [1:3]
     assert pixels is not None
@@ -521,9 +533,11 @@ def test_get_polarization_cutout_pixels_vlass():
     assert pixels[0] == 1
     assert pixels[1] == 3
 
-    polarization = Polarization([PolarizationState.I, PolarizationState.Q, PolarizationState.U, PolarizationState.V])
+    polarization = Polarization([PolarizationState.I, PolarizationState.Q,
+                                 PolarizationState.U, PolarizationState.V])
 
-    pixels = test_subject.get_polarization_cutout_pixels(polarization, header, 4)
+    pixels = test_subject.get_polarization_cutout_pixels(polarization,
+                                                         header, 4)
 
     # should return [1:4]
     assert pixels is not None
@@ -533,7 +547,8 @@ def test_get_polarization_cutout_pixels_vlass():
 
     polarization = Polarization([PolarizationState.I, PolarizationState.V])
 
-    pixels = test_subject.get_polarization_cutout_pixels(polarization, header, 4)
+    pixels = test_subject.get_polarization_cutout_pixels(polarization,
+                                                         header, 4)
 
     # should return [1:4]
     assert pixels is not None
@@ -556,7 +571,8 @@ def test_get_polarization_cutout_pixels_cgps():
     polarization = Polarization([PolarizationState.I])
 
     test_subject = Transform()
-    pixels = test_subject.get_polarization_cutout_pixels(polarization, header, 4)
+    pixels = test_subject.get_polarization_cutout_pixels(polarization,
+                                                         header, 4)
 
     # SODA returns [*,*,*,1:1]
     assert pixels is not None
@@ -567,13 +583,15 @@ def test_get_polarization_cutout_pixels_cgps():
 
 def test_world_to_pixels_vlass():
     """
-    CIRCLE 168.34719985367971 76.18699791158396 0.01 BAND 0.04456576 0.11662493 POL I
+    CIRCLE 168.34719985367971 76.18699791158396 0.01
+    BAND 0.04456576 0.11662493 POL I
     cutout=[0][2938:3062,4191:4316,1:2,1:1]
     """
     header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
     header = fits.Header.fromtextfile(header_filename)
 
-    world = ['circle 168.34719985367971 76.18699791158396 0.01', 'BAND 0.04456576 0.11662493', 'POL I']
+    world = ['circle 168.34719985367971 76.18699791158396 0.01',
+             'BAND 0.04456576 0.11662493', 'POL I']
 
     test_subject = Transform()
     pixel_cutout_hdu = test_subject.world_to_pixels(world, header)
