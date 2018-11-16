@@ -1,0 +1,50 @@
+SIMPLE  =                    T / Written by IDL:  Fri Mar 31 17:16:38 2006      
+BITPIX  =                  -32 / IEEE single precision floating point           
+NAXIS   =                    3 / # OF AXES                                      
+NAXIS1  =                  500 / # SAMPLES PER LINE                             
+NAXIS2  =                  500 / # LINES IN IMAGE                               
+NAXIS3  =                    1 / # WAVELENGTHS                                  
+BSCALE  =              1.00000 / TRUE=MAP*BSACLE+BZERO                          
+BZERO   =              0.00000 /      /                                         
+BUNIT   = 'MJY/SR  '           / INTENSITY                                      
+BLANK   =               -32768 / TAPE VALUE FOR EMPTY PIXEL                     
+CRVAL1  =        140.000000000 / RA AT ORIGIN (DEGREES)                         
+CRPIX1  =        250.000000000 /  SAMPLE AXIS ORIGIN (PIXEL)                    
+CTYPE1  = 'RA---TAN'           /  DECREASES IN VALUE AS SAMPLE                  
+                                      /  INDEX INCREASES (GNOMONIC)             
+CDELT1  =     -0.0250000000000 /  COORD VALUE INCR DEG/PIXEL                    
+                                      /  AT ORIGIN ON SAMPLE AXIS               
+CRVAL2  =        0.00000000000 /  DEC AT ORIGIN (DEGREES)                       
+CRPIX2  =        250.000000000 /  LINE AXIS ORIGIN (PIXEL)                      
+CTYPE2  = 'DEC--TAN'           /  DECREASES IN VALUE AS LINE                    
+                                      /  INDEX INCREASES (GNOMONIC)             
+CDELT2  =      0.0250000000000 /  COORD VALUE INCR DEG/PIXEL                    
+                                      /  AT ORIGIN ON LINE AXIS                 
+CRVAL3  =    2.50000000000E-05 /  WAVELENGTH IN METERS                          
+CRPIX3  =        1.00000000000 /      /                                         
+CTYPE3  = 'LAMBDA  '           /                                                
+CDELT3  =        0.00000000000 /      /                                         
+DATAMAX =              5.27536 / MJY/SR                                         
+DATAMIN =             0.893030 / MJY/SR                                         
+EPOCH   =        1950.00000000 /  EME50                                         
+ORIGIN  = 'CITA & IAS'         / ISSA maps are from JPL-IPAC                    
+TELESCOP= 'IRAS    '           /                                                
+INSTRUME= 'IRIS    '           / Improved Reprocessing of the IRAS Survey       
+DATEISSA= '92/03/15'           / ISSA MAP CREATION DATE (YY/MM/DD)              
+DATEIRIS= '04/12/06'           / IRIS MAP CREATION DATE (YY/MM/DD)              
+OBJECT  = 'f212h000'           /  FIELD NUMBER-HCON                             
+                                      /                                         
+PROJTYPE=                    0 /  FIELD NUMBER-HCON                             
+AUTHORS = 'Marc-Antoine Miville-Deschenes & Guilaine Lagache' /                 
+COMMENT = 'IRIS is a reprocessing of the ISSA plates' /                         
+AUTODEGL=                    T / Automatic deglitching                          
+DESTRIPE=                    T / Wavelet/Fourier Destriping                     
+COR-GAIN=                    T / Scale and brightness dependant gain correction 
+COR-OFFS=                    T / Offset correction based on DIRBE data          
+LONPOLE =              180.000 /                                                
+FIL-HOLE=                    T /Replace undefined values with DIRBE data        
+CD1_1   =               -0.025                                                  
+CD1_2   =                    0                                                  
+CD2_1   =                    0                                                  
+CD2_2   =                0.025                                                  
+END                                                                             
