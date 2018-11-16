@@ -102,8 +102,10 @@ def config_get(section, key):
 
 
 @patch('cadcetrans.etrans_core.etrans_config')
-def test_transfer_dryrun(config_mock):
+@patch('cadcetrans.utils.CadcDataClient')
+def test_transfer_dryrun(data_client_mock, config_mock):
     config_mock.get = config_get
+    data_client_mock.return_value.get_file_info.return_value = None
 
     # no files to transfer
     transfer(PROC_DIR, 'new', True, Subject())
@@ -139,9 +141,11 @@ def test_transfer_dryrun(config_mock):
 
 
 @patch('cadcetrans.etrans_core.etrans_config')
+@patch('cadcetrans.utils.CadcDataClient')
 @patch('cadcetrans.etrans_core.put_cadc_file')
-def test_transfer(put_mock, config_mock):
+def test_transfer(put_mock, data_client_mock, config_mock):
     config_mock.get = config_get
+    data_client_mock.return_value.get_file_info.return_value = None
     # cleanup the test directory (dest)
     for f in os.listdir(dest):
         ff = os.path.join(dest, f)

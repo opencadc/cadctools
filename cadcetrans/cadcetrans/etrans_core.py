@@ -734,7 +734,7 @@ def main_app():
     elif args.debug:
         logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
     else:
-        if (args.cmd != status) and args.dryrun:
+        if (args.cmd != 'status') and args.dryrun:
             logging.basicConfig(level=logging.INFO, stream=sys.stdout)
         else:
             logging.basicConfig(level=logging.WARN, stream=sys.stdout)

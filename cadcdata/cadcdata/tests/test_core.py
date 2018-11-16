@@ -308,7 +308,6 @@ def test_put_file(basews_mock):
                  'Content-Encoding': 'us-ascii',
                  'Content-MD5': '{}'.format(hash_md5)})
 
-
     # mimic libmagic missing
     cadcdata.core.MAGIC_WARN = 'Some warning'
     put_mock.reset_mock()
@@ -568,4 +567,3 @@ def test_main(get_mock, info_mock, put_mock):
         main_app()
     assert 'The input names does not match number of sources: 1 vs ' \
            in b.getvalue()
-
