@@ -80,6 +80,7 @@ import shutil
 from mock import patch, Mock, call
 from six import StringIO
 import sys
+import logging
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
@@ -236,3 +237,50 @@ def test_help():
         with pytest.raises(MyExitError):
             main_app()
         assert status_usage == stdout_mock.getvalue()
+
+
+@patch('cadcetrans.etrans_core.net.Subject.from_cmd_line_args')
+@patch('cadcetrans.etrans_core.transfer')
+@patch('cadcetrans.etrans_core.clean_up')
+@patch('cadcetrans.etrans_core.print_status')
+@patch('cadcetrans.etrans_core.update_backup')
+def test_main(backup_mock, status_mock, cleanup_mock, transfer_mock,
+              subject_mock):
+    """
+    Tests the main function etrans_core
+    :return:
+    """
+
+    # data transfer
+    subject = Subject()
+    subject_mock.return_value=subject
+    sys.argv = ['cadc-etran', 'data', PROC_DIR]
+    main_app()
+    transfer_mock.assert_called_with(PROC_DIR, stream_name=None, dry_run=False,
+                                     subject=subject, namecheck_file=None)
+    cleanup_mock.assert_called_with(PROC_DIR, dry_run=False)
+    backup_mock.assert_not_called()
+    status_mock.assert_not_called()
+
+    # status print
+    transfer_mock.reset_mock()
+    cleanup_mock.reset_mock()
+    sys.argv = ['cadc-etran', 'status', PROC_DIR]
+    main_app()
+    status_mock.assert_called_with(PROC_DIR)
+    cleanup_mock.assert_not_called()
+    transfer_mock.assert_not_called()
+    backup_mock.assert_not_called()
+
+    # status backup
+    status_mock.reset_mock()
+    sys.argv = ['cadc-etran', 'status', '-b', PROC_DIR]
+    main_app()
+    backup_mock.assert_called_with(subject, PROC_DIR)
+    cleanup_mock.assert_not_called()
+    transfer_mock.assert_not_called()
+    status_mock.assert_not_called()
+
+
+
+

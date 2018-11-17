@@ -84,7 +84,7 @@ _ROOT = os.path.abspath(os.path.dirname(__file__))
 _DEFAULT_CONFIG_PATH = os.path.join(_ROOT, 'data', 'default-cadcetrans-config')
 _CONFIG_PATH = os.path.expanduser("~") + '/.config/cadc/cadc-etrans-config'
 
-TRANS_ROOT_LOGNAME = 'cadcetrans.log'
+TRANS_ROOT_LOGNAME = 'cadce.trans.log'
 LOG_PUT_LABEL = 'put_cadc_file'
 LOG_STATUS_LABEL = 'status'
 
@@ -195,10 +195,11 @@ def put_cadc_file(filename, stream, subject, mime_type=None,
 
 
 def _get_transfer_log():
+    # transfer log is the log where the transfers are recorded.
     logdir = etrans_config.get('etransfer', 'transfer_log_dir')
     trans_log = os.path.join(logdir, TRANS_ROOT_LOGNAME)
     if not _get_transfer_log.logger:
-        _get_transfer_log.logger = logging.getLogger('cadcetrans')
+        _get_transfer_log.logger = logging.getLogger('cadc.etrans')
         fh = TimedRotatingFileHandler(trans_log, when='W0', utc=True)
         formatter = logging.Formatter(
             r'%(asctime)s [%(process)d] %(message)s')
