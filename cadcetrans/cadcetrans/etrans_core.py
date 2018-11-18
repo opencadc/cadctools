@@ -600,7 +600,7 @@ def print_status(dirname):
     print('\tLast week success -', colored('{:6}'.format(last7d[0]), 'green'),
           ' error -', colored('{:8d}'.format(last7d[1]), 'red'))
     logdir = etrans_config.get('etransfer', 'transfer_log_dir')
-    trans_log = os.path.join(logdir, 'cadcetrans.log')
+    trans_log = os.path.join(logdir, TRANS_ROOT_LOGNAME)
     print('* - details in {}'.format(trans_log))
 
 

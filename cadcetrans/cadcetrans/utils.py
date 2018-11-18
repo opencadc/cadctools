@@ -84,7 +84,7 @@ _ROOT = os.path.abspath(os.path.dirname(__file__))
 _DEFAULT_CONFIG_PATH = os.path.join(_ROOT, 'data', 'default-cadcetrans-config')
 _CONFIG_PATH = os.path.expanduser("~") + '/.config/cadc/cadc-etrans-config'
 
-TRANS_ROOT_LOGNAME = 'cadce.trans.log'
+TRANS_ROOT_LOGNAME = 'cadc.etrans.log'
 LOG_PUT_LABEL = 'put_cadc_file'
 LOG_STATUS_LABEL = 'status'
 
