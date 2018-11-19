@@ -6,4 +6,6 @@ cadcetrans
 
 Canadian Astronomy Data Centre - electronic transfer
 
-Library and application for electronic transfer of data and metadata to the Canadian Astronomy Data Centre.
+cadc-etrans is an application for electronic transfer of data and metadata to
+the Canadian Astronomy Data Centre. Data from an observatory is copied to one
+of the
