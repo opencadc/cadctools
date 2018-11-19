@@ -582,17 +582,17 @@ def print_status(dirname):
                 timediff = now - logdate
                 index = 1
                 data = json.loads(fields[1].strip())
-                if data['success']:
+                if 'success' in data:
                     index = 0
-                if timediff.total_seconds()/60.0/60.0 < 1:
-                    lasth[index] += 1
-                if timediff.total_seconds()/60.0/60.0 < 24:
-                    last24h[index] += 1
-                if timediff.total_seconds()/60.0/60.0 < 24 * 7:
-                    last7d[index] += 1
-                else:
-                    # TODO break reading the file here
-                    pass
+                    if timediff.total_seconds()/60.0/60.0 < 1:
+                        lasth[index] += 1
+                    if timediff.total_seconds()/60.0/60.0 < 24:
+                        last24h[index] += 1
+                    if timediff.total_seconds()/60.0/60.0 < 24 * 7:
+                        last7d[index] += 1
+                    else:
+                        # TODO break reading the file here
+                        pass
     print('\tLast hour success -', colored('{:6}'.format(lasth[0]), 'green'),
           ' error -', colored('{:8d}'.format(lasth[1]), 'red'))
     print('\tLast day  success -', colored('{:6}'.format(last24h[0]), 'green'),
