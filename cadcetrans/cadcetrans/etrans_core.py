@@ -380,7 +380,7 @@ def _get_proc_info(proc_dir):
     if not config_files_read:
         logger.debug('Directory {} has no stamp file'.format(proc_dir))
         return None
-    return config
+    return config, stamp_file
 
 
 def clean_up(trans_dir, dry_run=False):
@@ -408,7 +408,7 @@ def clean_up(trans_dir, dry_run=False):
             continue
 
         logger.debug('Directory {} found'.format(dir_))
-        timestamp_file = _get_proc_info(proc_dir)
+        timestamp_file, config_filename = _get_proc_info(proc_dir)
         if not timestamp_file:
             continue
 
@@ -482,7 +482,7 @@ def clean_up(trans_dir, dry_run=False):
         if n_skipped or dry_run:
             continue
 
-        os.unlink(timestamp_file)
+        os.unlink(config_filename)
         os.rmdir(proc_dir)
 
 
@@ -518,7 +518,7 @@ def get_trans_files(dirname):
         for d in os.listdir(proc_dir):
             dir = os.path.join(proc_dir, d)
             if d.startswith('proc') and os.path.isdir(dir):
-                procinfo = _get_proc_info(dir)
+                procinfo = _get_proc_info(dir)[0]
                 pid = int(procinfo.get('transfer', 'pid'))
                 start = procinfo.get('transfer', 'start')
                 proc = {'pid': pid, 'started': start}
