@@ -524,9 +524,9 @@ def get_trans_files(dirname):
                 proc = {'pid': pid, 'started': start}
                 # count the files
                 for input in allowed_streams:
-                    if os.path.isdir(os.path.join(dir, input)):
+                    if os.path.isdir(os.path.join(d, input)):
                         proc['files'] = len(os.listdir(
-                            os.path.join(dir, input)))
+                            os.path.join(d, input)))
                 result.append(proc)
             else:
                 msg = 'Unknown file/dir in proc directory: {}'.format(d)
