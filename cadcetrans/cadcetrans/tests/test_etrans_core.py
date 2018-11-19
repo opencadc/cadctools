@@ -74,6 +74,7 @@ import os
 import pytest
 from cadcutils.net import Subject
 from cadcetrans.etrans_core import transfer, main_app
+from cadcetrans import etrans_core
 from cadcetrans.utils import CommandError
 import tempfile
 import shutil
@@ -81,6 +82,7 @@ from mock import patch, Mock, call
 from six import StringIO
 import sys
 import logging
+from datetime import datetime
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
@@ -282,5 +284,70 @@ def test_main(backup_mock, status_mock, cleanup_mock, transfer_mock,
     status_mock.assert_not_called()
 
 
+def test_proc():
+    # create a proc timestamp file
+    tmpdir = tempfile.mkdtemp()
+    etrans_core._write_proc_info(tmpdir)
+    config, stampfile = etrans_core._get_proc_info(tmpdir)
+    start = datetime.strptime(config.get('transfer', 'start'),
+                              '%Y-%m-%d %H:%M:%S')
+    assert (datetime.utcnow() - start).seconds < 2
+    assert int(config.get('transfer', 'pid')) == os.getpid()
+    assert stampfile == os.path.join(tmpdir, etrans_core.PROC_TIMESTAMP_FILE)
+
+    assert etrans_core._get_proc_info(tempfile.mkdtemp()) is None
+
+
+def test_cleanup():
+    # mimic the input directory
+    tmpdir = tempfile.mkdtemp()
+    orig_new = os.path.join(tmpdir, 'new')
+    os.mkdir(orig_new)
+    orig_replace = os.path.join(tmpdir, 'replace')
+    os.mkdir(orig_replace)
+    orig_any = os.path.join(tmpdir, 'any')
+    os.mkdir(orig_any)
+    procdirs = os.path.join(tmpdir, 'proc')
+    os.mkdir(procdirs)
+    procdir = os.path.join(procdirs, 'proc123')
+    os.mkdir(procdir)
+    proc_new = os.path.join(procdir, 'new')
+    os.mkdir(proc_new)
+    proc_replace = os.path.join(procdir, 'replace')
+    os.mkdir(proc_replace)
+    proc_any = os.path.join(procdir, 'any')
+    os.mkdir(proc_any)
+    with open(os.path.join(proc_new, 'new.fits'), 'w+') as f:
+        f.write('new')
+    with open(os.path.join(proc_replace, 'replace.fits'), 'w+') as f:
+        f.write('replace')
+    with open(os.path.join(proc_any, 'any.fits'), 'w+') as f:
+        f.write('any')
+
+    stamp_file = etrans_core._write_proc_info(procdir)
+    etrans_core.clean_up(tmpdir)
+
+    # because the proc is still "current" there is no cleanup
+    assert len(os.listdir(orig_new)) == 0
+    assert len(os.listdir(orig_replace)) == 0
+    assert len(os.listdir(orig_any)) == 0
+    assert os.path.isfile(os.path.join(proc_new, 'new.fits'))
+    assert os.path.isfile(os.path.join(proc_replace, 'replace.fits'))
+    assert os.path.isfile(os.path.join(proc_any, 'any.fits'))
+
+    # move timestamp in the past and test again
+    config = etrans_core._get_proc_info(procdir)[0]
+    config.set('transfer', 'start', '2000-01-01 00:00:00')
+    with open(stamp_file, 'w+') as f:
+        config.write(f)
+
+    etrans_core.clean_up(tmpdir)
+
+    # check files have moved to the original directories and proc dir
+    # has been removed
+    assert os.path.isfile(os.path.join(orig_new, 'new.fits'))
+    assert os.path.isfile(os.path.join(orig_replace, 'replace.fits'))
+    assert os.path.isfile(os.path.join(orig_any, 'any.fits'))
+    assert not os.path.isdir(procdir)
 
 

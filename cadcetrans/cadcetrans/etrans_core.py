@@ -108,6 +108,10 @@ allowed_streams = ('new', 'replace', 'any')
 
 __all__ = ['transfer']
 
+# names of processing timestamp files
+PROC_TIMESTAMP_FILE = 'transfer.ini'
+# name of the etransfer section
+ETRANS_SECTION = 'etransfer'
 
 def transfer(trans_dir, stream_name=None, dry_run=False,
              subject=None, namecheck_file=None):
@@ -136,7 +140,7 @@ def transfer(trans_dir, stream_name=None, dry_run=False,
 
     """
 
-    max_files = int(etrans_config.get('etransfer', 'max_files'))
+    max_files = int(etrans_config.get(ETRANS_SECTION, 'max_files'))
 
     files = []
     n_err = 0
@@ -183,18 +187,7 @@ def transfer(trans_dir, stream_name=None, dry_run=False,
         for stream_name in stream_names:
             os.mkdir(os.path.join(proc_dir, stream_name))
 
-        # Write stamp file to allow automatic clean-up.
-        stamp_file = os.path.join(proc_dir, 'transfer.ini')
-
-        config = ConfigParser()
-        config.add_section('transfer')
-        config.set('transfer', 'pid', str(os.getpid()))
-        config.set('transfer', 'start',
-                   datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'))
-
-        with open(stamp_file, 'w') as f:
-            config.write(f)
-
+        stamp_file = _write_proc_info(proc_dir)
         # Move some files into the working directory to prevent
         # multiple transfer processes trying to transfer them
         # simultaneously.
@@ -327,7 +320,7 @@ def transfer_check(proc_dir, filename, stream_name, subject,
 
     ad_streams = dict(map(
         lambda x: x.split(':'),
-        etrans_config.get('etransfer', 'ad_stream').split(' ')))
+        etrans_config.get(ETRANS_SECTION, 'ad_stream').split(' ')))
 
     proc_file = os.path.join(proc_dir, filename)
 
@@ -372,9 +365,23 @@ def transfer_check(proc_dir, filename, stream_name, subject,
     return ad_stream
 
 
+def _write_proc_info(proc_dir):
+    # Write stamp file to allow automatic clean-up.
+    stamp_file = os.path.join(proc_dir, PROC_TIMESTAMP_FILE)
+    config = ConfigParser()
+    config.add_section('transfer')
+    config.set('transfer', 'pid', str(os.getpid()))
+    config.set('transfer', 'start',
+               datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'))
+    with open(stamp_file, 'w') as f:
+        config.write(f)
+
+    return stamp_file
+
+
 def _get_proc_info(proc_dir):
-    # Check for and read the stamp file.
-    stamp_file = os.path.join(proc_dir, 'transfer.ini')
+    # Check for and read the timestamp file.
+    stamp_file = os.path.join(proc_dir, PROC_TIMESTAMP_FILE)
     config = ConfigParser()
     config_files_read = config.read(stamp_file)
     if not config_files_read:
@@ -393,7 +400,7 @@ def clean_up(trans_dir, dry_run=False):
     # Determine latest start time for which we will consider cleaning up
     # a proc directory.
     start_limit = datetime.utcnow() - timedelta(
-        minutes=int(etrans_config.get('etransfer', 'cleanup_minutes')))
+        minutes=int(etrans_config.get(ETRANS_SECTION, 'cleanup_minutes')))
 
     # Look for proc directories.
     proc_base_dir = os.path.join(trans_dir, 'proc')
@@ -524,7 +531,7 @@ def get_trans_files(dirname):
                 proc = {'pid': pid, 'started': start}
                 # count the files
                 for input in allowed_streams:
-                    dd = os.path.join(d, input)
+                    dd = os.path.join(dir, input)
                     if os.path.isdir(dd) and os.listdir(dd):
                         proc['files'] = len(os.listdir(dd))
                 result.append(proc)
@@ -572,7 +579,7 @@ def print_status(dirname):
     lasth = [0, 0]
     last24h = [0, 0]
     last7d = [0, 0]
-    now = datetime.now()
+    now = datetime.utcnow()
     for r in _get_transfer_log_info():
         if 'put_cadc_file' in r:  # TODO - make it more robust
             fields = r.split('put_cadc_file -')
@@ -584,22 +591,22 @@ def print_status(dirname):
                 data = json.loads(fields[1].strip())
                 if 'success' in data:
                     index = 0
-                    if timediff.total_seconds()/60.0/60.0 < 1:
-                        lasth[index] += 1
-                    if timediff.total_seconds()/60.0/60.0 < 24:
-                        last24h[index] += 1
-                    if timediff.total_seconds()/60.0/60.0 < 24 * 7:
-                        last7d[index] += 1
-                    else:
-                        # TODO break reading the file here
-                        pass
+                if timediff.total_seconds()/60.0/60.0 < 1:
+                    lasth[index] += 1
+                if timediff.total_seconds()/60.0/60.0 < 24:
+                    last24h[index] += 1
+                if timediff.total_seconds()/60.0/60.0 < 24 * 7:
+                    last7d[index] += 1
+                else:
+                    # TODO break reading the file here
+                    pass
     print('\tLast hour success -', colored('{:6}'.format(lasth[0]), 'green'),
           ' error -', colored('{:8d}'.format(lasth[1]), 'red'))
     print('\tLast day  success -', colored('{:6}'.format(last24h[0]), 'green'),
           ' error -', colored('{:8d}'.format(last24h[1]), 'red'))
     print('\tLast week success -', colored('{:6}'.format(last7d[0]), 'green'),
           ' error -', colored('{:8d}'.format(last7d[1]), 'red'))
-    logdir = etrans_config.get('etransfer', 'transfer_log_dir')
+    logdir = etrans_config.get(ETRANS_SECTION, 'transfer_log_dir')
     trans_log = os.path.join(logdir, TRANS_ROOT_LOGNAME)
     print('* - details in {}'.format(trans_log))
 
@@ -612,7 +619,7 @@ def update_backup(subject, dirname):
     :param dirname:
     :return:
     """
-    backup_dir = etrans_config.get('etransfer', 'backup_dir')
+    backup_dir = etrans_config.get(ETRANS_SECTION, 'backup_dir')
     # this should come from the config instance
     config_file = os.path.join(utils._CONFIG_PATH, 'cadc-etrans-config')
     if not backup_dir:
@@ -628,7 +635,7 @@ def update_backup(subject, dirname):
                                     json.dumps({'rejected': rfiles,
                                                 'transferring': tfiles})))
     logger.debug('Rsyncing the transfer logs')
-    translog = etrans_config.get('etransfer', 'transfer_log_dir')
+    translog = etrans_config.get(ETRANS_SECTION, 'transfer_log_dir')
     client = vos.Client(vospace_certfile=subject.certificate,
                         transfer_shortcut=True)
     for f in glob.glob(
