@@ -94,7 +94,7 @@ import vos
 from cadcutils import net, util
 from cadcetrans import version
 from .utils import CommandError, ProcError, TransferFailure,\
-    TRANS_ROOT_LOGNAME, TransferException, _get_transfer_log_info,\
+    TRANS_ROOT_LOGNAME, TransferException, _get_last_week_logs,\
     _get_transfer_log
 import cadcetrans.utils as utils
 
@@ -221,24 +221,22 @@ def transfer(trans_dir, stream_name=None, dry_run=False,
 
         try:
             # Check the file.
-            ad_stream = transfer_check(
-                proc_sub_dir, file.name, file.stream_name, subject,
-                namecheck_file)
+            transfer_check(proc_sub_dir, file.name, file.stream_name, subject,
+                           namecheck_file)
 
             if dry_run:
-                logger.info('Accepted file {} ({}) (DRY RUN)'.
-                            format(file.name, ad_stream or 'default'))
+                logger.info('Accepted file {} (DRY RUN)'.format(file.name))
 
             else:
                 type, encoding = _get_mime(file.name)
                 # Transfer the file.
                 put_cadc_file(os.path.join(proc_sub_dir, file.name),
-                              ad_stream, subject, mime_type=type,
+                              None, subject, mime_type=type,
                               mime_encoding=encoding)
 
                 # On success, delete the file.
-                logger.info('Transferred file {} ({})'.
-                            format(file.name, ad_stream or 'default'))
+                logger.info('Transferred file {}'.
+                            format(file.name))
                 os.unlink(proc_file)
 
         except TransferException as e:
@@ -313,15 +311,9 @@ def transfer_check(proc_dir, filename, stream_name, subject,
     is detected.  No changes to the filesystem should be made, so this
     function should be safe to call in dry run mode.
 
-    Returns the CADC AD stream to be used for the file.  This is determined by
-    a mapping from namecheck section to stream name in the configuration file
-    entry etransfer.ad_stream.
     """
 
-    ad_streams = dict(map(
-        lambda x: x.split(':'),
-        etrans_config.get(ETRANS_SECTION, 'ad_stream').split(' ')))
-
+    proc_file = os.path.join(proc_dir, filename)
     proc_file = os.path.join(proc_dir, filename)
 
     # Check for permission to read the file.
@@ -337,12 +329,6 @@ def transfer_check(proc_dir, filename, stream_name, subject,
         namecheck_section = check_file_name(namecheck_file, filename, True)
         if namecheck_section is None:
             raise TransferException('name')
-        if namecheck_section in ad_streams:
-            ad_stream = ad_streams[namecheck_section]
-        else:
-            raise TransferException('stream')
-    else:
-        ad_stream = None
 
     # Check correct new/replacement/any stream name.
     try:
@@ -362,7 +348,6 @@ def transfer_check(proc_dir, filename, stream_name, subject,
         pass
 
     check_valid(proc_file)
-    return ad_stream
 
 
 def _write_proc_info(proc_dir):
@@ -580,35 +565,34 @@ def print_status(dirname):
     last24h = [0, 0]
     last7d = [0, 0]
     now = datetime.utcnow()
-    for r in _get_transfer_log_info():
-        if 'put_cadc_file' in r:  # TODO - make it more robust
-            fields = r.split('put_cadc_file -')
-            if len(fields) > 1:
-                logdate = datetime.strptime(fields[0].split('[')[0].strip(),
-                                            '%Y-%m-%d %H:%M:%S,%f')
-                timediff = now - logdate
-                index = 1
-                data = json.loads(fields[1].strip())
-                if 'success' in data:
-                    index = 0
-                if timediff.total_seconds()/60.0/60.0 < 1:
-                    lasth[index] += 1
-                if timediff.total_seconds()/60.0/60.0 < 24:
-                    last24h[index] += 1
-                if timediff.total_seconds()/60.0/60.0 < 24 * 7:
-                    last7d[index] += 1
-                else:
-                    # TODO break reading the file here
-                    pass
+    logs = _get_last_week_logs()
+    for l in logs:
+        with open(l) as f:
+            for r in f:
+                if 'put_cadc_file' in r:  # TODO - make it more robust
+                    fields = r.split('put_cadc_file -')
+                    if len(fields) > 1:
+                        logdate = datetime.strptime(
+                            fields[0].split('[')[0].strip(),
+                            '%Y-%m-%d %H:%M:%S,%f')
+                        timediff = now - logdate
+                        index = 1
+                        data = json.loads(fields[1].strip())
+                        if 'success' in data:
+                            index = 0
+                        if timediff.total_seconds()/60.0/60.0 < 1:
+                            lasth[index] += 1
+                        if timediff.total_seconds()/60.0/60.0 < 24:
+                            last24h[index] += 1
+                        if timediff.total_seconds()/60.0/60.0 < 24 * 7:
+                            last7d[index] += 1
     print('\tLast hour success -', colored('{:6}'.format(lasth[0]), 'green'),
           ' error -', colored('{:8d}'.format(lasth[1]), 'red'))
     print('\tLast day  success -', colored('{:6}'.format(last24h[0]), 'green'),
           ' error -', colored('{:8d}'.format(last24h[1]), 'red'))
     print('\tLast week success -', colored('{:6}'.format(last7d[0]), 'green'),
           ' error -', colored('{:8d}'.format(last7d[1]), 'red'))
-    logdir = etrans_config.get(ETRANS_SECTION, 'transfer_log_dir')
-    trans_log = os.path.join(logdir, TRANS_ROOT_LOGNAME)
-    print('* - details in {}'.format(trans_log))
+    print('* - details in {}'.format(', '.join(logs)))
 
 
 def update_backup(subject, dirname):

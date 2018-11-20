@@ -6,7 +6,6 @@
 archive=TEST
 group=jcmt
 max_files=100
-ad_stream=RAW:raw PROCESSED:product
 cleanup_minutes=30
 transfer_log_dir=/tmp
 backup_dir=vos:adriand/etrans

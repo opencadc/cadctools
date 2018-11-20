@@ -84,6 +84,7 @@ _ROOT = os.path.abspath(os.path.dirname(__file__))
 _DEFAULT_CONFIG_PATH = os.path.join(_ROOT, 'data', 'default-cadcetrans-config')
 _CONFIG_PATH = os.path.expanduser("~") + '/.config/cadc/cadc-etrans-config'
 
+TRANS_LOGGER_NAME = 'cadc.etrans'
 TRANS_ROOT_LOGNAME = 'cadc.etrans.log'
 LOG_PUT_LABEL = 'put_cadc_file'
 LOG_STATUS_LABEL = 'status'
@@ -198,9 +199,9 @@ def _get_transfer_log():
     # transfer log is the log where the transfers are recorded.
     logdir = etrans_config.get('etransfer', 'transfer_log_dir')
     trans_log = os.path.join(logdir, TRANS_ROOT_LOGNAME)
-    if not _get_transfer_log.logger:
-        _get_transfer_log.logger = logging.getLogger('cadc.etrans')
-        # Note: _get_tranfer_log_info assumes that logs are rotated weekly
+    trans_logger = logging.getLogger(TRANS_LOGGER_NAME)
+    if not trans_logger.handlers:
+        # Note: _get_last_week_logs assumes that logs are rotated weekly
         # If this changes, the logic of that function needs to be updated too
         fh = TimedRotatingFileHandler(trans_log, when='W0', utc=True)
         formatter = logging.Formatter(
@@ -208,17 +209,14 @@ def _get_transfer_log():
         # set the log times to utc
         formatter.converter = time.gmtime
         fh.setFormatter(formatter)
-        _get_transfer_log.logger.addHandler(fh)
-        _get_transfer_log.logger.setLevel(logging.INFO)
-    return _get_transfer_log.logger
+        trans_logger.addHandler(fh)
+        trans_logger.setLevel(logging.INFO)
+    return trans_logger
 
 
-_get_transfer_log.logger = None
-
-
-def _get_transfer_log_info():
-    # returns the last time rotated log and the current log to make sure
-    # the last week logging info is included
+def _get_last_week_logs():
+    #logs are timed rotated. This function returns the a list of logs that
+    # contain the logging of transfers that occurred in the last week.
     now = datetime.datetime.now()
     # get the TimedRotatingFileHanlder
     fh = None
@@ -244,7 +242,4 @@ def _get_transfer_log_info():
         logs = [prev_logfile, logfile]
     else:
         logs = [logfile]
-    for f in logs:
-        with open(f) as f:
-            for line in f:
-                yield line
+    return logs
