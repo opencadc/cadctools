@@ -215,9 +215,8 @@ def _get_transfer_log():
 
 
 def _get_last_week_logs():
-    #logs are timed rotated. This function returns the a list of logs that
+    # logs are timed rotated. This function returns the a list of logs that
     # contain the logging of transfers that occurred in the last week.
-    now = datetime.datetime.now()
     # get the TimedRotatingFileHanlder
     fh = None
     for i in _get_transfer_log().handlers:

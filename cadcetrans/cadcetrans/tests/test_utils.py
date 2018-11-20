@@ -160,7 +160,7 @@ def test_put(config_mock):
 @patch('cadcetrans.utils.etrans_config.get')
 def test_transfer_log(config_mock):
     tmpdir = tempfile.mkdtemp()
-    config_mock.return_value=tmpdir
+    config_mock.return_value = tmpdir
     current_log_file = os.path.join(tmpdir, utils.TRANS_ROOT_LOGNAME)
     utils._get_transfer_log.logger = None
     orig_trans_logger_name = utils.TRANS_LOGGER_NAME

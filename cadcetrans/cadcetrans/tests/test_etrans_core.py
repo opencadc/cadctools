@@ -81,7 +81,6 @@ import shutil
 from mock import patch, Mock, call
 from six import StringIO
 import sys
-import logging
 from datetime import datetime
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -255,7 +254,7 @@ def test_main(backup_mock, status_mock, cleanup_mock, transfer_mock,
 
     # data transfer
     subject = Subject()
-    subject_mock.return_value=subject
+    subject_mock.return_value = subject
     sys.argv = ['cadc-etran', 'data', PROC_DIR]
     main_app()
     transfer_mock.assert_called_with(PROC_DIR, stream_name=None, dry_run=False,
@@ -349,5 +348,3 @@ def test_cleanup():
     assert os.path.isfile(os.path.join(orig_replace, 'replace.fits'))
     assert os.path.isfile(os.path.join(orig_any, 'any.fits'))
     assert not os.path.isdir(procdir)
-
-

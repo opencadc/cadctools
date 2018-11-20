@@ -113,6 +113,7 @@ PROC_TIMESTAMP_FILE = 'transfer.ini'
 # name of the etransfer section
 ETRANS_SECTION = 'etransfer'
 
+
 def transfer(trans_dir, stream_name=None, dry_run=False,
              subject=None, namecheck_file=None):
     """
@@ -578,7 +579,7 @@ def print_status(dirname):
                         timediff = now - logdate
                         index = 1
                         data = json.loads(fields[1].strip())
-                        if 'success' in data:
+                        if ('success' in data) and data['success']:
                             index = 0
                         if timediff.total_seconds()/60.0/60.0 < 1:
                             lasth[index] += 1
