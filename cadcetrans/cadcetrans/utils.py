@@ -200,6 +200,8 @@ def _get_transfer_log():
     trans_log = os.path.join(logdir, TRANS_ROOT_LOGNAME)
     if not _get_transfer_log.logger:
         _get_transfer_log.logger = logging.getLogger('cadc.etrans')
+        # Note: _get_tranfer_log_info assumes that logs are rotated weekly
+        # If this changes, the logic of that function needs to be updated too
         fh = TimedRotatingFileHandler(trans_log, when='W0', utc=True)
         formatter = logging.Formatter(
             r'%(asctime)s [%(process)d] %(message)s')
@@ -226,11 +228,15 @@ def _get_transfer_log_info():
             break
     if not fh:
         raise RuntimeError('No TimedRotatingFileHandler configured')
-    prev_rollover_date = datetime.datetime.fromtimestamp(
-        fh.computeRollover(
-            int((now - datetime.timedelta(days=7)).strftime('%s'))))
-    prev_log_name = '{}.{}'.format(TRANS_ROOT_LOGNAME,
-                                   prev_rollover_date.strftime('%Y-%m-%d'))
+    # get the current rollover datetime
+    rollover_date = fh.computeRollover(
+        int(datetime.datetime.now().strftime('%s')))
+    rollover_date = datetime.datetime.fromtimestamp(rollover_date)
+    # This is the next rollover date. The created file will have a timestamp
+    # with 6 days earlier. We need the previous one, hence go 13 days earlier.
+    prev_timestamp = \
+        (rollover_date - datetime.timedelta(days=13)).strftime('%Y-%m-%d')
+    prev_log_name = '{}.{}'.format(TRANS_ROOT_LOGNAME, prev_timestamp)
     logdir = etrans_config.get('etransfer', 'transfer_log_dir')
     logfile = os.path.join(logdir, TRANS_ROOT_LOGNAME)
     prev_logfile = os.path.join(logdir, prev_log_name)

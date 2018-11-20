@@ -153,3 +153,7 @@ def test_put(config_mock):
         with pytest.raises(ProcError):
             data_mock.return_value.put_file.side_effect = RuntimeError()
             put_cadc_file(file.name, 'raw', Subject())
+
+
+def test_transfer_log():
+    pass
