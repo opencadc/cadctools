@@ -11,6 +11,7 @@ cadc-etrans is an application for electronic transfer of data and metadata to
 the Canadian Astronomy Data Centre (CADC). Files to be processed by cadc-etrans
 are to be placed in one of the following subdirectories of a source directory
 specified by the user:
+
 - new - for files expected to be new to the CADC archive. cadc-etrans flags
         as errors when this is not the case.
 - replaced - for files expected to be in the CADC archive already.
@@ -79,5 +80,5 @@ or:
 
 Note the two mounts that are required: one where the transfer logs will be
 recorded so that they are available outside the container and the other
-one for the source directory (source=<> part is what needs to be customized
+one for the source directory (``source=<>`` part is what needs to be customized
 to point to directories on the local host.
