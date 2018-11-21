@@ -540,7 +540,9 @@ def print_status(dirname):
     if not rfiles:
         print('\tNone')
     else:
-        for f in rfiles.keys():
+        types = list(rfiles.keys())
+        types.sort()
+        for f in types:
             print('\t {:6} -'.format(f),
                   colored('{:8d}'.format(len(rfiles[f])), 'red'))
 

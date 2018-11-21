@@ -1,7 +1,7 @@
 
 Rejected files:
-	 namecheck - [31m       3[0m
 	 fits   - [31m       0[0m
+	 namecheck - [31m       3[0m
 
 Transferring files:
 	pid     123 -      2 (started at 2018-11-21 10:10:10)
