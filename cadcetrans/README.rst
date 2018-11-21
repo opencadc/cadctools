@@ -11,11 +11,12 @@ cadc-etrans is an application for electronic transfer of data and metadata to
 the Canadian Astronomy Data Centre (CADC). Files to be processed by cadc-etrans
 are to be placed in one of the following subdirectories of a source directory
 specified by the user:
-    - new - for files expected to be new to the CADC archive. cadc-etrans flags
-            as errors when this is not the case.
-    - replaced - for files expected to be in the CADC archive already.
-            cadc-etrans flags it as an error if the files are missing.
-    - any - for files whose presence in the CADC archive is not important
+- new - for files expected to be new to the CADC archive. cadc-etrans flags
+        as errors when this is not the case.
+- replaced - for files expected to be in the CADC archive already.
+        cadc-etrans flags it as an error if the files are missing.
+- any - for files whose presence in the CADC archive is not important
+
 cadc-etrans can be configured to perform checks on the names of the files
 according to provided rules and checks on the type of the file. Files that
 fail these checks are moved to a rejected subdirectory and grouped according
@@ -35,12 +36,14 @@ cadc-etrans is usually used with a crontab. Example below processes files
 every 15 min.
 
 ::
+
     */15 * * * * cadc-etrans data --cert /home/auser/.ssl/cadcproxy.pem
     -c /home/auser/.config/cadc/dao-namecheck.xml sourcedir
 
 cadc-etrans can backup the transfer logs to a vospace:
 
 ::
+
     0 11 * * * cadc-etrans status -b --cert /home/auser/.ssl/cadcproxy.pem
     sourcedir
 
@@ -51,23 +54,26 @@ Docker Usage
 To avoid deploying the application environment (e.g. installing fitsverify on
 the host), the application can be run from a docker container.
 To build the container, download the content of the
-`https://github.com/andamian/cadctools/tree/master/cadcetrans/docker` directory
+`https://github.com/opencadc/cadctools/tree/master/cadcetrans/docker` directory
 customize the config files cadc-etrans-config and namecheck.xml and build the
 container:
 
 ::
+
     cd docker
     docker build -t cadcetrans .
 
 To invoke it:
 
 ::
+
     docker run --rm --mount type=bind,source=/tmp/logs,target=/logging
     --mount type=bind,source=/tmp/input/,target=/input cadcetrans status
 
 or:
 
 ::
+
     docker run --rm --mount type=bind,source=/tmp/logs,target=/logging
     --mount type=bind,source=/tmp/input/,target=/input cadcetrans data
 
