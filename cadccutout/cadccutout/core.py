@@ -249,11 +249,10 @@ class WriteOnlyStream(BufferedRandom):
         raise ValueError('Unreadable stream.  This is write only.')
 
     def write(self, data):
-        if data:
-            written = self._raw.write(data)
-            if written:
-                self.write_offset += written
-            self._raw.flush()
+        written = self._raw.write(data)
+        if written:
+            self.write_offset += written
+        self._raw.flush()
         return self.write_offset
 
     def tell(self):
