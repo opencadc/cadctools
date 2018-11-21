@@ -1,4 +1,4 @@
-cadccutout 0.1.1
+cadccutout 0.2.0
 ===============
 
 Cutout library written in Python that uses Astropy APIs.
