@@ -16,7 +16,7 @@ backup_dir=vos:adriand/etrans
 # project if a verifier corresponding to a particular type of file is
 # missing from the library.
 
-# requires fitsverify command available on the OS
+# IMPORTANT: requires fitsverify command available on the OS
 fits=check_valid_fits
 
 png=check_valid_png
