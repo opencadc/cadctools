@@ -1,0 +1,13 @@
+
+Rejected files:
+	 namecheck - [31m       3[0m
+	 fits   - [31m       0[0m
+
+Transferring files:
+	pid     123 -      2 (started at 2018-11-21 10:10:10)
+
+Transferred files*:
+	Last hour success - [32m     0[0m  error - [31m       0[0m
+	Last day  success - [32m     0[0m  error - [31m       0[0m
+	Last week success - [32m     0[0m  error - [31m       0[0m
+* - details in /tmp/#cadc_etrans_unittest.log

@@ -348,3 +348,97 @@ def test_cleanup():
     assert os.path.isfile(os.path.join(orig_replace, 'replace.fits'))
     assert os.path.isfile(os.path.join(orig_any, 'any.fits'))
     assert not os.path.isdir(procdir)
+
+
+def test_get_rejected():
+    tmpdir = tempfile.mkdtemp()
+    reject_dir = os.path.join(tmpdir, 'reject')
+    os.mkdir(reject_dir)
+    assert len(etrans_core.get_rejected_files(tmpdir)) == 0
+
+    # add an empty directory namecheck
+    name_reject = os.path.join(reject_dir, 'namecheck')
+    os.mkdir(name_reject)
+    rejected_files = etrans_core.get_rejected_files(tmpdir)
+    assert len(rejected_files) == 1
+    assert rejected_files['namecheck'] == []
+
+    # add an error namecheck file
+    with open(os.path.join(name_reject, 'file1'), 'w+') as f:
+        f.write('test1')
+    rejected_files = etrans_core.get_rejected_files(tmpdir)
+    assert len(rejected_files) == 1
+    assert len(rejected_files['namecheck']) == 1
+    assert 'file1' in rejected_files['namecheck']
+
+    # add a second and a fits verify error file too
+    with open(os.path.join(name_reject, 'file2'), 'w+') as f:
+        f.write('test2')
+    name_reject = os.path.join(reject_dir, 'fits verify')
+    os.mkdir(name_reject)
+    with open(os.path.join(name_reject, 'file.fits'), 'w+') as f:
+        f.write('fits')
+    rejected_files = etrans_core.get_rejected_files(tmpdir)
+    assert len(rejected_files) == 2
+    assert len(rejected_files['namecheck']) == 2
+    assert 'file1' in rejected_files['namecheck']
+    assert 'file2' in rejected_files['namecheck']
+    assert len(rejected_files['fits']) == 1
+    assert 'file.fits' in rejected_files['fits']
+
+
+def test_get_trans_files():
+    tmpdir = tempfile.mkdtemp()
+    trans_files = etrans_core.get_trans_files(tmpdir)
+    assert len(trans_files) == 1
+    assert trans_files[0]['error'] == 'No proc directory'
+
+    procdirs = os.path.join(tmpdir, 'proc')
+    os.mkdir(procdirs)
+    assert not etrans_core.get_trans_files(tmpdir)
+    # create an unexpected directory - (only proc* directories expected)
+    wrong_dir = os.path.join(procdirs, 'foo')
+    os.mkdir(wrong_dir)
+    trans_files = etrans_core.get_trans_files(tmpdir)
+    assert len(trans_files) == 1
+    assert trans_files[0]['error'] == 'Unknown file/dir in proc directory: foo'
+    os.rmdir(wrong_dir)
+
+    # create correct proc dir
+    procdir = os.path.join(procdirs, 'proc123')
+    os.mkdir(procdir)
+    proc_new = os.path.join(procdir, 'new')
+    os.mkdir(proc_new)
+    with open(os.path.join(proc_new, 'new.fits'), 'w+') as f:
+        f.write('new')
+    etrans_core._write_proc_info(procdir)
+    trans_files = etrans_core.get_trans_files(tmpdir)
+    assert len(trans_files) == 1
+    assert trans_files[0]['started'] is not None
+    assert trans_files[0]['files'] == 1
+    assert trans_files[0]['pid'] == os.getpid()
+
+
+@patch('cadcetrans.etrans_core._get_last_week_logs')
+@patch('cadcetrans.etrans_core.get_rejected_files')
+@patch('cadcetrans.etrans_core.get_trans_files')
+def test_print_status(trans_mock, rejected_mock, logs_mock):
+    trans_mock.return_value = [{'pid': 123, 'files': 2,
+                                'started': '2018-11-21 10:10:10'}]
+    rejected_mock.return_value = {'namecheck': ['a', 'b', 'c'],
+                                  'fits': []}
+    # create a log file with 2 entries
+    logfile = os.path.join('/tmp', '#cadc_etrans_unittest.log')
+    with open(logfile, 'w+') as f:
+        f.write('2010-11-11 00:38:08,480 [11965] put_cadc_file - '
+                '{"path": "input.fits", "time": 6.799309968948364, '
+                '"speed": 0.1, "success": true, "size": 0.65}\n')
+        f.write('2010-11-11 01:38:08,480 [11965] put_cadc_file - '
+                '{"path": "input2.fits", "message": "Error on transfer", '
+                '"success": false}\n')
+    logs_mock.return_value = [logfile]
+    with open(os.path.join(TESTDATA_DIR, 'status_test.txt'), 'r') as myfile:
+        status = myfile.read()
+    with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+        etrans_core.print_status('/tmp')
+    assert status == stdout_mock.getvalue()
