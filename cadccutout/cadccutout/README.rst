@@ -1,7 +1,13 @@
-cadccutout
+cadccutout 0.1.1
 ===============
 
 Cutout library written in Python that uses Astropy APIs.
+
+Installation
+------------
+
+Can be installed using ``pip install cadccutout`` in Python 2.7 or 3.X.
+
 
 API
 ---
@@ -62,6 +68,20 @@ Perform a cutout from an input stream from an HTTP request.
        # Needs to have 'append' flag set.  The cutout() method will write out the data.
        with open(output_file, 'ab+') as output_writer:
            test_subject.cutout(input_stream, output_writer, cutout_region_string, 'FITS')
+
+
+Command Line Access
+-------------------
+
+The executable ``cadccutout`` is installed by default, or the module can be run using ``python -m cadccutout``.
+
+Running
+~~~~~~~
+
+``cadccutout -d --infile path/to/source.fits --outfile path/to/output.fits [100:400]``
+
+``cadccutout -d --infile path/to/source.fits --outfile path/to/output.fits "CIRCLE=10 60 0.5"``
+
 
 Testing
 -------

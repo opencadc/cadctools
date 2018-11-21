@@ -129,10 +129,10 @@ def test_mef_cutout_no_overlap():
             'Wrong message.'
 
 
-@pytest.mark.skipif(
-    sys.version_info >= (3, 5),
-    reason='Awaiting Astropy bug fix \
-                https://github.com/astropy/astropy/issues/7854')
+# @pytest.mark.skipif(
+#     sys.version_info >= (3, 5),
+#     reason='Awaiting Astropy bug fix \
+#                 https://github.com/astropy/astropy/issues/7854')
 def test_mef_cutout():
     test_subject = OpenCADCCutout()
     target_file_name = _create_mef_file()

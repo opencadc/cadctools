@@ -75,6 +75,8 @@ from cadccutout.utils import is_integer
 
 __all__ = ['PixelCutoutHDU']
 
+logger = logging.getLogger(__name__)
+
 
 def fix_tuple(t):
     if np.isscalar(t):
@@ -98,9 +100,11 @@ class PixelCutoutHDU(object):
              or use int to get the extension[int].
             This is zero (0) based.
         """
-        self.logger = logging.getLogger(__name__)
         self.dimension_ranges = list(map(fix_tuple, dimension_ranges))
         self._extension = str(extension)  # For consistency.
+        logger.debug(
+            'Requested dimension ranges ({}) for extension {}.'.format(
+                self.dimension_ranges, self._extension))
 
     def get_ranges(self):
         """

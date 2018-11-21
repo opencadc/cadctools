@@ -118,6 +118,50 @@ def test_is_extension_requested():
     assert test_subject._is_extension_requested('2', ('NOM', 7), dimension)
 
 
+def test_pc_leading_zeroes_header_fix():
+    test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
+    data = np.arange(10000).reshape(100, 100)
+    header = Header()
+    wcs = WCS()
+    header.set('NAXIS', 2)
+    header.set('NAXIS1', 88)
+    header.set('NAXIS2', 212)
+    header.set('PC01_01', 44)
+    header.set('PC01_02', 88)
+    header.set('PC02_01', 22)
+    header.set('PC02_02', 33)
+
+    result = CutoutResult(data, wcs=wcs)
+
+    test_subject._post_sanitize_header(header, result)
+
+    assert not header.get('PC01_02'), 'PC01_02 should be renamed.'
+    assert not header.get('PC01_01'), 'PC01_01 should be renamed.'
+    assert 22 == header.get('PC2_1'), 'PC2_1 should be 22.'
+    assert 88 == header.get('PC1_2'), 'PC1_2 should be 88.'
+
+def test_cd_pc_header_fix():
+    test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
+    data = np.arange(10000).reshape(100, 100)
+    header = Header()
+    wcs = WCS()
+    header.set('NAXIS', 2)
+    header.set('NAXIS1', 88)
+    header.set('NAXIS2', 212)
+    header.set('CD1_1', 44)
+    header.set('CD1_2', 88)
+    header.set('CD2_1', 22)
+    header.set('CD2_2', 33)
+
+    result = CutoutResult(data, wcs=wcs)
+
+    test_subject._post_sanitize_header(header, result)
+
+    assert not header.get('CD1_2'), 'CD1_2 should be renamed.'
+    assert not header.get('CD1_1'), 'CD1_1 should be renamed.'
+    assert 44 == header.get('PC1_1'), 'PC1_1 should be 44.'
+    assert 33 == header.get('PC2_2'), 'PC2_2 should be 33.'
+
 def test_post_sanitize_header():
     test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
     data = np.arange(10000).reshape(100, 100)

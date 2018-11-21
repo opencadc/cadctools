@@ -70,20 +70,23 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import logging
-
-from astropy.io import fits
-from astropy.io.fits import PrimaryHDU, ImageHDU
-from astropy.wcs import WCS
-from astropy.nddata import NoOverlapError
-from cadccutout.utils import is_integer
-from cadccutout.file_helpers.base_file_helper import BaseFileHelper
-from cadccutout.no_content_error import NoContentError
-from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 from cadccutout.transform import Transform
+from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
+from cadccutout.no_content_error import NoContentError
+from cadccutout.file_helpers.base_file_helper import BaseFileHelper
+from cadccutout.utils import is_integer
+from astropy.nddata import NoOverlapError
+from astropy.wcs import WCS
+from astropy.io.fits import PrimaryHDU, ImageHDU
+from astropy.io import fits
+
+
+import logging
 
 
 __all__ = ['FITSHelper']
+
+# logger = logging.getLogger(__name__)
 
 
 # Remove the DQ1 and DQ2 headers until the issue with wcslib is resolved:
@@ -102,7 +105,6 @@ class FITSHelper(BaseFileHelper):
         :param input_stream:    The Reader to read the file data from.
         :param output_writer:   The Writer to write the cutout to.
         """
-        self.logger = logging.getLogger(__name__)
         super(FITSHelper, self).__init__(input_stream, output_writer)
 
     def _post_sanitize_header(self, header, cutout_result):
@@ -113,22 +115,7 @@ class FITSHelper(BaseFileHelper):
         for x in UNDESIREABLE_HEADER_KEYS:
             header.remove(x, ignore_missing=True, remove_all=True)
 
-        # If a WCSAXES card exists, ensure that it comes before the CTYPE1 card.
-        wcsaxes_keyword = 'WCSAXES'
-        ctype1_keyword = 'CTYPE1'
-
-        # Only proceed with this if both the WCSAXES and CTYPE1 cards are
-        # present.
-        if header.get(wcsaxes_keyword) and header.get(ctype1_keyword):
-            wcsaxes_index = header.index(wcsaxes_keyword)
-            ctype1_index = header.index(ctype1_keyword)
-
-            if wcsaxes_index > ctype1_index:
-                existing_wcsaxes_value = header.get(wcsaxes_keyword)
-                header.remove(wcsaxes_keyword)
-                header.insert(
-                    ctype1_index, (wcsaxes_keyword, existing_wcsaxes_value))
-
+        pc11_key_idx = 9999
         if cutout_result.wcs is not None:
             naxis = header.get('NAXIS', 0)
             cutout_wcs = cutout_result.wcs
@@ -148,16 +135,55 @@ class FITSHelper(BaseFileHelper):
                     cd_key = 'CD{}'.format(idx_val)
                     cd_val = header.get(cd_key)
 
-                    if cd_val is not None:
+                    if cd_val:
                         pc_key = 'PC{}'.format(idx_val)
-                        if header.get(pc_key) is None:
-                            header.set(pc_key, cd_val)
 
-                        header.remove(
-                            cd_key, ignore_missing=True, remove_all=True)
+                        if not header.get(pc_key):
+                            header.rename_keyword(cd_key, pc_key)
+                        else:
+                            header.remove(cd_key)
+
+                        if i == 0 and j == 0:
+                            pc11_key_idx = header.index(pc_key)
+
+            # Check for padded (leading) zeroes in the PC key names.
+            for i in range(naxis):
+                for j in range(naxis):
+                    pc_key = 'PC0{}_0{}'.format(i + 1, j + 1)
+                    pc_val = header.get(pc_key)
+
+                    if pc_val or pc_val == 0:
+                        pc_fix_key = 'PC{}_{}'.format(i + 1, j + 1)
+                        header.rename_keyword(pc_key, pc_fix_key)
+
+                        if i == 0 and j == 0:
+                            pc11_key_idx = header.index(pc_fix_key)
 
             # Is this necessary?
             header.set('WCSAXES', naxis)
+
+        # If a WCSAXES card exists, ensure that it comes before the CTYPE1 card.
+        wcsaxes_keyword = 'WCSAXES'
+        ctype1_keyword = 'CTYPE1'
+
+        if header.get(ctype1_keyword):
+            ctype1_index = header.index(ctype1_keyword)
+        else:
+            ctype1_index = 9999
+
+        if header.get(wcsaxes_keyword):
+            wcsaxes_index = header.index(wcsaxes_keyword)
+        else:
+            wcsaxes_index = 9999
+
+        idx_threshold = min(ctype1_index, pc11_key_idx)
+
+        # Only proceed with this if both the WCSAXES and a threshold exists.
+        if wcsaxes_index > idx_threshold:
+            existing_wcsaxes_value = header.get(wcsaxes_keyword)
+            header.remove(wcsaxes_keyword)
+            header.insert(
+                idx_threshold, (wcsaxes_keyword, existing_wcsaxes_value))
 
     def _get_wcs(self, header):
         naxis_value = header.get('NAXIS')
@@ -185,9 +211,10 @@ class FITSHelper(BaseFileHelper):
             fits.append(filename=self.output_writer, header=header,
                         data=cutout_result.data, overwrite=False,
                         output_verify='silentfix', checksum='remove')
+
             self.output_writer.flush()
         except NoContentError:
-            self.logger.warn(
+            logging.warn(
                 'No cutout possible on extension {}.  Skipping...'.format(
                     cutout_dimension.get_extension()))
 
@@ -195,12 +222,12 @@ class FITSHelper(BaseFileHelper):
         extension = cutout_dimension.get_extension()
         wcs = self._get_wcs(header)
         try:
+            logging.debug(
+                'Cutting out from extension {}'.format(extension))
             self._write_cutout(header=header, data=data,
                                cutout_dimension=cutout_dimension, wcs=wcs)
-            self.logger.debug(
-                'Cutting out from extension {}'.format(extension))
         except NoOverlapError:
-            self.logger.error(
+            logging.error(
                 'No overlap found for extension {}'.format(extension))
             raise NoContentError('No content (arrays do not overlap).')
 
@@ -229,7 +256,7 @@ class FITSHelper(BaseFileHelper):
         for curr_extension_idx, hdu in enumerate(hdu_list):
             # If we encounter a PrimaryHDU, write it at the top and continue.
             if isinstance(hdu, PrimaryHDU):
-                self.logger.debug('Primary at {}'.format(curr_extension_idx))
+                logging.debug('Primary at {}'.format(curr_extension_idx))
                 fits.append(
                     filename=self.output_writer, header=hdu.header, data=None,
                     overwrite=False, output_verify='silentfix',
@@ -249,7 +276,7 @@ class FITSHelper(BaseFileHelper):
                             if self._is_extension_requested(
                                     curr_extension_idx, curr_ext_name_ver,
                                     cutout_dimension):
-                                self.logger.debug(
+                                logging.debug(
                                     '*** Extension {} does match ({} | {})'
                                     .format(
                                         cutout_dimension.get_extension(),
@@ -267,8 +294,11 @@ class FITSHelper(BaseFileHelper):
                 except NoContentError:
                     # Skip for now as we're iterating the loop.
                     pass
+
+                logging.debug(
+                    'Finished extension {}'.format(curr_extension_idx))
             else:
-                self.logger.warn(
+                logging.warn(
                     'Unsupported HDU at extension {}.'.format(
                         curr_extension_idx))
 
