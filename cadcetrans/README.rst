@@ -13,9 +13,9 @@ are to be placed in one of the following subdirectories of a source directory
 specified by the user:
 
 - new - for files expected to be new to the CADC archive. cadc-etrans flags
-        as errors when this is not the case.
+  as errors when this is not the case.
 - replaced - for files expected to be in the CADC archive already.
-        cadc-etrans flags it as an error if the files are missing.
+  cadc-etrans flags it as an error if the files are missing.
 - any - for files whose presence in the CADC archive is not important
 
 cadc-etrans can be configured to perform checks on the names of the files
