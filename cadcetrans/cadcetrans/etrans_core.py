@@ -657,9 +657,8 @@ def main_app():
     parser.description = (
         'Application for transferring data and metadata electronically '
         'to the Canadian Astronomy Data Centre.\n'
-        'It uses the config information in '
-        '$HOME/.config/cadc/cadc-etrans-config to get the execution context '
-        'and configuration.')
+        'It uses the config information in {} to get the execution context '
+        'and configuration.'.format(utils._CONFIG_PATH))
 
     subparsers = parser.add_subparsers(
         dest='cmd',
@@ -731,7 +730,7 @@ def main_app():
         if (args.cmd != 'status') and args.dryrun:
             logging.basicConfig(level=logging.INFO, stream=sys.stdout)
         else:
-            logging.basicConfig(level=logging.WARN, stream=sys.stdout)
+            logging.basicConfig(level=logging.WARN, stream=sys.stderr)
 
     if args.cmd == 'meta':
         raise NotImplementedError('meta command not implemented yet')

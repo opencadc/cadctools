@@ -82,7 +82,7 @@ logger = logging.getLogger(__name__)
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
 _DEFAULT_CONFIG_PATH = os.path.join(_ROOT, 'data', 'default-cadcetrans-config')
-_CONFIG_PATH = os.path.expanduser("~") + '/.config/cadc/cadc-etrans-config'
+_CONFIG_PATH = os.path.expanduser("~") + '/.config/cadc-etrans'
 
 TRANS_LOGGER_NAME = 'cadc.etrans'
 TRANS_ROOT_LOGNAME = 'cadc.etrans.log'

@@ -23,8 +23,8 @@ optional arguments:
   -h, --help            show this help message and exit
   --host HOST           base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
-  -i, --input INPUT     space-separasted list of input name to use in archive
-                        - overrides the actual file names in source. (quotes
+  -i, --input INPUT     space-separated list of input name to use in archive -
+                        overrides the actual file names in source. (quotes
                         required for multiple elements)
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
