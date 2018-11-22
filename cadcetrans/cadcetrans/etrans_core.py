@@ -657,8 +657,9 @@ def main_app():
     parser.description = (
         'Application for transferring data and metadata electronically '
         'to the Canadian Astronomy Data Centre.\n'
-        'It uses the config information in {} to get the execution context '
-        'and configuration.'.format(utils._CONFIG_PATH))
+        'It uses the config information in '
+        '~/.config/cadc-etrans to get the execution context '
+        'and configuration.')
 
     subparsers = parser.add_subparsers(
         dest='cmd',
