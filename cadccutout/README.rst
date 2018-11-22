@@ -1,5 +1,7 @@
 cadccutout
 ===============
+.. image:: https://img.shields.io/pypi/v/cadccutout.svg
+    :target: https://pypi.python.org/pypi/cadcecutout
 
 Cutout library written in Python that uses Astropy APIs.
 

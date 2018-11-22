@@ -94,7 +94,7 @@ import vos
 from cadcutils import net, util
 from cadcetrans import version
 from .utils import CommandError, ProcError, TransferFailure,\
-    TRANS_ROOT_LOGNAME, TransferException, _get_transfer_log_info,\
+    TRANS_ROOT_LOGNAME, TransferException, _get_last_week_logs,\
     _get_transfer_log
 import cadcetrans.utils as utils
 
@@ -107,6 +107,11 @@ FileInfo = namedtuple('FileInfo', 'name stream_name')
 allowed_streams = ('new', 'replace', 'any')
 
 __all__ = ['transfer']
+
+# names of processing timestamp files
+PROC_TIMESTAMP_FILE = 'transfer.ini'
+# name of the etransfer section
+ETRANS_SECTION = 'etransfer'
 
 
 def transfer(trans_dir, stream_name=None, dry_run=False,
@@ -136,7 +141,7 @@ def transfer(trans_dir, stream_name=None, dry_run=False,
 
     """
 
-    max_files = int(etrans_config.get('etransfer', 'max_files'))
+    max_files = int(etrans_config.get(ETRANS_SECTION, 'max_files'))
 
     files = []
     n_err = 0
@@ -154,9 +159,10 @@ def transfer(trans_dir, stream_name=None, dry_run=False,
 
     # Search for files to transfer.
     for stream_name in stream_names:
-        for file in os.listdir(os.path.join(trans_dir, stream_name)):
-            logger.debug('Found file {} ({})'.format(file, stream_name))
-            files.append(FileInfo(file, stream_name))
+        if os.path.isdir(os.path.join(trans_dir, stream_name)):
+            for file in os.listdir(os.path.join(trans_dir, stream_name)):
+                logger.debug('Found file {} ({})'.format(file, stream_name))
+                files.append(FileInfo(file, stream_name))
 
     if not files:
         logger.info('No files found for transfer')
@@ -182,18 +188,7 @@ def transfer(trans_dir, stream_name=None, dry_run=False,
         for stream_name in stream_names:
             os.mkdir(os.path.join(proc_dir, stream_name))
 
-        # Write stamp file to allow automatic clean-up.
-        stamp_file = os.path.join(proc_dir, 'transfer.ini')
-
-        config = ConfigParser()
-        config.add_section('transfer')
-        config.set('transfer', 'pid', str(os.getpid()))
-        config.set('transfer', 'start',
-                   datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'))
-
-        with open(stamp_file, 'w') as f:
-            config.write(f)
-
+        stamp_file = _write_proc_info(proc_dir)
         # Move some files into the working directory to prevent
         # multiple transfer processes trying to transfer them
         # simultaneously.
@@ -227,24 +222,22 @@ def transfer(trans_dir, stream_name=None, dry_run=False,
 
         try:
             # Check the file.
-            ad_stream = transfer_check(
-                proc_sub_dir, file.name, file.stream_name, subject,
-                namecheck_file)
+            transfer_check(proc_sub_dir, file.name, file.stream_name, subject,
+                           namecheck_file)
 
             if dry_run:
-                logger.info('Accepted file {} ({}) (DRY RUN)'.
-                            format(file.name, ad_stream))
+                logger.info('Accepted file {} (DRY RUN)'.format(file.name))
 
             else:
                 type, encoding = _get_mime(file.name)
                 # Transfer the file.
                 put_cadc_file(os.path.join(proc_sub_dir, file.name),
-                              ad_stream, subject, mime_type=type,
+                              None, subject, mime_type=type,
                               mime_encoding=encoding)
 
                 # On success, delete the file.
-                logger.info('Transferred file {} ({})'.format(file.name,
-                                                              ad_stream))
+                logger.info('Transferred file {}'.
+                            format(file.name))
                 os.unlink(proc_file)
 
         except TransferException as e:
@@ -319,15 +312,9 @@ def transfer_check(proc_dir, filename, stream_name, subject,
     is detected.  No changes to the filesystem should be made, so this
     function should be safe to call in dry run mode.
 
-    Returns the CADC AD stream to be used for the file.  This is determined by
-    a mapping from namecheck section to stream name in the configuration file
-    entry etransfer.ad_stream.
     """
 
-    ad_streams = dict(map(
-        lambda x: x.split(':'),
-        etrans_config.get('etransfer', 'ad_stream').split(' ')))
-
+    proc_file = os.path.join(proc_dir, filename)
     proc_file = os.path.join(proc_dir, filename)
 
     # Check for permission to read the file.
@@ -343,12 +330,6 @@ def transfer_check(proc_dir, filename, stream_name, subject,
         namecheck_section = check_file_name(namecheck_file, filename, True)
         if namecheck_section is None:
             raise TransferException('name')
-        if namecheck_section in ad_streams:
-            ad_stream = ad_streams[namecheck_section]
-        else:
-            raise TransferException('stream')
-    else:
-        ad_stream = None
 
     # Check correct new/replacement/any stream name.
     try:
@@ -368,18 +349,31 @@ def transfer_check(proc_dir, filename, stream_name, subject,
         pass
 
     check_valid(proc_file)
-    return ad_stream
+
+
+def _write_proc_info(proc_dir):
+    # Write stamp file to allow automatic clean-up.
+    stamp_file = os.path.join(proc_dir, PROC_TIMESTAMP_FILE)
+    config = ConfigParser()
+    config.add_section('transfer')
+    config.set('transfer', 'pid', str(os.getpid()))
+    config.set('transfer', 'start',
+               datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'))
+    with open(stamp_file, 'w') as f:
+        config.write(f)
+
+    return stamp_file
 
 
 def _get_proc_info(proc_dir):
-    # Check for and read the stamp file.
-    stamp_file = os.path.join(proc_dir, 'transfer.ini')
+    # Check for and read the timestamp file.
+    stamp_file = os.path.join(proc_dir, PROC_TIMESTAMP_FILE)
     config = ConfigParser()
     config_files_read = config.read(stamp_file)
     if not config_files_read:
         logger.debug('Directory {} has no stamp file'.format(proc_dir))
         return None
-    return config
+    return config, stamp_file
 
 
 def clean_up(trans_dir, dry_run=False):
@@ -392,7 +386,7 @@ def clean_up(trans_dir, dry_run=False):
     # Determine latest start time for which we will consider cleaning up
     # a proc directory.
     start_limit = datetime.utcnow() - timedelta(
-        minutes=int(etrans_config.get('etransfer', 'cleanup_minutes')))
+        minutes=int(etrans_config.get(ETRANS_SECTION, 'cleanup_minutes')))
 
     # Look for proc directories.
     proc_base_dir = os.path.join(trans_dir, 'proc')
@@ -407,7 +401,7 @@ def clean_up(trans_dir, dry_run=False):
             continue
 
         logger.debug('Directory {} found'.format(dir_))
-        timestamp_file = _get_proc_info(proc_dir)
+        timestamp_file, config_filename = _get_proc_info(proc_dir)
         if not timestamp_file:
             continue
 
@@ -481,7 +475,7 @@ def clean_up(trans_dir, dry_run=False):
         if n_skipped or dry_run:
             continue
 
-        os.unlink(timestamp_file)
+        os.unlink(config_filename)
         os.rmdir(proc_dir)
 
 
@@ -517,15 +511,15 @@ def get_trans_files(dirname):
         for d in os.listdir(proc_dir):
             dir = os.path.join(proc_dir, d)
             if d.startswith('proc') and os.path.isdir(dir):
-                procinfo = _get_proc_info(dir)
+                procinfo = _get_proc_info(dir)[0]
                 pid = int(procinfo.get('transfer', 'pid'))
                 start = procinfo.get('transfer', 'start')
                 proc = {'pid': pid, 'started': start}
                 # count the files
                 for input in allowed_streams:
-                    if os.path.isdir(os.path.join(dir, input)):
-                        proc['files'] = len(os.listdir(
-                            os.path.join(dir, input)))
+                    dd = os.path.join(dir, input)
+                    if os.path.isdir(dd) and os.listdir(dd):
+                        proc['files'] = len(os.listdir(dd))
                 result.append(proc)
             else:
                 msg = 'Unknown file/dir in proc directory: {}'.format(d)
@@ -546,7 +540,9 @@ def print_status(dirname):
     if not rfiles:
         print('\tNone')
     else:
-        for f in rfiles.keys():
+        types = list(rfiles.keys())
+        types.sort()
+        for f in types:
             print('\t {:6} -'.format(f),
                   colored('{:8d}'.format(len(rfiles[f])), 'red'))
 
@@ -571,36 +567,35 @@ def print_status(dirname):
     lasth = [0, 0]
     last24h = [0, 0]
     last7d = [0, 0]
-    now = datetime.now()
-    for r in _get_transfer_log_info():
-        if 'put_cadc_file' in r:  # TODO - make it more robust
-            fields = r.split('put_cadc_file')
-            if len(fields) > 1:
-                logdate = datetime.strptime(fields[0].split('[')[0].strip(),
-                                            '%Y-%m-%d %H:%M:%S,%f')
-                timediff = now - logdate
-                index = 1
-                data = json.loads(fields[1].split('-')[1].strip())
-                if data['success']:
-                    index = 0
-                if timediff.total_seconds()/60.0/60.0 < 1:
-                    lasth[index] += 1
-                if timediff.total_seconds()/60.0/60.0 < 24:
-                    last24h[index] += 1
-                if timediff.total_seconds()/60.0/60.0 < 24 * 7:
-                    last7d[index] += 1
-                else:
-                    # TODO break reading the file here
-                    pass
+    now = datetime.utcnow()
+    logs = _get_last_week_logs()
+    for l in logs:
+        with open(l) as f:
+            for r in f:
+                if 'put_cadc_file' in r:  # TODO - make it more robust
+                    fields = r.split('put_cadc_file -')
+                    if len(fields) > 1:
+                        logdate = datetime.strptime(
+                            fields[0].split('[')[0].strip(),
+                            '%Y-%m-%d %H:%M:%S,%f')
+                        timediff = now - logdate
+                        index = 1
+                        data = json.loads(fields[1].strip())
+                        if ('success' in data) and data['success']:
+                            index = 0
+                        if timediff.total_seconds()/60.0/60.0 < 1:
+                            lasth[index] += 1
+                        if timediff.total_seconds()/60.0/60.0 < 24:
+                            last24h[index] += 1
+                        if timediff.total_seconds()/60.0/60.0 < 24 * 7:
+                            last7d[index] += 1
     print('\tLast hour success -', colored('{:6}'.format(lasth[0]), 'green'),
           ' error -', colored('{:8d}'.format(lasth[1]), 'red'))
     print('\tLast day  success -', colored('{:6}'.format(last24h[0]), 'green'),
           ' error -', colored('{:8d}'.format(last24h[1]), 'red'))
     print('\tLast week success -', colored('{:6}'.format(last7d[0]), 'green'),
           ' error -', colored('{:8d}'.format(last7d[1]), 'red'))
-    logdir = etrans_config.get('etransfer', 'transfer_log_dir')
-    trans_log = os.path.join(logdir, 'cadcetrans.log')
-    print('* - details in {}'.format(trans_log))
+    print('* - details in {}'.format(', '.join(logs)))
 
 
 def update_backup(subject, dirname):
@@ -611,7 +606,7 @@ def update_backup(subject, dirname):
     :param dirname:
     :return:
     """
-    backup_dir = etrans_config.get('etransfer', 'backup_dir')
+    backup_dir = etrans_config.get(ETRANS_SECTION, 'backup_dir')
     # this should come from the config instance
     config_file = os.path.join(utils._CONFIG_PATH, 'cadc-etrans-config')
     if not backup_dir:
@@ -627,7 +622,7 @@ def update_backup(subject, dirname):
                                     json.dumps({'rejected': rfiles,
                                                 'transferring': tfiles})))
     logger.debug('Rsyncing the transfer logs')
-    translog = etrans_config.get('etransfer', 'transfer_log_dir')
+    translog = etrans_config.get(ETRANS_SECTION, 'transfer_log_dir')
     client = vos.Client(vospace_certfile=subject.certificate,
                         transfer_shortcut=True)
     for f in glob.glob(
@@ -663,7 +658,7 @@ def main_app():
         'Application for transferring data and metadata electronically '
         'to the Canadian Astronomy Data Centre.\n'
         'It uses the config information in '
-        '$HOME/.config/cadc/cadc-etrans-config to get the execution context '
+        '~/.config/cadc-etrans to get the execution context '
         'and configuration.')
 
     subparsers = parser.add_subparsers(
@@ -733,7 +728,10 @@ def main_app():
     elif args.debug:
         logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
     else:
-        logging.basicConfig(level=logging.WARN, stream=sys.stdout)
+        if (args.cmd != 'status') and args.dryrun:
+            logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+        else:
+            logging.basicConfig(level=logging.WARN, stream=sys.stderr)
 
     if args.cmd == 'meta':
         raise NotImplementedError('meta command not implemented yet')
