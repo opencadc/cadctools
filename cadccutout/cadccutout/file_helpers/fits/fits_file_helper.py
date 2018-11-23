@@ -111,11 +111,15 @@ class FITSHelper(BaseFileHelper):
         """
         Remove headers that don't belong in the cutout output.
         """
+        BOTTOM_BOUND_INDEX = 9999
         # Remove known keys
         for x in UNDESIREABLE_HEADER_KEYS:
             header.remove(x, ignore_missing=True, remove_all=True)
 
-        pc11_key_idx = 9999
+        # Set it to a high number as we will want to (potentially) move the
+        # WCSAXES header card up, meaning a lower index.  So start at the
+        # bottom.
+        pc11_key_idx = BOTTOM_BOUND_INDEX
         if cutout_result.wcs is not None:
             naxis = header.get('NAXIS', 0)
             cutout_wcs = cutout_result.wcs
@@ -135,7 +139,7 @@ class FITSHelper(BaseFileHelper):
                     cd_key = 'CD{}'.format(idx_val)
                     cd_val = header.get(cd_key)
 
-                    if cd_val:
+                    if cd_val or cd_val == 0:
                         pc_key = 'PC{}'.format(idx_val)
 
                         if not header.get(pc_key):
@@ -169,12 +173,12 @@ class FITSHelper(BaseFileHelper):
         if header.get(ctype1_keyword):
             ctype1_index = header.index(ctype1_keyword)
         else:
-            ctype1_index = 9999
+            ctype1_index = BOTTOM_BOUND_INDEX
 
         if header.get(wcsaxes_keyword):
             wcsaxes_index = header.index(wcsaxes_keyword)
         else:
-            wcsaxes_index = 9999
+            wcsaxes_index = BOTTOM_BOUND_INDEX
 
         idx_threshold = min(ctype1_index, pc11_key_idx)
 
