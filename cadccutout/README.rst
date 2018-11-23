@@ -1,4 +1,4 @@
-cadccutout 0.2.0
+cadccutout
 ===============
 
 Cutout library written in Python that uses Astropy APIs.
@@ -97,6 +97,10 @@ Then execute it (``/usr/src/data`` is the location of the source files).  This w
 
 ``docker run --rm -v $(pwd):/usr/src/data opencadc/cadccutout:2.7-alpine cadccutout --infile /usr/src/data/myfile.fits [100:400]``
 
+or
+
+``docker run --rm --mount type=bind,source=$(pwd),target=/usr/src/data opencadc/cadccutout:2.7-alpine cadccutout --infile /usr/src/data/myfile.fits [100:400]``
+
 
 Build an image for Python 3.6:
 
@@ -105,6 +109,10 @@ Build an image for Python 3.6:
 Then execute it (``/usr/src/data`` is the location of the source files).  This will send the output to a FITS file:
 
 ``docker run --rm -v $(pwd):/usr/src/data opencadc/cadccutout:3.6-alpine cadccutout --infile /usr/src/data/myfile.fits --outfile /usr/src/data/mycutout_0_100_400.fits [100:400]``
+
+or
+
+``docker run --rm --mount type=bind,source=$(pwd,target=/usr/src/data opencadc/cadccutout:3.6-alpine cadccutout --infile /usr/src/data/myfile.fits --outfile /usr/src/data/mycutout_0_100_400.fits [100:400]``
 
 
 Testing
@@ -123,9 +131,21 @@ Run tests in Docker
 You can mount the local dev directory to the image and run the python
 test that way. From inside the dev (working) directory:
 
+Python 3.7:
+
 ``docker run --rm -v $(pwd):/usr/src/app opencadc/astroquery:3.7-alpine python setup.py test``
 
+or
+
+``docker run --rm --mount type=bind,source=$(pwd),target=/usr/src/app opencadc/astroquery:3.7-alpine python setup.py test``
+
+Python 2.7:
+
 ``docker run --rm -v $(pwd):/usr/src/app opencadc/astroquery:2.7-alpine python setup.py test``
+
+or
+
+``docker run --rm --mount type=bind,source=$(pwd),target=/usr/src/app opencadc/astroquery:2.7-alpine python setup.py test``
 
 .. _Astropy GitHub 7856: https://github.com/astropy/astropy/pull/7856
 .. _AstroQuery docker image: https://hub.docker.com/r/opencadc/astroquery/
