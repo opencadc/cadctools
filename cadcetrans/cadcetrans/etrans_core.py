@@ -112,6 +112,10 @@ __all__ = ['transfer']
 PROC_TIMESTAMP_FILE = 'transfer.ini'
 # name of the etransfer section
 ETRANS_SECTION = 'etransfer'
+# minimum staging time in seconds. Only files older than MIN_STAGE_TIME are
+# being processed to avoid picking up files before they are fully transferred
+# into the input directory
+MIN_STAGE_TIME = 5
 
 
 def transfer(trans_dir, stream_name=None, dry_run=False,
@@ -157,12 +161,7 @@ def transfer(trans_dir, stream_name=None, dry_run=False,
 
         stream_names = (stream_name,)
 
-    # Search for files to transfer.
-    for stream_name in stream_names:
-        if os.path.isdir(os.path.join(trans_dir, stream_name)):
-            for file in os.listdir(os.path.join(trans_dir, stream_name)):
-                logger.debug('Found file {} ({})'.format(file, stream_name))
-                files.append(FileInfo(file, stream_name))
+    files = _get_files_to_transfer(stream_names, trans_dir)
 
     if not files:
         logger.info('No files found for transfer')
@@ -349,6 +348,28 @@ def transfer_check(proc_dir, filename, stream_name, subject,
         pass
 
     check_valid(proc_file)
+
+
+def _get_files_to_transfer(stream_names, trans_dir):
+    # Search for files to transfer. Files updated more recently than
+    # MIN_STAGE_TIME are ignored - this is to prevent processing files
+    # not transferred completely
+    files = []
+    for stream_name in stream_names:
+        if os.path.isdir(os.path.join(trans_dir, stream_name)):
+            dir = os.path.join(trans_dir, stream_name)
+            now = int(datetime.now().strftime('%s'))  # now in seconds
+            tmp = [(f, os.path.getctime(os.path.join(dir, f))) for f
+                   in os.listdir(dir) if
+                   (now - os.path.getctime(os.path.join(dir, f))) >
+                   MIN_STAGE_TIME * 60]
+            if tmp:
+                tmp.sort(key=lambda x: x[1])
+                for file in tmp:
+                    logger.debug('Found file {} ({})'.format(file[0],
+                                                             stream_name))
+                    files.append(FileInfo(file[0], stream_name))
+    return files
 
 
 def _write_proc_info(proc_dir):
@@ -658,7 +679,7 @@ def main_app():
         'Application for transferring data and metadata electronically '
         'to the Canadian Astronomy Data Centre.\n'
         'It uses the config information in '
-        '$HOME/.config/cadc/cadc-etrans-config to get the execution context '
+        '$HOME/.config/etrans-config to get the execution context '
         'and configuration.')
 
     subparsers = parser.add_subparsers(
@@ -667,7 +688,7 @@ def main_app():
              'for more details')
     data_parser = subparsers.add_parser(
         'data', description='Transfer data to a CADC archive',
-        help='Transfer data to a CADC archive')
+        help='Transfer data to a CADC archive.')
     data_parser.add_argument('-c', '--check-filename',
                              help='Namecheck file to check file names against',
                              required=False)
@@ -682,8 +703,12 @@ def main_app():
                              help='Source directory where the files are '
                              'located.')
     data_parser.epilog = (
+        'Note:\nTo ensure that a file is fully received before attempting to\n'
+        'transfer it, it must spend a minimum amount of time (5min) in the\n'
+        'input directory without being modified/updated prior to its\n'
+        'processing.\n\n'
         'Examples:\n'
-        '- Use default netrc file ($HOME/.netrc) to transfer FITS files in'
+        '- Use default netrc file ($HOME/.netrc) to transfer FITS files in\n'
         '        the "current" dir: \n'
         '        cadc-etrans data -v -n current\n'
         '- Use a different netrc file transfer the files in dryrun mode:\n'

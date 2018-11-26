@@ -73,7 +73,7 @@ from __future__ import (absolute_import, division, print_function,
 import os
 import pytest
 from cadcutils.net import Subject
-from cadcetrans.etrans_core import transfer, main_app
+from cadcetrans.etrans_core import transfer, main_app, FileInfo
 from cadcetrans import etrans_core
 from cadcetrans.utils import CommandError
 import tempfile
@@ -105,7 +105,8 @@ def config_get(section, key):
 
 @patch('cadcetrans.etrans_core.etrans_config')
 @patch('cadcetrans.utils.CadcDataClient')
-def test_transfer_dryrun(data_client_mock, config_mock):
+@patch('cadcetrans.etrans_core._get_files_to_transfer')
+def test_transfer_dryrun(get_files_mock, data_client_mock, config_mock):
     config_mock.get = config_get
     data_client_mock.return_value.get_file_info.return_value = None
 
@@ -114,6 +115,9 @@ def test_transfer_dryrun(data_client_mock, config_mock):
 
     # copy all the files including the invalid ones:
     src_files = os.listdir(TESTDATA_INPUT_DIR)
+    # mock _get_files_to_transfer so all the files are picked up with no
+    # staging time dalay
+    get_files_mock.return_value = [FileInfo(f, 'new') for f in src_files]
     for file_name in src_files:
         full_file_name = os.path.join(TESTDATA_INPUT_DIR, file_name)
         if (os.path.isfile(full_file_name)):
@@ -129,7 +133,8 @@ def test_transfer_dryrun(data_client_mock, config_mock):
     # remove the "invalid" files
     for f in invalid_files:
         os.unlink(os.path.join(dest, f))
-
+        src_files.remove(f)
+    get_files_mock.return_value = [FileInfo(f, 'new') for f in src_files]
     transfer(PROC_DIR, 'new', True, Subject())
 
     with patch('cadcetrans.etrans_core.put_cadc_file'):
@@ -145,7 +150,8 @@ def test_transfer_dryrun(data_client_mock, config_mock):
 @patch('cadcetrans.etrans_core.etrans_config')
 @patch('cadcetrans.utils.CadcDataClient')
 @patch('cadcetrans.etrans_core.put_cadc_file')
-def test_transfer(put_mock, data_client_mock, config_mock):
+@patch('cadcetrans.etrans_core._get_files_to_transfer')
+def test_transfer(get_files_mock, put_mock, data_client_mock, config_mock):
     config_mock.get = config_get
     data_client_mock.return_value.get_file_info.return_value = None
     # cleanup the test directory (dest)
@@ -156,6 +162,9 @@ def test_transfer(put_mock, data_client_mock, config_mock):
 
     # copy all the files including the invalid ones:
     src_files = os.listdir(TESTDATA_INPUT_DIR)
+    # mock _get_files_to_transfer so all the files are picked up with no
+    # staging time dalay
+    get_files_mock.return_value = [FileInfo(f, 'new') for f in src_files]
     for file_name in src_files:
         full_file_name = os.path.join(TESTDATA_INPUT_DIR, file_name)
         if (os.path.isfile(full_file_name)):
@@ -442,3 +451,33 @@ def test_print_status(trans_mock, rejected_mock, logs_mock):
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         etrans_core.print_status('/tmp')
     assert status == stdout_mock.getvalue()
+
+
+def test_get_files_to_transfer():
+    # empty directory
+    tmpdir = tempfile.mkdtemp()
+    stream_names = ('new', 'replace')
+    assert not etrans_core._get_files_to_transfer(stream_names, tmpdir)
+
+    # create input files - still no returned files due to minimum staging
+    # time
+    new_dir = os.path.join(tmpdir, 'new')
+    os.mkdir(new_dir)
+    new_file = os.path.join(new_dir, 'new.fits')
+    with open(new_file, 'w+') as f:
+        f.write('new')
+    replace_dir = os.path.join(tmpdir, 'replace')
+    os.mkdir(replace_dir)
+    with open(os.path.join(replace_dir, 'replace.fits'), 'w+') as f:
+        f.write('replace')
+    assert not etrans_core._get_files_to_transfer(stream_names, tmpdir)
+
+    # mock files mtime in the past
+    past = int(datetime.now().strftime('%s')) - \
+        etrans_core.MIN_STAGE_TIME*60 - 1
+    with patch('cadcetrans.etrans_core.os.path.getctime') as ctime_mock:
+        ctime_mock.return_value = past
+        files = etrans_core._get_files_to_transfer(stream_names, tmpdir)
+    assert len(files) == 2
+    assert etrans_core.FileInfo('new.fits', 'new') in files
+    assert etrans_core.FileInfo('replace.fits', 'replace') in files
