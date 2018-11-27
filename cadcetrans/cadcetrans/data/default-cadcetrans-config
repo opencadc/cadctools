@@ -6,7 +6,6 @@
 archive=TEST
 group=jcmt
 max_files=100
-ad_stream=RAW:raw PROCESSED:product
 cleanup_minutes=30
 transfer_log_dir=/tmp
 backup_dir=vos:adriand/etrans
@@ -17,7 +16,7 @@ backup_dir=vos:adriand/etrans
 # project if a verifier corresponding to a particular type of file is
 # missing from the library.
 
-# requires fitsverify command available on the OS
+# IMPORTANT: requires fitsverify command available on the OS
 fits=check_valid_fits
 
 png=check_valid_png

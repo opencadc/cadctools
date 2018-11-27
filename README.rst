@@ -31,6 +31,8 @@ Installing Packages
 
     cd cadcutils && pip install -r ./dev_requirements.txt
     cd cadcdata && pip install -r ./dev_requirements.txt
+    cd cadcetrans && pip install -r ./dev_requirements.txt
+    cd cadccutout && pip install -r ./dev_requirements.txt
 
 Testing packages
 ----------------
@@ -58,7 +60,8 @@ not report errors
 
 ::
  
-     flake8 cadcutils/cadcutils cadcdata/cadcdata
+     flake8 cadcutils/cadcutils cadcdata/cadcdata cadcetrans/cadcetrans
+     cadccutout/cadccutout
 
 
 Usage Example

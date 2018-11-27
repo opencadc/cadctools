@@ -378,7 +378,7 @@ class CadcDataClient(object):
                       round(total_length / 1024 / 1024 / duration, 2)))
 
     def put_file(self, archive, src_file, archive_stream=None, mime_type=None,
-                 mime_encoding=None, md5_check=True):
+                 mime_encoding=None, md5_check=True, input_name=None):
         """
         Puts a file into the archive storage
         :param archive: name of the archive
@@ -388,6 +388,8 @@ class CadcDataClient(object):
         :param mime_encoding: file mime encoding
         :param md5_check: if True, calculate the md5sum before sending the file
         Server will fail if it receives a corrupted file.
+        :param input_name: name to use in the archive overriding the actual
+        file name.
         """
         if not archive:
             raise AttributeError('No archive specified')
@@ -435,8 +437,12 @@ class CadcDataClient(object):
             headers['Content-Encoding'] = mencoding
             logger.debug('Set MIME encoding: {}'.format(mencoding))
 
+        fname = input_name
+        if not fname:
+            fname = os.path.basename(src_file)
+
         protocols = self._get_transfer_protocols(
-            archive, src_file, is_get=False, headers=headers)
+            archive, fname, is_get=False, headers=headers)
         if len(protocols) == 0:
             raise exceptions.HttpException('No URLs available to put data to')
 
@@ -628,6 +634,13 @@ def main_app():
         '-s', '--archive-stream',
         help='specific archive stream to add the file to',
         required=False)
+    put_parser.add_argument(
+        '-i', '--input',
+        help='space-separated list of input name to use in archive - '
+             'overrides the actual file names in source. (quotes required for '
+             'multiple elements)',
+        required=False
+    )
     put_parser.add_argument('archive', help='CADC archive')
     put_parser.add_argument(
         '--nomd5', action='store_true', required=False,
@@ -637,9 +650,11 @@ def main_app():
         help='file or directory containing the files to be put', nargs='+')
     put_parser.epilog = (
         'Examples:\n'
-        '- Use certificate to put a file in an archive stream:\n'
-        '        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default '
-        '-t "application/gzip" TEST myfile.fits.gz\n'
+        '- Use certificate to put a file in an archive stream under a '
+        'different name :\n'
+        '        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default \n'
+        '                  -t "application/gzip" -i newfilename.fits.gz '
+        'TEST myfile.fits.gz\n'
         '- Use default netrc file ($HOME/.netrc) to put two files:\n'
         '        cadc-data put -v -n TEST myfile1.fits.gz myfile2.fits.gz\n'
         '- Use a different netrc file to put files from a directory:\n'
@@ -781,11 +796,26 @@ def main_app():
             logger.debug('Files to put: {}'.format(files))
             if len(files) == 0:
                 handle_error('No files found to put')
-            for f in files:
-                client.put_file(archive, f, archive_stream=args.archive_stream,
-                                mime_type=args.type,
-                                mime_encoding=args.encoding,
-                                md5_check=(not args.nomd5))
+            if args.input:
+                input_names = args.input.split()
+                if len(input_names) != len(files):
+                    handle_error('The number of input names does not match'
+                                 ' the number of sources: {} vs {}'.
+                                 format(len(input_names), len(files)))
+                for f, input_name in list(zip(files, input_names)):
+                    client.put_file(archive, f,
+                                    archive_stream=args.archive_stream,
+                                    mime_type=args.type,
+                                    mime_encoding=args.encoding,
+                                    md5_check=(not args.nomd5),
+                                    input_name=input_name)
+            else:
+                for f in files:
+                    client.put_file(archive, f,
+                                    archive_stream=args.archive_stream,
+                                    mime_type=args.type,
+                                    mime_encoding=args.encoding,
+                                    md5_check=(not args.nomd5))
     except exceptions.UnauthorizedException:
         if subject.anon:
             handle_error('Operation cannot be performed anonymously. '

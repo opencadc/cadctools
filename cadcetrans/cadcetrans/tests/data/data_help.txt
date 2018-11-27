@@ -34,8 +34,15 @@ optional arguments:
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
 
+Note:
+To ensure that a file is fully received before attempting to
+transfer it, it must spend a minimum amount of time (5min) in the
+input directory without being modified/updated prior to its
+processing.
+
 Examples:
-- Use default netrc file ($HOME/.netrc) to transfer FITS files in        the "current" dir: 
+- Use default netrc file ($HOME/.netrc) to transfer FITS files in
+        the "current" dir: 
         cadc-etrans data -v -n current
 - Use a different netrc file transfer the files in dryrun mode:
         cadc-etrans data -d --netrc ~/mynetrc --dryrun workdir 

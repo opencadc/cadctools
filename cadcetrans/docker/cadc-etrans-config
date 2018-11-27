@@ -1,0 +1,48 @@
+# Configuration for e-transfer to CADC.  Note that the
+# scratch and transfer directories must be on the same
+# partition so that files can be moved atomically
+# from one to the other.
+[etransfer]
+archive=TEST
+group=jcmt
+max_files=100
+ad_stream=RAW:raw PROCESSED:product
+cleanup_minutes=30
+transfer_log_dir=/logging
+backup_dir=vos:adriand/etrans
+
+[verifiers]
+# These are functions available with the library that check whether a
+# file is valid or not. Please consider making a contribution to the
+# project if a verifier corresponding to a particular type of file is
+# missing from the library.
+
+# requires fitsverify command available on the OS
+fits=check_valid_fits
+
+png=check_valid_png
+
+# verifies only that the file is a tar file
+tar=check_valid_tar
+
+# verifies the the file is a tar file and the content is valid
+gz=check_valid_tar_and_content
+
+jpg=check_valid_jpeg
+jpeg=check_valid_jpeg
+
+# used by the JCMT and dependent on STARLINK
+# sdf=check_valid_hds
+
+
+[mime-types]
+# This is the place to add (or override) the MIME types associated with
+# different file extensions. It's an alternative to setting them up at the
+# system level.
+#fits=application/fits
+
+[mime-encodings]
+# This is the place to add (or override) the MIME encodings associated with
+# different file extensions. It's an alternative to setting them up at the
+# system level.
+#fz=x-fits

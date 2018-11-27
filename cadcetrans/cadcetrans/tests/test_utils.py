@@ -77,6 +77,8 @@ from cadcetrans.utils import put_cadc_file, fetch_cadc_file_info,\
 from cadcutils.net import Subject
 from cadcutils.exceptions import NotFoundException
 import tempfile
+from cadcetrans import utils
+import datetime
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
@@ -153,3 +155,47 @@ def test_put(config_mock):
         with pytest.raises(ProcError):
             data_mock.return_value.put_file.side_effect = RuntimeError()
             put_cadc_file(file.name, 'raw', Subject())
+
+
+@patch('cadcetrans.utils.etrans_config.get')
+def test_transfer_log(config_mock):
+    tmpdir = tempfile.mkdtemp()
+    config_mock.return_value = tmpdir
+    current_log_file = os.path.join(tmpdir, utils.TRANS_ROOT_LOGNAME)
+    utils._get_transfer_log.logger = None
+    orig_trans_logger_name = utils.TRANS_LOGGER_NAME
+    utils.TRANS_LOGGER_NAME = 'testlogger'
+    transfer_log = utils._get_transfer_log()
+    assert len(transfer_log.handlers) == 1
+    assert transfer_log.handlers[0].baseFilename == current_log_file
+
+    # no rolled log file
+    log = utils._get_last_week_logs()
+    assert len(log) == 1
+    assert current_log_file in log
+
+    # create the previous rolled log file
+    now = datetime.datetime.utcnow()
+    week_ago = now - datetime.timedelta(days=7)
+    week_ago_rollover_date = \
+        transfer_log.handlers[0].computeRollover(int(week_ago.strftime('%s')))
+    week_ago_rollover_date = \
+        datetime.datetime.fromtimestamp(week_ago_rollover_date)
+    # name of the file is 6 days earlier than the rollover date
+    file_date = (week_ago_rollover_date - datetime.timedelta(days=6))
+    rolled_log = os.path.join(
+        tmpdir, '{}.{}'.format(utils.TRANS_ROOT_LOGNAME,
+                               file_date.strftime('%Y-%m-%d')))
+    # create the log file
+    with open(rolled_log, 'w+') as f:
+        f.write('test')
+
+    log = utils._get_last_week_logs()
+
+    # now last week logs should return both files
+    assert len(log) == 2
+    assert current_log_file in log
+    assert rolled_log in log
+
+    # restore after
+    utils.TRANS_LOGGER_NAME = orig_trans_logger_name
