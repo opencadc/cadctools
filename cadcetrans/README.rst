@@ -26,18 +26,12 @@ and placed the files back in the source directory for reprocessing.
 
 Files that pass all the verifications are sent to the CADC archive.
 
-<<<<<<< HEAD
 NOTE: To ensure that a file is fully received before attempting to transfer
 it, it must spend a minimum amount of time (5min) in the input directory
 without being modified/updated prior to its processing.
 
 Functionality of ``cadc-etrans`` is configured by modifying the
 ``~/.config/cadc-etrans`` file.
-=======
-Functionality of ``cadc-etrans`` is configured by modifying the
-``~/.config/cadc/cadc-etrans-config`` file.
->>>>>>> 2e0c06e35f501982bc56eef431532f629d185e8d
-
 
 Usage
 -----
