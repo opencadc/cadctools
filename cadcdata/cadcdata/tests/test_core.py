@@ -565,5 +565,6 @@ def test_main(get_mock, info_mock, put_mock):
     logger.addHandler(logging.StreamHandler(b))
     with pytest.raises(MyExitError):
         main_app()
-    assert 'The input names does not match number of sources: 1 vs ' \
-           in b.getvalue()
+    assert \
+        'The number of input names does not match the number of sources: ' \
+        '1 vs ' in b.getvalue()

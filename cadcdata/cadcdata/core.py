@@ -636,7 +636,7 @@ def main_app():
         required=False)
     put_parser.add_argument(
         '-i', '--input',
-        help='space-separasted list of input name to use in archive - '
+        help='space-separated list of input name to use in archive - '
              'overrides the actual file names in source. (quotes required for '
              'multiple elements)',
         required=False
@@ -799,9 +799,9 @@ def main_app():
             if args.input:
                 input_names = args.input.split()
                 if len(input_names) != len(files):
-                    handle_error('The input names does not match number of '
-                                 'sources: {} vs {}'.format(len(input_names),
-                                                            len(files)))
+                    handle_error('The number of input names does not match'
+                                 ' the number of sources: {} vs {}'.
+                                 format(len(input_names), len(files)))
                 for f, input_name in list(zip(files, input_names)):
                     client.put_file(archive, f,
                                     archive_stream=args.archive_stream,
