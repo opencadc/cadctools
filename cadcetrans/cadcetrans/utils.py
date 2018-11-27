@@ -82,9 +82,10 @@ logger = logging.getLogger(__name__)
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
 _DEFAULT_CONFIG_PATH = os.path.join(_ROOT, 'data', 'default-cadcetrans-config')
-_CONFIG_PATH = os.path.expanduser("~") + '/.config/cadc/cadc-etrans-config'
+_CONFIG_PATH = os.path.expanduser("~") + '/.config/cadc-etrans'
 
-TRANS_ROOT_LOGNAME = 'cadcetrans.log'
+TRANS_LOGGER_NAME = 'cadc.etrans'
+TRANS_ROOT_LOGNAME = 'cadc.etrans.log'
 LOG_PUT_LABEL = 'put_cadc_file'
 LOG_STATUS_LABEL = 'status'
 
@@ -195,28 +196,27 @@ def put_cadc_file(filename, stream, subject, mime_type=None,
 
 
 def _get_transfer_log():
+    # transfer log is the log where the transfers are recorded.
     logdir = etrans_config.get('etransfer', 'transfer_log_dir')
     trans_log = os.path.join(logdir, TRANS_ROOT_LOGNAME)
-    if not _get_transfer_log.logger:
-        _get_transfer_log.logger = logging.getLogger('cadcetrans')
+    trans_logger = logging.getLogger(TRANS_LOGGER_NAME)
+    if not trans_logger.handlers:
+        # Note: _get_last_week_logs assumes that logs are rotated weekly
+        # If this changes, the logic of that function needs to be updated too
         fh = TimedRotatingFileHandler(trans_log, when='W0', utc=True)
         formatter = logging.Formatter(
             r'%(asctime)s [%(process)d] %(message)s')
         # set the log times to utc
         formatter.converter = time.gmtime
         fh.setFormatter(formatter)
-        _get_transfer_log.logger.addHandler(fh)
-        _get_transfer_log.logger.setLevel(logging.INFO)
-    return _get_transfer_log.logger
+        trans_logger.addHandler(fh)
+        trans_logger.setLevel(logging.INFO)
+    return trans_logger
 
 
-_get_transfer_log.logger = None
-
-
-def _get_transfer_log_info():
-    # returns the last time rotated log and the current log to make sure
-    # the last week logging info is included
-    now = datetime.datetime.now()
+def _get_last_week_logs():
+    # logs are timed rotated. This function returns the a list of logs that
+    # contain the logging of transfers that occurred in the last week.
     # get the TimedRotatingFileHanlder
     fh = None
     for i in _get_transfer_log().handlers:
@@ -225,10 +225,15 @@ def _get_transfer_log_info():
             break
     if not fh:
         raise RuntimeError('No TimedRotatingFileHandler configured')
-    prev_rollover_date = datetime.datetime.fromtimestamp(
-        fh.computeRollover((now - datetime.timedelta(days=7)).timestamp()))
-    prev_log_name = '{}.{}'.format(TRANS_ROOT_LOGNAME,
-                                   prev_rollover_date.strftime('%Y-%m-%d'))
+    # get the current rollover datetime
+    rollover_date = fh.computeRollover(
+        int(datetime.datetime.utcnow().strftime('%s')))
+    rollover_date = datetime.datetime.fromtimestamp(rollover_date)
+    # This is the next rollover date. The created file will have a timestamp
+    # with 6 days earlier. We need the previous one, hence go 13 days earlier.
+    prev_timestamp = \
+        (rollover_date - datetime.timedelta(days=13)).strftime('%Y-%m-%d')
+    prev_log_name = '{}.{}'.format(TRANS_ROOT_LOGNAME, prev_timestamp)
     logdir = etrans_config.get('etransfer', 'transfer_log_dir')
     logfile = os.path.join(logdir, TRANS_ROOT_LOGNAME)
     prev_logfile = os.path.join(logdir, prev_log_name)
@@ -236,7 +241,4 @@ def _get_transfer_log_info():
         logs = [prev_logfile, logfile]
     else:
         logs = [logfile]
-    for f in logs:
-        with open(f) as f:
-            for line in f:
-                yield line
+    return logs

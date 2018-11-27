@@ -93,7 +93,7 @@ setup(name=PACKAGENAME,
       entry_points=entry_points,
       python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, <4',
       packages=find_packages(),
-      package_data={PACKAGENAME: ['data/*', 'tests/data/*', '*/data/*', '*/tests/data/*']},
+      package_data={PACKAGENAME: ['data/*']},
       classifiers=[
         'Natural Language :: English',
         'License :: OSI Approved :: GNU Affero General Public License v3',
