@@ -112,7 +112,7 @@ __all__ = ['transfer']
 PROC_TIMESTAMP_FILE = 'transfer.ini'
 # name of the etransfer section
 ETRANS_SECTION = 'etransfer'
-# minimum staging time in seconds. Only files older than MIN_STAGE_TIME are
+# minimum staging time in minutes. Only files older than MIN_STAGE_TIME are
 # being processed to avoid picking up files before they are fully transferred
 # into the input directory
 MIN_STAGE_TIME = 5
