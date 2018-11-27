@@ -79,7 +79,7 @@ from cadccutout.utils import is_string
 from cadccutout.file_helper import FileHelperFactory
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
-__all__ = ['OpenCADCCutout']
+__all__ = ['OpenCADCCutout', 'WriteOnlyStream']
 
 
 class OpenCADCCutout(object):
@@ -239,6 +239,13 @@ class OpenCADCCutout(object):
 
 
 class WriteOnlyStream(BufferedRandom):
+    """
+    Stream implementation to seem like a seekable stream.  It is meant to wrap
+    the sys.stdout stream so that when Astropy calls the tell() method it
+    will have an accurate place to start writing the stream.
+
+    :param raw: file or file-like object.  The Raw underlying stream.
+    """
     def __init__(self, raw):
         super(WriteOnlyStream, self).__init__(io.BytesIO())
         self._raw = raw
