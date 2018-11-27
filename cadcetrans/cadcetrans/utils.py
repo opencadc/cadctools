@@ -227,7 +227,7 @@ def _get_last_week_logs():
         raise RuntimeError('No TimedRotatingFileHandler configured')
     # get the current rollover datetime
     rollover_date = fh.computeRollover(
-        int(datetime.datetime.now().strftime('%s')))
+        int(datetime.datetime.utcnow().strftime('%s')))
     rollover_date = datetime.datetime.fromtimestamp(rollover_date)
     # This is the next rollover date. The created file will have a timestamp
     # with 6 days earlier. We need the previous one, hence go 13 days earlier.

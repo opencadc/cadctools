@@ -6,7 +6,7 @@ It uses the config information in ~/.config/cadc-etrans to get the execution con
 positional arguments:
   {data,status}  Supported commands. Use the -h|--help argument of a command
                  for more details
-    data         Transfer data to a CADC archive
+    data         Transfer data to a CADC archive.
     status       Display the status of the system
 
 optional arguments:
