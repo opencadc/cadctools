@@ -73,6 +73,7 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import numpy as np
 import os
+import sys
 import pytest
 import context as test_context
 
