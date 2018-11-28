@@ -21,6 +21,7 @@ MANIFEST
 # Generated files from cadccutout
 *.fits
 github_issue.py
+*test*.txt
 
 # Sphinx
 docs/api

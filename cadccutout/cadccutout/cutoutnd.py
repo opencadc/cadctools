@@ -81,6 +81,8 @@ from cadccutout.no_content_error import NoContentError
 
 __all__ = ['CutoutResult', 'CutoutND']
 
+logger = logging.getLogger(__name__)
+
 
 class CutoutResult(object):
     """
@@ -112,7 +114,6 @@ class CutoutND(object):
         -------
         CutoutResult instance
         """
-        self.logger = logging.getLogger(__name__)
         self.data = data
         self.wcs = wcs
 
@@ -154,15 +155,15 @@ class CutoutND(object):
         data = self.data
         data_shape = data.shape
         position, shape = self._get_position_shape(data_shape, cutout_region)
-        self.logger.debug('Position {} and Shape {}'.format(position, shape))
+        logger.debug('Position {} and Shape {}'.format(position, shape))
 
         # No pixels specified, so return the entire HDU
         if (not position and not shape) or shape == data_shape:
-            self.logger.debug('Returning entire HDU data for {}'.format(
+            logger.debug('Returning entire HDU data for {}'.format(
                 cutout_region.get_extension()))
             cutout_data = data
         else:
-            self.logger.debug('Cutting out {} at {} for extension {} from  \
+            logger.debug('Cutting out {} at {} for extension {} from  \
             {}.'.format(
                 shape, position, cutout_region.get_extension(), data.shape))
             cutout_data, position = extract_array(

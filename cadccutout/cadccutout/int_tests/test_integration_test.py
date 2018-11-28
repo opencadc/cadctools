@@ -91,7 +91,7 @@ sys.path.insert(0, os.path.abspath(
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
 DEFAULT_TEST_FILE_DIR = '/tmp'
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 
 def random_test_file_name_path(file_extension='fits',
@@ -112,7 +112,7 @@ def _get_requested_extensions(cutout_string):
 
 
 def _extname_sort_func(hdu):
-    return (hdu.header.get('EXTNAME'), hdu.header.get('EXTVER'))
+    return (hdu.header.get('EXTNAME', ''), hdu.header.get('EXTVER', '0'))
 
 
 @pytest.mark.parametrize(
@@ -123,7 +123,7 @@ def _extname_sort_func(hdu):
       '/usr/src/data/test-gmims-cube-cutout.fits', True, DEFAULT_TEST_FILE_DIR,
       None, False),
      ('[80:220,100:150,100:150]', '/usr/src/data/test-alma-cube.fits',
-      '/usr/src/data/test-alma-cube-cutout.fits', True, DEFAULT_TEST_FILE_DIR,
+      '/usr/src/data/test-alma-cube-cutout.fits', True, '/usr/src/app',
       None, False),
      ('[200:400,500:1000,10:20]', '/usr/src/data/test-cgps-cube.fits',
       '/usr/src/data/test-cgps-cube-cutout.fits', True, DEFAULT_TEST_FILE_DIR,
@@ -136,7 +136,7 @@ def _extname_sort_func(hdu):
       None, False),
      ('[SCI,10][80:220,100:150][1][10:16,70:90][106][8:32,88:112][126]',
       '/usr/src/data/test-hst-mef.fits',
-      '/usr/src/data/test-hst-mef-cutout.fits', True, '/usr/src/app',
+      '/usr/src/data/test-hst-mef-cutout.fits', True, DEFAULT_TEST_FILE_DIR,
       None, True)
      ])
 def test_integration_test(
@@ -145,7 +145,6 @@ def test_integration_test(
     test_subject = OpenCADCCutout()
     result_cutout_file_path = random_test_file_name_path(dir_name=test_dir_name)
 
-    logger.setLevel('DEBUG')
     logger.info('Testing output to {}'.format(result_cutout_file_path))
 
     # Write out a test file with the test result FITS data.
@@ -170,7 +169,7 @@ def test_integration_test(
             expected_hdu_list.sort(key=_extname_sort_func)
 
         for extension, result_hdu in enumerate(result_hdu_list):
-            logger.debug('\nNext extension {}\n'.format(extension))
+            logger.debug('\nChecking extension {}\n'.format(extension))
             expected_hdu = expected_hdu_list[extension]
 
             expected_wcs = WCS(header=expected_hdu.header, naxis=wcs_naxis_val)

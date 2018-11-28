@@ -1,3 +1,5 @@
+import logging
+
 from cadccutout.core import *   # noqa
 from cadccutout.cutoutnd import *   # noqa
 from cadccutout.file_helper import *   # noqa
@@ -8,3 +10,6 @@ from cadccutout.utils import *   # noqa
 from cadccutout.file_helpers import *   # noqa
 from cadccutout.shape import *   # noqa
 from cadccutout.transform import *   # noqa
+
+logging.basicConfig()
+logger = logging.getLogger(__name__)

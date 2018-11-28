@@ -70,7 +70,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import logging
 import numpy as np
 
 from cadccutout.cutoutnd import CutoutND
@@ -92,7 +91,6 @@ class BaseFileHelper(object):
         :param input_range_parser:  Parser instance to parse the range of
         inputs.
         """
-        self.logger = logging.getLogger(__name__)
         if input_stream is None:
             raise ValueError(
                 'An input stream(file-like object or io/stream) is required \

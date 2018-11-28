@@ -71,14 +71,16 @@ from __future__ import (absolute_import, division, print_function,
 
 import logging
 import sys
+import io
+from io import BufferedRandom
+import argparse
 
 from cadccutout.utils import is_string
+from cadccutout import version
 from cadccutout.file_helper import FileHelperFactory
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
-__all__ = ['OpenCADCCutout']
-
-APP_NAME = 'cadccutout'
+__all__ = ['OpenCADCCutout', 'WriteOnlyStream']
 
 
 class OpenCADCCutout(object):
@@ -141,7 +143,6 @@ class OpenCADCCutout(object):
 
     def __init__(self, helper_factory=FileHelperFactory(),
                  input_range_parser=PixelRangeInputParser()):
-        self.logger = logging.getLogger(__name__)
         self.helper_factory = helper_factory
         self.input_range_parser = input_range_parser
 
@@ -236,3 +237,110 @@ class OpenCADCCutout(object):
     def _get_file_helper(self, file_type, input_reader, output_writer):
         return self.helper_factory.get_instance(file_type, input_reader,
                                                 output_writer)
+
+
+class WriteOnlyStream(BufferedRandom):
+    """
+    Stream implementation to seem like a seekable stream.  It is meant to wrap
+    the sys.stdout stream so that when Astropy calls the tell() method it
+    will have an accurate place to start writing the stream.
+
+    :param raw: file or file-like object.  The Raw underlying stream.
+    """
+    def __init__(self, raw):
+        super(WriteOnlyStream, self).__init__(io.BytesIO())
+        self._raw = raw
+        self.write_offset = 0
+        self.read_offset = 0
+
+    def read(self, size=1):
+        raise ValueError('Unreadable stream.  This is write only.')
+
+    def write(self, data):
+        written = self._raw.write(data)
+        if written:
+            self.write_offset += written
+        return self.write_offset
+
+    def tell(self):
+        return self.write_offset
+
+    def seek(self, offset):
+        raise ValueError('Unseekable stream.  This is write only.')
+
+
+def main_app(argv=None):
+    # Execute only if run as a script.
+    parser = argparse.ArgumentParser()
+
+    # Python 3 uses the buffer property to treat stream data as binary.
+    # Python 2 (sometimes) requires the -u command line switch.
+    if hasattr(sys.stdin, 'buffer'):
+        default_input = sys.stdin.buffer
+    else:
+        default_input = sys.stdin
+
+    if hasattr(sys.stdout, 'buffer'):
+        default_output = sys.stdout.buffer
+    else:
+        default_output = sys.stdout
+
+    parser.description = ('Cutout library to extract an N-Dimension array.')
+    parser.formatter_class = argparse.RawTextHelpFormatter
+
+    parser.add_argument('-d', '--debug', action='store_true',
+                        help='debug messages')
+    parser.add_argument('-q', '--quiet', action='store_true',
+                        help='run quietly')
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help='verbose messages')
+    parser.add_argument('--version', action='version', version=version.version)
+
+    parser.add_argument('--type', '-t', choices=['FITS'],
+                        default='FITS',
+                        help='Optional file type.  Defaults to FITS.')
+    parser.add_argument('--infile', '-i', type=argparse.FileType(mode='rb'),
+                        default=default_input, nargs='?',
+                        help='Optional input file.  Defaults to stdin.')
+    parser.add_argument('--outfile', '-o', type=argparse.FileType(mode='ab+'),
+                        default=default_output, nargs='?',
+                        help='Optional output file.  Defaults to stdout.')
+
+    parser.add_argument(
+        'cutout', help='The cutout region string.\n[0][200:400] for a cutout \
+        of the 0th extension along the first axis', nargs='+')
+
+    args = parser.parse_args(args=argv)
+    if not args:
+        parser.print_usage(file=sys.stderr)
+        sys.stderr.write("{}: error: too few arguments\n".format(__name__))
+        sys.exit(-1)
+    if args.verbose:
+        level = logging.INFO
+    elif args.debug:
+        level = logging.DEBUG
+    else:
+        level = logging.WARN
+
+    logging.basicConfig(level=level)
+    logging.getLogger().setLevel(level)
+
+    c = OpenCADCCutout()
+
+    logging.info('Start cutout.')
+
+    try:
+        # Support multiple strings.  This will write out as many cutouts as
+        # it finds.
+        c.cutout_from_string(
+            args.cutout, input_reader=args.infile,
+            output_writer=WriteOnlyStream(args.outfile),
+            file_type=args.type)
+    finally:
+        logging.info('End cutout.')
+        exit(0)
+
+
+if __name__ == "__main__":
+    main_app()
+    exit(0)
