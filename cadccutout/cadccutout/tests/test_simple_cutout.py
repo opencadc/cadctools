@@ -92,10 +92,10 @@ expected_cutout_file_name = os.path.join(
 logger = logging.getLogger()
 
 
-# @pytest.mark.skipif(
-#     sys.version_info >= (3, 5),
-#     reason='Awaiting Astropy bug fix \
-#                 https://github.com/astropy/astropy/issues/7854')
+@pytest.mark.skipif(
+    sys.version_info >= (3, 5),
+    reason='Awaiting Astropy bug fix \
+                https://github.com/astropy/astropy/issues/7854')
 def test_simple_cutout():
     test_subject = OpenCADCCutout()
     cutout_file_name_path = test_context.random_test_file_name_path()
