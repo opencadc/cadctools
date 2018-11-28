@@ -312,7 +312,6 @@ def main_app(argv=None):
         of the 0th extension along the first axis', nargs='+')
 
     args = parser.parse_args(args=argv)
-    logging.info('Passed {}'.format(args))
     if not args:
         parser.print_usage(file=sys.stderr)
         sys.stderr.write("{}: error: too few arguments\n".format(__name__))
