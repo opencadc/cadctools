@@ -260,7 +260,6 @@ class WriteOnlyStream(BufferedRandom):
         written = self._raw.write(data)
         if written:
             self.write_offset += written
-        self._raw.flush()
         return self.write_offset
 
     def tell(self):
