@@ -140,6 +140,7 @@ def test_pc_leading_zeroes_header_fix():
     assert 22 == header.get('PC2_1'), 'PC2_1 should be 22.'
     assert 88 == header.get('PC1_2'), 'PC1_2 should be 88.'
 
+
 def test_cd_pc_header_fix():
     test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
     data = np.arange(10000).reshape(100, 100)
@@ -161,6 +162,7 @@ def test_cd_pc_header_fix():
     assert not header.get('CD1_1'), 'CD1_1 should be renamed.'
     assert 44 == header.get('PC1_1'), 'PC1_1 should be 44.'
     assert 33 == header.get('PC2_2'), 'PC2_2 should be 33.'
+
 
 def test_post_sanitize_header():
     test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
