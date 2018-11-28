@@ -76,6 +76,7 @@ from io import BufferedRandom
 import argparse
 
 from cadccutout.utils import is_string
+from cadccutout import version
 from cadccutout.file_helper import FileHelperFactory
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
@@ -294,7 +295,7 @@ def main_app(argv=None):
                         help='run quietly')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='verbose messages')
-    parser.add_argument('--version', action='version', version='0.1.1')
+    parser.add_argument('--version', action='version', version=version.version)
 
     parser.add_argument('--type', '-t', choices=['FITS'],
                         default='FITS',
