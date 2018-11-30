@@ -70,7 +70,8 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from cadccutout.core import OpenCADCCutout
+import io
+from cadccutout.core import OpenCADCCutout, WriteOnlyStream
 
 
 def test__parse_input():
@@ -110,3 +111,19 @@ def test__sanity_check_input():
     sanity_input = test_subject._sanity_check_input(input)
 
     assert isinstance(sanity_input, list), 'Should be list'
+
+
+def test_write_stream():
+    output = io.BytesIO()
+    test_subject = WriteOnlyStream(output)
+
+    try:
+        test_subject.read()
+        assert False, 'Should fail read with a ValueError'
+    except ValueError:
+        pass
+
+    assert test_subject.tell() == 0, 'Nothing written yet, should be zero.'
+    test_subject.write(b'You have been recruied by the Star League to defend \
+            the frontier against Xur and the Kodhan Armada.')
+    assert test_subject.tell() == 111, 'Message written.'
