@@ -86,7 +86,7 @@ import astroquery.cadc as cadc
 from astroquery.cadc import auth
 
 import warnings
-warnings.filterwarnings("ignore", module='astropy.io.votable.tree')
+warnings.filterwarnings("ignore", module='astropy.io.votable.*')
 
 # make the stream bar show up on stdout
 progress.STREAM = sys.stdout
@@ -102,6 +102,7 @@ BASICAA_ID = 'ivo://ivoa.net/sso#BasicAA'
 CERTIFICATE_ID = 'ivo://ivoa.net/sso#tls-with-certificate'
 TABLES_CAPABILITY = 'ivo://ivoa.net/std/VOSI#tables-1.1'
 TAP_CAPABILITY = 'ivo://ivoa.net/std/TAP'
+DEFAULT_URI = 'ivo://cadc.nrc.ca/'
 
 logger = logging.getLogger(APP_NAME)
 
@@ -164,125 +165,72 @@ class CadcTapClient(object):
                                              agent, retry=True, host=self.host)
         reader = wscapabilities.CapabilitiesReader()
         web = ws.WsCapabilities(self._data_client, host)
+        if 'http' in resource_id:
+            service = resource_id.strip('/')
+            if not service.endswith('capabilities'):
+                service = service + '/capabilities'
+        elif 'ivo://' in resource_id:
+            service = web._get_capability_url()
+        else:
+            source = resource_id.strip('/')
+            uri = DEFAULT_URI + source
+            web.ws.resource_id = uri
+            service = web._get_capability_url()
+        #print(service)
         content = web._get_content(web.caps_file,
-                                   web._get_capability_url(),
+                                   service,
                                    web.last_capstime)
         self._capabilities = reader.parsexml(content.encode('utf-8'))
 
-    def get_tables(self, verbose=False, authentication=None, url=None):
-        Cadc = cadc.CadcTAP(url=url, verbose=verbose)
-        tables = Cadc.get_tables(verbose=verbose,
-                                 authentication=authentication)
-        print('-----------')
-        print('Tables')
-        print('-----------')
-        for table in tables:
-            print(table.get_qualified_name())
-
-    def get_table(self, table, verbose=False, authentication=None, url=None):
-        Cadc = cadc.CadcTAP(url=url)
-        columns = Cadc.get_table(table,
-                                 verbose=verbose,
-                                 authentication=authentication)
-        if columns is None:
-            raise ValueError("No table exists with the name '%s'" % table)
-        print('--------------------')
-        print('Columns of ', table)
-        print('--------------------')
-        for col in columns.get_columns():
-            print(col.get_name())
-
-    def run_query(self, query=None, query_file=None, isasync=False,
-                  file_name=None, file_format='votable', verbose=False,
-                  save_to_file=False, background=False, upload_file=None,
-                  upload_table_name=None, authentication=None, url=None):
-        if query_file is not None:
-            with open(query_file) as f:
+    def run_query(self, query=None, input_file=None, isasync=False,
+                  format='votable', verbose=False, output_file=False,
+                  tmptable=None, authentication=None, url=None):
+        if input_file is not None:
+            with open(input_file) as f:
                 adql_query = f.read().strip()
         else:
             adql_query = query
-        Cadc = cadc.CadcTAP(url=url)
+        Cadc = cadc.CadcTAP(url=url, verbose=verbose)
         if isasync is True:
             operation = 'async'
         else:
             operation = 'sync'
-        if upload_table_name is not None:
-            validname = re.match(r'^[aA-zZ][_|aA-zZ|0-9]*$', upload_table_name)
-            if validname is None:
-                raise ValueError("Upload table name must start with a letter"
-                                 " then have only letters, numbers or an "
-                                 "underscore")
-            else:
-                upload_table_name = validname.group()
+        if tmptable is not None:
+            tmp = tmptable.split(':')
+            tablename = tmp[0]
+            tablepath = tmp[1]
+        else:
+            tablename = None
+            tablepath = None
+        if output_file is True:
+            filename = None
+            output = True
+        elif output_file is False:
+            filename = None
+            output = False
+        else:
+            filename = output_file
+            output = True
         try:
-            job = Cadc.run_query(adql_query, operation, file_name, file_format,
-                                 verbose, save_to_file, background,
-                                 upload_file, upload_table_name,
+            job = Cadc.run_query(adql_query, operation, filename, format,
+                                 verbose, output, False,
+                                 tablepath, tablename,
                                  authentication)
         except Exception as e:
-            raise exceptions.HttpException(e.args[0])
-        if save_to_file is False and background is False:
+            if len(e.args) == 1:
+                raise exceptions.HttpException(e.args[0])
+            elif e.args[1] == 'No such file or directory':
+                raise RuntimeError("[Errno "+str(e.args[0])+"] "+e.args[1]+": '"+tablepath+"'")
+                
+        if output is False:
             print('----------------')
             print('Query Results ')
             print('----------------')
             print(job.get_results(verbose=verbose,
                                   authentication=authentication))
-        if background is True:
-            print('----------------')
-            if operation == 'async':
-                jobid = job.get_jobid()
-            else:
-                jobid = 'Synchronous queries do not have a jobid'
-            print('Jobid: ', jobid)
-            print('----------------')
-            if save_to_file is True:
-                print('Results not saved becuase -b, --background is set')
-
-    def load_async_job(self, jobid, file_name=None, save_to_file=False,
-                       verbose=False, authentication=None, url=None):
-        Cadc = cadc.CadcTAP(url=url)
-        job = Cadc.load_async_job(jobid,
-                                  verbose=verbose,
-                                  authentication=authentication)
-        if file_name is not None:
-            job.set_output_file(file_name)
-        if not save_to_file:
-            print('-----------')
-            print('Query Results')
-            print('-----------')
-            print(job.get_results(verbose=verbose))
-        else:
-            Cadc.save_results(job,
-                              authentication=authentication,
-                              verbose=verbose)
-
-    def list_async_jobs(self, verbose=False, file_name=None,
-                        save_to_file=False, authentication=None, url=None):
-        Cadc = cadc.CadcTAP(url=url)
-        job_list = Cadc.list_async_jobs(verbose=verbose,
-                                        authentication=authentication)
-        if not save_to_file:
-            print('-----------')
-            print('Jobids')
-            print('-----------')
-            for job in job_list:
-                print(job.get_jobid())
-        else:
-            if file_name is None:
-                dateTime = datetime.now().strftime("%Y%m%d%H%M%S")
-                file_name = 'joblist_' + dateTime + '.txt'
-            else:
-                if not file_name.endswith('.txt'):
-                    file_name = file_name + '.txt'
-            jlist = 'Jobids\n'
-            for job in job_list:
-                jlist = jlist + job.get_jobid() + '\n'
-            with open(file_name, "w") as f:
-                f.write(jlist)
-                f.close()
 
 
-def main_app():
+def main_app(command='cadc-tap query'):
     parser = util.get_base_parser(version=version.version,
                                   default_resource_id=DEFAULT_RESOURCE_ID)
 
@@ -294,45 +242,15 @@ def main_app():
         dest='cmd',
         help='supported commands. Use the -h|--help argument of a command '
              'for more details')
-    tables_parser = subparsers.add_parser(
-        'tables',
-        description='Get a list of the tables in the database or a list'
-                    ' of columns in a table',
-        help='Get a list of the tables in the database or a list of columns'
-             ' in a table')
-    tables_parser.add_argument(
-        '-t', '--table',
-        default=None,
-        help='The table name, must be the qualified name, '
-             'for example caom2.coam2.Observations.'
-             'The qualified table names will be outputed '
-             'by the tables command')
-    tables_parser.epilog = (
-        'Examples:\n'
-        '- Anonymously list the tables in the database:\n'
-        '      cadc-tap tables -v\n'
-        '- Use certificate to get a list of the tables in the database:\n'
-        '      cadc-tap tables --cert ~/.ssl/cadcproxy.pem\n'
-        '- Use default netrc file ($HOME/.netrc) to get the list of columns:\n'
-        '      cadc-tap tables -t caom2.Observation -v -n\n'
-        '- Use a different netrc file to get the list of columns:\n'
-        '      cadc-tap tables -t caom2.Observation --netrc-file ~/mynetrc\n')
-
     query_parser = subparsers.add_parser(
         'query',
         description=('Run an adql query'),
         help='Run an adql query')
     query_parser.add_argument(
-        '-f', '--file-name',
-        default=None,
-        help='Name of the file to output the results, default is'
-             ' "operation_datetime" for query results and '
-             '"joblist_dateime" for --list option',
+        '-o', '--output-file',
+        default=False,
+        help='write query results to file (default is to STDOUT)',
         required=False)
-    query_parser.add_argument(
-        '-s', '--save-to-file',
-        action='store_true',
-        help='Save the output to a file instead of outputing to stdout')
     options_parser = query_parser.add_mutually_exclusive_group(required=True)
     options_parser.add_argument(
         'query',
@@ -341,68 +259,52 @@ def main_app():
         help='ADQL query to run, format is a string with quotes around it, '
              'for example "SELECT observationURI FROM caom2.Observation"')
     options_parser.add_argument(
-        '-Q', '--query-file',
+        '-i', '--input-file',
         default=None,
-        help='Location of a file that contains only an ADQL query to run. Use'
-             ' instead of the query string.')
-    options_parser.add_argument(
-        '-j', '--load-job',
-        default=None,
-        help='Get the results of a job using the jobid, '
-             'the query will be run again. If a job was created using'
-             ' authentication, authentication will be needed to run the'
-             ' job again.')
-    options_parser.add_argument(
-        '--list',
-        action='store_true',
-        help='List all asynchronous jobs that you have created')
+        help='read query string from file (default is from STDIN),'
+             ' location of file')
     query_parser.add_argument(
         '-a', '--async-job',
         action='store_true',
-        help='Query Option. Run the query asynchronously, default is to run'
-             ' synchronously which only outputs the top 2000 results',
+        help='issue an asynchronous query (default is synchronous'
+             ' which only outputs the top 2000 results)',
         required=False)
     query_parser.add_argument(
-        '-ff', '--file-format',
-        default=None,
+        '-f', '--format',
+        default='votable',
         choices=['votable', 'csv', 'tsv'],
-        help='Query Option. Format of the output file: '
-             'votable(default), csv or tsv',
+        help='output format, either tsv, csv, fits (TBD), or votable(default)',
         required=False)
     query_parser.add_argument(
-        '-b', '--background',
-        action='store_true',
-        help='Query Option. Do not return the results of a query,'
-             ' only the jobid. Only for asychronous queries.')
-    query_parser.add_argument(
-        '-uf', '--upload-file',
+        '-t', '--tmptable',
         default=None,
-        help='Query Option. Name of the file that contains the table to upload'
-             ' for the query',
+        help='Temp table upload, the value is in format: '
+             '"tablename:/path/to/table". In query to reference the table' 
+             ' use tap_upload.tablename',
         required=False)
     query_parser.add_argument(
-        '-un', '--upload-name',
-        default=None,
-        help='Query Option. Required if --upload_resource is used. Name of the'
-             ' table to upload. To reference the table use '
-             'tap_upload.<tablename>',
-        required=False)
+        '-s', '--service',
+        default=DEFAULT_RESOURCE_ID,
+        help='set the TAP service. The default is: '
+             'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/tap '
+             '(equivalent to URI ivo://cadc.nrc.ca/tap). If the argument is a '
+             'URI, the URL is resolved in the registry. If the argument is a '
+             'simple string, the service will be looked up in the registry '
+             'with the string value as the path. For example:\n-s ams/maq\n '
+             'produces URI ivo://cadc.nrc.ca/ams/maq and then URL '
+             'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/ams/maq')
     query_parser.epilog = (
         'Examples:\n'
         '- Anonymously run a query string:\n'
-        '      cadc-tap query "SELECT TOP 10 type FROM caom2.Observation"\n'
+        '      '+command+' "SELECT TOP 10 type FROM caom2.Observation"\n'
         '- Use certificate to run a query from a file:\n'
-        '      cadc-tap query -Q /data/query.sql --cert ~/.ssl/cadcproxy.pem\n'
+        '      '+command+' -i /data/query.sql --cert ~/.ssl/cadcproxy.pem\n'
         '- Use username/password to run an asynchronous query:\n'
-        '      cadc-tap query "SELECT TOP 10 type FROM caom2.Observation"'
+        '      '+command+' "SELECT TOP 10 type FROM caom2.Observation"'
         ' -a -u username\n'
-        '- Use a different netrc file to run a query and only get the jobid'
-        ' back:\n'
-        '      cadc-tap query -Q data/query.sql -b --netrc-file ~/mynetrc\n'
-        '- Anonymously load an asynchronous job from the jobid:\n'
-        '      cadc-tap query -j mw9hkhyebemra29'
-        '- Use default netrc to save a list of all asynchronous jobs run:\n'
-        '      cadc-tap query --list -s -f joblist.txt -n')
+        '- Use netrc file to run a query on the ams/mast service'
+        ' :\n'
+        '      '+command+' -i data/query.sql -n -s ams/mast\n')
 
     # handle errors
     errors = [0]
@@ -421,32 +323,13 @@ def main_app():
         if exit_after:
             sys.exit(-1)  # TODO use different error codes?
 
-    def check_args(args, arg):
-        """
-        Checks to make sure none of the query arguments are used
-            with the list and load commands
-        """
-        if args.async_job is True:
-            query_parser.print_usage()
-            raise RuntimeError(' error: argument -a/--async-job: '
-                               'not allowed with argument '+arg)
-        if args.background is True:
-            query_parser.print_usage()
-            raise RuntimeError(' error: argument -b/--background: '
-                               'not allowed with argument '+arg)
-        if args.file_format is not None:
-            query_parser.print_usage()
-            raise RuntimeError(' error: argument -ff/--file-format: '
-                               'not allowed with argument '+arg)
-        if args.upload_file is not None:
-            query_parser.print_usage()
-            raise RuntimeError(' error: argument -uf/--upload-file: '
-                               'not allowed with argument '+arg)
-        if args.upload_name is not None:
-            query_parser.print_usage()
-            raise RuntimeError(' error: argument -un/--upload-name: '
-                               'not allowed with argument '+arg)
-
+    query_parser._remove_action(query_parser._actions[6])
+    for action in query_parser._action_groups:
+        vars_action = vars(action)
+        var_group_actions = vars_action['_group_actions']
+        for x in var_group_actions:
+            if x.dest == 'resource_id':
+                var_group_actions.remove(x)
     args = parser.parse_args()
     if len(sys.argv) < 2:
         parser.print_usage(file=sys.stderr)
@@ -478,8 +361,8 @@ def main_app():
     else:
         authentication = auth.AnonAuthMethod()
         security_id = []
-    client = CadcTapClient(subject, args.resource_id, host=args.host)
-    if args.cmd == 'tables':
+    client = CadcTapClient(subject, args.service, host=args.host)
+    if args.cmd == 'schema':
         feature = TABLES_CAPABILITY
     else:
         feature = TAP_CAPABILITY
@@ -491,7 +374,7 @@ def main_app():
     if check_cap.get_interface(method) is None:
         logger.info("Downgrading authentication type to anonymous,\n"
                     "type {0} not accepted by resource {1}"
-                    .format(method, args.resource_id))
+                    .format(method, args.service))
         subject = net.Subject()
         authentication = auth.AnonAuthMethod()
         security_id = []
@@ -503,43 +386,12 @@ def main_app():
     else:
         sub_url = url
     try:
-        if args.cmd == 'tables':
-            logger.info('tables')
-            if args.table is None:
-                client.get_tables(show_prints, authentication, sub_url)
-            else:
-                client.get_table(args.table, show_prints,
-                                 authentication, sub_url)
-        elif args.cmd == 'query':
+        if args.cmd == 'query':
             logger.info('query')
-            if args.list is True:
-                check_args(args, '--list')
-                logger.info('list async jobs')
-                client.list_async_jobs(show_prints, args.file_name,
-                                       args.save_to_file, authentication,
-                                       sub_url)
-            if args.load_job is not None:
-                check_args(args, '-j/--load-job')
-                logger.info('load async job')
-                client.load_async_job(args.load_job, args.file_name,
-                                      args.save_to_file, show_prints,
-                                      authentication, sub_url)
-            if args.query is not None or args.query_file is not None:
-                logger.info('run query')
-                if args.file_format is None:
-                    fformat = 'votable'
-                else:
-                    fformat = args.file_format
-                if args.upload_file is not None and args.upload_name is None:
-                    query_parser.print_usage()
-                    raise RuntimeError(' error: argument -un/--upload-name'
-                                       ' is needeed with argument -uf/'
-                                       '--upload-file')
-                client.run_query(args.query, args.query_file, args.async_job,
-                                 args.file_name, fformat, show_prints,
-                                 args.save_to_file, args.background,
-                                 args.upload_file, args.upload_name,
-                                 authentication, sub_url)
+            client.run_query(args.query, args.input_file, args.async_job,
+                             args.format, show_prints,
+                             args.output_file, args.tmptable,
+                             authentication, sub_url)
     except exceptions.UnauthorizedException:
         if subject.anon:
             handle_error('Operation cannot be performed anonymously. '
