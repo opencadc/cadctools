@@ -1,0 +1,14 @@
+usage: cadc-tap [-h] [-V] {tables,query} ...
+
+Client for accessing databases using TAP service at the Canadian Astronomy Data Centre (www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+
+positional arguments:
+  {tables,query}  supported commands. Use the -h|--help argument of a command
+                  for more details
+    tables        Get a list of the tables in the database or a list of
+                  columns in a table
+    query         Run an adql query
+
+optional arguments:
+  -h, --help      show this help message and exit
+  -V, --version   show program's version number and exit
