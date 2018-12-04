@@ -200,9 +200,6 @@ class YoucatClient(object):
             raise AttributeError(
                 'table name and source requiered in upload: {}/{}'.
                 format(table_name, source))
-        with open(source[0], 'w+') as f:
-            for i in range(1000000):
-                f.write('art{0}\t{0}\n'.format(i))
         for f in source:
             logger.debug('Uploading file {}'.format(f))
 
