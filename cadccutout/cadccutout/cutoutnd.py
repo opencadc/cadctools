@@ -169,27 +169,31 @@ class CutoutND(object):
             cutout_data, position = extract_array(
                 data, shape, position, mode='partial', return_position=True)
 
-        if self.wcs is not None:
+        if self.wcs:
             cutout_shape = cutout_data.shape
             output_wcs = deepcopy(self.wcs)
             wcs_crpix = output_wcs.wcs.crpix
+            l_wcs_crpix = len(wcs_crpix)
             ranges = cutout_region.get_ranges()
             l_ranges = len(ranges)
 
-            while len(wcs_crpix) < l_ranges:
-                wcs_crpix = np.append(wcs_crpix, 1.0)
+            logging.debug('Adjusting WCS.')
 
             for idx, _ in enumerate(ranges):
-                wcs_crpix[idx] -= (ranges[idx][0] - 1)
+                if idx < l_wcs_crpix:
+                    wcs_crpix[idx] -= (ranges[idx][0] - 1.0)
 
             output_wcs._naxis = list(cutout_shape)
 
-            if self.wcs.sip is not None:
+            if self.wcs.sip:
                 curr_sip = self.wcs.sip
                 output_wcs.sip = Sip(curr_sip.a, curr_sip.b,
                                      curr_sip.ap, curr_sip.bp,
                                      wcs_crpix[0:2])
+
+            logging.debug('WCS adjusted.')
         else:
+            logging.debug('No WCS present.')
             output_wcs = None
 
         return CutoutResult(data=cutout_data, wcs=output_wcs,

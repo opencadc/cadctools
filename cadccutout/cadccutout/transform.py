@@ -76,16 +76,16 @@ import sys
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord, Longitude, Latitude, ICRS
-from astropy.wcs import WCS
+from astropy.wcs import WCS, NoConvergence
 from regions.shapes.circle import CircleSkyRegion
 from regions.shapes.polygon import PolygonSkyRegion
 
 from .no_content_error import NoContentError
 from .pixel_cutout_hdu import PixelCutoutHDU
 from .shape import Circle, Polygon, Energy, Time, Polarization, \
-                   PolarizationState
+    PolarizationState
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 __all__ = ['AxisType', 'Transform']
 
@@ -97,6 +97,22 @@ class AxisType(object):
     """
     Extracts the axis number for each coordinate type.
     """
+
+    def _get_wcs(self, header):
+        naxis_value = header.get('NAXIS')
+
+        if naxis_value is not None and int(naxis_value) > 0:
+            for nax in range(1, naxis_value + 1):
+                ctype = header.get('CTYPE{0} '.format(nax))
+                if ctype is not None and ctype.endswith('-SIP'):
+                    naxis = 2
+                    break
+                else:
+                    naxis = None
+        else:
+            naxis = naxis_value
+
+        return WCS(header=header, naxis=naxis)
 
     COORDINATE_TYPE = 'coordinate_type'
     SPATIAL_KEYWORDS = ['celestial']
@@ -112,7 +128,7 @@ class AxisType(object):
         self.polarization = None
 
         # wcs from header
-        wcs = WCS(header)
+        wcs = self._get_wcs(header)
 
         # get list of dict of axis types
         axis_types = wcs.get_axis_types()
@@ -126,19 +142,19 @@ class AxisType(object):
                     self.spatial_1 = i + 1
                 else:
                     self.spatial_2 = i + 1
-                    logger.info('Spatial naxis{} naxis{}'.format(
+                    logging.info('Spatial naxis{} naxis{}'.format(
                         self.spatial_1, self.spatial_2))
             elif coordinate_type in self.SPECTRAL_KEYWORDS:
                 self.spectral = i + 1
-                logger.info('Spectral naxis{}'.format(self.get_spectral_axis()))
+                logging.info('Spectral naxis{}'.format(self.get_spectral_axis()))
             elif coordinate_type in self.TEMPORAL_KEYWORDS:
                 self.temporal = i + 1
-                logger.info('Temporal naxis{}'.format(self.get_temporal_axis()))
+                logging.info('Temporal naxis{}'.format(self.get_temporal_axis()))
             elif coordinate_type in self.POLARIZATION_KEYWORDS:
                 self.polarization = i + 1
-                logger.info('Polarization naxis{}'.format(
+                logging.info('Polarization naxis{}'.format(
                     self.get_polarization_axis()))
-            else:
+            elif coordinate_type:
                 raise ValueError('Unknown axis keyword {}'.format(
                     coordinate_type))
 
@@ -186,7 +202,7 @@ class Transform(object):
         :param header: Header   The FITS header
         :return: PixelCutoutHDU containing the pixel coordinates
         """
-        logger.info('Shapes: {}'.format(world_coords))
+        logging.info('Shapes: {}'.format(world_coords))
 
         # coordinate axis numbers
         axis_types = AxisType(header)
@@ -219,7 +235,7 @@ class Transform(object):
                     # get the cutout pixels
                     pixels = self.get_circle_cutout_pixels(
                         shape, header, naxis1, naxis2)
-                    logger.info('CIRCLE pixels [{}:{}, {}:{}]'.format(*pixels))
+                    logging.info('CIRCLE pixels [{}:{}, {}:{}]'.format(*pixels))
 
                     # remove default cutouts and add query cutout
                     cutouts.pop(naxis1)
@@ -237,7 +253,7 @@ class Transform(object):
                     # get the cutout pixels
                     pixels = self.get_polygon_cutout_pixels(
                         shape, header, naxis1, naxis2)
-                    logger.info('POLYGON pixels [{}:{}, {}:{}]'.format(*pixels))
+                    logging.info('POLYGON pixels [{}:{}, {}:{}]'.format(*pixels))
 
                     # remove default cutouts and add query cutout
                     cutouts.pop(naxis1)
@@ -253,7 +269,7 @@ class Transform(object):
 
                     # get the cutout pixels
                     pixels = self.get_energy_cutout_pixels(shape, header, naxis)
-                    logger.info('BAND pixels [{}:{}]'.format(*pixels))
+                    logging.info('BAND pixels [{}:{}]'.format(*pixels))
 
                     # remove default cutouts and add query cutout
                     cutouts.pop(naxis)
@@ -267,7 +283,7 @@ class Transform(object):
 
                     # get the cutout pixels
                     pixels = self.get_time_cutout_pixels(shape, header, naxis)
-                    logger.info('TIME pixels [{}:{}]'.format(*pixels))
+                    logging.info('TIME pixels [{}:{}]'.format(*pixels))
 
                     # remove default cutouts and add query cutout
                     cutouts.pop(naxis)
@@ -282,7 +298,7 @@ class Transform(object):
                     # get the cutout pixels
                     pixels = self.get_polarization_cutout_pixels(
                         shape, header, naxis)
-                    logger.info('POL pixels [{}:{}]'.format(*pixels))
+                    logging.info('POL pixels [{}:{}]'.format(*pixels))
 
                     # remove default cutouts and add query cutout
                     cutouts.pop(naxis)
@@ -382,19 +398,22 @@ class Transform(object):
         # Circle region with radius
         sky_region = CircleSkyRegion(sky_coords, radius=radius)
 
-        # convert to pixel coordinates
-        pixels = sky_region.to_pixel(wcs)
         try:
-            x_min = pixels.bounding_box.ixmin
-            x_max = pixels.bounding_box.ixmax
-            y_min = pixels.bounding_box.iymin
-            y_max = pixels.bounding_box.iymax
-            logger.info('Circle bounding box [{}, {}, {}, {}]'.format(
+            # convert to pixel coordinates
+            pixels = sky_region.to_pixel(wcs)
+
+            x_min = pixels.bounding_box.ixmin - 2
+            x_max = pixels.bounding_box.ixmax + 2
+            y_min = pixels.bounding_box.iymin - 2
+            y_max = pixels.bounding_box.iymax + 2
+            logging.debug('Circle bounding box [{}, {}, {}, {}]'.format(
                 x_min, x_max, y_min, y_max))
         except ValueError as e:
             # bounding_box raises ValueError if the cutout
             # doesn't intersect the image
             raise NoContentError(repr(e))
+        except NoConvergence as nce:
+            raise NoContentError(repr(nce))
 
         # do clip check
         x_axis = header.get('NAXIS{}'.format(naxis1))
@@ -438,7 +457,7 @@ class Transform(object):
             x_max = pixels.bounding_box.ixmax
             y_min = pixels.bounding_box.iymin
             y_max = pixels.bounding_box.iymax
-            logger.info('Polygon bounding box [{}, {}, {}, {}]'.format(
+            logging.info('Polygon bounding box [{}, {}, {}, {}]'.format(
                 x_min, x_max, y_min, y_max))
         except ValueError as e:
             # bounding_box raises ValueError if the cutout
@@ -486,7 +505,7 @@ class Transform(object):
         length = header.get('NAXIS{}'.format(naxis))
         lower = min(pixels[0][0], pixels[0][1])
         upper = max(pixels[0][0], pixels[0][1])
-        logger.info('Energy interval: {}:{}'.format(lower, upper))
+        logging.info('Energy interval: {}:{}'.format(lower, upper))
 
         return self.do_energy_clip_check(length, lower, upper)
 
@@ -551,7 +570,7 @@ class Transform(object):
             pix = crpix + (value - crval) / cdelt
             pix1 = min(pix1, pix)
             pix2 = max(pix2, pix)
-        logger.info('Polarization states: {}:{}'.format(pix1, pix2))
+        logging.info('Polarization states: {}:{}'.format(pix1, pix2))
 
         # do clip check
         pixels = self.do_polarization_clip_check(naxis, pix1, pix2)
@@ -581,7 +600,7 @@ class Transform(object):
             y2 = h
 
         # cutout pixels
-        logger.info('Position clip check: [{}, {}, {}, {}]'.format(
+        logging.info('Position clip check: [{}, {}, {}, {}]'.format(
             x1, x2, y1, y2))
         return [x1, x2, y1, y2]
 
@@ -612,7 +631,7 @@ class Transform(object):
             raise NoContentError(error)
 
         # an actual cutout
-        logger.info('Energy clip check: [{}:{}]'.format(z1, z2))
+        logging.info('Energy clip check: [{}:{}]'.format(z1, z2))
         return [z1, z2]
 
     def do_time_clip_check(self, naxis, lower, upper):

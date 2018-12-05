@@ -126,7 +126,7 @@ class FITSHelper(BaseFileHelper):
             cutout_wcs_header = cutout_wcs.to_header(relax=True)
             header.update(cutout_wcs_header)
 
-            if cutout_wcs.sip is not None:
+            if cutout_result.wcs_crpix is not None:
                 cutout_crpix = cutout_result.wcs_crpix
 
                 for idx, val in enumerate(cutout_crpix):
@@ -257,15 +257,17 @@ class FITSHelper(BaseFileHelper):
 
     def _check_hdu_list(self, cutout_dimensions, hdu_list):
         has_match = False
+        pixel_matches_left = len(cutout_dimensions)
         for curr_extension_idx, hdu in enumerate(hdu_list):
             # If we encounter a PrimaryHDU, write it at the top and continue.
-            if isinstance(hdu, PrimaryHDU):
-                logging.debug('Primary at {}'.format(curr_extension_idx))
+            if isinstance(hdu, PrimaryHDU) and hdu.data is None:
+                logging.debug(
+                    'Appending Primary from index {}'.format(curr_extension_idx))
                 fits.append(
                     filename=self.output_writer, header=hdu.header, data=None,
                     overwrite=False, output_verify='silentfix',
                     checksum='remove')
-            elif isinstance(hdu, ImageHDU):
+            elif hdu.is_image:
                 header = hdu.header
                 ext_name = header.get('EXTNAME')
                 ext_ver = header.get('EXTVER', 0)
@@ -287,25 +289,32 @@ class FITSHelper(BaseFileHelper):
                                         curr_extension_idx, curr_ext_name_ver))
                                 self._pixel_cutout(
                                     header, hdu.data, cutout_dimension)
+                                pixel_matches_left -= 1
+
+                        if pixel_matches_left == 0:
+                            return True
                     else:
+                        logging.debug('Handling WCS transform.')
                         # Handle WCS transform.
                         transform = Transform()
                         transformed_cutout_dimension = \
                             transform.world_to_pixels(cutout_dimensions, header)
+                        logging.debug('Transformed {} into {}'.format(
+                            cutout_dimensions, transformed_cutout_dimension))
                         self._pixel_cutout(header, hdu.data,
                                            transformed_cutout_dimension)
                     has_match = True
+
                 except NoContentError:
                     # Skip for now as we're iterating the loop.
+                    logging.debug(
+                        'No overlap with extension {}'.format(curr_extension_idx))
                     pass
 
-                logging.debug(
-                    'Finished extension {}'.format(curr_extension_idx))
-            else:
-                logging.warn(
-                    'Unsupported HDU at extension {}.'.format(
-                        curr_extension_idx))
+            logging.debug(
+                'Finished extension {}'.format(curr_extension_idx))
 
+        logging.debug('Has match in list? -- {}'.format(has_match))
         return has_match
 
     def _iterate_hdu_list(self, cutout_dimensions):

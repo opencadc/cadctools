@@ -338,9 +338,12 @@ def main_app(argv=None):
             file_type=args.type)
     finally:
         logging.info('End cutout.')
-        exit(0)
 
 
 if __name__ == "__main__":
-    main_app()
-    exit(0)
+    try:
+        main_app()
+        exit(0)
+    except Exception as e:
+        exit(-1)
+

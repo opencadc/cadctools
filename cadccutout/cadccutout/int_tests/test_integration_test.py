@@ -83,6 +83,7 @@ from astropy.wcs import WCS
 # from cadcdata import CadcDataClient
 # from cadcutils import net
 from cadccutout.core import OpenCADCCutout
+from cadccutout.no_content_error import NoContentError
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
 sys.path.insert(0, os.path.abspath(
@@ -91,7 +92,9 @@ sys.path.insert(0, os.path.abspath(
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
 DEFAULT_TEST_FILE_DIR = '/tmp'
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
 
 
 def random_test_file_name_path(file_extension='fits',
@@ -115,6 +118,33 @@ def _extname_sort_func(hdu):
     return (hdu.header.get('EXTNAME', ''), hdu.header.get('EXTVER', '0'))
 
 
+@pytest.mark.parametrize(
+    'cutout_region_string, target_file_name, \
+     test_dir_name, wcs_naxis_val',
+    [('CIRCLE 168.34719985367971 76.18699791158396 0.1',
+        '/usr/src/data/test-sitelle-cube.fits', DEFAULT_TEST_FILE_DIR, 2)
+     ])
+def test_integration_wcs_test(
+        cutout_region_string, target_file_name, test_dir_name, wcs_naxis_val):
+    test_subject = OpenCADCCutout()
+    result_cutout_file_path = random_test_file_name_path(dir_name=test_dir_name)
+
+    logger.info('Testing output to {}'.format(result_cutout_file_path))
+
+    try:
+        # Write out a test file with the test result FITS data.
+        with open(result_cutout_file_path, 'ab+') as test_file_handle, \
+                open(target_file_name, 'rb') as input_file_handle:
+            test_subject.cutout_from_string(
+                cutout_region_string, input_file_handle, test_file_handle,
+                'FITS')
+        raise AssertionError('Should not succeed: {}'.format(
+            cutout_region_string))
+    except NoContentError:
+        logging.info('Good!')
+
+
+@pytest.mark.skip()
 @pytest.mark.parametrize(
     'cutout_region_string, target_file_name, \
                           expected_cutout_file_path, use_fits_diff, \
@@ -190,4 +220,67 @@ def test_integration_test(
                 'DATASUM') is None, 'Should not contain DATASUM.'
             np.testing.assert_array_equal(
                 np.squeeze(expected_hdu.data),
+                result_hdu.data, 'Arrays do not match.')
+
+
+@pytest.mark.parametrize(
+    'cutout_region_string, target_file_name, \
+                          expected_cutout_file_path, use_fits_diff, \
+                          test_dir_name, wcs_naxis_val, use_extension_names',
+    [('CIRCLE 70.3389 -2.8361 0.016666666666666666',
+      '/usr/src/data/test-sitelle-cube.fits',
+      '/usr/src/data/test-sitelle-cube-cutout-wcs.fits', True,
+      '/usr/src/app', 2, False)
+     ])
+def test_integration_wcs_test(
+        cutout_region_string, target_file_name, expected_cutout_file_path,
+        use_fits_diff, test_dir_name, wcs_naxis_val, use_extension_names):
+    test_subject = OpenCADCCutout()
+    result_cutout_file_path = random_test_file_name_path(dir_name=test_dir_name)
+
+    logger.info('Testing output to {}'.format(result_cutout_file_path))
+
+    # Write out a test file with the test result FITS data.
+    with open(result_cutout_file_path, 'ab+') as test_file_handle, \
+            open(target_file_name, 'rb') as input_file_handle:
+        test_subject.cutout_from_string(
+            cutout_region_string, input_file_handle, test_file_handle, 'FITS')
+
+    with fits.open(expected_cutout_file_path, mode='readonly',
+                   do_not_scale_image_data=True) \
+            as expected_hdu_list, \
+            fits.open(result_cutout_file_path, mode='readonly',
+                      do_not_scale_image_data=True) \
+            as result_hdu_list:
+        if use_fits_diff:
+            fits_diff = fits.FITSDiff(expected_hdu_list, result_hdu_list)
+            np.testing.assert_array_equal(
+                (), fits_diff.diff_hdu_count, 'HDU count diff should be empty.')
+
+        if use_extension_names:
+            result_hdu_list.sort(key=_extname_sort_func)
+            expected_hdu_list.sort(key=_extname_sort_func)
+
+        for extension, result_hdu in enumerate(result_hdu_list):
+            logger.debug('\nChecking extension {}\n'.format(extension))
+            expected_hdu = expected_hdu_list[extension]
+
+            expected_wcs = WCS(header=expected_hdu.header, naxis=wcs_naxis_val)
+            result_wcs = WCS(header=result_hdu.header, naxis=wcs_naxis_val)
+
+            # np.testing.assert_array_equal(
+                # expected_wcs.wcs.crpix, result_wcs.wcs.crpix,
+                # 'Wrong CRPIX values.')
+            np.testing.assert_array_equal(
+                expected_wcs.wcs.crval, result_wcs.wcs.crval,
+                'Wrong CRVAL values.')
+            np.testing.assert_array_equal(
+                expected_wcs.wcs.naxis, result_wcs.wcs.naxis,
+                'Wrong NAXIS values.')
+            assert expected_hdu.header.get(
+                'CHECKSUM') is None, 'Should not contain CHECKSUM.'
+            assert expected_hdu.header.get(
+                'DATASUM') is None, 'Should not contain DATASUM.'
+            np.testing.assert_array_equal(
+                expected_hdu.data,
                 result_hdu.data, 'Arrays do not match.')
