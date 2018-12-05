@@ -71,12 +71,14 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 import pytest
 import os
+import logging
 
 from cadccutout.pixel_range_input_parser \
     import PixelRangeInputParser, PixelRangeInputParserError
 
 pytest.main(args=['-s', os.path.abspath(__file__)])
-
+logging.basicConfig(level=logging.DEBUG)
+logging.getLogger().setLevel(level=logging.DEBUG)
 
 def test_parse():
     test_subject = PixelRangeInputParser()
@@ -101,3 +103,13 @@ def test_parse():
     assert result[0].get_extension() == 0, 'Wrong extension.'
     assert result[0].dimension_ranges == [
         (500, 600), (700, 1200), (6, 10)], 'Wrong ranges.'
+
+    result = test_subject.parse('[1201:1575, 1092:1467]')
+    assert result[0].get_extension() == 0, 'Wrong extension.'
+    assert result[0].dimension_ranges == [
+        (1201, 1575), (1092, 1467)], 'Wrong ranges.'
+
+    result = test_subject.parse('[SCI,3][10:40,  60:90]')
+    assert result[0].get_extension() == ('SCI', 3), 'Wrong extension.'
+    assert result[0].dimension_ranges == [
+        (10,40), (60,90)], 'Wrong ranges.'

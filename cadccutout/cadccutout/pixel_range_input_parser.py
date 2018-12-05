@@ -92,11 +92,12 @@ class PixelRangeInputParser(object):
     """
 
     def __init__(self, delimiter=':', separator=','):
-        self.logger = logging.getLogger(__name__)
         self.delimiter = delimiter
         self.separator = separator
+        # self.match_pattern = re.compile(
+            # r'[\[?[\w]*,?\d*\]?]?[\[?[\d*:?\d*,?]*\]?]')
         self.match_pattern = re.compile(
-            r'[\[?[\w]*,?\d*\]?]?[\[?[\d*:?\d*,?]*\]?]')
+            r'[\[?[\w]*,?\s*\d*\]?]?[\[?[\d*:?\d*,?\s*]*\]?]')
 
     def is_pixel_cutout(self, input_str):
         return input_str and input_str.count(RANGE_BEGIN_CHAR) > 0
@@ -155,7 +156,7 @@ class PixelRangeInputParser(object):
 
         for r in ranges:
             pixel_ranges = []
-            extension = '0'
+            logging.debug('Next range is {}'.format(r))
             split_items = list(map(lambda x: x.split(
                 '[')[1], list(filter(None, r.split(']')))))
             l_items = len(split_items)
@@ -167,6 +168,7 @@ class PixelRangeInputParser(object):
             elif l_items == 1:
                 item = split_items[0]
                 if item.count(self.delimiter) > 0:
+                    extension = '0'
                     pixel_ranges = list(map(self._to_range_tuple, list(
                         filter(None, item.split(self.separator)))))
                 else:

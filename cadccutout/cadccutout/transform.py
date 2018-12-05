@@ -402,10 +402,10 @@ class Transform(object):
             # convert to pixel coordinates
             pixels = sky_region.to_pixel(wcs)
 
-            x_min = pixels.bounding_box.ixmin - 2
-            x_max = pixels.bounding_box.ixmax + 2
-            y_min = pixels.bounding_box.iymin - 2
-            y_max = pixels.bounding_box.iymax + 2
+            x_min = pixels.bounding_box.ixmin
+            x_max = pixels.bounding_box.ixmax
+            y_min = pixels.bounding_box.iymin
+            y_max = pixels.bounding_box.iymax
             logging.debug('Circle bounding box [{}, {}, {}, {}]'.format(
                 x_min, x_max, y_min, y_max))
         except ValueError as e:
