@@ -406,21 +406,7 @@ def main_app(command='cadc-tap query'):
         logging.basicConfig(level=logging.WARN, stream=sys.stdout)
 
     subject = net.Subject.from_cmd_line_args(args)
-    if args.user is not None:
-        authentication = auth.NetrcAuthMethod(username=args.user)
-        security_id = [BASICAA_ID]
-    elif args.n is not False:
-        authentication = auth.NetrcAuthMethod()
-        security_id = [BASICAA_ID]
-    elif args.netrc_file is not None:
-        authentication = auth.NetrcAuthMethod(filename=args.netrc_file)
-        security_id = [BASICAA_ID]
-    elif args.cert is not None:
-        authentication = auth.CertAuthMethod(certificate=args.cert)
-        security_id = [CERTIFICATE_ID]
-    else:
-        authentication = auth.AnonAuthMethod()
-        security_id = []
+
 
     if args.cmd == 'schema':
         feature = TABLES_CAPABILITY
@@ -445,6 +431,23 @@ def main_app(command='cadc-tap query'):
         elif args.cmd == 'load':
             client.load(args.TABLENAME, args.SOURCE, args.format)
         sys.exit(0)
+
+    if args.user is not None:
+        authentication = auth.NetrcAuthMethod(username=args.user)
+        security_id = [BASICAA_ID]
+    elif args.n is not False:
+        authentication = auth.NetrcAuthMethod()
+        security_id = [BASICAA_ID]
+    elif args.netrc_file is not None:
+        authentication = auth.NetrcAuthMethod(filename=args.netrc_file)
+        security_id = [BASICAA_ID]
+    elif args.cert is not None:
+        authentication = auth.CertAuthMethod(certificate=args.cert)
+        security_id = [CERTIFICATE_ID]
+    else:
+        authentication = auth.AnonAuthMethod()
+        security_id = []
+
 
     client = CadcTapClient(subject, args.service, host=args.host)
     check_cap = client._capabilities._caps.get(feature)
