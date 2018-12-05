@@ -82,8 +82,8 @@ from cadcutils.net import ws
 
 from cadctap import version
 
-import astroquery.cadc as cadc
-from astroquery.cadc import auth
+#import astroquery.cadc as cadc
+#from astroquery.cadc import auth
 
 from .youcat import YoucatClient, ALLOWED_CONTENT_TYPES
 
