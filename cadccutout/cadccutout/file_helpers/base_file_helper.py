@@ -117,7 +117,5 @@ class BaseFileHelper(object):
         :return: CutoutND instance
         """
 
-        # Sanitize the array by removing the single-dimensional entries.
-        sanitized_data = np.squeeze(data)
-        c = CutoutND(data=sanitized_data, wcs=wcs)
+        c = CutoutND(data=data, wcs=wcs)
         return c.extract(cutout_dimension)

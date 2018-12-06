@@ -114,6 +114,9 @@ class CutoutND(object):
         -------
         CutoutResult instance
         """
+        if data is None:
+            raise NoContentError('Nothing to cutout from.')
+
         self.data = data
         self.wcs = wcs
 
@@ -129,9 +132,14 @@ class CutoutND(object):
         len_data = len(data_shape)
         len_pos = len(r_position)
         len_shape = len(r_shape)
+        c_data_shape = tuple(np.zeros(len_data, dtype=int))
+
+        logging.debug('Data shape: {}'.format(data_shape))
+        logging.debug('Requested shape: {}'.format(r_shape))
+        logging.debug('Requested position: {}'.format(r_position))
 
         if len_shape > len_data:
-            raise NoContentError('Invalid shape requested (tried to extract {} \
+            raise ValueError('Invalid shape requested (tried to extract {} \
             from {}).'.format(r_shape, data_shape))
 
         if r_shape:
@@ -140,12 +148,12 @@ class CutoutND(object):
             shape = None
 
         if len_pos > len_data:
-            raise NoContentError('Invalid position requested (tried to extract \
+            raise ValueError('Invalid position requested (tried to extract \
              {} from {}).'.format(
                 r_position, data_shape))
 
         if r_position:
-            position = (data_shape[:(len_data - len_pos)]) + r_position
+            position = (c_data_shape[:(len_data - len_pos)]) + r_position
         else:
             position = None
 

@@ -71,6 +71,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import io
+import logging
 import numpy as np
 
 from astropy.io import fits
@@ -79,6 +80,9 @@ from astropy.wcs import WCS
 from cadccutout.cutoutnd import CutoutResult
 from cadccutout.file_helpers.fits.fits_file_helper import FITSHelper
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
+
+logging.basicConfig(level=logging.DEBUG)
+logging.getLogger().setLevel(level=logging.DEBUG)
 
 
 def _create_hdu_list():
@@ -103,18 +107,22 @@ def test__check_hdu_list():
     dimensions = [PixelCutoutHDU([(20, 35), (40, 50)], extension=1)]
     hdu_list = _create_hdu_list()
 
-    assert test_subject._check_hdu_list(dimensions, hdu_list), 'Should match.'
+    has_match = test_subject._check_hdu_list(dimensions, hdu_list)
+
+    logging.debug('Output from _check_hdu_list() is {}'.format(has_match))
+
+    assert has_match, 'Should match.'
 
 
 def test_is_extension_requested():
     test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
-    dimension = PixelCutoutHDU(['400:800'], extension=1)
+    dimension = PixelCutoutHDU([(400, 800)], extension=1)
     assert not test_subject._is_extension_requested('4', ('EXN', 4), dimension)
 
-    dimension = PixelCutoutHDU(['400:800'])
+    dimension = PixelCutoutHDU([(400, 800)])
     assert not test_subject._is_extension_requested('4', ('NOM', 1), dimension)
 
-    dimension = PixelCutoutHDU(['400:800'], extension=2)
+    dimension = PixelCutoutHDU([(400, 800)], extension=2)
     assert test_subject._is_extension_requested('2', ('NOM', 7), dimension)
 
 

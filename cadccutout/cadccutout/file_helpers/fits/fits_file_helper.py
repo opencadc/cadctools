@@ -206,21 +206,16 @@ class FITSHelper(BaseFileHelper):
         return WCS(header=header, naxis=naxis)
 
     def _write_cutout(self, header, data, cutout_dimension, wcs):
-        try:
-            cutout_result = self.do_cutout(
-                data=data, cutout_dimension=cutout_dimension, wcs=wcs)
+        cutout_result = self.do_cutout(
+            data=data, cutout_dimension=cutout_dimension, wcs=wcs)
 
-            self._post_sanitize_header(header, cutout_result)
+        self._post_sanitize_header(header, cutout_result)
 
-            fits.append(filename=self.output_writer, header=header,
-                        data=cutout_result.data, overwrite=False,
-                        output_verify='silentfix', checksum='remove')
+        fits.append(filename=self.output_writer, header=header,
+                    data=cutout_result.data, overwrite=False,
+                    output_verify='silentfix', checksum='remove')
 
-            self.output_writer.flush()
-        except NoContentError:
-            logging.warn(
-                'No cutout possible on extension {}.  Skipping...'.format(
-                    cutout_dimension.get_extension()))
+        self.output_writer.flush()
 
     def _pixel_cutout(self, header, data, cutout_dimension):
         extension = cutout_dimension.get_extension()
@@ -287,12 +282,13 @@ class FITSHelper(BaseFileHelper):
                                     .format(
                                         cutout_dimension.get_extension(),
                                         curr_extension_idx, curr_ext_name_ver))
+                                pixel_matches_left -= 1
                                 self._pixel_cutout(
                                     header, hdu.data, cutout_dimension)
-                                pixel_matches_left -= 1
+                                has_match = True
 
                         if pixel_matches_left == 0:
-                            return True
+                            return has_match
                     else:
                         logging.debug('Handling WCS transform.')
                         # Handle WCS transform.
@@ -303,13 +299,12 @@ class FITSHelper(BaseFileHelper):
                             cutout_dimensions, transformed_cutout_dimension))
                         self._pixel_cutout(header, hdu.data,
                                            transformed_cutout_dimension)
-                    has_match = True
+                        has_match = True
 
                 except NoContentError:
                     # Skip for now as we're iterating the loop.
                     logging.debug(
                         'No overlap with extension {}'.format(curr_extension_idx))
-                    pass
 
             logging.debug(
                 'Finished extension {}'.format(curr_extension_idx))
