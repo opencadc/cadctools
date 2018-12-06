@@ -428,11 +428,17 @@ def main_app(command='cadc-tap query'):
             reply = input(
                 'You are about to delete table {} and its content... '
                 'Continue? [yes/no] '.format(args.TABLENAME))
-            if 'yes' != reply:
-                logger.warn('Table {} not deleted. Type "yes" to delete it'.
-                            format(args.TABLENAME))
-                sys.exit(-1)
-            client.delete_table(args.TABLENAME)
+            while True:
+                if reply == 'yes':
+                    client.delete_table(args.TABLENAME)
+                    break
+                elif reply == 'no':
+                    logger.warn(
+                        'Table {} not deleted.'.
+                        format(args.TABLENAME))
+                    sys.exit(-1)
+                else:
+                    reply = input('Please reply with yes or no: ')
         elif args.cmd == 'index':
             client.create_index(args.TABLENAME, args.COLUMN, args.unique)
         elif args.cmd == 'load':
