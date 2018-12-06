@@ -81,6 +81,7 @@ from mock import Mock, patch, ANY, call
 from astroquery.cadc import auth as tapauth
 import astroquery.cadc.tap.model.taptable as taptable
 import astroquery.cadc.tap.model.tapcolumn as tapcolumn
+import pytest
 
 # The following is a temporary workaround for Python issue
 # 25532 (https://bugs.python.org/issue25532)
@@ -97,7 +98,9 @@ class MyExitError(Exception):
 
 mycontent = ''
 
+pytestmark = pytest.mark.skip('Waiting for the astropy.cadc rework')
 
+@pytestmark
 class TestCadcTapClient(unittest.TestCase):
     """Test the CadcTapClient class"""
 

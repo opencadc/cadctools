@@ -222,6 +222,13 @@ class YoucatClient(object):
                                format(result.status_code))
 
     def load(self, table_name, source, fformat='tsv'):
+        """
+        Loads conent to a table
+        :param table_name: name of the table
+        :param source: list of files to load content from
+        :param fformat: format of the content files
+        :return:
+        """
         if not table_name or not source:
             raise AttributeError(
                 'table name and source requiered in upload: {}/{}'.
