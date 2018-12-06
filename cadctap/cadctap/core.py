@@ -79,13 +79,14 @@ from clint.textui import progress
 from cadcutils import net, util, exceptions
 from cadcutils.net import wscapabilities
 from cadcutils.net import ws
+from six.moves import input
 
 from cadctap import version
 
 #import astroquery.cadc as cadc
 #from astroquery.cadc import auth
 
-from .youcat import YoucatClient, ALLOWED_CONTENT_TYPES
+from .youcat import YoucatClient, ALLOWED_CONTENT_TYPES, ALLOWED_TB_DEF_TYPES
 
 import warnings
 warnings.filterwarnings("ignore", module='astropy.io.votable.*')
@@ -250,7 +251,7 @@ def main_app(command='cadc-tap query'):
                                   default_resource_id=DEFAULT_RESOURCE_ID)
 
     parser.description = (
-        'Client for accessing databases using TAP service at the Canadian '
+        'Client for accessing databases using TAP protocol at the Canadian '
         'Astronomy Data Centre (www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)')
 
     subparsers = parser.add_subparsers(
@@ -326,6 +327,10 @@ def main_app(command='cadc-tap query'):
         description='Create a table',
         help='Create a table')
     create_parser.add_argument(
+        '-f', '--format', choices=ALLOWED_TB_DEF_TYPES.keys(),
+        required=False,
+        help='Format of the table definition file')
+    create_parser.add_argument(
         'TABLENAME',
         help='name of the table (<schema.table>) in the tap service')
     create_parser.add_argument(
@@ -363,7 +368,7 @@ def main_app(command='cadc-tap query'):
     load_parser.add_argument(
         '-f', '--format', choices=ALLOWED_CONTENT_TYPES.keys(),
         required=False, default='tsv',
-        help='Format of the data in the file')
+        help='Format of the data file')
     load_parser.add_argument(
         'TABLENAME',
         help='name of the table (<schema.table>) to load data to')
@@ -417,19 +422,22 @@ def main_app(command='cadc-tap query'):
         subject = net.Subject.from_cmd_line_args(args)
         client = YoucatClient(subject)
         if args.cmd == 'create':
-            client.create_table(args.TABLENAME, args.TABLEDEFINITION)
+            client.create_table(args.TABLENAME, args.TABLEDEFINITION,
+                                args.format)
         elif args.cmd == 'delete':
-            print('You are about to delete table {} and its content... '
-                  'Continue [yes/no]'.format(args.TABLENAME))
-            reply = sys.stdin.read().strip()
+            reply = input(
+                'You are about to delete table {} and its content... '
+                'Continue? [yes/no] '.format(args.TABLENAME))
             if 'yes' != reply:
-                logger.warn('Table {} not deleted'.format(args.TABLENAME))
+                logger.warn('Table {} not deleted. Type "yes" to delete it'.
+                            format(args.TABLENAME))
                 sys.exit(-1)
             client.delete_table(args.TABLENAME)
         elif args.cmd == 'index':
             client.create_index(args.TABLENAME, args.COLUMN, args.unique)
         elif args.cmd == 'load':
             client.load(args.TABLENAME, args.SOURCE, args.format)
+        print('DONE')
         sys.exit(0)
 
     if args.user is not None:

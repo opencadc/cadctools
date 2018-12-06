@@ -76,6 +76,7 @@ import sys
 import datetime
 from cadctap import version
 from cadcutils import net
+import magic
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +87,9 @@ TABLE_UPDATE_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#table-update-1.x'
 
 # allowed file formats for load
 ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values', 'csv': 'text/csv'}
+ALLOWED_TB_DEF_TYPES = {'VOSITable': 'text/xml',
+                        'VOTable': 'application/x-votable+xml',
+                        'FITSTable': 'application/fits'}
 
 
 class YoucatClient(object):
@@ -113,21 +117,43 @@ class YoucatClient(object):
         self._tap_client = net.BaseWsClient(resource_id, subject,
                                             agent, retry=True, host=self.host)
 
-    def create_table(self, table_name, table_defintion):
+    def create_table(self, table_name, table_defintion, type=None):
         """
         Creates a table in youcat.
         :param table_name: Name of the table in the TAP service
         :param table_defintion: Stream containing the table definition
+        :param type: Type of the table definition file
         """
         if not table_name or not table_defintion:
             raise AttributeError(
                 'table name and definition required in create: {}/{}'.
                     format(table_name, table_defintion))
 
-        logger.debug('Creating {}'.format(table_name))
-        #TODO check the type of the table_definition file and use
-        #application/x-votable+xml for vo-table format
-        headers = {'Content-Type': 'text/xml'}
+        if type:
+            if type not in ALLOWED_TB_DEF_TYPES.keys():
+                raise AttributeError(
+                    'Table definition file type {} not supported ({})'.
+                        format(type, ' '.join(ALLOWED_TB_DEF_TYPES.keys)))
+            else:
+                file_type = type
+        else:
+            m = magic.Magic()
+            t = m.from_file(table_defintion)
+            if 'XML' in t:
+                file_type = 'VOTable'
+            elif 'FITS' in t:
+                file_type = 'FITSTable'
+            elif 'ASCII' in t:
+                file_type = 'VOSITable'
+            else:
+                raise AttributeError('Cannot determine the type of the table '
+                                     'definition file {}'.
+                                     format(table_defintion))
+            logger.info('Assuming the table defintion file type: {}'.
+                        format(file_type))
+        logger.debug('Creating {} from file {} of type {}'.
+                     format(table_name, table_defintion, file_type))
+        headers = {'Content-Type': ALLOWED_TB_DEF_TYPES[file_type]}
         self._tap_client.put((TABLES_CAPABILITY_ID, table_name),
                              headers=headers,
                              data=open(table_defintion, 'rb').read())
