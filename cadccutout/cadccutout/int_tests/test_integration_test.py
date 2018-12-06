@@ -283,6 +283,9 @@ def test_integration_wcs_test(
             np.testing.assert_array_almost_equal(
                 expected_hdu.data.shape, result_hdu.data.shape, decimal=-4,
                 err_msg='Arrays match closely enough.')
+
+            # Should be re-enabled, but doesn't match as of now, but it is close
+            # enough...  2018.12.06
             # np.testing.assert_array_almost_equal(
             #     expected_hdu.data, result_hdu.data, decimal=0,
             #     err_msg='Arrays match closely enough.')
