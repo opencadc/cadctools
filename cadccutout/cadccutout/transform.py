@@ -237,11 +237,22 @@ class Transform(object):
                         shape, header, naxis1, naxis2)
                     logging.info('CIRCLE pixels [{}:{}, {}:{}]'.format(*pixels))
 
+                    for i in pixels:
+                        if not i:
+                            logging.debug('Skipping {}'.format(header))
+                            raise NoContentError(
+                                'Unable to create bounding box.')
+
+                    logging.debug('Removing {} from {}'.format(naxis1, cutouts))
+
                     # remove default cutouts and add query cutout
-                    cutouts.pop(naxis1)
-                    cutouts.insert(naxis1, (pixels[0], pixels[1]))
-                    cutouts.pop(naxis2)
-                    cutouts.insert(naxis2, (pixels[2], pixels[3]))
+                    if naxis1 in cutouts:
+                        cutouts.pop(naxis1)
+                        cutouts.insert(naxis1, (pixels[0], pixels[1]))
+
+                    if naxis2 in cutouts:
+                        cutouts.pop(naxis2)
+                        cutouts.insert(naxis2, (pixels[2], pixels[3]))
                 except NoContentError as e:
                     no_content_errors.append(repr(e))
             elif isinstance(shape, Polygon):
@@ -592,11 +603,11 @@ class Transform(object):
         # bounds check
         if x1 < 1:
             x1 = 1
-        if x2 > w:
+        if w and x2 > w:
             x2 = w
         if y1 < 1:
             y1 = 1
-        if y2 > h:
+        if h and y2 > h:
             y2 = h
 
         # cutout pixels

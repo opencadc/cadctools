@@ -247,6 +247,7 @@ class WriteOnlyStream(BufferedRandom):
 
     :param raw: file or file-like object.  The Raw underlying stream.
     """
+
     def __init__(self, raw):
         super(WriteOnlyStream, self).__init__(io.BytesIO())
         self._raw = raw
@@ -346,4 +347,3 @@ if __name__ == "__main__":
         exit(0)
     except Exception as e:
         exit(-1)
-
