@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2017.                            (c) 2017.
+#  (c) 2018.                            (c) 2018.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -79,11 +79,14 @@ from clint.textui import progress
 from cadcutils import net, util, exceptions
 from cadcutils.net import wscapabilities
 from cadcutils.net import ws
+from six.moves import input
 
 from cadctap import version
 
-import astroquery.cadc as cadc
-from astroquery.cadc import auth
+#import astroquery.cadc as cadc
+#from astroquery.cadc import auth
+
+from .youcat import YoucatClient, ALLOWED_CONTENT_TYPES, ALLOWED_TB_DEF_TYPES
 
 import warnings
 warnings.filterwarnings("ignore", module='astropy.io.votable.*')
@@ -96,7 +99,7 @@ __all__ = ['CadcTapClient']
 # IVOA dateformat
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 # resource ID for info
-DEFAULT_RESOURCE_ID = 'ivo://cadc.nrc.ca/tap'
+DEFAULT_RESOURCE_ID = 'ivo://cadc.nrc.ca/youcat'
 APP_NAME = 'cadc-tap'
 BASICAA_ID = 'ivo://ivoa.net/sso#BasicAA'
 CERTIFICATE_ID = 'ivo://ivoa.net/sso#tls-with-certificate'
@@ -230,18 +233,48 @@ class CadcTapClient(object):
                                   authentication=authentication))
 
 
+def _customize_parser(parser):
+    # cadc-tap customizes some of the options inherited from the CADC parser
+    # TODO make it work or process list of subparsers
+    for i, op in enumerate(parser._actions):
+        if op.dest == 'resource_id':
+            # Remove --resource-id option for now
+            parser._remove_action(parser._actions[i])
+            for action in parser._action_groups:
+                vars_action = vars(action)
+                var_group_actions = vars_action['_group_actions']
+                for x in var_group_actions:
+                    if x.dest == 'resource_id':
+                        var_group_actions.remove(x)
+    parser.add_argument(
+        '-s', '--service',
+        default=DEFAULT_RESOURCE_ID,
+        help='set the TAP service. Use ivo format, eg. default is {}'.format(
+            DEFAULT_RESOURCE_ID) )
+
+
 def main_app(command='cadc-tap query'):
     parser = util.get_base_parser(version=version.version,
                                   default_resource_id=DEFAULT_RESOURCE_ID)
 
+    _customize_parser(parser)
     parser.description = (
-        'Client for accessing databases using TAP service at the Canadian '
+        'Client for accessing databases using TAP protocol at the Canadian '
         'Astronomy Data Centre (www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)')
 
     subparsers = parser.add_subparsers(
         dest='cmd',
         help='supported commands. Use the -h|--help argument of a command '
              'for more details')
+    schema_parser = subparsers.add_parser(
+        'schema',
+        description=('Print the tables available for querying.'),
+        help='Print the tables available for querying.')
+    schema_parser.add_argument(
+        '-c', '--columns',
+        default=None,
+        help='Name of the table to print the columns.',
+        required=False)
     query_parser = subparsers.add_parser(
         'query',
         description=('Run an adql query'),
@@ -253,7 +286,7 @@ def main_app(command='cadc-tap query'):
         required=False)
     options_parser = query_parser.add_mutually_exclusive_group(required=True)
     options_parser.add_argument(
-        'query',
+        'QUERY',
         default=None,
         nargs='?',
         help='ADQL query to run, format is a string with quotes around it, '
@@ -282,17 +315,6 @@ def main_app(command='cadc-tap query'):
              '"tablename:/path/to/table". In query to reference the table' 
              ' use tap_upload.tablename',
         required=False)
-    query_parser.add_argument(
-        '-s', '--service',
-        default=DEFAULT_RESOURCE_ID,
-        help='set the TAP service. The default is: '
-             'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/tap '
-             '(equivalent to URI ivo://cadc.nrc.ca/tap). If the argument is a '
-             'URI, the URL is resolved in the registry. If the argument is a '
-             'simple string, the service will be looked up in the registry '
-             'with the string value as the path. For example:\n-s ams/maq\n '
-             'produces URI ivo://cadc.nrc.ca/ams/maq and then URL '
-             'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/ams/maq')
     query_parser.epilog = (
         'Examples:\n'
         '- Anonymously run a query string:\n'
@@ -305,6 +327,61 @@ def main_app(command='cadc-tap query'):
         '- Use netrc file to run a query on the ams/mast service'
         ' :\n'
         '      '+command+' -i data/query.sql -n -s ams/mast\n')
+
+    create_parser = subparsers.add_parser(
+        'create',
+        description='Create a table',
+        help='Create a table')
+    create_parser.add_argument(
+        '-f', '--format', choices=ALLOWED_TB_DEF_TYPES.keys(),
+        required=False,
+        help='Format of the table definition file')
+    create_parser.add_argument(
+        'TABLENAME',
+        help='name of the table (<schema.table>) in the tap service')
+    create_parser.add_argument(
+        'TABLEDEFINITION',
+        help='file containing the definition of the table or "-" if definition'
+        ' in stdin')
+
+    delete_parser = subparsers.add_parser(
+        'delete',
+        description='Delete a table',
+        help='delete a table')
+    delete_parser.add_argument(
+        'TABLENAME',
+        help='name of the table (<schema.table)'
+             'in the tap service to be deleted')
+
+    index_parser = subparsers.add_parser(
+        'index',
+        description='Create a table index',
+        help='Create a table index')
+    index_parser.add_argument(
+        '-U', '--unique', action='store_true',
+        help='index is unique')
+    index_parser.add_argument(
+        'TABLENAME',
+        help='name of the table in the tap service to create the index for')
+    index_parser.add_argument(
+        'COLUMN',
+        help='name of the column to create the index for')
+
+    load_parser = subparsers.add_parser(
+        'load',
+        description='Load data to a table',
+        help='Load data to a table')
+    load_parser.add_argument(
+        '-f', '--format', choices=ALLOWED_CONTENT_TYPES.keys(),
+        required=False, default='tsv',
+        help='Format of the data file')
+    load_parser.add_argument(
+        'TABLENAME',
+        help='name of the table (<schema.table>) to load data to')
+    load_parser.add_argument(
+        'SOURCE', nargs='+',
+        help='source of the data. It can be files or "-" for stdout.'
+    )
 
     # handle errors
     errors = [0]
@@ -323,13 +400,13 @@ def main_app(command='cadc-tap query'):
         if exit_after:
             sys.exit(-1)  # TODO use different error codes?
 
-    query_parser._remove_action(query_parser._actions[6])
-    for action in query_parser._action_groups:
-        vars_action = vars(action)
-        var_group_actions = vars_action['_group_actions']
-        for x in var_group_actions:
-            if x.dest == 'resource_id':
-                var_group_actions.remove(x)
+    #_customize_parser(parser)
+    _customize_parser(schema_parser)
+    _customize_parser(query_parser)
+    _customize_parser(create_parser)
+    _customize_parser(delete_parser)
+    _customize_parser(index_parser)
+    _customize_parser(load_parser)
     args = parser.parse_args()
     if len(sys.argv) < 2:
         parser.print_usage(file=sys.stderr)
@@ -346,6 +423,45 @@ def main_app(command='cadc-tap query'):
         logging.basicConfig(level=logging.WARN, stream=sys.stdout)
 
     subject = net.Subject.from_cmd_line_args(args)
+
+
+    #if args.cmd == 'schema':
+    #    feature = TABLES_CAPABILITY
+    #elif args.cmd == 'query':
+    #    feature = TAP_CAPABILITY
+    # create, delete, index, load
+    # create a a CadcTap client
+    subject = net.Subject.from_cmd_line_args(args)
+    client = YoucatClient(subject, resource_id=args.service)
+    if args.cmd == 'create':
+        client.create_table(args.TABLENAME, args.TABLEDEFINITION,
+                            args.format)
+    elif args.cmd == 'delete':
+        reply = input(
+            'You are about to delete table {} and its content... '
+            'Continue? [yes/no] '.format(args.TABLENAME))
+        while True:
+            if reply == 'yes':
+                client.delete_table(args.TABLENAME)
+                break
+            elif reply == 'no':
+                logger.warn(
+                    'Table {} not deleted.'.
+                    format(args.TABLENAME))
+                sys.exit(-1)
+            else:
+                reply = input('Please reply with yes or no: ')
+    elif args.cmd == 'index':
+        client.create_index(args.TABLENAME, args.COLUMN, args.unique)
+    elif args.cmd == 'load':
+        client.load(args.TABLENAME, args.SOURCE, args.format)
+    elif args.cmd == 'query':
+        client.query(args.QUERY, args.output_file, args.format, args.tmptable)
+    elif args.cmd == 'schema':
+        client.schema(args.columns)
+    print('DONE')
+    sys.exit(0)
+
     if args.user is not None:
         authentication = auth.NetrcAuthMethod(username=args.user)
         security_id = [BASICAA_ID]
@@ -361,11 +477,9 @@ def main_app(command='cadc-tap query'):
     else:
         authentication = auth.AnonAuthMethod()
         security_id = []
+
+
     client = CadcTapClient(subject, args.service, host=args.host)
-    if args.cmd == 'schema':
-        feature = TABLES_CAPABILITY
-    else:
-        feature = TAP_CAPABILITY
     check_cap = client._capabilities._caps.get(feature)
     if not security_id:
         method = None
