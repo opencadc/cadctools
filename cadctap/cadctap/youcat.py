@@ -84,6 +84,7 @@ DEFAULT_RESOURCE_ID = 'ivo://cadc.nrc.ca/youcat'
 # capabilities ids
 TABLES_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#tables-1.1'
 TABLE_UPDATE_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#table-update-1.x'
+QUERY_CAPABILITY_ID = 'ivo://ivoa.net/std/TAP'
 
 # allowed file formats for load
 ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values', 'csv': 'text/csv'}
@@ -242,3 +243,22 @@ class YoucatClient(object):
                                       headers=headers,
                                       data=fh)
             logger.debug('Done uploading file {}'.format(fh.name))
+
+    def query(self, query, lang='ADQL', maxrows=None, response_format=None,
+              tmptable=None):
+        """
+
+        :param lang:
+        :param query:
+        :param maxrows:
+        :param response_format:
+        :param tmptable:
+        :return:
+        """
+        pass
+        if not query:
+            raise AttributeError('missing query')
+        result = self._tap_client.post((QUERY_CAPABILITY_ID, None),
+                                       data={'LANG':'ADQL', 'QUERY':query})
+        print(result.text)
+

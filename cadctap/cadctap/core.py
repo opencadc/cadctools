@@ -269,7 +269,7 @@ def main_app(command='cadc-tap query'):
         required=False)
     options_parser = query_parser.add_mutually_exclusive_group(required=True)
     options_parser.add_argument(
-        'query',
+        'QUERY',
         default=None,
         nargs='?',
         help='ADQL query to run, format is a string with quotes around it, '
@@ -395,6 +395,7 @@ def main_app(command='cadc-tap query'):
             sys.exit(-1)  # TODO use different error codes?
 
     _customize_parser(parser)
+    _customize_parser(create_parser)
     args = parser.parse_args()
     if len(sys.argv) < 2:
         parser.print_usage(file=sys.stderr)
@@ -415,8 +416,8 @@ def main_app(command='cadc-tap query'):
 
     if args.cmd == 'schema':
         feature = TABLES_CAPABILITY
-    elif args.cmd == 'query':
-        feature = TAP_CAPABILITY
+    #elif args.cmd == 'query':
+    #    feature = TAP_CAPABILITY
     else:  # create, delete, index, load
         # create a a CadcTap client
         subject = net.Subject.from_cmd_line_args(args)
@@ -443,6 +444,8 @@ def main_app(command='cadc-tap query'):
             client.create_index(args.TABLENAME, args.COLUMN, args.unique)
         elif args.cmd == 'load':
             client.load(args.TABLENAME, args.SOURCE, args.format)
+        elif args.cmd == 'query':
+            client.query(args.QUERY)
         print('DONE')
         sys.exit(0)
 
