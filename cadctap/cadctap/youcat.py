@@ -244,21 +244,44 @@ class YoucatClient(object):
                                       data=fh)
             logger.debug('Done uploading file {}'.format(fh.name))
 
-    def query(self, query, lang='ADQL', maxrows=None, response_format=None,
-              tmptable=None):
+    def query(self, query, output_file=None, response_format='votable',
+              tmptable=None, lang='ADQL'):
         """
 
         :param lang:
         :param query:
-        :param maxrows:
         :param response_format:
         :param tmptable:
+        :param output_file:
         :return:
         """
         pass
         if not query:
             raise AttributeError('missing query')
+        # TODO: add upload temporary table
+        """
+        if tmptable is not None:
+            tmp = tmptable.split(':')
+            tablename = tmp[0]
+            tablepath = tmp[1]
+            data['UPLOAD'] = tablename + ',param:' + tablename
+        """
         result = self._tap_client.post((QUERY_CAPABILITY_ID, None),
-                                       data={'LANG':'ADQL', 'QUERY':query})
-        print(result.text)
+                                       data={'LANG':'ADQL',
+                                             'QUERY':query, 
+                                             'UPLOAD':None, 
+                                             'FORMAT': response_format})
+        if output_file is None:
+            print(result.text)
+        else:
+            with open(output_file, "w") as f:
+                f.write(result.text)
+            f.close()
 
+    def schema(self, columns=None):
+       """
+       Outputs the tables or the columns of a table
+       :param columns: name of the table to print the columns
+       """
+       results = self._tap_client.get((TABLES_CAPABILITY_ID, None))
+       print(results.text)

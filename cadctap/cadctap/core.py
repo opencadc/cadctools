@@ -99,7 +99,7 @@ __all__ = ['CadcTapClient']
 # IVOA dateformat
 DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 # resource ID for info
-DEFAULT_RESOURCE_ID = 'ivo://cadc.nrc.ca/tap'
+DEFAULT_RESOURCE_ID = 'ivo://cadc.nrc.ca/youcat'
 APP_NAME = 'cadc-tap'
 BASICAA_ID = 'ivo://ivoa.net/sso#BasicAA'
 CERTIFICATE_ID = 'ivo://ivoa.net/sso#tls-with-certificate'
@@ -236,20 +236,28 @@ class CadcTapClient(object):
 def _customize_parser(parser):
     # cadc-tap customizes some of the options inherited from the CADC parser
     # TODO make it work or process list of subparsers
-    for action in parser._action_groups:
-        #action._remove_action(action._actions[6])
-        for subaction in action._action_groups:
-            vars_action = vars(subaction)
-            var_group_actions = vars_action['_group_actions']
-            for x in var_group_actions:
-                if x.dest == 'resource_id':
-                    var_group_actions.remove(x)
+    for i, op in enumerate(parser._actions):
+        if op.dest == 'resource_id':
+            # Remove --resource-id option for now
+            parser._remove_action(parser._actions[i])
+            for action in parser._action_groups:
+                vars_action = vars(action)
+                var_group_actions = vars_action['_group_actions']
+                for x in var_group_actions:
+                    if x.dest == 'resource_id':
+                        var_group_actions.remove(x)
+    parser.add_argument(
+        '-s', '--service',
+        default=DEFAULT_RESOURCE_ID,
+        help='set the TAP service. Use ivo format, eg. default is {}'.format(
+            DEFAULT_RESOURCE_ID) )
 
 
 def main_app(command='cadc-tap query'):
     parser = util.get_base_parser(version=version.version,
                                   default_resource_id=DEFAULT_RESOURCE_ID)
 
+    _customize_parser(parser)
     parser.description = (
         'Client for accessing databases using TAP protocol at the Canadian '
         'Astronomy Data Centre (www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)')
@@ -258,6 +266,15 @@ def main_app(command='cadc-tap query'):
         dest='cmd',
         help='supported commands. Use the -h|--help argument of a command '
              'for more details')
+    schema_parser = subparsers.add_parser(
+        'schema',
+        description=('Print the tables available for querying.'),
+        help='Print the tables available for querying.')
+    schema_parser.add_argument(
+        '-c', '--columns',
+        default=None,
+        help='Name of the table to print the columns.',
+        required=False)
     query_parser = subparsers.add_parser(
         'query',
         description=('Run an adql query'),
@@ -298,17 +315,6 @@ def main_app(command='cadc-tap query'):
              '"tablename:/path/to/table". In query to reference the table' 
              ' use tap_upload.tablename',
         required=False)
-    query_parser.add_argument(
-        '-s', '--service',
-        default=DEFAULT_RESOURCE_ID,
-        help='set the TAP service. The default is: '
-             'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/tap '
-             '(equivalent to URI ivo://cadc.nrc.ca/tap). If the argument is a '
-             'URI, the URL is resolved in the registry. If the argument is a '
-             'simple string, the service will be looked up in the registry '
-             'with the string value as the path. For example:\n-s ams/maq\n '
-             'produces URI ivo://cadc.nrc.ca/ams/maq and then URL '
-             'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/ams/maq')
     query_parser.epilog = (
         'Examples:\n'
         '- Anonymously run a query string:\n'
@@ -394,8 +400,13 @@ def main_app(command='cadc-tap query'):
         if exit_after:
             sys.exit(-1)  # TODO use different error codes?
 
-    _customize_parser(parser)
+    #_customize_parser(parser)
+    _customize_parser(schema_parser)
+    _customize_parser(query_parser)
     _customize_parser(create_parser)
+    _customize_parser(delete_parser)
+    _customize_parser(index_parser)
+    _customize_parser(load_parser)
     args = parser.parse_args()
     if len(sys.argv) < 2:
         parser.print_usage(file=sys.stderr)
@@ -414,40 +425,42 @@ def main_app(command='cadc-tap query'):
     subject = net.Subject.from_cmd_line_args(args)
 
 
-    if args.cmd == 'schema':
-        feature = TABLES_CAPABILITY
+    #if args.cmd == 'schema':
+    #    feature = TABLES_CAPABILITY
     #elif args.cmd == 'query':
     #    feature = TAP_CAPABILITY
-    else:  # create, delete, index, load
-        # create a a CadcTap client
-        subject = net.Subject.from_cmd_line_args(args)
-        client = YoucatClient(subject)
-        if args.cmd == 'create':
-            client.create_table(args.TABLENAME, args.TABLEDEFINITION,
-                                args.format)
-        elif args.cmd == 'delete':
-            reply = input(
-                'You are about to delete table {} and its content... '
-                'Continue? [yes/no] '.format(args.TABLENAME))
-            while True:
-                if reply == 'yes':
-                    client.delete_table(args.TABLENAME)
-                    break
-                elif reply == 'no':
-                    logger.warn(
-                        'Table {} not deleted.'.
-                        format(args.TABLENAME))
-                    sys.exit(-1)
-                else:
-                    reply = input('Please reply with yes or no: ')
-        elif args.cmd == 'index':
-            client.create_index(args.TABLENAME, args.COLUMN, args.unique)
-        elif args.cmd == 'load':
-            client.load(args.TABLENAME, args.SOURCE, args.format)
-        elif args.cmd == 'query':
-            client.query(args.QUERY)
-        print('DONE')
-        sys.exit(0)
+    # create, delete, index, load
+    # create a a CadcTap client
+    subject = net.Subject.from_cmd_line_args(args)
+    client = YoucatClient(subject, resource_id=args.service)
+    if args.cmd == 'create':
+        client.create_table(args.TABLENAME, args.TABLEDEFINITION,
+                            args.format)
+    elif args.cmd == 'delete':
+        reply = input(
+            'You are about to delete table {} and its content... '
+            'Continue? [yes/no] '.format(args.TABLENAME))
+        while True:
+            if reply == 'yes':
+                client.delete_table(args.TABLENAME)
+                break
+            elif reply == 'no':
+                logger.warn(
+                    'Table {} not deleted.'.
+                    format(args.TABLENAME))
+                sys.exit(-1)
+            else:
+                reply = input('Please reply with yes or no: ')
+    elif args.cmd == 'index':
+        client.create_index(args.TABLENAME, args.COLUMN, args.unique)
+    elif args.cmd == 'load':
+        client.load(args.TABLENAME, args.SOURCE, args.format)
+    elif args.cmd == 'query':
+        client.query(args.QUERY, args.output_file, args.format, args.tmptable)
+    elif args.cmd == 'schema':
+        client.schema(args.columns)
+    print('DONE')
+    sys.exit(0)
 
     if args.user is not None:
         authentication = auth.NetrcAuthMethod(username=args.user)
