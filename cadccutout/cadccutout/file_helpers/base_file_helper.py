@@ -70,7 +70,6 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import numpy as np
 
 from cadccutout.cutoutnd import CutoutND
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser

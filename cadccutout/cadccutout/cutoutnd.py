@@ -183,7 +183,6 @@ class CutoutND(object):
             wcs_crpix = output_wcs.wcs.crpix
             l_wcs_crpix = len(wcs_crpix)
             ranges = cutout_region.get_ranges()
-            l_ranges = len(ranges)
 
             logging.debug('Adjusting WCS.')
 

@@ -80,6 +80,7 @@ pytest.main(args=['-s', os.path.abspath(__file__)])
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger().setLevel(level=logging.DEBUG)
 
+
 def test_parse():
     test_subject = PixelRangeInputParser()
 
@@ -112,4 +113,4 @@ def test_parse():
     result = test_subject.parse('[SCI,3][10:40,  60:90]')
     assert result[0].get_extension() == ('SCI', 3), 'Wrong extension.'
     assert result[0].dimension_ranges == [
-        (10,40), (60,90)], 'Wrong ranges.'
+        (10, 40), (60, 90)], 'Wrong ranges.'

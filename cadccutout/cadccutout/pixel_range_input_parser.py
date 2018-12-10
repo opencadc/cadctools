@@ -94,8 +94,6 @@ class PixelRangeInputParser(object):
     def __init__(self, delimiter=':', separator=','):
         self.delimiter = delimiter
         self.separator = separator
-        # self.match_pattern = re.compile(
-            # r'[\[?[\w]*,?\d*\]?]?[\[?[\d*:?\d*,?]*\]?]')
         self.match_pattern = re.compile(
             r'[\[?[\w]*,?\s*\d*\]?]?[\[?[\d*:?\d*,?\s*]*\]?]')
 

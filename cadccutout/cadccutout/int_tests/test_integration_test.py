@@ -80,8 +80,6 @@ import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
 
-# from cadcdata import CadcDataClient
-# from cadcutils import net
 from cadccutout.core import OpenCADCCutout
 from cadccutout.no_content_error import NoContentError
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser

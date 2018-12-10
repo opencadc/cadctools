@@ -146,10 +146,12 @@ class AxisType(object):
                         self.spatial_1, self.spatial_2))
             elif coordinate_type in self.SPECTRAL_KEYWORDS:
                 self.spectral = i + 1
-                logging.info('Spectral naxis{}'.format(self.get_spectral_axis()))
+                logging.info('Spectral naxis{}'.format(
+                    self.get_spectral_axis()))
             elif coordinate_type in self.TEMPORAL_KEYWORDS:
                 self.temporal = i + 1
-                logging.info('Temporal naxis{}'.format(self.get_temporal_axis()))
+                logging.info('Temporal naxis{}'.format(
+                    self.get_temporal_axis()))
             elif coordinate_type in self.POLARIZATION_KEYWORDS:
                 self.polarization = i + 1
                 logging.info('Polarization naxis{}'.format(
@@ -266,7 +268,8 @@ class Transform(object):
                     # get the cutout pixels
                     pixels = self.get_polygon_cutout_pixels(
                         shape, header, naxis1, naxis2)
-                    logging.info('POLYGON pixels [{}:{}, {}:{}]'.format(*pixels))
+                    logging.info(
+                        'POLYGON pixels [{}:{}, {}:{}]'.format(*pixels))
 
                     # remove default cutouts and add query cutout
                     cutouts.pop(naxis1)

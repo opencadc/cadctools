@@ -77,7 +77,7 @@ from cadccutout.file_helpers.base_file_helper import BaseFileHelper
 from cadccutout.utils import is_integer
 from astropy.nddata import NoOverlapError
 from astropy.wcs import WCS
-from astropy.io.fits import PrimaryHDU, ImageHDU
+from astropy.io.fits import PrimaryHDU
 from astropy.io import fits
 
 
@@ -257,7 +257,8 @@ class FITSHelper(BaseFileHelper):
             # If we encounter a PrimaryHDU, write it at the top and continue.
             if isinstance(hdu, PrimaryHDU) and hdu.data is None:
                 logging.debug(
-                    'Appending Primary from index {}'.format(curr_extension_idx))
+                    'Appending Primary from index {}'.format(
+                        curr_extension_idx))
                 fits.append(
                     filename=self.output_writer, header=hdu.header, data=None,
                     overwrite=False, output_verify='silentfix',
@@ -304,7 +305,8 @@ class FITSHelper(BaseFileHelper):
                 except NoContentError:
                     # Skip for now as we're iterating the loop.
                     logging.debug(
-                        'No overlap with extension {}'.format(curr_extension_idx))
+                        'No overlap with extension {}'.format(
+                            curr_extension_idx))
 
             logging.debug(
                 'Finished extension {}'.format(curr_extension_idx))
