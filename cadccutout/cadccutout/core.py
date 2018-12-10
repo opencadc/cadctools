@@ -345,5 +345,5 @@ if __name__ == "__main__":
     try:
         main_app()
         exit(0)
-    except Exception as e:
+    except Exception:
         exit(-1)

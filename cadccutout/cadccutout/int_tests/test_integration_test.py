@@ -117,32 +117,6 @@ def _extname_sort_func(hdu):
 
 @pytest.mark.parametrize(
     'cutout_region_string, target_file_name, \
-     test_dir_name, wcs_naxis_val',
-    [('CIRCLE 168.34719985367971 76.18699791158396 0.1',
-        '/usr/src/data/test-sitelle-cube.fits', DEFAULT_TEST_FILE_DIR, 2)
-     ])
-def test_integration_wcs_test(
-        cutout_region_string, target_file_name, test_dir_name, wcs_naxis_val):
-    test_subject = OpenCADCCutout()
-    result_cutout_file_path = random_test_file_name_path(dir_name=test_dir_name)
-
-    logging.info('Testing output to {}'.format(result_cutout_file_path))
-
-    try:
-        # Write out a test file with the test result FITS data.
-        with open(result_cutout_file_path, 'ab+') as test_file_handle, \
-                open(target_file_name, 'rb') as input_file_handle:
-            test_subject.cutout_from_string(
-                cutout_region_string, input_file_handle, test_file_handle,
-                'FITS')
-        raise AssertionError('Should not succeed: {}'.format(
-            cutout_region_string))
-    except NoContentError:
-        logging.info('Good!')
-
-
-@pytest.mark.parametrize(
-    'cutout_region_string, target_file_name, \
                           expected_cutout_file_path, use_fits_diff, \
                           test_dir_name, wcs_naxis_val, use_extension_names',
     [('[200:500,100:300,100:140]', '/usr/src/data/test-gmims-cube.fits',
