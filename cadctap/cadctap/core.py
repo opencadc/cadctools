@@ -462,65 +462,69 @@ def main_app(command='cadc-tap query'):
     print('DONE')
     sys.exit(0)
 
-    if args.user is not None:
-        authentication = auth.NetrcAuthMethod(username=args.user)
-        security_id = [BASICAA_ID]
-    elif args.n is not False:
-        authentication = auth.NetrcAuthMethod()
-        security_id = [BASICAA_ID]
-    elif args.netrc_file is not None:
-        authentication = auth.NetrcAuthMethod(filename=args.netrc_file)
-        security_id = [BASICAA_ID]
-    elif args.cert is not None:
-        authentication = auth.CertAuthMethod(certificate=args.cert)
-        security_id = [CERTIFICATE_ID]
-    else:
-        authentication = auth.AnonAuthMethod()
-        security_id = []
+    # Following is code design to work with the astroquery.cadc package.
+    # Whether we are going to use it or not is still debatable, hence
+    # it is kept here.
 
-
-    client = CadcTapClient(subject, args.service, host=args.host)
-    check_cap = client._capabilities._caps.get(feature)
-    if not security_id:
-        method = None
-    else:
-        method = security_id[0]
-    if check_cap.get_interface(method) is None:
-        logger.info("Downgrading authentication type to anonymous,\n"
-                    "type {0} not accepted by resource {1}"
-                    .format(method, args.service))
-        subject = net.Subject()
-        authentication = auth.AnonAuthMethod()
-        security_id = []
-    url = client._capabilities.get_access_url(feature, security_id)
-    if url.endswith('sync') or url.endswith('tables'):
-        index = url.rfind('/')
-        length = len(url)
-        sub_url = url[:-(length-index)]
-    else:
-        sub_url = url
-    try:
-        if args.cmd == 'query':
-            logger.info('query')
-            client.run_query(args.query, args.input_file, args.async_job,
-                             args.format, show_prints,
-                             args.output_file, args.tmptable,
-                             authentication, sub_url)
-    except exceptions.UnauthorizedException:
-        if subject.anon:
-            handle_error('Operation cannot be performed anonymously. '
-                         'Use one of the available methods to authenticate')
-        else:
-            handle_error('Unexpected authentication problem')
-    except exceptions.ForbiddenException:
-        handle_error('Unauthorized to perform operation')
-    except exceptions.UnexpectedException as e:
-        handle_error('Unexpected server error: {}'.format(str(e)))
-    except Exception as e:
-        handle_error(str(e))
-
-    if errors[0] > 0:
-        logger.error('Finished with {} error(s)'.format(errors[0]))
-        sys.exit(-1)
-    else:
-        logger.info("DONE")
+    # if args.user is not None:
+    #     authentication = auth.NetrcAuthMethod(username=args.user)
+    #     security_id = [BASICAA_ID]
+    # elif args.n is not False:
+    #     authentication = auth.NetrcAuthMethod()
+    #     security_id = [BASICAA_ID]
+    # elif args.netrc_file is not None:
+    #     authentication = auth.NetrcAuthMethod(filename=args.netrc_file)
+    #     security_id = [BASICAA_ID]
+    # elif args.cert is not None:
+    #     authentication = auth.CertAuthMethod(certificate=args.cert)
+    #     security_id = [CERTIFICATE_ID]
+    # else:
+    #     authentication = auth.AnonAuthMethod()
+    #     security_id = []
+    #
+    #
+    # client = CadcTapClient(subject, args.service, host=args.host)
+    # check_cap = client._capabilities._caps.get(feature)
+    # if not security_id:
+    #     method = None
+    # else:
+    #     method = security_id[0]
+    # if check_cap.get_interface(method) is None:
+    #     logger.info("Downgrading authentication type to anonymous,\n"
+    #                 "type {0} not accepted by resource {1}"
+    #                 .format(method, args.service))
+    #     subject = net.Subject()
+    #     authentication = auth.AnonAuthMethod()
+    #     security_id = []
+    # url = client._capabilities.get_access_url(feature, security_id)
+    # if url.endswith('sync') or url.endswith('tables'):
+    #     index = url.rfind('/')
+    #     length = len(url)
+    #     sub_url = url[:-(length-index)]
+    # else:
+    #     sub_url = url
+    # try:
+    #     if args.cmd == 'query':
+    #         logger.info('query')
+    #         client.run_query(args.query, args.input_file, args.async_job,
+    #                          args.format, show_prints,
+    #                          args.output_file, args.tmptable,
+    #                          authentication, sub_url)
+    # except exceptions.UnauthorizedException:
+    #     if subject.anon:
+    #         handle_error('Operation cannot be performed anonymously. '
+    #                      'Use one of the available methods to authenticate')
+    #     else:
+    #         handle_error('Unexpected authentication problem')
+    # except exceptions.ForbiddenException:
+    #     handle_error('Unauthorized to perform operation')
+    # except exceptions.UnexpectedException as e:
+    #     handle_error('Unexpected server error: {}'.format(str(e)))
+    # except Exception as e:
+    #     handle_error(str(e))
+    #
+    # if errors[0] > 0:
+    #     logger.error('Finished with {} error(s)'.format(errors[0]))
+    #     sys.exit(-1)
+    # else:
+    #     logger.info("DONE")

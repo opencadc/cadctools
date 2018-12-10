@@ -77,6 +77,7 @@ import datetime
 from cadctap import version
 from cadcutils import net
 import magic
+from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 logger = logging.getLogger(__name__)
 
@@ -244,7 +245,7 @@ class YoucatClient(object):
                                       data=fh)
             logger.debug('Done uploading file {}'.format(fh.name))
 
-    def query(self, query, output_file=None, response_format='votable',
+    def query(self, query, output_file=None, response_format='VOTable',
               tmptable=None, lang='ADQL'):
         """
 
@@ -258,19 +259,24 @@ class YoucatClient(object):
         pass
         if not query:
             raise AttributeError('missing query')
-        # TODO: add upload temporary table
-        """
+
+        fields = {'LANG': lang,
+                'QUERY': query,
+                'FORMAT': response_format}
         if tmptable is not None:
             tmp = tmptable.split(':')
             tablename = tmp[0]
             tablepath = tmp[1]
-            data['UPLOAD'] = tablename + ',param:' + tablename
-        """
+            tablefile = os.path.basename(tablepath)
+            fields['UPLOAD'] = '{},param:{}'.format(tablename, tablefile)
+            fields[tablefile] = (tablepath, open(tablepath, 'rb'))
+
+        logger.debug('QUERY fileds: {}'.format(fields))
+        m = MultipartEncoder(fields=fields)
         result = self._tap_client.post((QUERY_CAPABILITY_ID, None),
-                                       data={'LANG':'ADQL',
-                                             'QUERY':query, 
-                                             'UPLOAD':None, 
-                                             'FORMAT': response_format})
+                                       data=m, headers=
+                                       {'Content-Type': m.content_type})
+
         if output_file is None:
             print(result.text)
         else:
