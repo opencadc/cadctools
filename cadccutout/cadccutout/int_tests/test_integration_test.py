@@ -81,7 +81,6 @@ from astropy.io import fits
 from astropy.wcs import WCS
 
 from cadccutout.core import OpenCADCCutout
-from cadccutout.no_content_error import NoContentError
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
 sys.path.insert(0, os.path.abspath(
