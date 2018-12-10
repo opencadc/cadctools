@@ -195,6 +195,29 @@ class AxisType(object):
 
 class Transform(object):
 
+    def _append_world_to_circle_pixels(self, header, naxis1, naxis2, pixels,
+                                       cutouts):
+        logging.info('CIRCLE pixels [{}:{}, {}:{}]'.format(*pixels))
+
+        l_cutouts = len(cutouts)
+
+        for i in pixels:
+            if not i:
+                logging.debug('Skipping {}'.format(header))
+                raise NoContentError(
+                    'Unable to create bounding box.')
+
+        logging.debug('Removing {} from {}'.format(naxis1, cutouts))
+
+        # remove default cutouts and add query cutout
+        if naxis1 < l_cutouts:
+            cutouts.pop(naxis1)
+            cutouts.insert(naxis1, (pixels[0], pixels[1]))
+
+        if naxis2 < l_cutouts:
+            cutouts.pop(naxis2)
+            cutouts.insert(naxis2, (pixels[2], pixels[3]))
+
     def world_to_pixels(self, world_coords, header):
         """
         Convert a list of world coordinates to pixel coordinates
@@ -235,28 +258,11 @@ class Transform(object):
                     # length of the two axes
                     naxis1 = axis_types.get_spatial_axes()[0]
                     naxis2 = axis_types.get_spatial_axes()[1]
-
                     # get the cutout pixels
                     pixels = self.get_circle_cutout_pixels(
                         shape, header, naxis1, naxis2)
-                    logging.info('CIRCLE pixels [{}:{}, {}:{}]'.format(*pixels))
-
-                    for i in pixels:
-                        if not i:
-                            logging.debug('Skipping {}'.format(header))
-                            raise NoContentError(
-                                'Unable to create bounding box.')
-
-                    logging.debug('Removing {} from {}'.format(naxis1, cutouts))
-
-                    # remove default cutouts and add query cutout
-                    if naxis1 < l_cutouts:
-                        cutouts.pop(naxis1)
-                        cutouts.insert(naxis1, (pixels[0], pixels[1]))
-
-                    if naxis2 < l_cutouts:
-                        cutouts.pop(naxis2)
-                        cutouts.insert(naxis2, (pixels[2], pixels[3]))
+                    self._append_world_to_circle_pixels(header, naxis1, naxis2,
+                                                        pixels, cutouts)
                 except NoContentError as e:
                     no_content_errors.append(repr(e))
             elif isinstance(shape, Polygon):

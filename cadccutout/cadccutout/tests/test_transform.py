@@ -344,6 +344,22 @@ def test_world_to_pixels_no_content():
         assert True
 
 
+def test__append_world_to_circle_pixels():
+    cutouts = [(0, 0), (1, 256), (1, 256)]
+    pixels = (1, 1089, None, 1089)
+    header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
+    header = fits.Header.fromtextfile(header_filename)
+    test_subject = Transform()
+
+    try:
+        test_subject._append_world_to_circle_pixels(header, 1, 2, pixels,
+                                                    cutouts)
+        assert False, 'Should throw NoContentError for missing value.'
+    except NoContentError as nce:
+        assert '{}'.format(nce) == 'Unable to create bounding box.', \
+            'Wrong message.'
+
+
 def test_get_circle_cutout_pixels_vlass():
     header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
     header = fits.Header.fromtextfile(header_filename)
