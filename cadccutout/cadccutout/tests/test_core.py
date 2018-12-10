@@ -116,9 +116,11 @@ def test__sanity_check_input():
         test_subject._sanity_check_input(('bad', 'tuple'))
         assert False, 'Should throw ValueError for bad input.'
     except ValueError as ve:
-        assert '{}'.format(ve) == \
-            'Input is expected to be a string or list but was \
-(u\'bad\', u\'tuple\')', \
+        assert ('{}'.format(ve) ==
+                'Input is expected to be a string or list but was \
+(u\'bad\', u\'tuple\')') or ('{}'.format(ve) ==
+                             'Input is expected to be a string or list but was \
+(\'bad\', \'tuple\')'), \
             'Wrong error message.'
 
 
