@@ -85,10 +85,10 @@ def test_create():
     assert test_subject.get_extension() == 5, 'Wrong extension.'
 
     try:
-      test_subject = PixelCutoutHDU([()])
-      assert False, 'Should throw ValueError as tuples are not long enough.'
+        test_subject = PixelCutoutHDU([()])
+        assert False, 'Should throw ValueError as tuples are not long enough.'
     except ValueError:
-      assert True, 'Good!'
+        assert True, 'Good!'
 
 
 def test_get_shape():
