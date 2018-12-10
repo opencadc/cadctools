@@ -219,6 +219,8 @@ class Transform(object):
             length = header.get('NAXIS{}'.format(i))
             cutouts.append((1, length))
 
+        l_cutouts = len(cutouts)
+
         # accumulated NoContentErrors
         no_content_errors = []
 
@@ -246,11 +248,11 @@ class Transform(object):
                     logging.debug('Removing {} from {}'.format(naxis1, cutouts))
 
                     # remove default cutouts and add query cutout
-                    if naxis1 in cutouts:
+                    if naxis1 < l_cutouts:
                         cutouts.pop(naxis1)
                         cutouts.insert(naxis1, (pixels[0], pixels[1]))
 
-                    if naxis2 in cutouts:
+                    if naxis2 < l_cutouts:
                         cutouts.pop(naxis2)
                         cutouts.insert(naxis2, (pixels[2], pixels[3]))
                 except NoContentError as e:
