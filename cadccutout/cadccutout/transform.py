@@ -244,8 +244,6 @@ class Transform(object):
             length = header.get('NAXIS{}'.format(i))
             cutouts.append((1, length))
 
-        l_cutouts = len(cutouts)
-
         # accumulated NoContentErrors
         no_content_errors = []
 
