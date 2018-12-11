@@ -300,7 +300,7 @@ def main_app(command='cadc-tap query'):
     query_parser.add_argument(
         '-f', '--format',
         default='VOTable',
-        choices=['votable', 'csv', 'tsv'],
+        choices=['VOTable', 'csv', 'tsv'],
         help='output format, either tsv, csv, fits (TBD), or votable(default)',
         required=False)
     query_parser.add_argument(
@@ -328,7 +328,7 @@ def main_app(command='cadc-tap query'):
         description='Create a table',
         help='Create a table')
     create_parser.add_argument(
-        '-f', '--format', choices=ALLOWED_TB_DEF_TYPES.keys(),
+        '-f', '--format', choices=sorted(ALLOWED_TB_DEF_TYPES.keys()),
         required=False,
         help='Format of the table definition file')
     create_parser.add_argument(

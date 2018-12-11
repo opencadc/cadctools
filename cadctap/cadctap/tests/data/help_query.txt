@@ -1,7 +1,7 @@
 usage: cadc-tap query [-h]
                       [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                       [--host HOST] [-d | -q | -v] [-o OUTPUT_FILE]
-                      [-i INPUT_FILE] [-a] [-f {votable,csv,tsv}]
+                      [-i INPUT_FILE] [-a] [-f {VOTable,csv,tsv}]
                       [-t TMPTABLE] [-s SERVICE]
                       [QUERY]
 
@@ -18,7 +18,7 @@ optional arguments:
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages
-  -f, --format {votable,csv,tsv}
+  -f, --format {VOTable,csv,tsv}
                         output format, either tsv, csv, fits (TBD), or
                         votable(default)
   -h, --help            show this help message and exit
