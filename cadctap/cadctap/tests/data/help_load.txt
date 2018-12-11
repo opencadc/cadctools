@@ -1,6 +1,6 @@
 usage: cadc-tap load [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                     [--host HOST] [-d | -q | -v] [-f {tsv,csv}] [-s SERVICE]
+                     [--host HOST] [-d | -q | -v] [-f {csv,tsv}] [-s SERVICE]
                      TABLENAME SOURCE [SOURCE ...]
 
 Load data to a table
@@ -13,7 +13,7 @@ optional arguments:
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages
-  -f, --format {tsv,csv}
+  -f, --format {csv,tsv}
                         Format of the data file
   -h, --help            show this help message and exit
   --host HOST           base hostname for services - used mainly for testing
