@@ -247,13 +247,12 @@ class YoucatClient(object):
     def query(self, query, output_file=None, response_format='VOTable',
               tmptable=None, lang='ADQL'):
         """
-
-        :param lang:
-        :param query:
-        :param response_format:
-        :param tmptable:
-        :param output_file:
-        :return:
+        Send query to database and output or save results
+        :param lang: the language to use for the query (should be ADQL)
+        :param query: the query to send to the database
+        :param response_format: (VOTable, csv, tsv) format of returned result
+        :param tmptable: tablename:/path/to/table, tmp table to upload
+        :param output_file: name of the file to save results to
         """
         pass
         if not query:
