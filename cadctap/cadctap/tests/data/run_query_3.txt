@@ -1,4 +1,0 @@
-----------------
-Jobid:  Synchronous queries do not have a jobid
-----------------
-Results not saved becuase -b/--background is set

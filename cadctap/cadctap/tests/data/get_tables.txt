@@ -1,6 +1,0 @@
------------
-Tables
------------
-table.one
-table.two
-table.three

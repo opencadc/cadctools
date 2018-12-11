@@ -72,7 +72,6 @@ from __future__ import (absolute_import, division, print_function,
 
 import logging
 import os
-import sys
 import datetime
 from cadctap import version
 from cadcutils import net
@@ -129,13 +128,13 @@ class YoucatClient(object):
         if not table_name or not table_defintion:
             raise AttributeError(
                 'table name and definition required in create: {}/{}'.
-                    format(table_name, table_defintion))
+                format(table_name, table_defintion))
 
         if type:
             if type not in ALLOWED_TB_DEF_TYPES.keys():
                 raise AttributeError(
                     'Table definition file type {} not supported ({})'.
-                        format(type, ' '.join(ALLOWED_TB_DEF_TYPES.keys)))
+                    format(type, ' '.join(ALLOWED_TB_DEF_TYPES.keys)))
             else:
                 file_type = type
         else:
@@ -183,7 +182,7 @@ class YoucatClient(object):
         if not table_name or not column_name:
             raise AttributeError(
                 'table name and column required in index: {}/{}'.
-                    format(table_name, column_name))
+                format(table_name, column_name))
 
         logger.debug('Index for column{} in table {}'.format(column_name,
                                                              table_name))
@@ -261,8 +260,8 @@ class YoucatClient(object):
             raise AttributeError('missing query')
 
         fields = {'LANG': lang,
-                'QUERY': query,
-                'FORMAT': response_format}
+                  'QUERY': query,
+                  'FORMAT': response_format}
         if tmptable is not None:
             tmp = tmptable.split(':')
             tablename = tmp[0]
@@ -274,9 +273,9 @@ class YoucatClient(object):
         logger.debug('QUERY fileds: {}'.format(fields))
         m = MultipartEncoder(fields=fields)
         with self._tap_client.post((QUERY_CAPABILITY_ID, None),
-                                       data=m, headers=
-                                       {'Content-Type': m.content_type},
-                                       stream=True) as result:
+                                   data=m, headers={
+                                       'Content-Type': m.content_type},
+                                   stream=True) as result:
             if not output_file:
                 print(result.text)
             else:
@@ -284,9 +283,9 @@ class YoucatClient(object):
                     f.write(result.raw.read())
 
     def schema(self, columns=None):
-       """
-       Outputs the tables or the columns of a table
-       :param columns: name of the table to print the columns
-       """
-       results = self._tap_client.get((TABLES_CAPABILITY_ID, None))
-       print(results.text)
+        """
+        Outputs the tables or the columns of a table
+        :param columns: name of the table to print the columns
+        """
+        results = self._tap_client.get((TABLES_CAPABILITY_ID, None))
+        print(results.text)

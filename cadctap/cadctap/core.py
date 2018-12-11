@@ -71,20 +71,15 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
-import re
 import sys
-from datetime import datetime
 from clint.textui import progress
 
-from cadcutils import net, util, exceptions
-from cadcutils.net import wscapabilities
-from cadcutils.net import ws
+from cadcutils import net, util
+# from cadcutils.net import wscapabilities
+# from cadcutils.net import ws
 from six.moves import input
 
 from cadctap import version
-
-#import astroquery.cadc as cadc
-#from astroquery.cadc import auth
 
 from .youcat import YoucatClient, ALLOWED_CONTENT_TYPES, ALLOWED_TB_DEF_TYPES
 
@@ -110,127 +105,132 @@ DEFAULT_URI = 'ivo://cadc.nrc.ca/'
 logger = logging.getLogger(APP_NAME)
 
 
+# Following is code design to work with the astroquery.cadc package.
+# Whether we are going to use it or not is still debatable, hence
+# it is kept here.
+
 class CadcTapClient(object):
-    """Class to access CADC TAP services.
+    # """Class to access CADC TAP services.
 
-    Example of usage:
-    from cadcutils import net
-    from cadctap import CadcTapClient
+    # Example of usage:
+    # from cadcutils import net
+    # from cadctap import CadcTapClient
 
-    from astroquery.cadc import Cadc
-    from astroquery.cadc import auth
+    # from astroquery.cadc import Cadc
+    # from astroquery.cadc import auth
 
-    # create possible types of subjects for CadcTapClient
-    anonSubject = net.Subject()
-    netrcSubject = net.Subject(netrc=True)
-    certSubject = net.Subject(
-        certificate='/home/dunnj/Downloads/cadcproxy.pem')
+    # # create possible types of subjects for CadcTapClient
+    # anonSubject = net.Subject()
+    # netrcSubject = net.Subject(netrc=True)
+    # certSubject = net.Subject(
+    #     certificate='/home/dunnj/Downloads/cadcproxy.pem')
 
-    # create possible types of authentication for astroquery
-    anon=auth.AnonAuthMethod()
-    netrc=auth.NetrcAuthMethod()
-    cert=auth.CertAuthMethod(
-        certificate='/home/dunnj/Downloads/cadcproxy.pem')
+    # # create possible types of authentication for astroquery
+    # anon=auth.AnonAuthMethod()
+    # netrc=auth.NetrcAuthMethod()
+    # cert=auth.CertAuthMethod(
+    #     certificate='/home/dunnj/Downloads/cadcproxy.pem')
 
-    client = CadcTapClient(anonSubject) # connect to ivo://cadc.nrc.ca/data
-    # get list of tables
-    client.get_tables(authentication=anon)
+    # client = CadcTapClient(anonSubject) # connect to ivo://cadc.nrc.ca/data
+    # # get list of tables
+    # client.get_tables(authentication=anon)
 
-    client = CadcTapClient(certSubject)
-    # get list of columns of a table
-    client.get_table('caom2.caom2.Observation', authentication=cert)
+    # client = CadcTapClient(certSubject)
+    # # get list of columns of a table
+    # client.get_table('caom2.caom2.Observation', authentication=cert)
 
-    client = CadcTapClient(netrcSubject)
-    # get the results of a query
-    client.run_query(
-        query='SELECT TOP 10 type FROM caom2.Observation',
-        authentication=netrc)
-    """
+    # client = CadcTapClient(netrcSubject)
+    # # get the results of a query
+    # client.run_query(
+    #     query='SELECT TOP 10 type FROM caom2.Observation',
+    #     authentication=netrc)
+    # """
 
     def __init__(self, subject, resource_id=DEFAULT_RESOURCE_ID, host=None):
-        """
-        Instance of a CadcDataClient
-        :param subject: the subject(user) performing the action
-        :type subject: cadcutils.net.Subject
-        :param resource_id: The identifier of the service resource
-                            (e.g 'ivo://cadc.nrc.ca/data')
-        :param host: Host server for the caom2repo service
-        """
-        self.logger = logging.getLogger(APP_NAME+'.CadcTapClient')
+        pass
+    #     """
+    #     Instance of a CadcDataClient
+    #     :param subject: the subject(user) performing the action
+    #     :type subject: cadcutils.net.Subject
+    #     :param resource_id: The identifier of the service resource
+    #                         (e.g 'ivo://cadc.nrc.ca/data')
+    #     :param host: Host server for the caom2repo service
+    #     """
+    #     self.logger = logging.getLogger(APP_NAME+'.CadcTapClient')
 
-        self.resource_id = resource_id
+    #     self.resource_id = resource_id
 
-        self.host = host
+    #     self.host = host
 
-        agent = "{}/{}".format(APP_NAME, version.version)
+    #     agent = "{}/{}".format(APP_NAME, version.version)
 
-        self._data_client = net.BaseWsClient(resource_id, subject,
-                                             agent, retry=True, host=self.host)
-        reader = wscapabilities.CapabilitiesReader()
-        web = ws.WsCapabilities(self._data_client, host)
-        if 'http' in resource_id:
-            service = resource_id.strip('/')
-            if not service.endswith('capabilities'):
-                service = service + '/capabilities'
-        elif 'ivo://' in resource_id:
-            service = web._get_capability_url()
-        else:
-            source = resource_id.strip('/')
-            uri = DEFAULT_URI + source
-            web.ws.resource_id = uri
-            service = web._get_capability_url()
-        #print(service)
-        content = web._get_content(web.caps_file,
-                                   service,
-                                   web.last_capstime)
-        self._capabilities = reader.parsexml(content.encode('utf-8'))
+    #     self._data_client = net.BaseWsClient(resource_id, subject,
+    #                                        agent, retry=True, host=self.host)
+    #     reader = wscapabilities.CapabilitiesReader()
+    #     web = ws.WsCapabilities(self._data_client, host)
+    #     if 'http' in resource_id:
+    #         service = resource_id.strip('/')
+    #         if not service.endswith('capabilities'):
+    #             service = service + '/capabilities'
+    #     elif 'ivo://' in resource_id:
+    #         service = web._get_capability_url()
+    #     else:
+    #         source = resource_id.strip('/')
+    #         uri = DEFAULT_URI + source
+    #         web.ws.resource_id = uri
+    #         service = web._get_capability_url()
+    #     content = web._get_content(web.caps_file,
+    #                                service,
+    #                                web.last_capstime)
+    #     self._capabilities = reader.parsexml(content.encode('utf-8'))
 
-    def run_query(self, query=None, input_file=None, isasync=False,
-                  format='votable', verbose=False, output_file=False,
-                  tmptable=None, authentication=None, url=None):
-        if input_file is not None:
-            with open(input_file) as f:
-                adql_query = f.read().strip()
-        else:
-            adql_query = query
-        Cadc = cadc.CadcTAP(url=url, verbose=verbose)
-        if isasync is True:
-            operation = 'async'
-        else:
-            operation = 'sync'
-        if tmptable is not None:
-            tmp = tmptable.split(':')
-            tablename = tmp[0]
-            tablepath = tmp[1]
-        else:
-            tablename = None
-            tablepath = None
-        if output_file is True:
-            filename = None
-            output = True
-        elif output_file is False:
-            filename = None
-            output = False
-        else:
-            filename = output_file
-            output = True
-        try:
-            job = Cadc.run_query(adql_query, operation, filename, format,
-                                 verbose, output, False,
-                                 tablepath, tablename,
-                                 authentication)
-        except Exception as e:
-            if len(e.args) == 1:
-                raise exceptions.HttpException(e.args[0])
-            elif e.args[1] == 'No such file or directory':
-                raise RuntimeError("[Errno "+str(e.args[0])+"] "+e.args[1]+": '"+tablepath+"'")
-                
-        if output is False:
-            print('----------------')
-            print('Query Results ')
-            print('----------------')
-            print(job.get_results(verbose=verbose,
-                                  authentication=authentication))
+    # def run_query(self, query=None, input_file=None, isasync=False,
+    #               format='votable', verbose=False, output_file=False,
+    #               tmptable=None, authentication=None, url=None):
+    #     if input_file is not None:
+    #         with open(input_file) as f:
+    #             adql_query = f.read().strip()
+    #     else:
+    #         adql_query = query
+    #     Cadc = cadc.CadcTAP(url=url, verbose=verbose)
+    #     if isasync is True:
+    #         operation = 'async'
+    #     else:
+    #         operation = 'sync'
+    #     if tmptable is not None:
+    #         tmp = tmptable.split(':')
+    #         tablename = tmp[0]
+    #         tblpath = tmp[1]
+    #     else:
+    #         tablename = None
+    #         tblpath = None
+    #     if output_file is True:
+    #        filename = None
+    #         output = True
+    #     elif output_file is False:
+    #         filename = None
+    #         output = False
+    #     else:
+    #         filename = output_file
+    #         output = True
+    #     try:
+    #         job = Cadc.run_query(adql_query, operation, filename, format,
+    #                              verbose, output, False,
+    #                              tblpath, tablename,
+    #                               authentication)
+    #     except Exception as e:
+    #          if len(e.args) == 1:
+    #             raise exceptions.HttpException(e.args[0])
+    #         elif e.args[1] == 'No such file or directory':
+    #             raise RuntimeError(
+    #               "[Errno "+str(e.args[0])+"] "+e.args[1]+": '"+tblpath+"'")
+    #
+    #     if output is False:
+    #         print('----------------')
+    #         print('Query Results ')
+    #         print('----------------')
+    #         print(job.get_results(verbose=verbose,
+    #                               authentication=authentication))
 
 
 def _customize_parser(parser):
@@ -250,7 +250,7 @@ def _customize_parser(parser):
         '-s', '--service',
         default=DEFAULT_RESOURCE_ID,
         help='set the TAP service. Use ivo format, eg. default is {}'.format(
-            DEFAULT_RESOURCE_ID) )
+             DEFAULT_RESOURCE_ID))
 
 
 def main_app(command='cadc-tap query'):
@@ -270,18 +270,13 @@ def main_app(command='cadc-tap query'):
         'schema',
         description=('Print the tables available for querying.'),
         help='Print the tables available for querying.')
-    schema_parser.add_argument(
-        '-c', '--columns',
-        default=None,
-        help='Name of the table to print the columns.',
-        required=False)
     query_parser = subparsers.add_parser(
         'query',
         description=('Run an adql query'),
         help='Run an adql query')
     query_parser.add_argument(
         '-o', '--output-file',
-        default=False,
+        default=None,
         help='write query results to file (default is to STDOUT)',
         required=False)
     options_parser = query_parser.add_mutually_exclusive_group(required=True)
@@ -304,7 +299,7 @@ def main_app(command='cadc-tap query'):
         required=False)
     query_parser.add_argument(
         '-f', '--format',
-        default='votable',
+        default='VOTable',
         choices=['votable', 'csv', 'tsv'],
         help='output format, either tsv, csv, fits (TBD), or votable(default)',
         required=False)
@@ -312,7 +307,7 @@ def main_app(command='cadc-tap query'):
         '-t', '--tmptable',
         default=None,
         help='Temp table upload, the value is in format: '
-             '"tablename:/path/to/table". In query to reference the table' 
+             '"tablename:/path/to/table". In query to reference the table'
              ' use tap_upload.tablename',
         required=False)
     query_parser.epilog = (
@@ -400,7 +395,6 @@ def main_app(command='cadc-tap query'):
         if exit_after:
             sys.exit(-1)  # TODO use different error codes?
 
-    #_customize_parser(parser)
     _customize_parser(schema_parser)
     _customize_parser(query_parser)
     _customize_parser(create_parser)
@@ -412,23 +406,19 @@ def main_app(command='cadc-tap query'):
         parser.print_usage(file=sys.stderr)
         sys.stderr.write("{}: error: too few arguments\n".format(APP_NAME))
         sys.exit(-1)
-    show_prints = False
     if args.verbose:
         logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-        show_prints = True
     elif args.debug:
         logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
-        show_prints = True
     else:
         logging.basicConfig(level=logging.WARN, stream=sys.stdout)
 
     subject = net.Subject.from_cmd_line_args(args)
 
-
-    #if args.cmd == 'schema':
-    #    feature = TABLES_CAPABILITY
-    #elif args.cmd == 'query':
-    #    feature = TAP_CAPABILITY
+    # if args.cmd == 'schema':
+    #     feature = TABLES_CAPABILITY
+    # elif args.cmd == 'query':
+    #     feature = TAP_CAPABILITY
     # create, delete, index, load
     # create a a CadcTap client
     subject = net.Subject.from_cmd_line_args(args)
@@ -458,7 +448,7 @@ def main_app(command='cadc-tap query'):
     elif args.cmd == 'query':
         client.query(args.QUERY, args.output_file, args.format, args.tmptable)
     elif args.cmd == 'schema':
-        client.schema(args.columns)
+        client.schema()
     print('DONE')
     sys.exit(0)
 

@@ -1,6 +1,0 @@
---------------------
-Columns of  table.one
---------------------
-col_one
-col_two
-col_three

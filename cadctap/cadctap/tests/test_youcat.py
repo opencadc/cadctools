@@ -70,14 +70,10 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import os
-import sys
-import unittest
 
-from six import StringIO
 from cadcutils import net
 from cadctap import youcat
-from cadctap.core import main_app
-from mock import Mock, patch, ANY, call
+from mock import Mock, patch, call
 import pytest
 
 # The following is a temporary workaround for Python issue
@@ -88,11 +84,10 @@ THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
 
 
-
 @patch('cadctap.youcat.net.BaseWsClient.put')
 def test_create_table(base_put_mock):
     client = youcat.YoucatClient(net.Subject())
-    #default format
+    # default format
     def_table = os.path.join(TESTDATA_DIR, 'createTable.vosi')
     def_table_content = open(def_table, 'rb').read()
     client.create_table('sometable', def_table)
@@ -198,11 +193,11 @@ def test_create_index(base_get_mock, base_post_mock):
 
     # expected post calls
     post_calls = [call((youcat.TABLE_UPDATE_CAPABILITY_ID, None),
-                      allow_redirects=False,
-                      data={'table': 'schema.sometable', 'uniquer': True,
-                            'index': 'col1'}),
+                  allow_redirects=False,
+                  data={'table': 'schema.sometable', 'uniquer': True,
+                        'index': 'col1'}),
                   call('{}/phase'.format(job_location),
-                       data={'PHASE': 'RUN'})]
+                  data={'PHASE': 'RUN'})]
     base_post_mock.assert_has_calls(post_calls)
 
     # expected get calls
@@ -230,3 +225,30 @@ def test_create_index(base_get_mock, base_post_mock):
     with pytest.raises(RuntimeError):
         client.create_index('sometable', 'col1')
 
+
+@patch('cadctap.youcat.net.BaseWsClient.get')
+def test_schema(base_get_mock):
+    client = youcat.YoucatClient(net.Subject())
+    # default format
+    client.schema()
+    base_get_mock.assert_called_with(
+        (youcat.TABLES_CAPABILITY_ID, None))
+
+
+@patch('cadctap.youcat.net.BaseWsClient.post')
+def test_query(base_post_mock):
+    client = youcat.YoucatClient(net.Subject())
+    # default format
+    def_name = 'tmptable'
+    def_table = os.path.join(TESTDATA_DIR, 'votable.xml')
+
+    fields = {'LANG': 'ADQL',
+              'QUERY': 'query',
+              'FORMAT': 'VOTable'}
+    tablefile = os.path.basename(def_table)
+    fields['UPLOAD'] = '{},param:{}'.format(def_name, tablefile)
+    fields[tablefile] = (def_table, open(def_table, 'rb'))
+    client.query('query', tmptable='tmptable:'+def_table)
+    print(base_post_mock.call_args_list[0][0][0])
+    assert base_post_mock.call_args_list[0][0][0] == \
+        (youcat.QUERY_CAPABILITY_ID, None)
