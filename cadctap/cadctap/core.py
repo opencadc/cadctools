@@ -367,7 +367,7 @@ def main_app(command='cadc-tap query'):
         description='Load data to a table',
         help='Load data to a table')
     load_parser.add_argument(
-        '-f', '--format', choices=ALLOWED_CONTENT_TYPES.keys(),
+        '-f', '--format', choices=sorted(ALLOWED_CONTENT_TYPES.keys()),
         required=False, default='tsv',
         help='Format of the data file')
     load_parser.add_argument(
