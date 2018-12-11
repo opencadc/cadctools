@@ -273,16 +273,15 @@ class YoucatClient(object):
 
         logger.debug('QUERY fileds: {}'.format(fields))
         m = MultipartEncoder(fields=fields)
-        result = self._tap_client.post((QUERY_CAPABILITY_ID, None),
+        with self._tap_client.post((QUERY_CAPABILITY_ID, None),
                                        data=m, headers=
-                                       {'Content-Type': m.content_type})
-
-        if output_file is None:
-            print(result.text)
-        else:
-            with open(output_file, "w") as f:
-                f.write(result.text)
-            f.close()
+                                       {'Content-Type': m.content_type},
+                                       stream=True) as result:
+            if not output_file:
+                print(result.text)
+            else:
+                with open(output_file, "wb") as f:
+                    f.write(result.raw.read())
 
     def schema(self, columns=None):
        """
