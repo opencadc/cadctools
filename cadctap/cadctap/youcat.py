@@ -281,10 +281,9 @@ class YoucatClient(object):
                 with open(output_file, "wb") as f:
                     f.write(result.raw.read())
 
-    def schema(self, columns=None):
+    def schema(self):
         """
-        Outputs the tables or the columns of a table
-        :param columns: name of the table to print the columns
+        Outputs the tables available for queries
         """
         results = self._tap_client.get((TABLES_CAPABILITY_ID, None))
         print(results.text)
