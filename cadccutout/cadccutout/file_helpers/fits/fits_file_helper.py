@@ -86,7 +86,7 @@ import logging
 
 __all__ = ['FITSHelper']
 
-# logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 # Remove the DQ1 and DQ2 headers until the issue with wcslib is resolved:
@@ -221,7 +221,7 @@ class FITSHelper(BaseFileHelper):
         extension = cutout_dimension.get_extension()
         wcs = self._get_wcs(header)
         try:
-            logging.debug(
+            logger.debug(
                 'Cutting out from extension {}'.format(extension))
             self._write_cutout(header=header, data=data,
                                cutout_dimension=cutout_dimension, wcs=wcs)
@@ -256,7 +256,7 @@ class FITSHelper(BaseFileHelper):
         for curr_extension_idx, hdu in enumerate(hdu_list):
             # If we encounter a PrimaryHDU, write it at the top and continue.
             if isinstance(hdu, PrimaryHDU) and hdu.data is None:
-                logging.debug(
+                logger.debug(
                     'Appending Primary from index {}'.format(
                         curr_extension_idx))
                 fits.append(
@@ -278,7 +278,7 @@ class FITSHelper(BaseFileHelper):
                             if self._is_extension_requested(
                                     curr_extension_idx, curr_ext_name_ver,
                                     cutout_dimension):
-                                logging.debug(
+                                logger.debug(
                                     '*** Extension {} does match ({} | {})'
                                     .format(
                                         cutout_dimension.get_extension(),
@@ -291,12 +291,12 @@ class FITSHelper(BaseFileHelper):
                         if pixel_matches_left == 0:
                             return has_match
                     else:
-                        logging.debug('Handling WCS transform.')
+                        logger.debug('Handling WCS transform.')
                         # Handle WCS transform.
                         transform = Transform()
                         transformed_cutout_dimension = \
                             transform.world_to_pixels(cutout_dimensions, header)
-                        logging.debug('Transformed {} into {}'.format(
+                        logger.debug('Transformed {} into {}'.format(
                             cutout_dimensions, transformed_cutout_dimension))
                         self._pixel_cutout(header, hdu.data,
                                            transformed_cutout_dimension)
@@ -304,14 +304,14 @@ class FITSHelper(BaseFileHelper):
 
                 except NoContentError:
                     # Skip for now as we're iterating the loop.
-                    logging.debug(
+                    logger.debug(
                         'No overlap with extension {}'.format(
                             curr_extension_idx))
 
-            logging.debug(
+            logger.debug(
                 'Finished extension {}'.format(curr_extension_idx))
 
-        logging.debug('Has match in list? -- {}'.format(has_match))
+        logger.debug('Has match in list? -- {}'.format(has_match))
         return has_match
 
     def _iterate_hdu_list(self, cutout_dimensions):

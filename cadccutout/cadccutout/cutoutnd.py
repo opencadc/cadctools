@@ -132,11 +132,10 @@ class CutoutND(object):
         len_data = len(data_shape)
         len_pos = len(r_position)
         len_shape = len(r_shape)
-        c_data_shape = tuple(np.zeros(len_data, dtype=int))
 
-        logging.debug('Data shape: {}'.format(data_shape))
-        logging.debug('Requested shape: {}'.format(r_shape))
-        logging.debug('Requested position: {}'.format(r_position))
+        logger.debug('Data shape: {}'.format(data_shape))
+        logger.debug('Requested shape: {}'.format(r_shape))
+        logger.debug('Requested position: {}'.format(r_position))
 
         if len_shape > len_data:
             raise ValueError('Invalid shape requested (tried to extract {} \
@@ -153,6 +152,7 @@ class CutoutND(object):
                 r_position, data_shape))
 
         if r_position:
+            c_data_shape = tuple(np.zeros(len_data, dtype=int))
             position = (c_data_shape[:(len_data - len_pos)]) + r_position
         else:
             position = None
@@ -184,7 +184,7 @@ class CutoutND(object):
             l_wcs_crpix = len(wcs_crpix)
             ranges = cutout_region.get_ranges()
 
-            logging.debug('Adjusting WCS.')
+            logger.debug('Adjusting WCS.')
 
             for idx, _ in enumerate(ranges):
                 if idx < l_wcs_crpix:
@@ -198,9 +198,9 @@ class CutoutND(object):
                                      curr_sip.ap, curr_sip.bp,
                                      wcs_crpix[0:2])
 
-            logging.debug('WCS adjusted.')
+            logger.debug('WCS adjusted.')
         else:
-            logging.debug('No WCS present.')
+            logger.debug('No WCS present.')
             output_wcs = None
 
         return CutoutResult(data=cutout_data, wcs=output_wcs,

@@ -80,6 +80,8 @@ from cadccutout import version
 from cadccutout.file_helper import FileHelperFactory
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
+logger = logging.getLogger(__name__)
+
 __all__ = ['OpenCADCCutout', 'WriteOnlyStream']
 
 
@@ -345,5 +347,6 @@ if __name__ == "__main__":
     try:
         main_app()
         exit(0)
-    except Exception:
+    except Exception as e:
+        logging.error('{}'.format(e))
         exit(-1)

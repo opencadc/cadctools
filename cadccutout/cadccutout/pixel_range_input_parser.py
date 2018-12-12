@@ -77,6 +77,7 @@ from cadccutout.utils import to_num
 
 __all__ = ['PixelRangeInputParserError', 'PixelRangeInputParser']
 
+logger = logging.getLogger(__name__)
 
 RANGE_BEGIN_CHAR = '['
 RANGE_END_CHAR = ']'
@@ -154,7 +155,7 @@ class PixelRangeInputParser(object):
 
         for r in ranges:
             pixel_ranges = []
-            logging.debug('Next range is {}'.format(r))
+            logger.debug('Next range is {}'.format(r))
             split_items = list(map(lambda x: x.split(
                 '[')[1], list(filter(None, r.split(']')))))
             l_items = len(split_items)

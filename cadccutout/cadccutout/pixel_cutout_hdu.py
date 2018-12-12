@@ -75,8 +75,8 @@ from cadccutout.utils import is_integer
 
 __all__ = ['PixelCutoutHDU']
 
-logging.basicConfig(level=logging.DEBUG)
-logging.getLogger().setLevel(level=logging.DEBUG)
+
+logger = logging.getLogger(__name__)
 
 
 def fix_tuple(t):
@@ -103,7 +103,7 @@ class PixelCutoutHDU(object):
         """
         self.dimension_ranges = list(map(fix_tuple, dimension_ranges))
         self._extension = str(extension)  # For consistency.
-        logging.debug(
+        logger.debug(
             'Requested dimension ranges ({}) for extension {}.'.format(
                 self.dimension_ranges, self._extension))
 

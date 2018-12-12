@@ -90,7 +90,6 @@ THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
 DEFAULT_TEST_FILE_DIR = '/tmp'
 logging.basicConfig(level=logging.DEBUG)
-logging.getLogger().setLevel(logging.DEBUG)
 
 
 def random_test_file_name_path(file_extension='fits',
