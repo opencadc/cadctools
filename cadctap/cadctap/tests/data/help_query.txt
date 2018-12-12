@@ -1,8 +1,8 @@
 usage: cadc-tap query [-h]
                       [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                       [--host HOST] [-d | -q | -v] [-o OUTPUT_FILE]
-                      [-i INPUT_FILE] [-a] [-f {VOTable,csv,tsv}]
-                      [-t TMPTABLE] [-s SERVICE]
+                      [-i INPUT_FILE] [-f {VOTable,csv,tsv}] [-t TMPTABLE]
+                      [-s SERVICE]
                       [QUERY]
 
 Run an adql query
@@ -13,8 +13,6 @@ positional arguments:
                         caom2.Observation"
 
 optional arguments:
-  -a, --async-job       issue an asynchronous query (default is synchronous
-                        which only outputs the top 2000 results)
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages
@@ -49,7 +47,7 @@ Examples:
       cadc-tap query "SELECT TOP 10 type FROM caom2.Observation"
 - Use certificate to run a query from a file:
       cadc-tap query -i /data/query.sql --cert ~/.ssl/cadcproxy.pem
-- Use username/password to run an asynchronous query:
-      cadc-tap query "SELECT TOP 10 type FROM caom2.Observation" -a -u username
+- Use username/password to run a query:
+      cadc-tap query "SELECT TOP 10 type FROM caom2.Observation" -u username
 - Use netrc file to run a query on the ams/mast service :
       cadc-tap query -i data/query.sql -n -s ams/mast

@@ -199,31 +199,26 @@ class TestCadcTapClient(unittest.TestCase):
     def test_main(self, schema_mock, query_mock, create_mock, delete_mock,
                   index_mock, load_mock):
         sys.argv = ['cadc-tap', 'schema']
-        with self.assertRaises(SystemExit):
-            main_app()
+        main_app()
         calls = [call()]
         schema_mock.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'query', 'QUERY']
-        with self.assertRaises(SystemExit):
-            main_app()
+        main_app()
         calls = [call('QUERY', None, 'VOTable', None)]
         query_mock.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'create', 'tablename', 'path/to/file']
-        with self.assertRaises(SystemExit):
-            main_app()
+        main_app()
         calls = [call('tablename', 'path/to/file', None)]
         create_mock.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'index', 'tablename', 'columnName']
-        with self.assertRaises(SystemExit):
-            main_app()
+        main_app()
         calls = [call('tablename', 'columnName', False)]
         index_mock.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'load', 'tablename', 'path/to/file']
-        with self.assertRaises(SystemExit):
-            main_app()
+        main_app()
         calls = [call('tablename', ['path/to/file'], 'tsv')]
         load_mock.assert_has_calls(calls)

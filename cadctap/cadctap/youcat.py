@@ -94,19 +94,41 @@ ALLOWED_TB_DEF_TYPES = {'VOSITable': 'text/xml',
 
 
 class YoucatClient(object):
-    """Class to do CRUD + visitor actions on a CAOM2 collection repo."""
+    """Class to access CADC databases.
+    Example of usage:
+    import os
+    from cadcutils import net
+    from cadctap.youcat import YoucatClient
+
+    # create possible types of subjects
+    anonSubject = net.Subject()
+    certSubject = net.Subject(
+       certificate=os.path.join(os.environ['HOME'], ".ssl/cadcproxy.pem"))
+    netrcSubject = net.Subject(netrc=True)
+    authSubject = net.Subject(netrc=os.path.join(os.environ['HOME'], ".netrc"))
+    client = YoucatClient(anonSubject) # connect to ivo://cadc.nrc.ca/data
+
+    # create a table
+    client.create_table('newTableName', 'Description of table')
+
+    # get query results
+    client.query('SELECT column1, column2 FROM schema.table')
+
+    # get the tables available for queries
+    client.schema()
+    """
 
     def __init__(self, subject, resource_id=DEFAULT_RESOURCE_ID,
                  host=None, agent=None):
         """
-        Instance of a CAOM2RepoClient
+        Instance of a YoucatClient
         :param subject: the subject performing the action
         :type cadcutils.auth.Subject
         :param resource_id: the resource ID of the service
         :param host: Host for the caom2repo service
         :param agent: The name of the agent (to be used in server logging)
         """
-        self.logger = logging.getLogger('CAOM2RepoClient')
+        self.logger = logging.getLogger('YoucatClient')
         self.resource_id = resource_id
         self.host = host
         self._subject = subject
