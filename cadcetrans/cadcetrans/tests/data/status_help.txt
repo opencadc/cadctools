@@ -1,7 +1,7 @@
 usage: cadc-etrans status [-h]
                           [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                           [--host HOST] [--resource-id RESOURCE_ID]
-                          [-d | -q | -v]
+                          [-d | -q | -v] [-b]
                           source
 
 Displays the status of the system
@@ -10,6 +10,8 @@ positional arguments:
   source                Source directory where the files are located.
 
 optional arguments:
+  -b, --backup          sends status and local logs to a backup location
+                        specified in the config file
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages

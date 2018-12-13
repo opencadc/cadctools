@@ -1,0 +1,149 @@
+XTENSION= 'IMAGE   '           / IMAGE extension                                
+BITPIX  =                   16 / number of bits per data pixel                  
+NAXIS   =                    2 / number of data axes                            
+NAXIS1  =                 1124 / length of data axis 1                          
+NAXIS2  =                 2148 / length of data axis 2                          
+PCOUNT  =                    0 / required keyword; must = 0                     
+GCOUNT  =                    1 / required keyword; must = 1                     
+                                                                                
+INHERIT =                    F / Inherits global header                         
+ORIGIN  = 'NOAO-IRAF FITS Image Kernel December 2001' / FITS file originator    
+DATE    = '2005-02-03T18:24:54'                                                 
+IRAF-TLM= '05:24:54 (04/02/2005)'                                               
+COMMENT   fb_to_fits: $Revision: 1.6 $                                          
+COMMENT   $Id: fb_to_fits.c,v 1.6 1992/07/23 05:04:19 tsa Exp $                 
+COMMENT   /usr/local/production/bin/fb_to_fits -p 3002 -f /work2/PArchive/Image 
+COMMENT Image_0_1                                                               
+SITE    = 'Mt. Stromlo Observatory' / Observatory name                          
+TELESCOP= '50 inch '           / Telescope name                                 
+SCALE   = '0.628   '           / Arcsec per pixel                               
+OBS-NUM = '400     '           / Observation Number                             
+OBS-DATE= 'Jul 25 1992 16:15:45 GMT' / Observation Date: GMT                    
+DATE-OBS= '1992-07-25T16:15:45'                                                 
+TIME-OBS= '16:15:45'           / Time shutter closed: HH:MM:SS GMT              
+COMMENT Observation time TIME-OBS is time shutter closed                        
+OBS-MJD = '48828.677604'       / Observation Date: Modified Julian              
+EXPSTART= '48828.674132'       / Exposure start time: MJD                       
+EXP-END = '48828.677604'       / Exposure end time: MJD                         
+FIELD   = '10      '           / Macho Field ID                                 
+RA      = '05:06:27.91'         / Nominal Chip Right Ascension                  
+DEC     = '-69:42:53.28'        / Nominal Chip Declination                      
+COMMENT RA/DEC: post WCS augmentation RA/DEC is nominal CHIP centre RA/DEC      
+FIELDRA = '5:4:20.81887'       / Nominal Field Right Ascension                  
+FIELDDEC= '-69:53:56.698'      / Nominal Field Declination                      
+COMMENT FIELDRA/FIELDDEC: nominal centre of focal plane FOV                     
+TEL-RA  = '5:4:21  '           / Telescope Right Ascension                      
+TEL-DEC = '-69:53:56.13551'    / Telescope Declination                          
+COMMENT TEL-RA/TEL-DEC: centre of focal plane FOV reported by telescope         
+PIER    = 'WEST    '           / Telescope Side of Pier                         
+RADECSYS= 'FK5     '           / Coordinate System Frame of Reference           
+EQUINOX =               2000.0                                                  
+AIR-MASS= '1.929117'           / Air Mass                                       
+PARALLAC= '4.390087'           / Parallactic Angle in Radians                   
+FOCUS   = '-4.365  '           / Telescope Focus Setting (mm)                   
+COMMENT FOCUS: Telescope focus setting (mm)                                     
+SEEING  = '11.74694'           / Average Seeing in Pixels                       
+SKY-AVG = '6515    '           / Sky Average ADU                                
+CCDSIZE = '1:2044,1:2046'      / CCD size: x1:x2,y1:y2                          
+CCDSUM  = '1 1     '           / CCD pixel summing: x y                         
+FBUF-REG= '1:1124,1:2148'      / Frame Buffer Region: x1:x2,y1:y2               
+RSCALEUP= '62200   '           / Count over which saturated pixels are rescaled 
+CONFTAG = '1       '           / Tag to Configuration Files                     
+CTMTAG  = '1       '           / Tag to Crosstalk Matrices                      
+FLATPROC= ' SUBST XTALK BYROW RESCALE STATS WARN' / Flatfield Flags             
+COMMENT FLATPROC: CALIBRATION PROCESSING STEPS IN ORDER OF OCCURENCE:           
+COMMENT NONE    NO CALIBRATION PROCESSING DONE                                  
+COMMENT SUBST   SATURATED PIXEL SUBSTITUTION                                    
+COMMENT XTALK   CROSS-TALK REMOVAL                                              
+COMMENT BYROW   DEBIAS W/BIAS LVL FOR EACH ROW SEPARATELY                       
+COMMENT CACHE   DEBIAS W/SINGLE BIAS LVL ON DOUBLE-OVERSCAN REGION PER AMP      
+COMMENT GUESS   DEBIAS W/SINGLE BIAS LVL ON OSCAN OF FIRST 50 ROWS PER AMP      
+COMMENT DEBIAS  DEBIAS W/DEFAULT FROM CALIBRATION CONFIG PARAMS                 
+COMMENT DARK    DARK IMAGE SUBTRACTION                                          
+COMMENT VOODOO1 REPAIR PECULIARITY OF AMP5,COL322 HOT COLUMN                    
+COMMENT FLAT    FLAT IMAGE SCALING                                              
+COMMENT RESCALE SATURATED PIXEL RESCALING                                       
+COMMENT STATS   GENERATE IMAGE STATISTICS                                       
+COMMENT WARN    POST WARNINGS TO FITS HEADER ABT STATISTICS                     
+AMP-ID  = '0_1     '           / Amp ID (same as CHANNEL)                       
+IMAGEID = '1       '           / Permanent id to subimage segment               
+CCDSEC  = '1023:2044,1:2046'   / CCD section: x1:x2,y1:y2                       
+DATASEC = '[4:1025,1:2046]'    / Data section incl. overscan: x1:x2,y1:y2       
+COMMENT No DETSEC due to CCDs 90deg rotations                                   
+CHANNEL = '_0_1    '           / CCD channel                                    
+CCDNAME = 'ccd0    '           / CCD name                                       
+AMPNAME = 'amp1    '           / Amp name within CCD                            
+OBSTYPE = 'object  '           / Observation type                               
+MATE    = 'ccd7    '           / Alt filter CCD covering same sky region        
+TAG     = '9611110 '           / Tag to CCD config database                     
+FILTER  = 'macho_r '           / Filter id                                      
+COLOR   = 'red     '           / CCD filter colour                              
+CCD-FLIP= 'normal  '           / Chip orientation (norm/mirrored)               
+CCD-XOFF= '0.0231  '           / X-pos CCD rel focal plane (correct units: cm)  
+COMMENT CCD-XOFF: X-pos of CCD rel to focal plane origin (correct units: cm)    
+CCD-YOFF= '-3.1066 '           / Y-pos CCD rel focal plane (correct units: cm)  
+COMMENT CCD-YOFF: Y-pos of CCD rel to focal plane origin (correct units: cm)    
+CCD-ROT = '-0.0056 '           / Rotation of CCD rel to focal plane origin (rad)
+COMMENT CCD-ROT: Rotation of CCD rel to focal plane origin (rad)                
+X-PITCH = '0.0015  '           / Dimn pixels in x direction (correct units: cm) 
+COMMENT X-PITCH: Dimension of pixels in x direction (correct units: cm)         
+Y-PITCH = '0.0015  '           / Dimn pixels in y direction (correct units: cm) 
+COMMENT Y-PITCH: Dimension of pixels in y direction (correct units: cm)         
+X-PRESCN= '1       '           / X overscan (pixels)                            
+Y-PRESCN= '0       '           / Y overscan (pixels)                            
+FOCL-LEN= '492.4   '           / Telescope focal length (cm)                    
+COMMENT FOCL-LEN: Telescope focal length (cm)                                   
+RD-NOISE= '9.3     '           / RMS read noise (electrons)                     
+CS-GAIN = '1.75    '           / Nominal effective gain (electrons/ADU)         
+CS-ITOP = '47000   '           / Maximum linear signal (ADU)                    
+RENORM  = '1.0     '           / Adjustment to nominal gain                     
+ITOP    = '47000   '           / Adjusted maximum linear signal (ADU)           
+GAIN    = '1.75    '           / Adjusted effective gain (electrons/ADU)        
+CS-NOISE= '7.798957'           / Standard deviation from bias (ADU)             
+CS-BIAS = '0       '           / Double overscan bias (ADU)                     
+CS-SKY  = '5037    '           / Sky median (30th percentile)                   
+CS-XTALK= '0       '           / Crosstalk shelf offset (ADU)                   
+CS-DARK = '104     '           / Read-out dark current (ADU)                    
+CS-BITCK= 'C000    '           / Stuck-bit check (nonzero = stuck)              
+WCSDIM  =                    2                                                  
+CTYPE1  = 'RA---TNX'                                                            
+CTYPE2  = 'DEC--TNX'                                                            
+CRVAL1  =              76.0875                                                  
+CRVAL2  =     -69.898926530414                                                  
+CRPIX1  =    -155.215744976702                                                  
+CRPIX2  =     1959.73347924719                                                  
+CD1_1   = 1.74867401765623E-04                                                  
+CD1_2   = -1.1450146043439E-06                                                  
+CD2_1   = -1.3074701455897E-06                                                  
+CD2_2   = -1.7450252341378E-04                                                  
+LTM1_1  =                   1.                                                  
+LTM2_2  =                   1.                                                  
+WAT0_001= 'system=image'                                                        
+WAT1_001= 'wtype=tnx axtype=ra lngcor = "3. 3. 3. 2. 0.02710147352318613 0.2259'
+WAT2_001= 'wtype=tnx axtype=dec latcor = "3. 3. 3. 2. 0.02710147352318613 0.225'
+WAT1_002= '359120615072 -0.03452551934202424 0.3415996874008653 -2.714935169384'
+WAT1_003= '107E-4 0.003237673887851828 -0.006193722359676274 0.0013852578907447'
+WAT1_004= '87 -0.00827007913238955 -0.001481988918000934 "'                     
+WAT2_002= '9359120615072 -0.03452551934202424 0.3415996874008653 -3.79312423031'
+WAT2_003= '0695E-4 0.001548316395253741 -0.005124709929512134 0.004570153695128'
+WAT2_004= '303 -0.002450501465888969 -0.01137261982856634 "'                    
+SBIMNAME= 'amp_0_1 '           / Former Extension Name                          
+PHOTZP  =                  0.0                                                  
+SATURATE=                47000                                                  
+MJD-OBS =         48828.677604                                                  
+RDNOISE = '9.3     '                                                            
+SENDTIME= '        '                                                            
+PHOTFLAM=                  0.0                                                  
+ZD      =     1.02585036889339                                                  
+SENDDATE= '        '                                                            
+NCOMBINE=                    1                                                  
+FILTNAME= 'macho_r '                                                            
+AIRMASS = '1.929117'                                                            
+PHOTBW  =                200.0 / FWHM bandwidth in nm [CADC]                    
+PHOTCLAM=                680.0 / CENTRAL wavelength in nm [CADC]                
+EXPTIME =                300.0                                                  
+EXTNAME = 'AMP_0_1 '           / extension name                                 
+DETSIZE = '[1:4096,1:4096]'                                                     
+CHECKSUM= 'IHdHI9ZFIEbFI9ZF'   / HDU checksum updated 2018-10-17T02:12:08       
+DATASUM = '2504841227'         / data unit checksum updated 2018-10-17T02:12:08 
+END                                                                             
