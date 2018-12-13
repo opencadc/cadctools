@@ -348,5 +348,5 @@ if __name__ == "__main__":
         main_app()
         exit(0)
     except Exception as e:
-        logging.error('{}'.format(e))
+        logging.error('{}'.format(str(e)))
         exit(-1)
