@@ -11,7 +11,7 @@ __pycache__
 *.c
 
 # Other generated files
-*/version.py
+**/version.py
 */cython_version.py
 htmlcov
 .coverage
@@ -20,7 +20,6 @@ MANIFEST
 
 # Generated files from cadccutout
 *.fits
-github_issue.py
 *test*.txt
 
 # Sphinx
