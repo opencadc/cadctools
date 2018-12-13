@@ -1,0 +1,22 @@
+usage: cadc-tap [-h] [-V] [-s SERVICE]
+                {schema,query,create,delete,index,load} ...
+
+Client for accessing databases using TAP protocol at the Canadian Astronomy Data Centre (www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+
+positional arguments:
+  {schema,query,create,delete,index,load}
+                        supported commands. Use the -h|--help argument of a
+                        command for more details
+    schema              Print the tables available for querying.
+    query               Run an adql query
+    create              Create a table
+    delete              delete a table
+    index               Create a table index
+    load                Load data to a table
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -s, --service SERVICE
+                        set the TAP service. Use ivo format, eg. default is
+                        ivo://cadc.nrc.ca/youcat
+  -V, --version         show program's version number and exit
