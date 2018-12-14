@@ -189,7 +189,10 @@ class FITSHelper(BaseFileHelper):
 
         idx_threshold = min(ctype1_index, pc11_key_idx, crpix1_index)
 
-        logger.debug('Inserting WCSAXES at {} from {}'.format(idx_threshold, [ctype1_index, pc11_key_idx, crpix1_index]))
+        logger.debug('Inserting WCSAXES at {} from {}'.format(idx_threshold,
+                                                              [ctype1_index,
+                                                               pc11_key_idx,
+                                                               crpix1_index]))
 
         # Only proceed with this if both the WCSAXES and a threshold exists.
         if wcsaxes_index > idx_threshold:
