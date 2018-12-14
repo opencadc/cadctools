@@ -166,21 +166,33 @@ class FITSHelper(BaseFileHelper):
             # Is this necessary?
             header.set('WCSAXES', naxis)
 
-        # If a WCSAXES card exists, ensure that it comes before the CTYPE1 card.
+        # If a WCSAXES card exists, ensure that it comes before the CTYPE1
+        # and the CRPIX1 cards.
         wcsaxes_keyword = 'WCSAXES'
         ctype1_keyword = 'CTYPE1'
+        crpix1_keyword = 'CRPIX1'
 
-        if header.get(ctype1_keyword):
+        if header.get(crpix1_keyword) is not None:
+            crpix1_index = header.index(crpix1_keyword)
+        else:
+            crpix1_index = BOTTOM_BOUND_INDEX
+
+        if header.get(ctype1_keyword) is not None:
             ctype1_index = header.index(ctype1_keyword)
         else:
             ctype1_index = BOTTOM_BOUND_INDEX
 
-        if header.get(wcsaxes_keyword):
+        if header.get(wcsaxes_keyword) is not None:
             wcsaxes_index = header.index(wcsaxes_keyword)
         else:
             wcsaxes_index = BOTTOM_BOUND_INDEX
 
-        idx_threshold = min(ctype1_index, pc11_key_idx)
+        idx_threshold = min(ctype1_index, pc11_key_idx, crpix1_index)
+
+        logger.debug('Inserting WCSAXES at {} from {}'.format(idx_threshold,
+                                                              [ctype1_index,
+                                                               pc11_key_idx,
+                                                               crpix1_index]))
 
         # Only proceed with this if both the WCSAXES and a threshold exists.
         if wcsaxes_index > idx_threshold:
