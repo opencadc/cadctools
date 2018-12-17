@@ -291,12 +291,15 @@ def main_app(command='cadc-tap query'):
         default=None,
         help='read query string from file (default is from STDIN),'
              ' location of file')
+    # Maybe adding async option later
+    """
     query_parser.add_argument(
         '-a', '--async-job',
         action='store_true',
         help='issue an asynchronous query (default is synchronous'
              ' which only outputs the top 2000 results)',
         required=False)
+    """
     query_parser.add_argument(
         '-f', '--format',
         default='VOTable',
@@ -316,9 +319,9 @@ def main_app(command='cadc-tap query'):
         '      '+command+' "SELECT TOP 10 type FROM caom2.Observation"\n'
         '- Use certificate to run a query from a file:\n'
         '      '+command+' -i /data/query.sql --cert ~/.ssl/cadcproxy.pem\n'
-        '- Use username/password to run an asynchronous query:\n'
+        '- Use username/password to run a query:\n'
         '      '+command+' "SELECT TOP 10 type FROM caom2.Observation"'
-        ' -a -u username\n'
+        ' -u username\n'
         '- Use netrc file to run a query on the ams/mast service'
         ' :\n'
         '      '+command+' -i data/query.sql -n -s ams/mast\n')
@@ -367,7 +370,7 @@ def main_app(command='cadc-tap query'):
         description='Load data to a table',
         help='Load data to a table')
     load_parser.add_argument(
-        '-f', '--format', choices=ALLOWED_CONTENT_TYPES.keys(),
+        '-f', '--format', choices=sorted(ALLOWED_CONTENT_TYPES.keys()),
         required=False, default='tsv',
         help='Format of the data file')
     load_parser.add_argument(
@@ -415,13 +418,6 @@ def main_app(command='cadc-tap query'):
 
     subject = net.Subject.from_cmd_line_args(args)
 
-    # if args.cmd == 'schema':
-    #     feature = TABLES_CAPABILITY
-    # elif args.cmd == 'query':
-    #     feature = TAP_CAPABILITY
-    # create, delete, index, load
-    # create a a CadcTap client
-    subject = net.Subject.from_cmd_line_args(args)
     client = YoucatClient(subject, resource_id=args.service)
     if args.cmd == 'create':
         client.create_table(args.TABLENAME, args.TABLEDEFINITION,
@@ -446,11 +442,15 @@ def main_app(command='cadc-tap query'):
     elif args.cmd == 'load':
         client.load(args.TABLENAME, args.SOURCE, args.format)
     elif args.cmd == 'query':
-        client.query(args.QUERY, args.output_file, args.format, args.tmptable)
+        if args.input_file is not None:
+            with open(args.input_file) as f:
+                query = f.read().strip()
+        else:
+            query = args.QUERY
+        client.query(query, args.output_file, args.format, args.tmptable)
     elif args.cmd == 'schema':
         client.schema()
     print('DONE')
-    sys.exit(0)
 
     # Following is code design to work with the astroquery.cadc package.
     # Whether we are going to use it or not is still debatable, hence

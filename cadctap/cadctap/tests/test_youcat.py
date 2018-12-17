@@ -96,14 +96,6 @@ def test_create_table(base_put_mock):
         headers={'Content-Type': '{}'.format(
             youcat.ALLOWED_TB_DEF_TYPES['VOSITable'])})
 
-    # FITSTable format
-    base_put_mock.reset_mock()
-    client.create_table('sometable', def_table, 'FITSTable')
-    base_put_mock.assert_called_with(
-        (youcat.TABLES_CAPABILITY_ID, 'sometable'), data=def_table_content,
-        headers={'Content-Type': '{}'.format(
-            youcat.ALLOWED_TB_DEF_TYPES['FITSTable'])})
-
     # VOTable format
     base_put_mock.reset_mock()
     client.create_table('sometable', def_table, 'VOTable')
@@ -162,6 +154,15 @@ def test_load_table(base_put_mock):
     base_put_mock.assert_called_with(
         (youcat.TABLES_CAPABILITY_ID, 'schema.sometable'), data=fh,
         headers={'Content-Type': str(youcat.ALLOWED_CONTENT_TYPES['csv'])})
+
+    # FITSTable format
+    with open(test_load_tb, 'rb') as fh:
+        with patch('cadctap.youcat.open') as open_mock:
+            open_mock.return_value = fh
+            client.load('schema.sometable', [test_load_tb], fformat='FITSTable')
+    base_put_mock.assert_called_with(
+        (youcat.TABLES_CAPABILITY_ID, 'schema.sometable'), data=fh,
+        headers={'Content-Type': str(youcat.ALLOWED_CONTENT_TYPES['FITSTable'])})
 
     # error cases
     with pytest.raises(AttributeError):

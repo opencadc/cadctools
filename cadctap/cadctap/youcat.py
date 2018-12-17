@@ -93,19 +93,41 @@ ALLOWED_TB_DEF_TYPES = {'VOSITable': 'text/xml',
 
 
 class YoucatClient(object):
-    """Class to do CRUD + visitor actions on a CAOM2 collection repo."""
+    """Class to access CADC databases.
+    Example of usage:
+    import os
+    from cadcutils import net
+    from cadctap.youcat import YoucatClient
+
+    # create possible types of subjects
+    anonSubject = net.Subject()
+    certSubject = net.Subject(
+       certificate=os.path.join(os.environ['HOME'], ".ssl/cadcproxy.pem"))
+    netrcSubject = net.Subject(netrc=True)
+    authSubject = net.Subject(netrc=os.path.join(os.environ['HOME'], ".netrc"))
+    client = YoucatClient(anonSubject) # connect to ivo://cadc.nrc.ca/data
+
+    # create a table
+    client.create_table('newTableName', 'Description of table')
+
+    # get query results
+    client.query('SELECT column1, column2 FROM schema.table')
+
+    # get the tables available for queries
+    client.schema()
+    """
 
     def __init__(self, subject, resource_id=DEFAULT_RESOURCE_ID,
                  host=None, agent=None):
         """
-        Instance of a CAOM2RepoClient
+        Instance of a YoucatClient
         :param subject: the subject performing the action
         :type cadcutils.auth.Subject
         :param resource_id: the resource ID of the service
         :param host: Host for the caom2repo service
         :param agent: The name of the agent (to be used in server logging)
         """
-        self.logger = logging.getLogger('CAOM2RepoClient')
+        self.logger = logging.getLogger('YoucatClient')
         self.resource_id = resource_id
         self.host = host
         self._subject = subject
@@ -244,13 +266,12 @@ class YoucatClient(object):
     def query(self, query, output_file=None, response_format='VOTable',
               tmptable=None, lang='ADQL'):
         """
-
-        :param lang:
-        :param query:
-        :param response_format:
-        :param tmptable:
-        :param output_file:
-        :return:
+        Send query to database and output or save results
+        :param lang: the language to use for the query (should be ADQL)
+        :param query: the query to send to the database
+        :param response_format: (VOTable, csv, tsv) format of returned result
+        :param tmptable: tablename:/path/to/table, tmp table to upload
+        :param output_file: name of the file to save results to
         """
         pass
         if not query:
@@ -279,10 +300,9 @@ class YoucatClient(object):
                 with open(output_file, "wb") as f:
                     f.write(result.raw.read())
 
-    def schema(self, columns=None):
+    def schema(self):
         """
-        Outputs the tables or the columns of a table
-        :param columns: name of the table to print the columns
+        Outputs the tables available for queries
         """
         results = self._tap_client.get((TABLES_CAPABILITY_ID, None))
         print(results.text)
