@@ -84,10 +84,12 @@ DEFAULT_RESOURCE_ID = 'ivo://cadc.nrc.ca/youcat'
 # capabilities ids
 TABLES_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#tables-1.1'
 TABLE_UPDATE_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#table-update-1.x'
+TABLE_UPLOAD_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#table-load-sync-1.x'
 QUERY_CAPABILITY_ID = 'ivo://ivoa.net/std/TAP'
 
 # allowed file formats for load
-ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values', 'csv': 'text/csv', 'FITSTable': 'application/fits'}
+ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values', 'csv': 'text/csv',
+                         'FITSTable': 'application/fits'}
 ALLOWED_TB_DEF_TYPES = {'VOSITable': 'text/xml',
                         'VOTable': 'application/x-votable+xml'}
 
@@ -258,7 +260,7 @@ class YoucatClient(object):
 
             headers = {'Content-Type': ALLOWED_CONTENT_TYPES[fformat]}
             with open(f, 'rb') as fh:
-                self._tap_client.post((TABLES_CAPABILITY_ID, table_name),
+                self._tap_client.post((TABLE_UPLOAD_CAPABILITY_ID, table_name),
                                       headers=headers,
                                       data=fh)
             logger.debug('Done uploading file {}'.format(fh.name))

@@ -134,7 +134,7 @@ def test_load_table(base_put_mock):
             open_mock.return_value = fh
             client.load('schema.sometable', [test_load_tb])
     base_put_mock.assert_called_with(
-        (youcat.TABLES_CAPABILITY_ID, 'schema.sometable'), data=fh,
+        (youcat.TABLE_UPLOAD_CAPABILITY_ID, 'schema.sometable'), data=fh,
         headers={'Content-Type': str(youcat.ALLOWED_CONTENT_TYPES['tsv'])})
 
     # tsv format
@@ -143,7 +143,7 @@ def test_load_table(base_put_mock):
             open_mock.return_value = fh
             client.load('schema.sometable', [test_load_tb], fformat='tsv')
     base_put_mock.assert_called_with(
-        (youcat.TABLES_CAPABILITY_ID, 'schema.sometable'), data=fh,
+        (youcat.TABLE_UPLOAD_CAPABILITY_ID, 'schema.sometable'), data=fh,
         headers={'Content-Type': str(youcat.ALLOWED_CONTENT_TYPES['tsv'])})
 
     # csv format
@@ -152,7 +152,7 @@ def test_load_table(base_put_mock):
             open_mock.return_value = fh
             client.load('schema.sometable', [test_load_tb], fformat='csv')
     base_put_mock.assert_called_with(
-        (youcat.TABLES_CAPABILITY_ID, 'schema.sometable'), data=fh,
+        (youcat.TABLE_UPLOAD_CAPABILITY_ID, 'schema.sometable'), data=fh,
         headers={'Content-Type': str(youcat.ALLOWED_CONTENT_TYPES['csv'])})
 
     # FITSTable format
@@ -161,7 +161,7 @@ def test_load_table(base_put_mock):
             open_mock.return_value = fh
             client.load('schema.sometable', [test_load_tb], fformat='FITSTable')
     base_put_mock.assert_called_with(
-        (youcat.TABLES_CAPABILITY_ID, 'schema.sometable'), data=fh,
+        (youcat.TABLE_UPLOAD_CAPABILITY_ID, 'schema.sometable'), data=fh,
         headers={'Content-Type': str(youcat.ALLOWED_CONTENT_TYPES['FITSTable'])})
 
     # error cases
