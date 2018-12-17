@@ -87,10 +87,9 @@ TABLE_UPDATE_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#table-update-1.x'
 QUERY_CAPABILITY_ID = 'ivo://ivoa.net/std/TAP'
 
 # allowed file formats for load
-ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values', 'csv': 'text/csv'}
+ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values', 'csv': 'text/csv', 'FITSTable': 'application/fits'}
 ALLOWED_TB_DEF_TYPES = {'VOSITable': 'text/xml',
-                        'VOTable': 'application/x-votable+xml',
-                        'FITSTable': 'application/fits'}
+                        'VOTable': 'application/x-votable+xml'}
 
 
 class YoucatClient(object):
@@ -142,8 +141,6 @@ class YoucatClient(object):
             t = m.from_file(table_defintion)
             if 'XML' in t:
                 file_type = 'VOTable'
-            elif 'FITS' in t:
-                file_type = 'FITSTable'
             elif 'ASCII' in t:
                 file_type = 'VOSITable'
             else:

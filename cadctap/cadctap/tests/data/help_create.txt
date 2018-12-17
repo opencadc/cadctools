@@ -1,7 +1,7 @@
 usage: cadc-tap create [-h]
                        [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                       [--host HOST] [-d | -q | -v]
-                       [-f {FITSTable,VOSITable,VOTable}] [-s SERVICE]
+                       [--host HOST] [-d | -q | -v] [-f {VOSITable,VOTable}]
+                       [-s SERVICE]
                        TABLENAME TABLEDEFINITION
 
 Create a table
@@ -15,7 +15,7 @@ optional arguments:
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages
-  -f, --format {FITSTable,VOSITable,VOTable}
+  -f, --format {VOSITable,VOTable}
                         Format of the table definition file
   -h, --help            show this help message and exit
   --host HOST           base hostname for services - used mainly for testing
