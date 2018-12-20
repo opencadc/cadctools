@@ -95,11 +95,11 @@ TABLE_LOAD_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#table-load-sync-1.x'
 QUERY_CAPABILITY_ID = 'ivo://ivoa.net/std/TAP'
 
 # allowed file formats for load
-ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values', 'csv': 'text/csv'}
+ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values',
+                         'csv': 'text/csv',
+                         'FITSTable': 'application/fits'}
 ALLOWED_TB_DEF_TYPES = {'VOSITable': 'text/xml',
-                        'VOTable': 'application/x-votable+xml',
-                        'FITSTable': 'application/fits'}
-
+                        'VOTable': 'application/x-votable+xml'}
 
 # make the stream bar show up on stdout
 progress.STREAM = sys.stdout
@@ -111,6 +111,7 @@ TAP_CAPABILITY = 'ivo://ivoa.net/std/TAP'
 DEFAULT_URI = 'ivo://cadc.nrc.ca/'
 
 APP_NAME = 'cadc-tap'
+
 
 class CadcTapClient(object):
     """Class to access CADC databases.
@@ -557,8 +558,8 @@ def main_app(command='cadc-tap query'):
 
 # import warnings
 # warnings.filterwarnings("ignore", module='astropy.io.votable.*')
-#BASICAA_ID = 'ivo://ivoa.net/sso#BasicAA'
-#CERTIFICATE_ID = 'ivo://ivoa.net/sso#tls-with-certificate'
+# BASICAA_ID = 'ivo://ivoa.net/sso#BasicAA'
+# CERTIFICATE_ID = 'ivo://ivoa.net/sso#tls-with-certificate'
 # class CadcTapClient(object):
     # """Class to access CADC TAP services.
 

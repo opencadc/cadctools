@@ -80,7 +80,8 @@ from mock import Mock, patch, call
 import pytest
 from cadctap import CadcTapClient
 from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
-    ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID, QUERY_CAPABILITY_ID
+    ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID, QUERY_CAPABILITY_ID,\
+    TABLE_LOAD_CAPABILITY_ID
 
 # The following is a temporary workaround for Python issue
 # 25532 (https://bugs.python.org/issue25532)
@@ -106,14 +107,6 @@ def test_create_table(base_put_mock):
         (TABLES_CAPABILITY_ID, 'sometable'), data=def_table_content,
         headers={'Content-Type': '{}'.format(
             ALLOWED_TB_DEF_TYPES['VOSITable'])})
-
-    # FITSTable format
-    base_put_mock.reset_mock()
-    client.create_table('sometable', def_table, 'FITSTable')
-    base_put_mock.assert_called_with(
-        (TABLES_CAPABILITY_ID, 'sometable'), data=def_table_content,
-        headers={'Content-Type': '{}'.format(
-            ALLOWED_TB_DEF_TYPES['FITSTable'])})
 
     # VOTable format
     base_put_mock.reset_mock()
@@ -153,7 +146,7 @@ def test_load_table(base_put_mock):
             open_mock.return_value = fh
             client.load('schema.sometable', [test_load_tb])
     base_put_mock.assert_called_with(
-        (TABLES_CAPABILITY_ID, 'schema.sometable'), data=fh,
+        (TABLE_LOAD_CAPABILITY_ID, 'schema.sometable'), data=fh,
         headers={'Content-Type': str(ALLOWED_CONTENT_TYPES['tsv'])})
 
     # tsv format
@@ -162,7 +155,7 @@ def test_load_table(base_put_mock):
             open_mock.return_value = fh
             client.load('schema.sometable', [test_load_tb], fformat='tsv')
     base_put_mock.assert_called_with(
-        (TABLES_CAPABILITY_ID, 'schema.sometable'), data=fh,
+        (TABLE_LOAD_CAPABILITY_ID, 'schema.sometable'), data=fh,
         headers={'Content-Type': str(ALLOWED_CONTENT_TYPES['tsv'])})
 
     # csv format
@@ -171,8 +164,18 @@ def test_load_table(base_put_mock):
             open_mock.return_value = fh
             client.load('schema.sometable', [test_load_tb], fformat='csv')
     base_put_mock.assert_called_with(
-        (TABLES_CAPABILITY_ID, 'schema.sometable'), data=fh,
+        (TABLE_LOAD_CAPABILITY_ID, 'schema.sometable'), data=fh,
         headers={'Content-Type': str(ALLOWED_CONTENT_TYPES['csv'])})
+
+    # FITS table format
+    with open(test_load_tb, 'rb') as fh:
+        with patch('cadctap.core.open') as open_mock:
+            open_mock.return_value = fh
+            client.load('schema.sometable', [test_load_tb],
+                        fformat='FITSTable')
+    base_put_mock.assert_called_with(
+        (TABLE_LOAD_CAPABILITY_ID, 'schema.sometable'), data=fh,
+        headers={'Content-Type': str(ALLOWED_CONTENT_TYPES['FITSTable'])})
 
     # error cases
     with pytest.raises(AttributeError):
@@ -203,9 +206,9 @@ def test_create_index(base_get_mock, base_post_mock):
     client.create_index('schema.sometable', 'col1', unique=True)
 
     # expected post calls
-    post_calls = [call((TABLE_UPDATE_CAPABILITY_ID, None),
+    post_calls = [call((TABLE_UPDATE_CAPABILITY_ID, 'schema.sometable'),
                   allow_redirects=False,
-                  data={'table': 'schema.sometable', 'uniquer': True,
+                  data={'uniquer': True,
                         'index': 'col1'}),
                   call('{}/phase'.format(job_location),
                   data={'PHASE': 'RUN'})]
