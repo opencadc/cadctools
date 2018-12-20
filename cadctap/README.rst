@@ -1,9 +1,10 @@
 cadctap 
 ========
 
-.. image:: https://img.shields.io/pypi/v/cadcdata.svg   
-    :target: https://pypi.python.org/pypi/cadcdata
+.. image:: https://img.shields.io/pypi/v/cadctap.svg
+    :target: https://pypi.python.org/pypi/cadctap
 
 Canadian Astronomy Data Centre - TAP access
 
-client for astronomical data hosted at the Canadian Astronomy Data Centre through web service
+client for interacting with catalog Web services hosted at the Canadian
+Astronomy Data Centre

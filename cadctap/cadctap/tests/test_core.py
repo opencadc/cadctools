@@ -72,10 +72,15 @@ from __future__ import (absolute_import, division, print_function,
 import os
 import sys
 import unittest
+from cadcutils import net
 
 from six import StringIO
 from cadctap.core import main_app
 from mock import Mock, patch, call
+import pytest
+from cadctap import CadcTapClient
+from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
+    ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID, QUERY_CAPABILITY_ID
 
 # The following is a temporary workaround for Python issue
 # 25532 (https://bugs.python.org/issue25532)
@@ -90,7 +95,174 @@ class MyExitError(Exception):
         self.message = "MyExitError"
 
 
-mycontent = ''
+@patch('cadctap.core.net.BaseWsClient.put')
+def test_create_table(base_put_mock):
+    client = CadcTapClient(net.Subject())
+    # default format
+    def_table = os.path.join(TESTDATA_DIR, 'createTable.vosi')
+    def_table_content = open(def_table, 'rb').read()
+    client.create_table('sometable', def_table)
+    base_put_mock.assert_called_with(
+        (TABLES_CAPABILITY_ID, 'sometable'), data=def_table_content,
+        headers={'Content-Type': '{}'.format(
+            ALLOWED_TB_DEF_TYPES['VOSITable'])})
+
+    # FITSTable format
+    base_put_mock.reset_mock()
+    client.create_table('sometable', def_table, 'FITSTable')
+    base_put_mock.assert_called_with(
+        (TABLES_CAPABILITY_ID, 'sometable'), data=def_table_content,
+        headers={'Content-Type': '{}'.format(
+            ALLOWED_TB_DEF_TYPES['FITSTable'])})
+
+    # VOTable format
+    base_put_mock.reset_mock()
+    client.create_table('sometable', def_table, 'VOTable')
+    base_put_mock.assert_called_with(
+        (TABLES_CAPABILITY_ID, 'sometable'), data=def_table_content,
+        headers={'Content-Type': '{}'.format(
+            ALLOWED_TB_DEF_TYPES['VOTable'])})
+
+    # error cases
+    with pytest.raises(AttributeError):
+        client.create_table(None, def_table)
+    with pytest.raises(AttributeError):
+        client.create_table('sometable', None)
+
+
+@patch('cadctap.core.net.BaseWsClient.delete')
+def test_delete_table(base_delete_mock):
+    client = CadcTapClient(net.Subject())
+    client.delete_table('sometable')
+    base_delete_mock.assert_called_with((TABLES_CAPABILITY_ID,
+                                        'sometable'))
+
+    # error case
+    with pytest.raises(AttributeError):
+        client.delete(None)
+
+
+@patch('cadctap.core.net.BaseWsClient.post')
+def test_load_table(base_put_mock):
+    client = CadcTapClient(net.Subject())
+    test_load_tb = os.path.join(TESTDATA_DIR, 'loadTable.txt')
+
+    # default format (tsv)
+    with open(test_load_tb, 'rb') as fh:
+        with patch('cadctap.core.open') as open_mock:
+            open_mock.return_value = fh
+            client.load('schema.sometable', [test_load_tb])
+    base_put_mock.assert_called_with(
+        (TABLES_CAPABILITY_ID, 'schema.sometable'), data=fh,
+        headers={'Content-Type': str(ALLOWED_CONTENT_TYPES['tsv'])})
+
+    # tsv format
+    with open(test_load_tb, 'rb') as fh:
+        with patch('cadctap.core.open') as open_mock:
+            open_mock.return_value = fh
+            client.load('schema.sometable', [test_load_tb], fformat='tsv')
+    base_put_mock.assert_called_with(
+        (TABLES_CAPABILITY_ID, 'schema.sometable'), data=fh,
+        headers={'Content-Type': str(ALLOWED_CONTENT_TYPES['tsv'])})
+
+    # csv format
+    with open(test_load_tb, 'rb') as fh:
+        with patch('cadctap.core.open') as open_mock:
+            open_mock.return_value = fh
+            client.load('schema.sometable', [test_load_tb], fformat='csv')
+    base_put_mock.assert_called_with(
+        (TABLES_CAPABILITY_ID, 'schema.sometable'), data=fh,
+        headers={'Content-Type': str(ALLOWED_CONTENT_TYPES['csv'])})
+
+    # error cases
+    with pytest.raises(AttributeError):
+        client.load(None, [test_load_table])
+    with pytest.raises(AttributeError):
+        client.load('sometable', None)
+    with pytest.raises(AttributeError):
+        client.load('sometable', [])
+
+
+@patch('cadctap.core.net.BaseWsClient.post')
+@patch('cadctap.core.net.BaseWsClient.get')
+def test_create_index(base_get_mock, base_post_mock):
+    client = CadcTapClient(net.Subject())
+    response1 = Mock()
+    response1.status_code = 303
+    job_location = 'http://go.here'
+    response1.headers = {'Location': job_location}
+    base_post_mock.return_value = response1
+    response2 = Mock()
+    response2.status_code = 200
+    response2.text = "EXECUTING"
+    base_get_mock.side_effect = [response2]
+    response3 = Mock()
+    response3.status_code = 200
+    response3.text = "COMPLETED"
+    base_get_mock.side_effect = [response2, response3]
+    client.create_index('schema.sometable', 'col1', unique=True)
+
+    # expected post calls
+    post_calls = [call((TABLE_UPDATE_CAPABILITY_ID, None),
+                  allow_redirects=False,
+                  data={'table': 'schema.sometable', 'uniquer': True,
+                        'index': 'col1'}),
+                  call('{}/phase'.format(job_location),
+                  data={'PHASE': 'RUN'})]
+    base_post_mock.assert_has_calls(post_calls)
+
+    # expected get calls
+    get_calls = [call('{}/phase'.format(job_location), data={'WAIT': 1}),
+                 call('{}/phase'.format(job_location), data={'WAIT': 1})]
+    base_get_mock.assert_has_calls(get_calls)
+
+    # error cases
+    with pytest.raises(AttributeError):
+        client.create_index(None, 'col1')
+    with pytest.raises(AttributeError):
+        client.create_index('sometable', None)
+    response4 = Mock()
+    response4.status_code = 200
+    response4.text = 'ABORTED'
+    base_get_mock.side_effect = [response4]
+    client = CadcTapClient(net.Subject())
+    with pytest.raises(RuntimeError):
+        client.create_index('sometable', 'col1')
+
+    response5 = Mock()
+    response5.status_code = 500
+    base_get_mock.side_effect = [response1, response4]
+    client = CadcTapClient(net.Subject())
+    with pytest.raises(RuntimeError):
+        client.create_index('sometable', 'col1')
+
+
+@patch('cadctap.core.net.BaseWsClient.get')
+def test_schema(base_get_mock):
+    client = CadcTapClient(net.Subject())
+    # default format
+    client.schema()
+    base_get_mock.assert_called_with(
+        (TABLES_CAPABILITY_ID, None))
+
+
+@patch('cadctap.core.net.BaseWsClient.post')
+def test_query(base_post_mock):
+    client = CadcTapClient(net.Subject())
+    # default format
+    def_name = 'tmptable'
+    def_table = os.path.join(TESTDATA_DIR, 'votable.xml')
+
+    fields = {'LANG': 'ADQL',
+              'QUERY': 'query',
+              'FORMAT': 'VOTable'}
+    tablefile = os.path.basename(def_table)
+    fields['UPLOAD'] = '{},param:{}'.format(def_name, tablefile)
+    fields[tablefile] = (def_table, open(def_table, 'rb'))
+    client.query('query', tmptable='tmptable:'+def_table)
+    print(base_post_mock.call_args_list[0][0][0])
+    assert base_post_mock.call_args_list[0][0][0] == \
+        (QUERY_CAPABILITY_ID, None)
 
 
 class TestCadcTapClient(unittest.TestCase):
@@ -190,12 +362,12 @@ class TestCadcTapClient(unittest.TestCase):
                 main_app()
             self.assertEqual(usage, stdout_mock.getvalue())
 
-    @patch('cadctap.youcat.YoucatClient.load')
-    @patch('cadctap.youcat.YoucatClient.create_index')
-    @patch('cadctap.youcat.YoucatClient.delete_table')
-    @patch('cadctap.youcat.YoucatClient.create_table')
-    @patch('cadctap.youcat.YoucatClient.query')
-    @patch('cadctap.youcat.YoucatClient.schema')
+    @patch('cadctap.CadcTapClient.load')
+    @patch('cadctap.CadcTapClient.create_index')
+    @patch('cadctap.CadcTapClient.delete_table')
+    @patch('cadctap.CadcTapClient.create_table')
+    @patch('cadctap.CadcTapClient.query')
+    @patch('cadctap.CadcTapClient.schema')
     def test_main(self, schema_mock, query_mock, create_mock, delete_mock,
                   index_mock, load_mock):
         sys.argv = ['cadc-tap', 'schema']
