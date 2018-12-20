@@ -71,7 +71,9 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import io
+import pytest
 from cadccutout.core import OpenCADCCutout, WriteOnlyStream
+from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 
 
 def test__parse_input():
@@ -109,21 +111,45 @@ def test__sanity_check_input():
     input = '[9][100:1000]'
 
     sanity_input = test_subject._sanity_check_input(input)
-
     assert isinstance(sanity_input, list), 'Should be list'
+
+    with pytest.raises(ValueError) as ve:
+        test_subject._sanity_check_input(('bad', 'tuple'))
+        assert ('{}'.format(ve) ==
+                'Input is expected to be a string or list but was \
+(u\'bad\', u\'tuple\')') or ('{}'.format(ve) ==
+                             'Input is expected to be a string or list but was \
+(\'bad\', \'tuple\')'), \
+            'Wrong error message.'
 
 
 def test_write_stream():
     output = io.BytesIO()
     test_subject = WriteOnlyStream(output)
 
-    try:
+    with pytest.raises(ValueError):
         test_subject.read()
-        assert False, 'Should fail read with a ValueError'
-    except ValueError:
-        pass
 
     assert test_subject.tell() == 0, 'Nothing written yet, should be zero.'
     test_subject.write(b'You have been recruied by the Star League to defend \
             the frontier against Xur and the Kodhan Armada.')
     assert test_subject.tell() == 111, 'Message written.'
+
+
+def test_construct():
+    test_subject = OpenCADCCutout()
+
+    with pytest.raises(ValueError) as ve:
+        test_subject.cutout([])
+        assert '{}'.format(ve) == 'No Cutout regions specified.', \
+            'Wrong error message.'
+
+    with pytest.raises(ValueError) as ve:
+        test_subject.cutout([PixelCutoutHDU([(8, 10)])], input_reader=None)
+        assert '{}'.format(ve) == 'No input source specified.', \
+            'Wrong error message.'
+
+    with pytest.raises(ValueError) as ve:
+        test_subject.cutout([PixelCutoutHDU([(8, 10)])], output_writer=None)
+        assert '{}'.format(ve) == 'No output target specified.', \
+            'Wrong error message.'

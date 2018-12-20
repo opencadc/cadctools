@@ -2,39 +2,38 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 
 """
-This package implements a client for access the CADC data Web service (WS)
+This package implements a client for access the CADC TAP Web service (WS)
 
-The package can be used as a library as well as through the cadc-data
+The package can be used as a library as well as through the cadc-tap
 command it installs.
 
-1. Instantiate CadcDataClient and use it to access the data WS.
+1. Instantiate YoucatClient and use it to access the data WS.
 
-The only mandatory argument that the CadcDataClient constructor takes is
+The only mandatory argument that the YoucatClient constructor takes is
 a cadcutils.net.Subject that holds the user credentials. The data WS is
-accessed through the get_file, put_file and get_file_info functions of the
-client.
+accessed in each of the functions in the client.
 
 Example:
-   from cadcdata import CadcDataClient
+   from cadctap.youcat import YoucatClient
    from cadcutils import net
 
-   client = CadcDataClient(net.Subject())
-   print(client.get_file_info('GEMINI', '00AUG02_002'))
+   client = YoucatClient(net.Subject())
+   print(client.schema())
 
-2. Invoke the cadc-data entry point function. This is the function that
-is used to generate the cadc-data application
+2. Invoke the cadc-tap entry point function. This is the function that
+is used to generate the cadc-tap application
 
 Example:
-   from cadcdata import main_app
+   from cadctap.core import main_app
    import sys
 
-   sys.argv = ['cadc-data', 'info', '-a', 'GEMINI', '00AUG02_002']
+   sys.argv = ['cadc-tap', 'schema']
    main_app()
 
-3. Invoke the cadc-data as an external command
+3. Invoke the cadc-tap as an external command
 Example:
    import os
-   os.system('cadc-data info -a GEMINI 00AUG02_002')
+   os.system('cadc-tap schema')
 
 Method 1. is the recommended method as it does not required forking external
 processes and also allows trapping the exceptions and reacting according to the
