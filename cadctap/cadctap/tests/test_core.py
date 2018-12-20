@@ -206,9 +206,10 @@ def test_create_index(base_get_mock, base_post_mock):
     client.create_index('schema.sometable', 'col1', unique=True)
 
     # expected post calls
-    post_calls = [call((TABLE_UPDATE_CAPABILITY_ID, 'schema.sometable'),
+    post_calls = [call((TABLE_UPDATE_CAPABILITY_ID, None),
                   allow_redirects=False,
-                  data={'uniquer': True,
+                  data={'table': 'schema.sometable',
+                        'uniquer': True,
                         'index': 'col1'}),
                   call('{}/phase'.format(job_location),
                   data={'PHASE': 'RUN'})]
@@ -227,14 +228,14 @@ def test_create_index(base_get_mock, base_post_mock):
     response4 = Mock()
     response4.status_code = 200
     response4.text = 'ABORTED'
-    base_get_mock.side_effect = [response4]
+    base_get_mock.side_effect = [response4, response4]
     client = CadcTapClient(net.Subject())
     with pytest.raises(RuntimeError):
         client.create_index('sometable', 'col1')
 
     response5 = Mock()
     response5.status_code = 500
-    base_get_mock.side_effect = [response1, response4]
+    base_get_mock.side_effect = [response1, response4, response4]
     client = CadcTapClient(net.Subject())
     with pytest.raises(RuntimeError):
         client.create_index('sometable', 'col1')
