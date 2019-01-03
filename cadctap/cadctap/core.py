@@ -227,9 +227,9 @@ class CadcTapClient(object):
 
         logger.debug('Index for column{} in table {}'.format(column_name,
                                                              table_name))
-        result = self._tap_client.post((TABLE_UPDATE_CAPABILITY_ID,
-                                        table_name),
-                                       data={'index': column_name,
+        result = self._tap_client.post((TABLE_UPDATE_CAPABILITY_ID, None),
+                                       data={'table': table_name,
+                                             'index': column_name,
                                              'uniquer': unique},
                                        allow_redirects=False)
         if result.status_code == 303:

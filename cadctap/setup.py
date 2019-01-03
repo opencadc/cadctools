@@ -42,7 +42,7 @@ VERSION = metadata.get('version', 'none')
 
 # generate the version file
 with open(os.path.join(PACKAGENAME, 'version.py'), 'w') as f:
-    f.write('version = \'{}\'\n'.format(VERSION))
+    f.write('version = \'{}\'\n'.format(VERSION))	
 
 # Treat everything in scripts except README.rst as a script to be installed
 scripts = [fname for fname in glob.glob(os.path.join('scripts', '*'))
@@ -66,6 +66,38 @@ class PyTest(TestCommand):
     def __init__(self, dist, **kw):
         TestCommand.__init__(self, dist, **kw)
         self.pytest_args = ['--cov', PACKAGENAME]
+
+    def run_tests(self):
+        # import here, cause outside the eggs aren't loaded
+        import pytest
+        err_no = pytest.main(self.pytest_args)
+        sys.exit(err_no)
+
+class PyIntTest(TestCommand):
+    """class py.test for the int testing
+
+    """
+    user_options = []
+
+    def __init__(self, dist, **kw):
+        TestCommand.__init__(self, dist, **kw)
+        self.pytest_args = ['intTest']
+
+    def run_tests(self):
+        # import here, cause outside the eggs aren't loaded
+        import pytest
+        err_no = pytest.main(self.pytest_args)
+        sys.exit(err_no)
+
+class PyAllTest(TestCommand):
+    """class py.test for the unit and integration testing
+
+    """
+    user_options = []
+
+    def __init__(self, dist, **kw):
+        TestCommand.__init__(self, dist, **kw)
+        self.pytest_args = ['--cov', PACKAGENAME, PACKAGENAME, 'intTest']
 
     def run_tests(self):
         # import here, cause outside the eggs aren't loaded
@@ -105,6 +137,6 @@ setup(name=PACKAGENAME,
         'Programming Language :: Python :: 3.6'
       ],
       cmdclass = {
-          'coverage': PyTest,
+          'coverage': PyTest, 'intTest': PyIntTest, 'allTest': PyAllTest
       }
 )
