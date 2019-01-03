@@ -7,17 +7,16 @@ This package implements a client for access the CADC TAP Web service (WS)
 The package can be used as a library as well as through the cadc-tap
 command it installs.
 
-1. Instantiate YoucatClient and use it to access the data WS.
+1. Instantiate CadcTapClient and use it to access the data WS.
 
-The only mandatory argument that the YoucatClient constructor takes is
-a cadcutils.net.Subject that holds the user credentials. The data WS is
-accessed in each of the functions in the client.
+The only mandatory argument that the CadcTapClient constructor takes is
+a cadcutils.net.Subject that holds the user credentials.
 
 Example:
-   from cadctap.youcat import YoucatClient
+   from cadctap import CadcTapClient
    from cadcutils import net
 
-   client = YoucatClient(net.Subject())
+   client = CadcTapClient(net.Subject())
    print(client.schema())
 
 2. Invoke the cadc-tap entry point function. This is the function that
