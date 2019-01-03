@@ -72,7 +72,6 @@ from __future__ import (absolute_import, division, print_function,
 from .utils import etrans_config
 import logging
 import subprocess
-from hashlib import md5
 import re
 from PIL import Image
 import os
@@ -83,18 +82,6 @@ from cadcetrans.utils import TransferException
 logger = logging.getLogger(__name__)
 
 fitsverify_output = re.compile(r' (\d+) warnings and (\d+) errors')
-
-
-def get_md5sum(filename):
-    """Return the MD5 sum of a file."""
-    sum = md5()
-    with open(filename, 'rb') as f:
-        while True:
-            data = f.read(1024)
-            if len(data) == 0:
-                break
-            sum.update(data)
-    return sum.hexdigest()
 
 
 def check_valid(filename, allow_warnings=True):
