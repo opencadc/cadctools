@@ -248,14 +248,18 @@ class CadcTapClient(object):
                     short_waits = short_waits - 1
                 else:
                     wait = 30
+                logger.debug('Polling the job with wait time: {}s'.format(wait))
                 result = self._tap_client.get('{}/phase'.format(job_url),
                                               data={'WAIT': wait})
                 if result.text in ['COMPLETED']:
                     logger.debug('Index creation completed')
                     return
-                elif result.text in ['HELD', 'SUSPENDED', 'ABORTED']:
+                elif result.text in ['HELD', 'SUSPENDED', 'ABORTED', 'ERROR']:
                     # re-queue the job and continue to monitor for completion.
-                    raise RuntimeError('UWS status: {0}'.format(result.text))
+                    # TODO parse xml
+                    details = esult = self._tap_client.get(job_url).text
+                    msg = 'Problems with job: {}\n Details: {}'.format(result.text, details)
+                    raise RuntimeError(msg)
                 elif result.text == 'EXECUTING':
                     logger.debug(
                         'EXECUTING ({})'.format(datetime.datetime.now()))
