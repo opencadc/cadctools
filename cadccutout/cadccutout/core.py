@@ -80,6 +80,8 @@ from cadccutout import version
 from cadccutout.file_helper import FileHelperFactory
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
+logger = logging.getLogger(__name__)
+
 __all__ = ['OpenCADCCutout', 'WriteOnlyStream']
 
 
@@ -247,6 +249,7 @@ class WriteOnlyStream(BufferedRandom):
 
     :param raw: file or file-like object.  The Raw underlying stream.
     """
+
     def __init__(self, raw):
         super(WriteOnlyStream, self).__init__(io.BytesIO())
         self._raw = raw
@@ -338,9 +341,12 @@ def main_app(argv=None):
             file_type=args.type)
     finally:
         logging.info('End cutout.')
-        exit(0)
 
 
 if __name__ == "__main__":
-    main_app()
-    exit(0)
+    try:
+        main_app()
+        exit(0)
+    except Exception as e:
+        logging.error('{}'.format(str(e)))
+        exit(-1)

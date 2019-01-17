@@ -71,6 +71,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 
+import pytest
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 
 
@@ -83,6 +84,9 @@ def test_create():
 
     test_subject = PixelCutoutHDU(extension='5')
     assert test_subject.get_extension() == 5, 'Wrong extension.'
+
+    with pytest.raises(ValueError):
+        test_subject = PixelCutoutHDU([()])
 
 
 def test_get_shape():

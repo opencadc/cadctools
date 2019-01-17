@@ -76,14 +76,14 @@ import sys
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord, Longitude, Latitude, ICRS
-from astropy.wcs import WCS
+from astropy.wcs import WCS, NoConvergence
 from regions.shapes.circle import CircleSkyRegion
 from regions.shapes.polygon import PolygonSkyRegion
 
 from .no_content_error import NoContentError
 from .pixel_cutout_hdu import PixelCutoutHDU
 from .shape import Circle, Polygon, Energy, Time, Polarization, \
-                   PolarizationState
+    PolarizationState
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +97,22 @@ class AxisType(object):
     """
     Extracts the axis number for each coordinate type.
     """
+
+    def _get_wcs(self, header):
+        naxis_value = header.get('NAXIS')
+
+        if naxis_value is not None and int(naxis_value) > 0:
+            for nax in range(1, naxis_value + 1):
+                ctype = header.get('CTYPE{0} '.format(nax))
+                if ctype is not None and ctype.endswith('-SIP'):
+                    naxis = 2
+                    break
+                else:
+                    naxis = None
+        else:
+            naxis = naxis_value
+
+        return WCS(header=header, naxis=naxis)
 
     COORDINATE_TYPE = 'coordinate_type'
     SPATIAL_KEYWORDS = ['celestial']
@@ -112,7 +128,7 @@ class AxisType(object):
         self.polarization = None
 
         # wcs from header
-        wcs = WCS(header)
+        wcs = self._get_wcs(header)
 
         # get list of dict of axis types
         axis_types = wcs.get_axis_types()
@@ -130,15 +146,17 @@ class AxisType(object):
                         self.spatial_1, self.spatial_2))
             elif coordinate_type in self.SPECTRAL_KEYWORDS:
                 self.spectral = i + 1
-                logger.info('Spectral naxis{}'.format(self.get_spectral_axis()))
+                logger.info('Spectral naxis{}'.format(
+                    self.get_spectral_axis()))
             elif coordinate_type in self.TEMPORAL_KEYWORDS:
                 self.temporal = i + 1
-                logger.info('Temporal naxis{}'.format(self.get_temporal_axis()))
+                logger.info('Temporal naxis{}'.format(
+                    self.get_temporal_axis()))
             elif coordinate_type in self.POLARIZATION_KEYWORDS:
                 self.polarization = i + 1
                 logger.info('Polarization naxis{}'.format(
                     self.get_polarization_axis()))
-            else:
+            elif coordinate_type:
                 raise ValueError('Unknown axis keyword {}'.format(
                     coordinate_type))
 
@@ -176,6 +194,29 @@ class AxisType(object):
 
 
 class Transform(object):
+
+    def _append_world_to_circle_pixels(self, header, naxis1, naxis2, pixels,
+                                       cutouts):
+        logger.info('CIRCLE pixels [{}:{}, {}:{}]'.format(*pixels))
+
+        l_cutouts = len(cutouts)
+
+        for i in pixels:
+            if not i:
+                logger.debug('Skipping {}'.format(header))
+                raise NoContentError(
+                    'Unable to create bounding box.')
+
+        logger.debug('Removing {} from {}'.format(naxis1, cutouts))
+
+        # remove default cutouts and add query cutout
+        if naxis1 < l_cutouts:
+            cutouts.pop(naxis1)
+            cutouts.insert(naxis1, (pixels[0], pixels[1]))
+
+        if naxis2 < l_cutouts:
+            cutouts.pop(naxis2)
+            cutouts.insert(naxis2, (pixels[2], pixels[3]))
 
     def world_to_pixels(self, world_coords, header):
         """
@@ -215,17 +256,11 @@ class Transform(object):
                     # length of the two axes
                     naxis1 = axis_types.get_spatial_axes()[0]
                     naxis2 = axis_types.get_spatial_axes()[1]
-
                     # get the cutout pixels
                     pixels = self.get_circle_cutout_pixels(
                         shape, header, naxis1, naxis2)
-                    logger.info('CIRCLE pixels [{}:{}, {}:{}]'.format(*pixels))
-
-                    # remove default cutouts and add query cutout
-                    cutouts.pop(naxis1)
-                    cutouts.insert(naxis1, (pixels[0], pixels[1]))
-                    cutouts.pop(naxis2)
-                    cutouts.insert(naxis2, (pixels[2], pixels[3]))
+                    self._append_world_to_circle_pixels(header, naxis1, naxis2,
+                                                        pixels, cutouts)
                 except NoContentError as e:
                     no_content_errors.append(repr(e))
             elif isinstance(shape, Polygon):
@@ -237,7 +272,8 @@ class Transform(object):
                     # get the cutout pixels
                     pixels = self.get_polygon_cutout_pixels(
                         shape, header, naxis1, naxis2)
-                    logger.info('POLYGON pixels [{}:{}, {}:{}]'.format(*pixels))
+                    logger.info(
+                        'POLYGON pixels [{}:{}, {}:{}]'.format(*pixels))
 
                     # remove default cutouts and add query cutout
                     cutouts.pop(naxis1)
@@ -382,19 +418,22 @@ class Transform(object):
         # Circle region with radius
         sky_region = CircleSkyRegion(sky_coords, radius=radius)
 
-        # convert to pixel coordinates
-        pixels = sky_region.to_pixel(wcs)
         try:
+            # convert to pixel coordinates
+            pixels = sky_region.to_pixel(wcs)
+
             x_min = pixels.bounding_box.ixmin
             x_max = pixels.bounding_box.ixmax
             y_min = pixels.bounding_box.iymin
             y_max = pixels.bounding_box.iymax
-            logger.info('Circle bounding box [{}, {}, {}, {}]'.format(
+            logger.debug('Circle bounding box [{}, {}, {}, {}]'.format(
                 x_min, x_max, y_min, y_max))
         except ValueError as e:
             # bounding_box raises ValueError if the cutout
             # doesn't intersect the image
             raise NoContentError(repr(e))
+        except NoConvergence as nce:
+            raise NoContentError(repr(nce))
 
         # do clip check
         x_axis = header.get('NAXIS{}'.format(naxis1))
@@ -573,11 +612,11 @@ class Transform(object):
         # bounds check
         if x1 < 1:
             x1 = 1
-        if x2 > w:
+        if w and x2 > w:
             x2 = w
         if y1 < 1:
             y1 = 1
-        if y2 > h:
+        if h and y2 > h:
             y2 = h
 
         # cutout pixels
