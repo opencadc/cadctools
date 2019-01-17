@@ -578,6 +578,14 @@ class WsCapabilities(object):
         resource_id = urlparse(ws_client.resource_id)
         self.caps_file = os.path.join(cache_location, resource_id.netloc,
                                       resource_id.path.strip('/'))
+        # the name of the cached capabilities files is preceeded by a ".". Old
+        # files don't have this rule so delete them if they exist. The
+        # following block should be eventually removed
+        if os.path.isfile(self.caps_file):
+            os.remove(self.caps_file)
+        # prefix the name of the file with '.' to avoid collisions with
+        # subdirectory names
+        self.caps_file = '/.'.join(self.caps_file.rsplit('/', 1))
         self.last_regtime = 0
         self.last_capstime = 0
         self._caps_reader = wscapabilities.CapabilitiesReader()
