@@ -505,7 +505,7 @@ class TestRetrySession(unittest.TestCase):
                          wscap.reg_file)
         self.assertEqual(
             os.path.join(expected_location, urlparse(resource_id).netloc,
-                         service),
+                         '.{}'.format(service)),
             wscap.caps_file)
 
     def test_misc(self):
@@ -656,7 +656,8 @@ class TestWsCapabilities(unittest.TestCase):
         self.assertEqual(os.path.join(ws.CACHE_LOCATION, ws.REGISTRY_FILE),
                          caps.reg_file)
         self.assertEqual(
-            os.path.join(ws.CACHE_LOCATION, 'canfar.phys.uvic.ca', service),
+            os.path.join(ws.CACHE_LOCATION,
+                         'canfar.phys.uvic.ca', '.{}'.format(service)),
             caps.caps_file)
         self.assertEqual(resource_cap_url, caps._get_capability_url())
         file_mock.assert_called_once_with(
@@ -693,9 +694,8 @@ class TestWsCapabilities(unittest.TestCase):
         self.assertEqual(resource_cap_url2, caps._get_capability_url())
 
     @patch('cadcutils.net.ws.os.path.getmtime')
-    @patch('cadcutils.net.ws.open', mock=mock_open())
     @patch('cadcutils.net.ws.requests.get')
-    def test_get_caps(self, get_mock, file_mock, file_modtime_mock):
+    def test_get_caps(self, get_mock, file_modtime_mock):
         """
         Tests the capabilities part of WsCapabilities
         """
@@ -708,10 +708,9 @@ class TestWsCapabilities(unittest.TestCase):
         # info is retrieved from server
         file_modtime_mock.return_value = 0
         # test anonymous access
-        fh_mock = Mock()
-        file_mock.write = fh_mock
-        response = Mock(
-            text=capabilities__content.replace('WS_URL', resource_cap_url))
+        expected_content = capabilities__content.replace('WS_URL',
+                                                         resource_cap_url)
+        response = Mock(text=expected_content)
         get_mock.return_value = response
         caps = ws.WsCapabilities(Mock(resource_id=resource_id,
                                       subject=auth.Subject()))
@@ -721,6 +720,40 @@ class TestWsCapabilities(unittest.TestCase):
         def get_url():
             return 'http://some.url/capabilities'
 
+        caps._get_capability_url = get_url
+        # remove the cached file if exists
+        if os.path.isfile(caps.caps_file):
+            os.remove(caps.caps_file)
+        caps.caps_urls[service] = '{}/capabilities'.format(resource_cap_url)
+        self.assertEqual('http://{}/capabilities'.format(resource_cap_url),
+                         caps.get_access_url(
+                             'ivo://ivoa.net/std/VOSI#capabilities'))
+        self.assertEqual('http://{}/availability'.format(resource_cap_url),
+                         caps.get_access_url(
+                             'ivo://ivoa.net/std/VOSI#availability'))
+        self.assertEqual('http://{}/pub'.format(resource_cap_url),
+                         caps.get_access_url(
+                             'vos://cadc.nrc.ca~service/CADC/mystnd01'))
+        actual_content = open(caps.caps_file, 'r').read()
+        self.assertEqual(expected_content, actual_content)
+
+        # mock _get_capability_url to return a subservice
+        service = 'myservice/mysubservice'
+        resource_id = 'ivo://canfar.phys.uvic.ca/{}'.format(service)
+        resource_cap_url = 'www.canfar.net/myservice/mysubservice'
+        # set the modified time of the cache file to 0 to make sure the
+        # info is retrieved from server
+        file_modtime_mock.return_value = 0
+        expected_content = capabilities__content.replace('WS_URL',
+                                                         resource_cap_url)
+        # test anonymous access
+        response = Mock(text=expected_content)
+        get_mock.return_value = response
+        caps = ws.WsCapabilities(Mock(resource_id=resource_id,
+                                      subject=auth.Subject()))
+        # remove the cached file if exists
+        if os.path.isfile(caps.caps_file):
+            os.remove(caps.caps_file)
         caps._get_capability_url = get_url
         caps.caps_urls[service] = '{}/capabilities'.format(resource_cap_url)
         self.assertEqual('http://{}/capabilities'.format(resource_cap_url),
@@ -732,14 +765,8 @@ class TestWsCapabilities(unittest.TestCase):
         self.assertEqual('http://{}/pub'.format(resource_cap_url),
                          caps.get_access_url(
                              'vos://cadc.nrc.ca~service/CADC/mystnd01'))
-        resource_url = urlparse(resource_id)
-        file_mock.assert_called_once_with(os.path.join(ws.CACHE_LOCATION,
-                                                       resource_url.netloc,
-                                                       resource_url.path.strip(
-                                                           '/')), 'w')
-        # TODO not sure why need to access write this way
-        file_mock().__enter__.return_value.write.assert_called_once_with(
-            capabilities__content.replace('WS_URL', resource_cap_url))
+        actual_content = open(caps.caps_file, 'r').read()
+        self.assertEqual(expected_content, actual_content)
 
         # repeat for basic auth subject. Mock the netrc library to
         # prevent a lookup for $HOME/.netrc
@@ -781,16 +808,19 @@ class TestWsCapabilities(unittest.TestCase):
         get_mock.reset_mock()
         get_mock.return_value = None
         file_modtime_mock.reset_mock()
-        file_mock.reset_mock()
-        resource_cap_url2 = 'http://www.canfar.net/myservice2'
-        cache_content2 = capabilities__content.replace('WS_URL',
-                                                       resource_cap_url2)
+        service = 'myservice2'
+        resource_id = 'ivo://canfar.phys.uvic.ca/{}'.format(service)
+        resource_cap_url2 = 'canfar.phys.uvic.ca/myservice2'
+        expected_content = capabilities__content.replace('WS_URL',
+                                                         resource_cap_url2)
         file_modtime_mock.return_value = time.time()
-        file_mock().__enter__.return_value.read.return_value = cache_content2
-        client = Mock(resource_id=resource_id, subject=auth.Subject())
+        client = Mock(resource_id=resource_cap_url2, subject=auth.Subject())
         caps = ws.WsCapabilities(client)
         caps._get_capability_url = get_url
         caps.caps_urls[service] = '{}/capabilities'.format(resource_cap_url2)
+        # manually write the content
+        with open(caps.caps_file, 'w') as f:
+            f.write(expected_content)
         self.assertEqual('http://{}/capabilities'.format(resource_cap_url2),
                          caps.get_access_url(
                              'ivo://ivoa.net/std/VOSI#capabilities'))
@@ -800,9 +830,8 @@ class TestWsCapabilities(unittest.TestCase):
         self.assertEqual('http://{}/pub'.format(resource_cap_url2),
                          caps.get_access_url(
                              'vos://cadc.nrc.ca~service/CADC/mystnd01'))
-        resource_url = urlparse(resource_id)
-        file_mock().__enter__.return_value.read.return_value = \
-            capabilities__content.replace('WS_URL', resource_cap_url2)
+        actual_content = open(caps.caps_file, 'r').read()
+        self.assertEqual(expected_content, actual_content)
 
         # repeat for basic auth subject. Mock the netrc library to prevent a
         # lookup for $HOME/.netrc
