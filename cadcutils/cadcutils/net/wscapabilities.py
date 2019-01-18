@@ -81,6 +81,8 @@ from six.moves.urllib.parse import urlparse
 # nothing for public consumption
 __all__ = []
 
+logger = logging.getLogger(__name__)
+
 
 class Capabilities(object):
     """
@@ -88,7 +90,6 @@ class Capabilities(object):
     """
 
     def __init__(self):
-        self.logger = logging.getLogger('Capabilities')
         self._caps = {}
 
     def add_capability(self, capability):
@@ -149,7 +150,6 @@ class Capability(object):
         """
         :param standard_id: ID of the capability
         """
-        self.logger = logging.getLogger('Capability')
         # validate standard id is valid uri with 3 components: scheme,
         # netloc and path. Anything missing?
         check_valid_url(standard_id)
@@ -167,6 +167,16 @@ class Capability(object):
         check_valid_url(access_url)
         if security_method is not None:
             check_valid_url(security_method)
+        if security_method in self._interfaces:
+            # there's already an access url for this security method
+            # HTTPS access urls are preferred, so keep that one that has
+            # the https scheme
+            old_url = urlparse(self._interfaces[security_method])
+            new_url = urlparse(access_url)
+            if (old_url.scheme == 'https') or (new_url.scheme == 'http'):
+                logger.debug('access url already exists for {}'.
+                             format(security_method))
+                return
         self._interfaces[security_method] = access_url
 
     @property
@@ -189,7 +199,6 @@ class CapabilitiesReader(object):
         Arguments:
         :param validate : If True enable schema validation, False otherwise
         """
-        self.logger = logging.getLogger('CapabilitiesReader')
 
     def parsexml(self, content):
         """

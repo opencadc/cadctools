@@ -139,10 +139,57 @@ class TestWsCapabilities(unittest.TestCase):
                 '</accessURL></interface></capability></capabilities>')
 
         # simplest capabilities document that parses successfully
-        cr.parsexml(
+        caps = cr.parsexml(
             '<capabilities><capability standardID="ivo://provider/service">'
             '<interface><accessURL>http://someurl/somepath'
             '</accessURL></interface></capability></capabilities>')
+
+        assert 'http://someurl/somepath' == \
+               caps.get_access_url('ivo://provider/service', None)
+
+        # multiple interfaces => https url preferred
+        caps = cr.parsexml(
+            '<capabilities><capability standardID="ivo://provider/service">'
+            '<interface><accessURL>http://someurl/somepath'
+            '</accessURL></interface><interface>'
+            '<accessURL>https://someurl/somepath'
+            '</accessURL></interface></capability></capabilities>')
+
+        assert 'https://someurl/somepath' == \
+               caps.get_access_url('ivo://provider/service', None)
+
+        # multiple interfaces => https url preferred even when change order
+        caps = cr.parsexml(
+            '<capabilities><capability standardID="ivo://provider/service">'
+            '<interface><accessURL>https://someurl/somepath'
+            '</accessURL></interface><interface>'
+            '<accessURL>http://someurl/somepath'
+            '</accessURL></interface></capability></capabilities>')
+
+        assert 'https://someurl/somepath' == \
+               caps.get_access_url('ivo://provider/service', None)
+
+        # multipel interfaces => first one chosen when both http or first one
+        # is already https
+        caps = cr.parsexml(
+            '<capabilities><capability standardID="ivo://provider/service">'
+            '<interface><accessURL>https://someurl1/somepath'
+            '</accessURL></interface><interface>'
+            '<accessURL>https://someurl2/somepath'
+            '</accessURL></interface></capability></capabilities>')
+
+        assert 'https://someurl1/somepath' == \
+               caps.get_access_url('ivo://provider/service', None)
+
+        caps = cr.parsexml(
+            '<capabilities><capability standardID="ivo://provider/service">'
+            '<interface><accessURL>http://someurl1/somepath'
+            '</accessURL></interface><interface>'
+            '<accessURL>http://someurl2/somepath'
+            '</accessURL></interface></capability></capabilities>')
+
+        assert 'http://someurl1/somepath' == \
+               caps.get_access_url('ivo://provider/service', None)
 
         # add security method
         with assertRaisesRegex(self, ValueError,
