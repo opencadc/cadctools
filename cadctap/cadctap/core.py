@@ -318,7 +318,7 @@ class CadcTapClient(object):
 
         logger.debug('QUERY fileds: {}'.format(fields))
         m = MultipartEncoder(fields=fields)
-        with self._tap_client.post((QUERY_CAPABILITY_ID, None),
+        with self._tap_client.post((QUERY_CAPABILITY_ID, None, 'uws:Sync'),
                                    data=m, headers={
                                        'Content-Type': m.content_type},
                                    stream=True) as result:
