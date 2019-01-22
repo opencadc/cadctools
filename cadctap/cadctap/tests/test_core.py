@@ -266,7 +266,7 @@ def test_query(base_post_mock):
     client.query('query', tmptable='tmptable:'+def_table)
     print(base_post_mock.call_args_list[0][0][0])
     assert base_post_mock.call_args_list[0][0][0] == \
-        (QUERY_CAPABILITY_ID, None)
+        (QUERY_CAPABILITY_ID, None, 'uws:Sync')
 
 
 class TestCadcTapClient(unittest.TestCase):

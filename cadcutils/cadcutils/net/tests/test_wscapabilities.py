@@ -114,16 +114,18 @@ class TestWsCapabilities(unittest.TestCase):
             'Error parsing capabilities document. '
                 'No accessURL for interface for ivo://provider/service'):
             cr.parsexml(
-                '<capabilities><capability '
-                'standardID="ivo://provider/service">'
-                '<interface></interface></capability></capabilities>')
+                '<capabilities '
+                'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+                '<capability standardID="ivo://provider/service">'
+                '<interface xsi:type="vs:ParamHTTP">'
+                '</interface></capability></capabilities>')
 
         with assertRaisesRegex(
                 self, ValueError,
                 'Error parsing capabilities document. '
                 'No accessURL for interface for ivo://provider/service'):
             cr.parsexml(
-                '<capabilities><capability '
+                '<capabilities xmlns:xsi="ns"><capability '
                 'standardID="ivo://provider/service">'
                 '<interface></interface><accessURL>'
                 '</accessURL></capability></capabilities>')
@@ -133,15 +135,21 @@ class TestWsCapabilities(unittest.TestCase):
                                'No accessURL for interface for '
                                'ivo://provider/service'):
             cr.parsexml(
-                '<capabilities><capability '
+                '<capabilities '
+                'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+                '<capability '
                 'standardID="ivo://provider/service">'
-                '<interface><accessURL standardID="abc">'
+                '<interface xsi:type="vs:ParamHTTP">'
+                '<accessURL standardID="abc">'
                 '</accessURL></interface></capability></capabilities>')
 
         # simplest capabilities document that parses successfully
         caps = cr.parsexml(
-            '<capabilities><capability standardID="ivo://provider/service">'
-            '<interface><accessURL>http://someurl/somepath'
+            '<capabilities '
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+            '<capability standardID="ivo://provider/service">'
+            '<interface xsi:type="vs:ParamHTTP">'
+            '<accessURL>http://someurl/somepath'
             '</accessURL></interface></capability></capabilities>')
 
         assert 'http://someurl/somepath' == \
@@ -149,9 +157,13 @@ class TestWsCapabilities(unittest.TestCase):
 
         # multiple interfaces => https url preferred
         caps = cr.parsexml(
-            '<capabilities><capability standardID="ivo://provider/service">'
-            '<interface><accessURL>http://someurl/somepath'
-            '</accessURL></interface><interface>'
+            '<capabilities '
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+            '<capability standardID="ivo://provider/service">'
+            '<interface xsi:type="vs:ParamHTTP">'
+            '<accessURL>http://someurl/somepath'
+            '</accessURL></interface>'
+            '<interface xsi:type="vs:ParamHTTP">'
             '<accessURL>https://someurl/somepath'
             '</accessURL></interface></capability></capabilities>')
 
@@ -160,9 +172,13 @@ class TestWsCapabilities(unittest.TestCase):
 
         # multiple interfaces => https url preferred even when change order
         caps = cr.parsexml(
-            '<capabilities><capability standardID="ivo://provider/service">'
-            '<interface><accessURL>https://someurl/somepath'
-            '</accessURL></interface><interface>'
+            '<capabilities '
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+            '<capability standardID="ivo://provider/service">'
+            '<interface  xsi:type="vs:ParamHTTP">'
+            '<accessURL>https://someurl/somepath'
+            '</accessURL></interface>'
+            '<interface xsi:type="vs:ParamHTTP">'
             '<accessURL>http://someurl/somepath'
             '</accessURL></interface></capability></capabilities>')
 
@@ -172,9 +188,13 @@ class TestWsCapabilities(unittest.TestCase):
         # multipel interfaces => first one chosen when both http or first one
         # is already https
         caps = cr.parsexml(
-            '<capabilities><capability standardID="ivo://provider/service">'
-            '<interface><accessURL>https://someurl1/somepath'
-            '</accessURL></interface><interface>'
+            '<capabilities '
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+            '<capability standardID="ivo://provider/service">'
+            '<interface  xsi:type="vs:ParamHTTP">'
+            '<accessURL>https://someurl1/somepath'
+            '</accessURL></interface>'
+            '<interface xsi:type="vs:ParamHTTP">'
             '<accessURL>https://someurl2/somepath'
             '</accessURL></interface></capability></capabilities>')
 
@@ -182,9 +202,12 @@ class TestWsCapabilities(unittest.TestCase):
                caps.get_access_url('ivo://provider/service', None)
 
         caps = cr.parsexml(
-            '<capabilities><capability standardID="ivo://provider/service">'
-            '<interface><accessURL>http://someurl1/somepath'
-            '</accessURL></interface><interface>'
+            '<capabilities '
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+            '<capability standardID="ivo://provider/service">'
+            '<interface xsi:type="vs:ParamHTTP">'
+            '<accessURL>http://someurl1/somepath'
+            '</accessURL></interface><interface xsi:type="vs:ParamHTTP">'
             '<accessURL>http://someurl2/somepath'
             '</accessURL></interface></capability></capabilities>')
 
@@ -198,9 +221,12 @@ class TestWsCapabilities(unittest.TestCase):
                                'http://someurl/somepath of capability '
                                'ivo://provider/service'):
             cr.parsexml(
-                '<capabilities><capability '
+                '<capabilities '
+                'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+                '<capability '
                 'standardID="ivo://provider/service">'
-                '<interface><accessURL>http://someurl/somepath'
+                '<interface xsi:type="vs:ParamHTTP">'
+                '<accessURL>http://someurl/somepath'
                 '</accessURL><securityMethod></securityMethod>'
                 '</interface></capability></capabilities>')
 
@@ -210,8 +236,10 @@ class TestWsCapabilities(unittest.TestCase):
                                r'\(http://someurl/somepath\) or '
                                r'security method \(mymethod\)'):
             cr.parsexml(
-                '<capabilities><capability '
-                'standardID="ivo://provider/service">'
-                '<interface><accessURL>http://someurl/somepath'
+                '<capabilities '
+                'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+                '<capability standardID="ivo://provider/service">'
+                '<interface xsi:type="vs:ParamHTTP">'
+                '<accessURL>http://someurl/somepath'
                 '</accessURL><securityMethod standardID="mymethod">'
                 '</securityMethod></interface></capability></capabilities>')

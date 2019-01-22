@@ -89,6 +89,10 @@ TRANS_ROOT_LOGNAME = 'cadc.etrans.log'
 LOG_PUT_LABEL = 'put_cadc_file'
 LOG_STATUS_LABEL = 'status'
 
+TRANS_ROOT_LOGNAME = 'cadcetrans.log'
+LOG_PUT_LABEL = 'put_cadc_file'
+LOG_STATUS_LABEL = 'status'
+
 try:
     etrans_config = util.Config(_CONFIG_PATH)
 except IOError:
