@@ -356,7 +356,7 @@ def main_app(argv=None):
 if __name__ == "__main__":
     try:
         main_app()
-        exit(0)
+        sys.exit(0)
     except Exception as e:
         logging.error('{}'.format(str(e)))
-        exit(-1)
+        sys.exit(-1)
