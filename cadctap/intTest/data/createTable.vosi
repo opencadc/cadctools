@@ -1,5 +1,5 @@
 <vosi:table xmlns:vosi="http://www.ivoa.net/xml/VOSITables/v1.0" xmlns:vod="http://www.ivoa.net/xml/VODataService/v1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" type="output">
-<name>testtable</name>
+<name>my_table</name>
 <description>
 This is my very own table
 </description>

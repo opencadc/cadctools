@@ -81,6 +81,8 @@ from six.moves.urllib.parse import urlparse
 # nothing for public consumption
 __all__ = []
 
+logger = logging.getLogger(__name__)
+
 
 class Capabilities(object):
     """
@@ -88,19 +90,20 @@ class Capabilities(object):
     """
 
     def __init__(self):
-        self.logger = logging.getLogger('Capabilities')
         self._caps = {}
 
     def add_capability(self, capability):
         self._caps[capability.standard_id] = capability
 
-    def get_access_url(self, capability_id, security_methods):
+    def get_access_url(self, capability_id, security_methods,
+                       interface_type='vs:ParamHTTP'):
         """
         Returns the access URL corresponding to a capability ID and a list of
         security methods. Raises a ValueError if no entry found.
         :param capability_id: ID of the capability
         :param security_methods: IDs of the security methods in the preferred
         order
+        :param interface_type: type of the interface
         :return: URL to use for accessing the feature/capability
         """
         capability = self._caps[capability_id]
@@ -113,11 +116,12 @@ class Capabilities(object):
         if (capability.get_interface(None) is not None) and \
                 ((capability.num_interfaces == 1) or
                  (len(security_methods) == 0)):
-            return capability.get_interface(None)
+            return capability.get_interface(None).access_url
 
         for sm in security_methods:
-            if capability.get_interface(sm) is not None:
-                return capability.get_interface(sm)
+            interface = capability.get_interface(sm, interface_type)
+            if interface is not None:
+                return interface.access_url
         raise ValueError('Capability {} does not support security methods {}'.
                          format(capability_id, security_methods))
 
@@ -149,25 +153,44 @@ class Capability(object):
         """
         :param standard_id: ID of the capability
         """
-        self.logger = logging.getLogger('Capability')
         # validate standard id is valid uri with 3 components: scheme,
         # netloc and path. Anything missing?
         check_valid_url(standard_id)
         self.standard_id = standard_id
-        self._interfaces = {}
+        self._interfaces = []
 
-    def get_interface(self, security_method):
+    def get_interface(self, security_method, interface_type='vs:ParamHTTP'):
         # validate security_method is uri
-        if security_method is not None:
+        if security_method:
             check_valid_url(security_method)
-        return self._interfaces.get(security_method)
+        for i in self._interfaces:
+            if (i.security_method == security_method) and\
+               (i.type == interface_type):
+                return i
+        return None
 
-    def add_interface(self, access_url, security_method):
+    def add_interface(self, access_url, security_method,
+                      interface_type='vs:ParamHTTP'):
         # validate arguments
         check_valid_url(access_url)
         if security_method is not None:
             check_valid_url(security_method)
-        self._interfaces[security_method] = access_url
+        interface = self.get_interface(security_method, interface_type)
+        if interface:
+            # there's already an access url for this security method
+            # HTTPS access urls are preferred, so keep that one that has
+            # the https scheme
+            old_url = urlparse(interface.access_url)
+            new_url = urlparse(access_url)
+            if (old_url.scheme == 'https') or (new_url.scheme == 'http'):
+                logger.debug('access url already exists for {}'.
+                             format(security_method))
+                return
+            else:
+                interface.access_url = access_url
+        else:
+            self._interfaces.append(
+                Interface(interface_type, security_method, access_url))
 
     @property
     def num_interfaces(self):
@@ -176,6 +199,20 @@ class Capability(object):
         :return: number of supported interfaces
         """
         return len(self._interfaces)
+
+
+class Interface(object):
+    """
+    Class representing the interface of a capability
+
+    """
+
+    def __init__(self, type, security_method, access_url):
+        self.type = type
+        if security_method:
+            check_valid_url(security_method)
+        self.security_method = security_method
+        self.access_url = access_url
 
 
 class CapabilitiesReader(object):
@@ -189,7 +226,6 @@ class CapabilitiesReader(object):
         Arguments:
         :param validate : If True enable schema validation, False otherwise
         """
-        self.logger = logging.getLogger('CapabilitiesReader')
 
     def parsexml(self, content):
         """
@@ -211,6 +247,8 @@ class CapabilitiesReader(object):
                                  format(cap.get('standardID')))
 
             for child in cap.iterchildren(tag='interface'):
+                interface_type = child.get('{{{}}}type'.
+                                           format(doc.nsmap['xsi']))
                 if (child.find('accessURL') is not None) \
                         and (child.find('accessURL').text is not None):
                     access_url = child.find('accessURL').text.strip()
@@ -231,7 +269,9 @@ class CapabilitiesReader(object):
                             format(security_method.get('standardID'),
                                    access_url, capability.standard_id))
                 try:
-                    capability.add_interface(access_url, security_method)
+                    capability.add_interface(access_url,
+                                             security_method,
+                                             interface_type)
                 except ValueError:
                     raise ValueError('Error parsing capabilities document. '
                                      'Invalid URL in access URL ({}) '

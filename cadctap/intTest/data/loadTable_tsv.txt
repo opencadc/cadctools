@@ -1,0 +1,4 @@
+article	count
+art4	4
+art5	5
+art6	6
