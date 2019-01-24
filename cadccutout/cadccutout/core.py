@@ -84,6 +84,8 @@ logger = logging.getLogger(__name__)
 
 __all__ = ['OpenCADCCutout', 'WriteOnlyStream']
 
+UNSET_ARG = object()
+
 
 class OpenCADCCutout(object):
     """
@@ -148,8 +150,8 @@ class OpenCADCCutout(object):
         self.helper_factory = helper_factory
         self.input_range_parser = input_range_parser
 
-    def cutout(self, cutout_dimensions, input_reader=sys.stdin,
-               output_writer=sys.stdout, file_type='FITS'):
+    def cutout(self, cutout_dimensions, input_reader=UNSET_ARG,
+               output_writer=UNSET_ARG, file_type='FITS'):
         """
         Perform a Cutout of the given data at the given position and size.
 
@@ -168,15 +170,41 @@ class OpenCADCCutout(object):
         file_type: string
             The file type, in upper case.  Will usually be 'FITS'.
         """
-        if not input_reader:
-            raise ValueError('No input source specified.')
-        elif not output_writer:
-            raise ValueError('No output target specified.')
-        elif not cutout_dimensions or len(cutout_dimensions) == 0:
+
+        if not cutout_dimensions or len(cutout_dimensions) == 0:
             raise ValueError('No Cutout regions specified.')
 
+        if not input_reader:
+            raise ValueError('No input source specified.')
+        elif input_reader == UNSET_ARG:
+            # Python 3 uses the buffer property to treat stream data as binary.
+            # Python 2 (sometimes) requires the -u command line switch.
+            if hasattr(sys.stdin, 'buffer'):
+                logger.info('Python 3 input')
+                input_stream = sys.stdin.buffer
+            else:
+                logger.info('Python 2 input')
+                input_stream = sys.stdin
+        else:
+            input_stream = input_reader
+
+        if not output_writer:
+            logger.error('No output!')
+            raise ValueError('No output target specified.')
+        elif output_writer == UNSET_ARG:
+            # Python 3 uses the buffer property to treat stream data as binary.
+            # Python 2 (sometimes) requires the -u command line switch.
+            if hasattr(sys.stdout, 'buffer'):
+                logger.info('Python 3 output')
+                output_stream = sys.stdout.buffer
+            else:
+                logger.info('Python 2 output')
+                output_stream = sys.stdout
+        else:
+            output_stream = output_writer
+
         file_helper = self._get_file_helper(
-            file_type, input_reader, output_writer)
+            file_type, input_stream, WriteOnlyStream(output_stream))
 
         try:
             file_helper.cutout(cutout_dimensions)
@@ -208,8 +236,8 @@ class OpenCADCCutout(object):
 
         return input_cutout_dimensions
 
-    def cutout_from_string(self, cutout_dimensions_str, input_reader=sys.stdin,
-                           output_writer=sys.stdout, file_type='FITS'):
+    def cutout_from_string(self, cutout_dimensions_str, input_reader=None,
+                           output_writer=None, file_type='FITS'):
         """
         Perform a Cutout of the given data at the given position and size.
 
@@ -276,18 +304,6 @@ def main_app(argv=None):
     # Execute only if run as a script.
     parser = argparse.ArgumentParser()
 
-    # Python 3 uses the buffer property to treat stream data as binary.
-    # Python 2 (sometimes) requires the -u command line switch.
-    if hasattr(sys.stdin, 'buffer'):
-        default_input = sys.stdin.buffer
-    else:
-        default_input = sys.stdin
-
-    if hasattr(sys.stdout, 'buffer'):
-        default_output = sys.stdout.buffer
-    else:
-        default_output = sys.stdout
-
     parser.description = ('Cutout library to extract an N-Dimension array.')
     parser.formatter_class = argparse.RawTextHelpFormatter
 
@@ -299,14 +315,13 @@ def main_app(argv=None):
                         help='verbose messages')
     parser.add_argument('--version', action='version', version=version.version)
 
-    parser.add_argument('--type', '-t', choices=['FITS'],
-                        default='FITS',
+    parser.add_argument('--type', '-t', choices=['FITS'], default='FITS',
                         help='Optional file type.  Defaults to FITS.')
     parser.add_argument('--infile', '-i', type=argparse.FileType(mode='rb'),
-                        default=default_input, nargs='?',
+                        nargs='?',
                         help='Optional input file.  Defaults to stdin.')
     parser.add_argument('--outfile', '-o', type=argparse.FileType(mode='ab+'),
-                        default=default_output, nargs='?',
+                        nargs='?',
                         help='Optional output file.  Defaults to stdout.')
 
     parser.add_argument(

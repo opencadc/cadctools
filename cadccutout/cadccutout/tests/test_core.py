@@ -71,9 +71,14 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import io
+import sys
+import logging
 import pytest
 from cadccutout.core import OpenCADCCutout, WriteOnlyStream
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
+
+logger = logging.getLogger('cadccutout')
+logger.setLevel(logging.DEBUG)
 
 
 def test__parse_input():
@@ -141,15 +146,19 @@ def test_construct():
 
     with pytest.raises(ValueError) as ve:
         test_subject.cutout([])
-        assert '{}'.format(ve) == 'No Cutout regions specified.', \
-            'Wrong error message.'
+    assert str(ve.value) == 'No Cutout regions specified.', \
+        'Wrong error message.'
 
-    with pytest.raises(ValueError) as ve:
+    with pytest.raises(ValueError) as ve2:
         test_subject.cutout([PixelCutoutHDU([(8, 10)])], input_reader=None)
-        assert '{}'.format(ve) == 'No input source specified.', \
-            'Wrong error message.'
+    assert str(ve2.value) == 'No input source specified.', \
+        'Wrong error message.'
 
-    with pytest.raises(ValueError) as ve:
+    with pytest.raises(ValueError) as ve3:
         test_subject.cutout([PixelCutoutHDU([(8, 10)])], output_writer=None)
-        assert '{}'.format(ve) == 'No output target specified.', \
-            'Wrong error message.'
+    assert str(ve3.value) == 'No output target specified.', \
+        'Wrong error message.'
+
+    with pytest.raises(FileNotFoundError) as ve4:
+        test_subject.cutout([PixelCutoutHDU([(8, 10)])],
+                            input_reader=open('/no/such/file'))
