@@ -236,8 +236,8 @@ class OpenCADCCutout(object):
 
         return input_cutout_dimensions
 
-    def cutout_from_string(self, cutout_dimensions_str, input_reader=None,
-                           output_writer=None, file_type='FITS'):
+    def cutout_from_string(self, cutout_dimensions_str, input_reader=UNSET_ARG,
+                           output_writer=UNSET_ARG, file_type='FITS'):
         """
         Perform a Cutout of the given data at the given position and size.
 
@@ -352,7 +352,7 @@ def main_app(argv=None):
         # it finds.
         c.cutout_from_string(
             args.cutout, input_reader=args.infile,
-            output_writer=WriteOnlyStream(args.outfile),
+            output_writer=args.outfile,
             file_type=args.type)
     finally:
         logging.info('End cutout.')
