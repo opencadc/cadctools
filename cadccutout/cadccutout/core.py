@@ -180,25 +180,20 @@ class OpenCADCCutout(object):
             # Python 3 uses the buffer property to treat stream data as binary.
             # Python 2 (sometimes) requires the -u command line switch.
             if hasattr(sys.stdin, 'buffer'):
-                logger.info('Python 3 input')
                 input_stream = sys.stdin.buffer
             else:
-                logger.info('Python 2 input')
                 input_stream = sys.stdin
         else:
             input_stream = input_reader
 
         if not output_writer:
-            logger.error('No output!')
             raise ValueError('No output target specified.')
         elif output_writer == UNSET_ARG:
             # Python 3 uses the buffer property to treat stream data as binary.
             # Python 2 (sometimes) requires the -u command line switch.
             if hasattr(sys.stdout, 'buffer'):
-                logger.info('Python 3 output')
                 output_stream = sys.stdout.buffer
             else:
-                logger.info('Python 2 output')
                 output_stream = sys.stdout
         else:
             output_stream = output_writer
@@ -318,10 +313,10 @@ def main_app(argv=None):
     parser.add_argument('--type', '-t', choices=['FITS'], default='FITS',
                         help='Optional file type.  Defaults to FITS.')
     parser.add_argument('--infile', '-i', type=argparse.FileType(mode='rb'),
-                        nargs='?',
+                        nargs='?', default=UNSET_ARG,
                         help='Optional input file.  Defaults to stdin.')
     parser.add_argument('--outfile', '-o', type=argparse.FileType(mode='ab+'),
-                        nargs='?',
+                        nargs='?', default=UNSET_ARG,
                         help='Optional output file.  Defaults to stdout.')
 
     parser.add_argument(
