@@ -39,6 +39,15 @@ TABLE_DEF = '{}/createTable.vosi'.format(TESTDATA_DIR)
 
 
 def test_commands(monkeypatch):
+    # test cadc TAP service with anonymous access
+    sys.argv = ['cadc-tap', 'query', '-s', 'ivo://cadc.nrc.ca/tap',
+                'select observationID FROM caom2.Observation '
+                'where observationID=\'dao_c122_2018_003262\'']
+    with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+        main_app()
+    assert '<INFO name="QUERY_STATUS" value="OK" />' in stdout_mock.getvalue()
+    assert '<TD>dao_c122_2018_003262</TD>' in stdout_mock.getvalue()
+
     # monkeypatch required for the "user interaction"
     sys.argv = 'cadc-tap delete --cert {} {}'.format(CERT, TABLE).split()
     try:
@@ -138,27 +147,27 @@ def test_commands(monkeypatch):
     bintb_file = os.path.join(tempdir, 'bintable.fits')
     new_hdul.writeto(bintb_file)
 
-    sys.argv = 'cadc-tap load --cert {} {} {}'.format(
-        CERT, TABLE, bintb_file).split()
-    try:
-        main_app()
-        logger.debug('Load table {} (bintable)'.format(TABLE))
-    except Exception as e:
-        logger.debug(
-            'Cannot load table bintable {}. Reason: {}'.format(TABLE, str(e)))
-        raise e
-
-    sys.argv = 'cadc-tap query --cert {}'.format(CERT).split()
-    sys.argv.append('select * from {}'.format(TABLE))
-    with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-        main_app()
-    result = stdout_mock.getvalue()
-    assert '<INFO name="QUERY_STATUS" value="OK" />' in result
-    # 9 rows
-    assert 9 == result.count('<TD>art')
-    for i in range(1, 9):
-        assert '<TD>art{}</TD>'.format(i) in result
-        assert '<TD>{}</TD>'.format(i) in result
+    # sys.argv = 'cadc-tap load --cert {} {} {}'.format(
+    #     CERT, TABLE, bintb_file).split()
+    # try:
+    #     main_app()
+    #     logger.debug('Load table {} (bintable)'.format(TABLE))
+    # except Exception as e:
+    #     logger.debug(
+    #         'Cannot load table bintable {}. Reason: {}'.format(TABLE, str(e)))
+    #     raise e
+    #
+    # sys.argv = 'cadc-tap query --cert {}'.format(CERT).split()
+    # sys.argv.append('select * from {}'.format(TABLE))
+    # with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+    #     main_app()
+    # result = stdout_mock.getvalue()
+    # assert '<INFO name="QUERY_STATUS" value="OK" />' in result
+    # # 9 rows
+    # assert 9 == result.count('<TD>art')
+    # for i in range(1, 9):
+    #     assert '<TD>art{}</TD>'.format(i) in result
+    #     assert '<TD>{}</TD>'.format(i) in result
 
 
     #TODO query with temporary table

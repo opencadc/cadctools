@@ -419,15 +419,17 @@ def main_app(command='cadc-tap query'):
     query_parser.epilog = (
         'Examples:\n'
         '- Anonymously run a query string:\n'
-        '      '+command+' "SELECT TOP 10 type FROM caom2.Observation"\n'
+        '      {0} "SELECT TOP 10 type FROM caom2.Observation"\n'
         '- Use certificate to run a query from a file:\n'
-        '      '+command+' -i /data/query.sql --cert ~/.ssl/cadcproxy.pem\n'
-        '- Use username/password to run a query:\n'
-        '      '+command+' "SELECT TOP 10 type FROM caom2.Observation"'
-        ' -u username\n'
+        '      {0} -i /data/query.sql --cert ~/.ssl/cadcproxy.pem\n'
+        '- Use username/password to run a query on the tap service:\n'
+        '      {0} -s ivo://cadc.nrc.ca/tap '
+        '"SELECT TOP 10 type FROM caom2.Observation"'
+        ' -u <username>\n'
         '- Use netrc file to run a query on the ams/mast service'
         ' :\n'
-        '      '+command+' -i data/query.sql -n -s ams/mast\n')
+        '      {0} -i data/query.sql -n -s ivo://cadc.nrc.ca/ams/mast\n'.
+        format(command))
 
     create_parser = subparsers.add_parser(
         'create',
