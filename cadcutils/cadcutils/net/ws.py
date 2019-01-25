@@ -354,7 +354,12 @@ class BaseWsClient(object):
             path = ''
             if (resource[1] is not None) and (len(resource[1]) > 0):
                 path = '/{}'.format(resource[1].strip('/'))
-            base_url = self.caps.get_access_url(resource[0])
+            if (len(resource) > 2):
+                interface_type = resource[2]
+                base_url = self.caps.get_access_url(resource[0],
+                                                    interface_type)
+            else:
+                base_url = self.caps.get_access_url(resource[0])
             access_url = '{}{}'.format(base_url, path)
             return access_url
         else:
@@ -593,12 +598,13 @@ class WsCapabilities(object):
         self.features = {}
         self.capabilities = {}
 
-    def get_access_url(self, feature):
+    def get_access_url(self, feature, interface_type='vs:ParamHTTP'):
         """
         Returns the access URL corresponding to a feature and the
         authentication information associated with the subject that created
         the Web Service client
         :param feature: Web Service feature
+        :param interface_type: the type of the interface
         :return: corresponding access URL
         """
 
@@ -622,7 +628,7 @@ class WsCapabilities(object):
                 self.last_capstime = time.time()
         sms = self.ws.subject.get_security_methods()
 
-        return self.capabilities.get_access_url(feature, sms)
+        return self.capabilities.get_access_url(feature, sms, interface_type)
 
     @property
     def host(self):

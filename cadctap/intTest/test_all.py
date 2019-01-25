@@ -5,7 +5,9 @@ import os
 import logging
 from six import StringIO
 from mock import patch
+from astropy.io import fits
 import tempfile
+import numpy as np
 
 from cadctap.core import main_app
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -37,7 +39,16 @@ TABLE_DEF = '{}/createTable.vosi'.format(TESTDATA_DIR)
 
 
 def test_commands(monkeypatch):
+    # test cadc TAP service with anonymous access
+    sys.argv = ['cadc-tap', 'query', '-s', 'ivo://cadc.nrc.ca/tap',
+                'select observationID FROM caom2.Observation '
+                'where observationID=\'dao_c122_2018_003262\'']
+    with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+        main_app()
+    assert '<INFO name="QUERY_STATUS" value="OK" />' in stdout_mock.getvalue()
+    assert '<TD>dao_c122_2018_003262</TD>' in stdout_mock.getvalue()
 
+    # monkeypatch required for the "user interaction"
     sys.argv = 'cadc-tap delete --cert {} {}'.format(CERT, TABLE).split()
     try:
         monkeypatch.setattr('cadctap.core.input', lambda x: "yes")
@@ -81,10 +92,10 @@ def test_commands(monkeypatch):
         CERT, TABLE, os.path.join(TESTDATA_DIR, 'loadTable_csv.txt')).split()
     try:
         main_app()
-        logger.debug('Load table {}'.format(TABLE))
+        logger.debug('Load table {} (csv)'.format(TABLE))
     except Exception as e:
         logger.debug(
-            'Cannot load table {}. Reason: {}'.format(TABLE, str(e)))
+            'Cannot load table csv {}. Reason: {}'.format(TABLE, str(e)))
         raise e
 
     sys.argv = 'cadc-tap query --cert {}'.format(CERT).split()
@@ -104,10 +115,10 @@ def test_commands(monkeypatch):
         CERT, TABLE, os.path.join(TESTDATA_DIR, 'loadTable_tsv.txt')).split()
     try:
         main_app()
-        logger.debug('Load table {}'.format(TABLE))
+        logger.debug('Load table {} (tsv)'.format(TABLE))
     except Exception as e:
         logger.debug(
-            'Cannot load table {}. Reason: {}'.format(TABLE, str(e)))
+            'Cannot load tsv table {}. Reason: {}'.format(TABLE, str(e)))
         raise e
 
     sys.argv = 'cadc-tap query --cert {}'.format(CERT).split()
@@ -122,7 +133,41 @@ def test_commands(monkeypatch):
         assert '<TD>art{}</TD>'.format(i) in result
         assert '<TD>{}</TD>'.format(i) in result
 
-    #TODO load data FITS format
+    # load data BINTABLE format
+    hdu0 = fits.PrimaryHDU()
+    hdu0.header['COMMENT'] = 'Sample BINTABLE'
+
+    c1 = fits.Column(name='article', array=np.array(['art6', 'art7', 'art8']),
+                     format='5A')
+    c2 = fits.Column(name='count', array=np.array([6, 7, 8]), format='K')
+    hdu1 = fits.BinTableHDU.from_columns([c1, c2])
+    new_hdul = fits.HDUList([hdu0, hdu1])
+
+    tempdir = tempfile.mkdtemp()
+    bintb_file = os.path.join(tempdir, 'bintable.fits')
+    new_hdul.writeto(bintb_file)
+
+    sys.argv = 'cadc-tap load -f FITSTable --cert {} {} {}'.format(
+        CERT, TABLE, bintb_file).split()
+    try:
+        main_app()
+        logger.debug('Load table {} (bintable)'.format(TABLE))
+    except Exception as e:
+        logger.debug(
+            'Cannot load table bintable {}. Reason: {}'.format(TABLE, str(e)))
+        raise e
+
+    sys.argv = 'cadc-tap query --cert {}'.format(CERT).split()
+    sys.argv.append('select * from {}'.format(TABLE))
+    with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+        main_app()
+    result = stdout_mock.getvalue()
+    assert '<INFO name="QUERY_STATUS" value="OK" />' in result
+    # 9 rows
+    assert 9 == result.count('<TD>art')
+    for i in range(1, 9):
+        assert '<TD>art{}</TD>'.format(i) in result
+        assert '<TD>{}</TD>'.format(i) in result
 
     #TODO query with temporary table
 
