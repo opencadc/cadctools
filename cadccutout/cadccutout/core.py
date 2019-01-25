@@ -203,10 +203,10 @@ class OpenCADCCutout(object):
 
         try:
             file_helper.cutout(cutout_dimensions)
-        except OSError:
+        except OSError as oe:
             raise ValueError(
                 'Output target or input source unusable (Did you specify an '
-                'input and output?).')
+                'input and output?).\n{}'.format(oe))
 
     def _parse_input(self, input_cutout_dimensions):
         if self.input_range_parser.is_pixel_cutout(input_cutout_dimensions[0]):
@@ -323,11 +323,7 @@ def main_app(argv=None):
         'cutout', help='The cutout region string.\n[0][200:400] for a cutout \
         of the 0th extension along the first axis', nargs='+')
 
-    try:
-        args = parser.parse_args(args=argv)
-    except Exception as e:
-        logger.error('Error caught is {}'.format(str(e)))
-        raise e
+    args = parser.parse_args(args=argv)
 
     if not args:
         parser.print_usage(file=sys.stderr)
