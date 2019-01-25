@@ -169,7 +169,6 @@ def test_commands(monkeypatch):
         assert '<TD>art{}</TD>'.format(i) in result
         assert '<TD>{}</TD>'.format(i) in result
 
-
     #TODO query with temporary table
 
     # cleanup
