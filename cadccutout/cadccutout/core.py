@@ -342,21 +342,14 @@ def main_app(argv=None):
 
     logging.info('Start cutout.')
 
-    try:
-        # Support multiple strings.  This will write out as many cutouts as
-        # it finds.
-        c.cutout_from_string(
-            args.cutout, input_reader=args.infile,
-            output_writer=args.outfile,
-            file_type=args.type)
-    finally:
-        logging.info('End cutout.')
+    # Support multiple strings.  This will write out as many cutouts as
+    # it finds.
+    c.cutout_from_string(
+        args.cutout, input_reader=args.infile,
+        output_writer=args.outfile,
+        file_type=args.type)
 
 
 if __name__ == "__main__":
-    try:
-        main_app()
-        sys.exit(0)
-    except Exception as e:
-        logging.error('{}'.format(str(e)))
-        sys.exit(-1)
+    main_app()
+    sys.exit(0)
