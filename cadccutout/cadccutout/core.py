@@ -323,7 +323,12 @@ def main_app(argv=None):
         'cutout', help='The cutout region string.\n[0][200:400] for a cutout \
         of the 0th extension along the first axis', nargs='+')
 
-    args = parser.parse_args(args=argv)
+    try:
+        args = parser.parse_args(args=argv)
+    except Exception as e:
+        logger.error('Error caught is {}'.format(str(e)))
+        raise e
+
     if not args:
         parser.print_usage(file=sys.stderr)
         sys.stderr.write("{}: error: too few arguments\n".format(__name__))
@@ -351,5 +356,9 @@ def main_app(argv=None):
 
 
 if __name__ == "__main__":
-    main_app()
-    sys.exit(0)
+    try:
+        main_app()
+        sys.exit(0)
+    except Exception as e:
+        logging.error('{}'.format(str(e)))
+        sys.exit(-1)
