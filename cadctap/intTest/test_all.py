@@ -147,28 +147,27 @@ def test_commands(monkeypatch):
     bintb_file = os.path.join(tempdir, 'bintable.fits')
     new_hdul.writeto(bintb_file)
 
-    # sys.argv = 'cadc-tap load --cert {} {} {}'.format(
-    #     CERT, TABLE, bintb_file).split()
-    # try:
-    #     main_app()
-    #     logger.debug('Load table {} (bintable)'.format(TABLE))
-    # except Exception as e:
-    #     logger.debug(
-    #         'Cannot load table bintable {}. Reason: {}'.format(TABLE, str(e)))
-    #     raise e
-    #
-    # sys.argv = 'cadc-tap query --cert {}'.format(CERT).split()
-    # sys.argv.append('select * from {}'.format(TABLE))
-    # with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-    #     main_app()
-    # result = stdout_mock.getvalue()
-    # assert '<INFO name="QUERY_STATUS" value="OK" />' in result
-    # # 9 rows
-    # assert 9 == result.count('<TD>art')
-    # for i in range(1, 9):
-    #     assert '<TD>art{}</TD>'.format(i) in result
-    #     assert '<TD>{}</TD>'.format(i) in result
+    sys.argv = 'cadc-tap load -f FITSTable --cert {} {} {}'.format(
+        CERT, TABLE, bintb_file).split()
+    try:
+        main_app()
+        logger.debug('Load table {} (bintable)'.format(TABLE))
+    except Exception as e:
+        logger.debug(
+            'Cannot load table bintable {}. Reason: {}'.format(TABLE, str(e)))
+        raise e
 
+    sys.argv = 'cadc-tap query --cert {}'.format(CERT).split()
+    sys.argv.append('select * from {}'.format(TABLE))
+    with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+        main_app()
+    result = stdout_mock.getvalue()
+    assert '<INFO name="QUERY_STATUS" value="OK" />' in result
+    # 9 rows
+    assert 9 == result.count('<TD>art')
+    for i in range(1, 9):
+        assert '<TD>art{}</TD>'.format(i) in result
+        assert '<TD>{}</TD>'.format(i) in result
 
     #TODO query with temporary table
 
