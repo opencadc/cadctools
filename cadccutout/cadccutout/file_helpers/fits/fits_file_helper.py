@@ -77,7 +77,7 @@ from cadccutout.file_helpers.base_file_helper import BaseFileHelper
 from cadccutout.utils import is_integer
 from astropy.nddata import NoOverlapError
 from astropy.wcs import WCS
-from astropy.io.fits import PrimaryHDU, ImageHDU
+from astropy.io.fits import PrimaryHDU
 from astropy.io import fits
 
 
@@ -86,7 +86,7 @@ import logging
 
 __all__ = ['FITSHelper']
 
-# logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 # Remove the DQ1 and DQ2 headers until the issue with wcslib is resolved:
@@ -126,7 +126,7 @@ class FITSHelper(BaseFileHelper):
             cutout_wcs_header = cutout_wcs.to_header(relax=True)
             header.update(cutout_wcs_header)
 
-            if cutout_wcs.sip is not None:
+            if cutout_result.wcs_crpix is not None:
                 cutout_crpix = cutout_result.wcs_crpix
 
                 for idx, val in enumerate(cutout_crpix):
@@ -166,21 +166,33 @@ class FITSHelper(BaseFileHelper):
             # Is this necessary?
             header.set('WCSAXES', naxis)
 
-        # If a WCSAXES card exists, ensure that it comes before the CTYPE1 card.
+        # If a WCSAXES card exists, ensure that it comes before the CTYPE1
+        # and the CRPIX1 cards.
         wcsaxes_keyword = 'WCSAXES'
         ctype1_keyword = 'CTYPE1'
+        crpix1_keyword = 'CRPIX1'
 
-        if header.get(ctype1_keyword):
+        if header.get(crpix1_keyword) is not None:
+            crpix1_index = header.index(crpix1_keyword)
+        else:
+            crpix1_index = BOTTOM_BOUND_INDEX
+
+        if header.get(ctype1_keyword) is not None:
             ctype1_index = header.index(ctype1_keyword)
         else:
             ctype1_index = BOTTOM_BOUND_INDEX
 
-        if header.get(wcsaxes_keyword):
+        if header.get(wcsaxes_keyword) is not None:
             wcsaxes_index = header.index(wcsaxes_keyword)
         else:
             wcsaxes_index = BOTTOM_BOUND_INDEX
 
-        idx_threshold = min(ctype1_index, pc11_key_idx)
+        idx_threshold = min(ctype1_index, pc11_key_idx, crpix1_index)
+
+        logger.debug('Inserting WCSAXES at {} from {}'.format(idx_threshold,
+                                                              [ctype1_index,
+                                                               pc11_key_idx,
+                                                               crpix1_index]))
 
         # Only proceed with this if both the WCSAXES and a threshold exists.
         if wcsaxes_index > idx_threshold:
@@ -206,27 +218,22 @@ class FITSHelper(BaseFileHelper):
         return WCS(header=header, naxis=naxis)
 
     def _write_cutout(self, header, data, cutout_dimension, wcs):
-        try:
-            cutout_result = self.do_cutout(
-                data=data, cutout_dimension=cutout_dimension, wcs=wcs)
+        cutout_result = self.do_cutout(
+            data=data, cutout_dimension=cutout_dimension, wcs=wcs)
 
-            self._post_sanitize_header(header, cutout_result)
+        self._post_sanitize_header(header, cutout_result)
 
-            fits.append(filename=self.output_writer, header=header,
-                        data=cutout_result.data, overwrite=False,
-                        output_verify='silentfix', checksum='remove')
+        fits.append(filename=self.output_writer, header=header,
+                    data=cutout_result.data, overwrite=False,
+                    output_verify='silentfix', checksum='remove')
 
-            self.output_writer.flush()
-        except NoContentError:
-            logging.warn(
-                'No cutout possible on extension {}.  Skipping...'.format(
-                    cutout_dimension.get_extension()))
+        self.output_writer.flush()
 
     def _pixel_cutout(self, header, data, cutout_dimension):
         extension = cutout_dimension.get_extension()
         wcs = self._get_wcs(header)
         try:
-            logging.debug(
+            logger.debug(
                 'Cutting out from extension {}'.format(extension))
             self._write_cutout(header=header, data=data,
                                cutout_dimension=cutout_dimension, wcs=wcs)
@@ -257,15 +264,18 @@ class FITSHelper(BaseFileHelper):
 
     def _check_hdu_list(self, cutout_dimensions, hdu_list):
         has_match = False
+        pixel_matches_left = len(cutout_dimensions)
         for curr_extension_idx, hdu in enumerate(hdu_list):
             # If we encounter a PrimaryHDU, write it at the top and continue.
-            if isinstance(hdu, PrimaryHDU):
-                logging.debug('Primary at {}'.format(curr_extension_idx))
+            if isinstance(hdu, PrimaryHDU) and hdu.data is None:
+                logger.debug(
+                    'Appending Primary from index {}'.format(
+                        curr_extension_idx))
                 fits.append(
                     filename=self.output_writer, header=hdu.header, data=None,
                     overwrite=False, output_verify='silentfix',
                     checksum='remove')
-            elif isinstance(hdu, ImageHDU):
+            elif hdu.is_image:
                 header = hdu.header
                 ext_name = header.get('EXTNAME')
                 ext_ver = header.get('EXTVER', 0)
@@ -280,32 +290,40 @@ class FITSHelper(BaseFileHelper):
                             if self._is_extension_requested(
                                     curr_extension_idx, curr_ext_name_ver,
                                     cutout_dimension):
-                                logging.debug(
+                                logger.debug(
                                     '*** Extension {} does match ({} | {})'
                                     .format(
                                         cutout_dimension.get_extension(),
                                         curr_extension_idx, curr_ext_name_ver))
+                                pixel_matches_left -= 1
                                 self._pixel_cutout(
                                     header, hdu.data, cutout_dimension)
+                                has_match = True
+
+                        if pixel_matches_left == 0:
+                            return has_match
                     else:
+                        logger.debug('Handling WCS transform.')
                         # Handle WCS transform.
                         transform = Transform()
                         transformed_cutout_dimension = \
                             transform.world_to_pixels(cutout_dimensions, header)
+                        logger.debug('Transformed {} into {}'.format(
+                            cutout_dimensions, transformed_cutout_dimension))
                         self._pixel_cutout(header, hdu.data,
                                            transformed_cutout_dimension)
-                    has_match = True
+                        has_match = True
+
                 except NoContentError:
                     # Skip for now as we're iterating the loop.
-                    pass
+                    logger.debug(
+                        'No overlap with extension {}'.format(
+                            curr_extension_idx))
 
-                logging.debug(
-                    'Finished extension {}'.format(curr_extension_idx))
-            else:
-                logging.warn(
-                    'Unsupported HDU at extension {}.'.format(
-                        curr_extension_idx))
+            logger.debug(
+                'Finished extension {}'.format(curr_extension_idx))
 
+        logger.debug('Has match in list? -- {}'.format(has_match))
         return has_match
 
     def _iterate_hdu_list(self, cutout_dimensions):

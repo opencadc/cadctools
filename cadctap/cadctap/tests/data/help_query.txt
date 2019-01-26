@@ -1,0 +1,53 @@
+usage: cadc-tap query [-h]
+                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                      [--host HOST] [-d | -q | -v] [-o OUTPUT_FILE]
+                      [-i INPUT_FILE] [-f {VOTable,csv,tsv}] [-t TMPTABLE]
+                      [-s SERVICE]
+                      [QUERY]
+
+Run an adql query
+
+positional arguments:
+  QUERY                 ADQL query to run, format is a string with quotes
+                        around it, for example "SELECT observationURI FROM
+                        caom2.Observation"
+
+optional arguments:
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -d, --debug           debug messages
+  -f, --format {VOTable,csv,tsv}
+                        output format, either tsv, csv, fits (TBD), or
+                        votable(default)
+  -h, --help            show this help message and exit
+  --host HOST           base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -i, --input-file INPUT_FILE
+                        read query string from file (default is from STDIN),
+                        location of file
+  -n                    use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -o, --output-file OUTPUT_FILE
+                        write query results to file (default is to STDOUT)
+  -q, --quiet           run quietly
+  -s, --service SERVICE
+                        set the TAP service. Use ivo format, eg. default is
+                        ivo://cadc.nrc.ca/youcat
+  -t, --tmptable TMPTABLE
+                        Temp table upload, the value is in format:
+                        "tablename:/path/to/table". In query to reference the
+                        table use tap_upload.tablename
+  -u, --user USER       name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+
+Examples:
+- Anonymously run a query string:
+      cadc-tap query "SELECT TOP 10 type FROM caom2.Observation"
+- Use certificate to run a query from a file:
+      cadc-tap query -i /data/query.sql --cert ~/.ssl/cadcproxy.pem
+- Use username/password to run a query on the tap service:
+      cadc-tap query -s ivo://cadc.nrc.ca/tap "SELECT TOP 10 type FROM caom2.Observation" -u <username>
+- Use netrc file to run a query on the ams/mast service :
+      cadc-tap query -i data/query.sql -n -s ivo://cadc.nrc.ca/ams/mast

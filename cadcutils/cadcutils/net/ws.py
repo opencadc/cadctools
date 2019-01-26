@@ -354,7 +354,12 @@ class BaseWsClient(object):
             path = ''
             if (resource[1] is not None) and (len(resource[1]) > 0):
                 path = '/{}'.format(resource[1].strip('/'))
-            base_url = self.caps.get_access_url(resource[0])
+            if (len(resource) > 2):
+                interface_type = resource[2]
+                base_url = self.caps.get_access_url(resource[0],
+                                                    interface_type)
+            else:
+                base_url = self.caps.get_access_url(resource[0])
             access_url = '{}{}'.format(base_url, path)
             return access_url
         else:
@@ -578,6 +583,14 @@ class WsCapabilities(object):
         resource_id = urlparse(ws_client.resource_id)
         self.caps_file = os.path.join(cache_location, resource_id.netloc,
                                       resource_id.path.strip('/'))
+        # the name of the cached capabilities files is preceeded by a ".". Old
+        # files don't have this rule so delete them if they exist. The
+        # following block should be eventually removed
+        if os.path.isfile(self.caps_file):
+            os.remove(self.caps_file)
+        # prefix the name of the file with '.' to avoid collisions with
+        # subdirectory names
+        self.caps_file = '/.'.join(self.caps_file.rsplit('/', 1))
         self.last_regtime = 0
         self.last_capstime = 0
         self._caps_reader = wscapabilities.CapabilitiesReader()
@@ -585,12 +598,13 @@ class WsCapabilities(object):
         self.features = {}
         self.capabilities = {}
 
-    def get_access_url(self, feature):
+    def get_access_url(self, feature, interface_type='vs:ParamHTTP'):
         """
         Returns the access URL corresponding to a feature and the
         authentication information associated with the subject that created
         the Web Service client
         :param feature: Web Service feature
+        :param interface_type: the type of the interface
         :return: corresponding access URL
         """
 
@@ -614,7 +628,7 @@ class WsCapabilities(object):
                 self.last_capstime = time.time()
         sms = self.ws.subject.get_security_methods()
 
-        return self.capabilities.get_access_url(feature, sms)
+        return self.capabilities.get_access_url(feature, sms, interface_type)
 
     @property
     def host(self):

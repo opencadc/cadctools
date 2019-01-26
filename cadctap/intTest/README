@@ -1,0 +1,7 @@
+Integration tests that run against the CADC youcat service. In order
+to run the tests, you need authorization to access the service and your
+own schema. Pass the information to the test script using the following
+environment variables:
+$CADCTAP_SCHEMA
+$CADC_CERT
+To invoke the tests run `python setup.py intTest`

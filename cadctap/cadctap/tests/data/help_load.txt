@@ -1,0 +1,31 @@
+usage: cadc-tap load [-h]
+                     [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                     [--host HOST] [-d | -q | -v] [-f {FITSTable,csv,tsv}]
+                     [-s SERVICE]
+                     TABLENAME SOURCE [SOURCE ...]
+
+Load data to a table
+
+positional arguments:
+  SOURCE                source of the data. It can be files or "-" for stdout.
+  TABLENAME             name of the table (<schema.table>) to load data to
+
+optional arguments:
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -d, --debug           debug messages
+  -f, --format {FITSTable,csv,tsv}
+                        Format of the data file
+  -h, --help            show this help message and exit
+  --host HOST           base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -q, --quiet           run quietly
+  -s, --service SERVICE
+                        set the TAP service. Use ivo format, eg. default is
+                        ivo://cadc.nrc.ca/youcat
+  -u, --user USER       name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages

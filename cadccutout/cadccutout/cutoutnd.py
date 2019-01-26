@@ -114,6 +114,9 @@ class CutoutND(object):
         -------
         CutoutResult instance
         """
+        if data is None:
+            raise NoContentError('Nothing to cutout from.')
+
         self.data = data
         self.wcs = wcs
 
@@ -130,8 +133,12 @@ class CutoutND(object):
         len_pos = len(r_position)
         len_shape = len(r_shape)
 
+        logger.debug('Data shape: {}'.format(data_shape))
+        logger.debug('Requested shape: {}'.format(r_shape))
+        logger.debug('Requested position: {}'.format(r_position))
+
         if len_shape > len_data:
-            raise NoContentError('Invalid shape requested (tried to extract {} \
+            raise ValueError('Invalid shape requested (tried to extract {} \
             from {}).'.format(r_shape, data_shape))
 
         if r_shape:
@@ -140,12 +147,13 @@ class CutoutND(object):
             shape = None
 
         if len_pos > len_data:
-            raise NoContentError('Invalid position requested (tried to extract \
+            raise ValueError('Invalid position requested (tried to extract \
              {} from {}).'.format(
                 r_position, data_shape))
 
         if r_position:
-            position = (data_shape[:(len_data - len_pos)]) + r_position
+            c_data_shape = tuple(np.zeros(len_data, dtype=int))
+            position = (c_data_shape[:(len_data - len_pos)]) + r_position
         else:
             position = None
 
@@ -169,27 +177,30 @@ class CutoutND(object):
             cutout_data, position = extract_array(
                 data, shape, position, mode='partial', return_position=True)
 
-        if self.wcs is not None:
+        if self.wcs:
             cutout_shape = cutout_data.shape
             output_wcs = deepcopy(self.wcs)
             wcs_crpix = output_wcs.wcs.crpix
+            l_wcs_crpix = len(wcs_crpix)
             ranges = cutout_region.get_ranges()
-            l_ranges = len(ranges)
 
-            while len(wcs_crpix) < l_ranges:
-                wcs_crpix = np.append(wcs_crpix, 1.0)
+            logger.debug('Adjusting WCS.')
 
             for idx, _ in enumerate(ranges):
-                wcs_crpix[idx] -= (ranges[idx][0] - 1)
+                if idx < l_wcs_crpix:
+                    wcs_crpix[idx] -= (ranges[idx][0] - 1.0)
 
             output_wcs._naxis = list(cutout_shape)
 
-            if self.wcs.sip is not None:
+            if self.wcs.sip:
                 curr_sip = self.wcs.sip
                 output_wcs.sip = Sip(curr_sip.a, curr_sip.b,
                                      curr_sip.ap, curr_sip.bp,
                                      wcs_crpix[0:2])
+
+            logger.debug('WCS adjusted.')
         else:
+            logger.debug('No WCS present.')
             output_wcs = None
 
         return CutoutResult(data=cutout_data, wcs=output_wcs,

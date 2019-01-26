@@ -137,5 +137,5 @@ def test_simple_cutout():
             assert expected_hdu.header.get(
                 'DATASUM') is None, 'Should not contain DATASUM.'
             np.testing.assert_array_equal(
-                np.squeeze(expected_hdu.data), result_hdu.data,
+                expected_hdu.data, result_hdu.data,
                 'Arrays do not match.')

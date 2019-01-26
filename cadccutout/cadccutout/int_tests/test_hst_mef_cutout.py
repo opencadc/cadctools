@@ -146,6 +146,6 @@ def test_hst_mef_cutout_missing_one():
             assert expected_hdu.header.get(
                 'DATASUM') is None, 'Should not contain DATASUM.'
             np.testing.assert_array_equal(
-                np.squeeze(expected_hdu.data),
+                expected_hdu.data,
                 result_hdu.data, 'Arrays do not match for extension {}.'.
                 format(extension))

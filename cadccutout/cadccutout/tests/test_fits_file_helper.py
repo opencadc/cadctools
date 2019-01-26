@@ -71,6 +71,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import io
+import logging
 import numpy as np
 
 from astropy.io import fits
@@ -79,6 +80,8 @@ from astropy.wcs import WCS
 from cadccutout.cutoutnd import CutoutResult
 from cadccutout.file_helpers.fits.fits_file_helper import FITSHelper
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
+
+logging.getLogger('cadccutout').setLevel(level=logging.DEBUG)
 
 
 def _create_hdu_list():
@@ -103,18 +106,22 @@ def test__check_hdu_list():
     dimensions = [PixelCutoutHDU([(20, 35), (40, 50)], extension=1)]
     hdu_list = _create_hdu_list()
 
-    assert test_subject._check_hdu_list(dimensions, hdu_list), 'Should match.'
+    has_match = test_subject._check_hdu_list(dimensions, hdu_list)
+
+    logging.debug('Output from _check_hdu_list() is {}'.format(has_match))
+
+    assert has_match, 'Should match.'
 
 
 def test_is_extension_requested():
     test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
-    dimension = PixelCutoutHDU(['400:800'], extension=1)
+    dimension = PixelCutoutHDU([(400, 800)], extension=1)
     assert not test_subject._is_extension_requested('4', ('EXN', 4), dimension)
 
-    dimension = PixelCutoutHDU(['400:800'])
+    dimension = PixelCutoutHDU([(400, 800)])
     assert not test_subject._is_extension_requested('4', ('NOM', 1), dimension)
 
-    dimension = PixelCutoutHDU(['400:800'], extension=2)
+    dimension = PixelCutoutHDU([(400, 800)], extension=2)
     assert test_subject._is_extension_requested('2', ('NOM', 7), dimension)
 
 
@@ -183,7 +190,7 @@ def test_post_sanitize_header():
     assert not header.get('DQ1'), 'DQ1 should be gone.'
 
 
-def test_post_sanitize_header2():
+def test_post_sanitize_header_ctype():
     test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
     data = np.arange(10000).reshape(100, 100)
     header = Header()
@@ -206,3 +213,29 @@ def test_post_sanitize_header2():
     assert 'VALUE1' == header.get('REMAIN1'), 'REMAIN1 should still be there.'
     assert not header.get('DQ1'), 'DQ1 should be gone.'
     assert header.index('WCSAXES') < header.index('CTYPE1'), 'Bad indexes'
+
+
+def test_post_sanitize_header_crpix():
+    test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
+    data = np.arange(10000).reshape(100, 100)
+    header = Header()
+    wcs = WCS()
+    header.set('REMAIN1', 'VALUE1')
+    header.set('DQ1', 'dqvalue1')
+    header.set('NAXIS', 2)
+    header.set('NAXIS1', 88)
+    header.set('NAXIS2', 212)
+    header.set('CRPIX1', 77.0)
+    header.set('WCSAXES', 2)
+    header.set('CTYPE1', 'ctype1value')
+
+    result = CutoutResult(data, wcs=wcs)
+
+    assert header.index('WCSAXES') > header.index('CRPIX1'), \
+        'Start with bad indexes...'
+
+    test_subject._post_sanitize_header(header, result)
+
+    assert 'VALUE1' == header.get('REMAIN1'), 'REMAIN1 should still be there.'
+    assert not header.get('DQ1'), 'DQ1 should be gone.'
+    assert header.index('WCSAXES') < header.index('CRPIX1'), 'Bad indexes'
