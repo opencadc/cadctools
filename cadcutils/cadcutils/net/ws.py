@@ -85,6 +85,7 @@ import os
 import requests
 from requests import Session
 from six.moves.urllib.parse import urlparse
+import distro
 
 from cadcutils import exceptions
 from .. import version as cadctools_version
@@ -244,7 +245,7 @@ class BaseWsClient(object):
                                           platform.version())
         o_s = sys.platform
         if o_s.lower().startswith('linux'):
-            distname, version, osid = platform.linux_distribution()
+            distname, version, osid = distro.linux_distribution()
             self.os_info = "{} {}".format(distname, version)
         elif o_s == "darwin":
             release, version, machine = platform.mac_ver()
