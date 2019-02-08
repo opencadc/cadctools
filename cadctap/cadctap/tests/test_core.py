@@ -381,7 +381,7 @@ class TestCadcTapClient(unittest.TestCase):
 
         sys.argv = ['cadc-tap', 'query', 'QUERY']
         main_app()
-        calls = [call('QUERY', None, 'VOTable', None)]
+        calls = [call('QUERY', None, 'tsv', None)]
         query_mock.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'create', 'tablename', 'path/to/file']

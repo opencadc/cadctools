@@ -405,9 +405,9 @@ def main_app(command='cadc-tap query'):
     """
     query_parser.add_argument(
         '-f', '--format',
-        default='VOTable',
+        default='tsv',
         choices=['VOTable', 'csv', 'tsv'],
-        help='output format, either tsv, csv, fits (TBD), or votable(default)',
+        help='output format, either tsv(default), csv, fits (TBD), or VOTable',
         required=False)
     query_parser.add_argument(
         '-t', '--tmptable',
