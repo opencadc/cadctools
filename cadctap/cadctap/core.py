@@ -78,6 +78,7 @@ from cadcutils import net, util
 # from cadcutils.net import wscapabilities
 # from cadcutils.net import ws
 from six.moves import input
+import netrc as netrclib
 import os
 from cadctap import version
 
@@ -111,6 +112,10 @@ TAP_CAPABILITY = 'ivo://ivoa.net/std/TAP'
 DEFAULT_URI = 'ivo://cadc.nrc.ca/'
 
 APP_NAME = 'cadc-tap'
+
+# for default authentication
+CADC_DOMAIN = 'cadc-ccda.hia-iha.nrc-cnrc.gc.ca'
+CANFAR_DOMAIN = 'canfar.net'
 
 
 class CadcTapClient(object):
@@ -355,6 +360,49 @@ def _customize_parser(parser):
         help='set the TAP service. Use ivo format, eg. default is {}'.format(
              DEFAULT_SERVICE_ID))
 
+def _get_subject_from_netrc():
+    # if .netrc contains hosts in cadc.ugly or canfar.net, return a subject
+    # else return None
+    try:
+        hosts = netrclib.netrc(None).hosts
+        for host in hosts.keys():
+            if (CADC_DOMAIN in host) or (CANFAR_DOMAIN in host):
+                return net.Subject(netrc=True)
+
+        return None;
+    except:
+        return None
+
+def _get_subject_from_certificate():
+    # if ~/.ssl/cadcproxy.pem exists, use certificate and return a subject
+    cert_path = os.path.join(os.environ['HOME'], ".ssl/cadcproxy.pem")
+    if os.path.isfile(cert_path):
+        return net.Subject(certificate=True)
+    else:
+        return None
+
+def _get_subject(args):
+    # returns a subject either with the specified authentication option or
+    # be default pick the -n option if cadc.ugly or canfar.net is present in
+    # ~/.netrc or pick the -cert option if ~/ssl/cadcproxy.pem is available.
+    subject = net.Subject.from_cmd_line_args(args)
+    if (not subject.anon):
+        # authentication option specified
+        return subject
+    else:
+        # default, i.e. no authentication option specified
+        netrc_subject = _get_subject_from_netrc()
+        if (netrc_subject is not None):
+            # pick -n option
+            return netrc_subject
+        else:
+            cert_subject = _get_subject_from_certificate()
+            if (cert_subject is not None):
+                # pick -cert option
+                return cert_subject
+            else:
+                # use anon subject
+                return subject
 
 def main_app(command='cadc-tap query'):
     parser = util.get_base_parser(version=version.version,
@@ -521,7 +569,7 @@ def main_app(command='cadc-tap query'):
     else:
         logging.basicConfig(level=logging.WARN, stream=sys.stdout)
 
-    subject = net.Subject.from_cmd_line_args(args)
+    subject = _get_subject(args)
 
     client = CadcTapClient(subject, resource_id=args.service)
     if args.cmd == 'create':
