@@ -165,17 +165,17 @@ class CadcTapClient(object):
         self._tap_client = net.BaseWsClient(resource_id, subject,
                                             agent, retry=True, host=self.host)
 
-    def create_table(self, table_name, table_defintion, type=None):
+    def create_table(self, table_name, table_definition, type=None):
         """
         Creates a table in the catalog service.
         :param table_name: Name of the table in the TAP service
-        :param table_defintion: Stream containing the table definition
+        :param table_definition: Stream containing the table definition
         :param type: Type of the table definition file
         """
-        if not table_name or not table_defintion:
+        if not table_name or not table_definition:
             raise AttributeError(
                 'table name and definition required in create: {}/{}'.
-                format(table_name, table_defintion))
+                format(table_name, table_definition))
 
         if type:
             if type not in ALLOWED_TB_DEF_TYPES.keys():
@@ -186,7 +186,7 @@ class CadcTapClient(object):
                 file_type = type
         else:
             m = magic.Magic()
-            t = m.from_file(table_defintion)
+            t = m.from_file(table_definition)
             if 'XML' in t:
                 file_type = 'VOTable'
             elif 'FITS' in t:
@@ -196,15 +196,15 @@ class CadcTapClient(object):
             else:
                 raise AttributeError('Cannot determine the type of the table '
                                      'definition file {}'.
-                                     format(table_defintion))
-            logger.info('Assuming the table defintion file type: {}'.
+                                     format(table_definition))
+            logger.info('Assuming the table definition file type: {}'.
                         format(file_type))
         logger.debug('Creating {} from file {} of type {}'.
-                     format(table_name, table_defintion, file_type))
+                     format(table_name, table_definition, file_type))
         headers = {'Content-Type': ALLOWED_TB_DEF_TYPES[file_type]}
         self._tap_client.put((TABLES_CAPABILITY_ID, table_name),
                              headers=headers,
-                             data=open(table_defintion, 'rb').read())
+                             data=open(table_definition, 'rb').read())
         logger.debug('Successfully created table {}'.format(table_name))
 
     def delete_table(self, table_name):
