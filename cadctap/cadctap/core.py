@@ -71,6 +71,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
+import traceback
 import sys
 from clint.textui import progress
 import datetime
@@ -537,19 +538,38 @@ def main_app(command='cadc-tap query'):
     # handle errors
     errors = [0]
 
-    def handle_error(msg, exit_after=True):
+#    def handle_error(msg, exit_after=True):
+#        """
+#        Prints error message and exit (by default)
+#        :param msg: error message to print
+#        :param exit_after: True if log error message and exit,
+#        False if log error message and return
+#        :return:
+#        """
+#
+#        errors[0] += 1
+#        logger.error(msg)
+#        if exit_after:
+#            sys.exit(-1)  # TODO use different error codes?
+
+    def exit_on_exception(ex, message=None):
         """
-        Prints error message and exit (by default)
-        :param msg: error message to print
-        :param exit_after: True if log error message and exit,
-        False if log error message and return
+        Exit program due to an exception, print the exception and exit with error
+        code.
+        :param ex:
+        :param message: error message to display
         :return:
         """
-
-        errors[0] += 1
-        logger.error(msg)
-        if exit_after:
-            sys.exit(-1)  # TODO use different error codes?
+        # Note: this could probably be updated to use an appropriate logging
+        # handler instead of writing to stderr
+        if message:
+            sys.stderr.write('ERROR:: {}\n'.format(message))
+        else:
+            sys.stderr.write('ERROR:: {}\n'.format(str(ex)))
+        tb = traceback.format_exc()
+        logging.debug(tb)
+        sys.exit(getattr(ex, 'errno', -1)) if getattr(ex, 'errno',
+                                                      -1) else sys.exit(-1)
 
     _customize_parser(schema_parser)
     _customize_parser(query_parser)
@@ -571,39 +591,43 @@ def main_app(command='cadc-tap query'):
 
     subject = _get_subject(args)
 
-    client = CadcTapClient(subject, resource_id=args.service)
-    if args.cmd == 'create':
-        client.create_table(args.TABLENAME, args.TABLEDEFINITION,
-                            args.format)
-    elif args.cmd == 'delete':
-        reply = input(
-            'You are about to delete table {} and its content... '
-            'Continue? [yes/no] '.format(args.TABLENAME))
-        while True:
-            if reply == 'yes':
-                client.delete_table(args.TABLENAME)
-                break
-            elif reply == 'no':
-                logger.warn(
-                    'Table {} not deleted.'.
-                    format(args.TABLENAME))
-                sys.exit(-1)
+    try:
+        client = CadcTapClient(subject, resource_id=args.service)
+        if args.cmd == 'create':
+            client.create_table(args.TABLENAME, args.TABLEDEFINITION,
+                                args.format)
+        elif args.cmd == 'delete':
+            reply = input(
+                'You are about to delete table {} and its content... '
+                'Continue? [yes/no] '.format(args.TABLENAME))
+            while True:
+                if reply == 'yes':
+                    client.delete_table(args.TABLENAME)
+                    break
+                elif reply == 'no':
+                    logger.warn(
+                        'Table {} not deleted.'.
+                        format(args.TABLENAME))
+                    sys.exit(-1)
+                else:
+                    reply = input('Please reply with yes or no: ')
+        elif args.cmd == 'index':
+            client.create_index(args.TABLENAME, args.COLUMN, args.unique)
+        elif args.cmd == 'load':
+            client.load(args.TABLENAME, args.SOURCE, args.format)
+        elif args.cmd == 'query':
+            if args.input_file is not None:
+                with open(args.input_file) as f:
+                    query = f.read().strip()
             else:
-                reply = input('Please reply with yes or no: ')
-    elif args.cmd == 'index':
-        client.create_index(args.TABLENAME, args.COLUMN, args.unique)
-    elif args.cmd == 'load':
-        client.load(args.TABLENAME, args.SOURCE, args.format)
-    elif args.cmd == 'query':
-        if args.input_file is not None:
-            with open(args.input_file) as f:
-                query = f.read().strip()
-        else:
-            query = args.QUERY
-        client.query(query, args.output_file, args.format, args.tmptable)
-    elif args.cmd == 'schema':
-        client.schema()
-    print('DONE')
+                query = args.QUERY
+            client.query(query, args.output_file, args.format, args.tmptable)
+        elif args.cmd == 'schema':
+            client.schema()
+    except Exception as ex:
+        exit_on_exception(ex)
+    finally:
+        print('DONE')
 
 
 #############################################################################
