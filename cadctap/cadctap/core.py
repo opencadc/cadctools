@@ -277,7 +277,7 @@ class CadcTapClient(object):
 
     def load(self, table_name, source, fformat='tsv'):
         """
-        Loads conent to a table
+        Loads content to a table
         :param table_name: name of the table
         :param source: list of files to load content from
         :param fformat: format of the content files
@@ -287,15 +287,26 @@ class CadcTapClient(object):
             raise AttributeError(
                 'table name and source requiered in upload: {}/{}'.
                 format(table_name, source))
+
+        if source == '-':
+            source = ["/dev/stdin"]
+
         for f in source:
-            logger.debug('Uploading file {}'.format(f))
+            if 'stdin' in f:
+                logger.debug('Uploading from stdin')
+            else:
+                logger.debug('Uploading file {}'.format(f))
 
             headers = {'Content-Type': ALLOWED_CONTENT_TYPES[fformat]}
             with open(f, 'rb') as fh:
                 self._tap_client.post((TABLE_LOAD_CAPABILITY_ID, table_name),
                                       headers=headers,
                                       data=fh)
-            logger.debug('Done uploading file {}'.format(fh.name))
+
+            if 'stdin' in f:
+                logger.debug('Done uploading from stdin')
+            else:
+                logger.debug('Done uploading file {}'.format(fh.name))
 
     def query(self, query, output_file=None, response_format='VOTable',
               tmptable=None, lang='ADQL'):

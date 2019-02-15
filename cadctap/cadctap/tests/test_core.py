@@ -140,6 +140,16 @@ def test_load_table(base_put_mock):
     client = CadcTapClient(net.Subject())
     test_load_tb = os.path.join(TESTDATA_DIR, 'loadTable.txt')
 
+    # default format (tsv) using stdin
+    with open(test_load_tb, 'rb') as fh:
+        sys.stdin = fh
+        with patch('cadctap.core.open') as open_mock:
+            open_mock.return_value = fh
+            client.load('schema.sometable', '-')
+    base_put_mock.assert_called_with(
+        (TABLE_LOAD_CAPABILITY_ID, 'schema.sometable'), data=fh,
+        headers={'Content-Type': str(ALLOWED_CONTENT_TYPES['tsv'])})
+
     # default format (tsv)
     with open(test_load_tb, 'rb') as fh:
         with patch('cadctap.core.open') as open_mock:
