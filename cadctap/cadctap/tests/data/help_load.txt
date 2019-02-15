@@ -7,7 +7,7 @@ usage: cadc-tap load [-h]
 Load data to a table
 
 positional arguments:
-  SOURCE                source of the data. It can be files or "-" for stdout.
+  SOURCE                source of the data. It can be files or "-" for stdin.
   TABLENAME             name of the table (<schema.table>) to load data to
 
 optional arguments:
