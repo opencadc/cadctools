@@ -532,7 +532,7 @@ def main_app(command='cadc-tap query'):
         help='name of the table (<schema.table>) to load data to')
     load_parser.add_argument(
         'SOURCE', nargs='+',
-        help='source of the data. It can be files or "-" for stdout.'
+        help='source of the data. It can be files or "-" for stdin.'
     )
 
     # handle errors
