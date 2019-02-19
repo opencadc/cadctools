@@ -93,6 +93,9 @@ def test_parse():
     result = test_subject.parse('[9][500:600]')
     assert result[0].get_extension() == 9, 'Wrong extension.'
 
+    result = test_subject.parse('[9][500:600,*]')
+    assert result[0].get_extension() == 9, 'Wrong extension.'
+
     result = test_subject.parse('[3]')
     assert result[0].get_extension() == 3, 'Wrong extension.'
 
