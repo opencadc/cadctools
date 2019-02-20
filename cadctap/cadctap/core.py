@@ -112,7 +112,7 @@ __all__ = ['CadcTapClient']
 
 TABLES_CAPABILITY = 'ivo://ivoa.net/std/VOSI#tables-1.1'
 TAP_CAPABILITY = 'ivo://ivoa.net/std/TAP'
-DEFAULT_URI = 'ivo://cadc.nrc.ca/'
+#DEFAULT_URI = 'ivo://cadc.nrc.ca/'
 
 APP_NAME = 'cadc-tap'
 
@@ -608,7 +608,10 @@ def main_app(command='cadc-tap query'):
         if (not 'http:' in args.service and
             not 'https:' in args.service and
             not 'cadc.nrc.ca' in args.service):
-            args.service = SERVICE_ID_PREFIX + args.service
+            if args.service.startswith("/"):
+                args.service = SERVICE_ID_PREFIX + args.service[1:]
+            else:
+                args.service = SERVICE_ID_PREFIX + args.service
 
         error_message = 'no tap service for ' + args.service
         client = CadcTapClient(subject, resource_id=args.service)
