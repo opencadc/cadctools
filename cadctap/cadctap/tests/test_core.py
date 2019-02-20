@@ -89,6 +89,7 @@ call.__wrapped__ = None
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
+BASE_URL = 'https://ws-cadc.canfar.net/youcat/availability'
 
 
 class MyExitError(Exception):
@@ -96,8 +97,10 @@ class MyExitError(Exception):
         self.message = "MyExitError"
 
 
-@patch('cadctap.core.net.BaseWsClient.put')
-def test_create_table(base_put_mock):
+@patch('cadcutils.net.ws.BaseWsClient.put')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_create_table(caps_get_mock, base_put_mock):
+    caps_get_mock.return_value = BASE_URL
     client = CadcTapClient(net.Subject())
     # default format
     def_table = os.path.join(TESTDATA_DIR, 'createTable.vosi')
@@ -123,8 +126,10 @@ def test_create_table(base_put_mock):
         client.create_table('sometable', None)
 
 
-@patch('cadctap.core.net.BaseWsClient.delete')
-def test_delete_table(base_delete_mock):
+@patch('cadcutils.net.ws.BaseWsClient.delete')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_delete_table(caps_get_mock, base_delete_mock):
+    caps_get_mock.return_value = BASE_URL
     client = CadcTapClient(net.Subject())
     client.delete_table('sometable')
     base_delete_mock.assert_called_with((TABLES_CAPABILITY_ID,
@@ -135,8 +140,10 @@ def test_delete_table(base_delete_mock):
         client.delete(None)
 
 
-@patch('cadctap.core.net.BaseWsClient.post')
-def test_load_table(base_put_mock):
+@patch('cadcutils.net.ws.BaseWsClient.post')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_load_table(caps_get_mock, base_put_mock):
+    caps_get_mock.return_value = BASE_URL
     client = CadcTapClient(net.Subject())
     test_load_tb = os.path.join(TESTDATA_DIR, 'loadTable.txt')
 
@@ -196,9 +203,11 @@ def test_load_table(base_put_mock):
         client.load('sometable', [])
 
 
-@patch('cadctap.core.net.BaseWsClient.post')
-@patch('cadctap.core.net.BaseWsClient.get')
-def test_create_index(base_get_mock, base_post_mock):
+@patch('cadcutils.net.ws.BaseWsClient.post')
+@patch('cadcutils.net.ws.BaseWsClient.get')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_create_index(caps_get_mock, base_get_mock, base_post_mock):
+    caps_get_mock.return_value = BASE_URL
     client = CadcTapClient(net.Subject())
     response1 = Mock()
     response1.status_code = 303
@@ -251,8 +260,10 @@ def test_create_index(base_get_mock, base_post_mock):
         client.create_index('sometable', 'col1')
 
 
-@patch('cadctap.core.net.BaseWsClient.get')
-def test_schema(base_get_mock):
+@patch('cadcutils.net.ws.BaseWsClient.get')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_schema(caps_get_mock, base_get_mock):
+    caps_get_mock.return_value = BASE_URL
     client = CadcTapClient(net.Subject())
     # default format
     client.schema()
@@ -260,8 +271,10 @@ def test_schema(base_get_mock):
         (TABLES_CAPABILITY_ID, None))
 
 
-@patch('cadctap.core.net.BaseWsClient.post')
-def test_query(base_post_mock):
+@patch('cadcutils.net.ws.BaseWsClient.post')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_query(caps_get_mock, base_post_mock):
+    caps_get_mock.return_value = BASE_URL
     client = CadcTapClient(net.Subject())
     # default format
     def_name = 'tmptable'

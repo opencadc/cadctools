@@ -88,8 +88,10 @@ from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 logger = logging.getLogger(__name__)
 
+# Prefix to be prepended to the short name of a service ID
+SERVICE_ID_PREFIX = 'ivo://cadc.nrc.ca/'
 # ID of the default catalog Web service
-DEFAULT_SERVICE_ID = 'ivo://cadc.nrc.ca/youcat'
+DEFAULT_SERVICE_ID = SERVICE_ID_PREFIX + 'youcat'
 # capabilities ids
 TABLES_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#tables-1.1'
 TABLE_UPDATE_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#table-update-async-1.x'
@@ -603,7 +605,14 @@ def main_app(command='cadc-tap query'):
     subject = _get_subject(args)
 
     try:
+        if (not 'http:' in args.service and
+            not 'https:' in args.service and
+            not 'cadc.nrc.ca' in args.service):
+            args.service = SERVICE_ID_PREFIX + args.service
+
+        error_message = 'no tap service for ' + args.service
         client = CadcTapClient(subject, resource_id=args.service)
+        error_message = None
         if args.cmd == 'create':
             client.create_table(args.TABLENAME, args.TABLEDEFINITION,
                                 args.format)
@@ -636,7 +645,7 @@ def main_app(command='cadc-tap query'):
         elif args.cmd == 'schema':
             client.schema()
     except Exception as ex:
-        exit_on_exception(ex)
+        exit_on_exception(ex, error_message)
     finally:
         print('DONE')
 
