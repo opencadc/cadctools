@@ -1,7 +1,6 @@
-usage: cadc-tap create [-h]
-                       [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                       [--host HOST] [-d | -q | -v] [-f {VOSITable,VOTable}]
-                       [-s SERVICE]
+usage: cadc-tap create [-h] [-d | -q | -v] [--host HOST]
+                       [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a | --anon]
+                       [-f {VOSITable,VOTable}] [-s SERVICE]
                        TABLENAME TABLEDEFINITION
 
 Create a table
@@ -12,6 +11,8 @@ positional arguments:
   TABLENAME             name of the table (<schema.table>) in the tap service
 
 optional arguments:
+  -a                    login as anonymous user, short form
+  --anon                login as anonymous user, long form
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages

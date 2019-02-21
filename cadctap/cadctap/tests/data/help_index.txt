@@ -1,6 +1,6 @@
-usage: cadc-tap index [-h]
-                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                      [--host HOST] [-d | -q | -v] [-U] [-s SERVICE]
+usage: cadc-tap index [-h] [-d | -q | -v] [--host HOST]
+                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a | --anon]
+                      [-U] [-s SERVICE]
                       TABLENAME COLUMN
 
 Create a table index
@@ -11,6 +11,8 @@ positional arguments:
                         index for
 
 optional arguments:
+  -a                    login as anonymous user, short form
+  --anon                login as anonymous user, long form
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages

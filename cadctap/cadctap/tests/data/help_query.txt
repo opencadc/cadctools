@@ -1,8 +1,7 @@
-usage: cadc-tap query [-h]
-                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                      [--host HOST] [-d | -q | -v] [-o OUTPUT_FILE]
-                      [-i INPUT_FILE] [-f {VOTable,csv,tsv}] [-t TMPTABLE]
-                      [-s SERVICE]
+usage: cadc-tap query [-h] [-d | -q | -v] [--host HOST]
+                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a | --anon]
+                      [-o OUTPUT_FILE] [-i INPUT_FILE] [-f {VOTable,csv,tsv}]
+                      [-t TMPTABLE] [-s SERVICE]
                       [QUERY]
 
 Run an adql query
@@ -13,6 +12,8 @@ positional arguments:
                         caom2.Observation"
 
 optional arguments:
+  -a                    login as anonymous user, short form
+  --anon                login as anonymous user, long form
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages

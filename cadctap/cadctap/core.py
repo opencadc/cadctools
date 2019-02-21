@@ -354,6 +354,28 @@ class CadcTapClient(object):
         results = self._tap_client.get((TABLES_CAPABILITY_ID, None))
         print(results.text)
 
+def _add_anon_option(parser):
+    # cadc-tap supports '-a | --anon' authentication option
+    # This is a hack. It depends on the implementation of ArgumentParser.
+    added_anon = False
+    for m_group in parser.common_parser._mutually_exclusive_groups:
+        for g_action in m_group._group_actions:
+            for o_string in g_action.option_strings:
+                if 'cert' in o_string or 'netrc' in o_string:
+                    m_group.add_argument(
+                        '-a', action='store_true',
+                        help='login as anonymous user, short form')
+                    m_group.add_argument(
+                        '--anon', action='store_true',
+                        help='login as anonymous user, long form')
+                    added_anon = True
+                    break
+            if added_anon:
+                break
+        if added_anon:
+            break
+    if not added_anon:
+        raise RuntimeError("Missing authentication option")
 
 def _customize_parser(parser):
     # cadc-tap customizes some of the options inherited from the CADC parser
@@ -397,10 +419,10 @@ def _get_subject_from_certificate():
 
 def _get_subject(args):
     # returns a subject either with the specified authentication option or
-    # be default pick the -n option if cadc.ugly or canfar.net is present in
+    # by default pick the -n option if cadc.ugly or canfar.net is present in
     # ~/.netrc or pick the -cert option if ~/ssl/cadcproxy.pem is available.
     subject = net.Subject.from_cmd_line_args(args)
-    if (not subject.anon):
+    if (not subject.anon or args.a or args.anon):
         # authentication option specified
         return subject
     else:
@@ -422,6 +444,7 @@ def main_app(command='cadc-tap query'):
     parser = util.get_base_parser(version=version.version,
                                   default_resource_id=DEFAULT_SERVICE_ID)
 
+    _add_anon_option(parser)
     _customize_parser(parser)
     parser.description = (
         'Client for accessing databases using TAP protocol at the Canadian '
