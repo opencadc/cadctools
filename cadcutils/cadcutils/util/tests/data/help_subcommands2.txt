@@ -1,6 +1,6 @@
-usage: cadc-client cmd2 [-h]
+usage: cadc-client cmd2 [-h] --resource-id RESOURCE_ID [-d | -q | -v]
+                        [--host HOST]
                         [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                        [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v]
                         fileID [fileID ...]
 
 positional arguments:

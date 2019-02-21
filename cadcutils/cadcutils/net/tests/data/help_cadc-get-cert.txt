@@ -1,6 +1,6 @@
-usage: cadc-get-cert [-h]
+usage: cadc-get-cert [-h] [--resource-id RESOURCE_ID] [-d | -q | -v]
+                     [--host HOST]
                      (--cert CERT | -n | --netrc-file NETRC_FILE | -u USER)
-                     [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
                      [-V] [--cert-filename CERT_FILENAME]
                      [--days-valid DAYS_VALID]
 
