@@ -112,7 +112,7 @@ __all__ = ['CadcTapClient']
 
 TABLES_CAPABILITY = 'ivo://ivoa.net/std/VOSI#tables-1.1'
 TAP_CAPABILITY = 'ivo://ivoa.net/std/TAP'
-#DEFAULT_URI = 'ivo://cadc.nrc.ca/'
+# DEFAULT_URI = 'ivo://cadc.nrc.ca/'
 
 APP_NAME = 'cadc-tap'
 
@@ -358,6 +358,7 @@ class CadcTapClient(object):
         results = self._tap_client.get((TABLES_CAPABILITY_ID, None))
         print(results.text)
 
+
 def _add_anon_option(parser):
     # cadc-tap supports '-a | --anon' authentication option
     # This is a hack. It depends on the implementation of ArgumentParser.
@@ -381,6 +382,7 @@ def _add_anon_option(parser):
     if not added_anon:
         raise RuntimeError("Missing authentication option")
 
+
 def _customize_parser(parser):
     # cadc-tap customizes some of the options inherited from the CADC parser
     # TODO make it work or process list of subparsers
@@ -400,6 +402,7 @@ def _customize_parser(parser):
         help='set the TAP service. Use ivo format, eg. default is {}'.format(
              DEFAULT_SERVICE_ID))
 
+
 def _get_subject_from_netrc():
     # if .netrc contains hosts in cadc.ugly or canfar.net, return a subject
     # else return None
@@ -409,9 +412,10 @@ def _get_subject_from_netrc():
             if (CADC_DOMAIN in host) or (CANFAR_DOMAIN in host):
                 return net.Subject(netrc=True)
 
-        return None;
-    except:
         return None
+    except Exception:
+        return None
+
 
 def _get_subject_from_certificate():
     # if ~/.ssl/cadcproxy.pem exists, use certificate and return a subject
@@ -420,6 +424,7 @@ def _get_subject_from_certificate():
         return net.Subject(certificate=True)
     else:
         return None
+
 
 def _get_subject(args):
     # returns a subject either with the specified authentication option or
@@ -443,6 +448,7 @@ def _get_subject(args):
             else:
                 # use anon subject
                 return subject
+
 
 def main_app(command='cadc-tap query'):
     parser = util.get_base_parser(version=version.version,
@@ -510,14 +516,16 @@ def main_app(command='cadc-tap query'):
         '- Anonymously run a query string:\n'
         '      {0} -a -s tap "SELECT TOP 10 type FROM caom2.Observation"\n'
         '- Use certificate to run a query from a file:\n'
-        '      {0} -s tap -i ./cadctap/tests/data/example_query.sql --cert ~/.ssl/cadcproxy.pem\n'
+        '      {0} -s tap -i ./cadctap/tests/data/example_query.sql'
+        ' --cert ~/.ssl/cadcproxy.pem\n'
         '- Use username/password to run a query on the tap service:\n'
         '      {0} -s ivo://cadc.nrc.ca/tap '
         '"SELECT TOP 10 type FROM caom2.Observation"'
         ' -u <username>\n'
         '- Use netrc file to run a query on the ams/mast service'
         ' :\n'
-        '      {0} -i ./cadctap/tests/data/example_query.sql -n -s ivo://cadc.nrc.ca/ams/mast\n'.
+        '      {0} -i ./cadctap/tests/data/example_query.sql'
+        ' -n -s ivo://cadc.nrc.ca/ams/mast\n'.
         format(command))
 
     create_parser = subparsers.add_parser(
@@ -576,7 +584,7 @@ def main_app(command='cadc-tap query'):
     )
 
     # handle errors
-    errors = [0]
+#    errors = [0]
 
 #    def handle_error(msg, exit_after=True):
 #        """
@@ -594,8 +602,8 @@ def main_app(command='cadc-tap query'):
 
     def exit_on_exception(ex, message=None):
         """
-        Exit program due to an exception, print the exception and exit with error
-        code.
+        Exit program due to an exception,
+        print the exception and exit with error code.
         :param ex:
         :param message: error message to display
         :return:
@@ -632,9 +640,9 @@ def main_app(command='cadc-tap query'):
     subject = _get_subject(args)
 
     try:
-        if (not 'http:' in args.service and
-            not 'https:' in args.service and
-            not 'cadc.nrc.ca' in args.service):
+        if ('http:' not in args.service and
+                'https:' not in args.service and
+                    'cadc.nrc.ca' not in args.service):
             if args.service.startswith("/"):
                 args.service = SERVICE_ID_PREFIX + args.service[1:]
             else:
