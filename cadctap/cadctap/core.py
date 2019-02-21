@@ -642,7 +642,7 @@ def main_app(command='cadc-tap query'):
     try:
         if ('http:' not in args.service and
                 'https:' not in args.service and
-                    'cadc.nrc.ca' not in args.service):
+                'cadc.nrc.ca' not in args.service):
             if args.service.startswith("/"):
                 args.service = SERVICE_ID_PREFIX + args.service[1:]
             else:
