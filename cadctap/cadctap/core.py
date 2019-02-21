@@ -296,8 +296,10 @@ class CadcTapClient(object):
         for f in source:
             if 'stdin' in f:
                 logger.debug('Uploading from stdin')
+                print('Uploading from stdin')
             else:
                 logger.debug('Uploading file {}'.format(f))
+                print('Uploading file {}'.format(f))
 
             headers = {'Content-Type': ALLOWED_CONTENT_TYPES[fformat]}
             with open(f, 'rb') as fh:
@@ -307,8 +309,10 @@ class CadcTapClient(object):
 
             if 'stdin' in f:
                 logger.debug('Done uploading from stdin')
+                print('Done uploading from stdin')
             else:
                 logger.debug('Done uploading file {}'.format(fh.name))
+                print('Done uploading file {}'.format(fh.name))
 
     def query(self, query, output_file=None, response_format='VOTable',
               tmptable=None, lang='ADQL'):
@@ -504,16 +508,16 @@ def main_app(command='cadc-tap query'):
     query_parser.epilog = (
         'Examples:\n'
         '- Anonymously run a query string:\n'
-        '      {0} "SELECT TOP 10 type FROM caom2.Observation"\n'
+        '      {0} -a -s tap "SELECT TOP 10 type FROM caom2.Observation"\n'
         '- Use certificate to run a query from a file:\n'
-        '      {0} -i /data/query.sql --cert ~/.ssl/cadcproxy.pem\n'
+        '      {0} -s tap -i ./cadctap/tests/data/example_query.sql --cert ~/.ssl/cadcproxy.pem\n'
         '- Use username/password to run a query on the tap service:\n'
         '      {0} -s ivo://cadc.nrc.ca/tap '
         '"SELECT TOP 10 type FROM caom2.Observation"'
         ' -u <username>\n'
         '- Use netrc file to run a query on the ams/mast service'
         ' :\n'
-        '      {0} -i data/query.sql -n -s ivo://cadc.nrc.ca/ams/mast\n'.
+        '      {0} -i ./cadctap/tests/data/example_query.sql -n -s ivo://cadc.nrc.ca/ams/mast\n'.
         format(command))
 
     create_parser = subparsers.add_parser(

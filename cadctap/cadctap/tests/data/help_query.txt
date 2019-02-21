@@ -45,10 +45,10 @@ optional arguments:
 
 Examples:
 - Anonymously run a query string:
-      cadc-tap query "SELECT TOP 10 type FROM caom2.Observation"
+      cadc-tap query -a -s tap "SELECT TOP 10 type FROM caom2.Observation"
 - Use certificate to run a query from a file:
-      cadc-tap query -i /data/query.sql --cert ~/.ssl/cadcproxy.pem
+      cadc-tap query -s tap -i ./cadctap/tests/data/example_query.sql --cert ~/.ssl/cadcproxy.pem
 - Use username/password to run a query on the tap service:
       cadc-tap query -s ivo://cadc.nrc.ca/tap "SELECT TOP 10 type FROM caom2.Observation" -u <username>
 - Use netrc file to run a query on the ams/mast service :
-      cadc-tap query -i data/query.sql -n -s ivo://cadc.nrc.ca/ams/mast
+      cadc-tap query -i ./cadctap/tests/data/example_query.sql -n -s ivo://cadc.nrc.ca/ams/mast
