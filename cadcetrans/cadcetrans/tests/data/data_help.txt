@@ -1,8 +1,7 @@
-usage: cadc-etrans data [-h]
+usage: cadc-etrans data [-h] [--resource-id RESOURCE_ID] [-d | -q | -v]
+                        [--host HOST]
                         [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                        [--host HOST] [--resource-id RESOURCE_ID]
-                        [-d | -q | -v] [-c CHECK_FILENAME]
-                        [-s {new,replace,any}] [--dryrun]
+                        [-c CHECK_FILENAME] [-s {new,replace,any}] [--dryrun]
                         source
 
 Transfer data to a CADC archive
