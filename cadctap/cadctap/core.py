@@ -357,7 +357,6 @@ class CadcTapClient(object):
 def _add_anon_option(parser):
     # cadc-tap supports '-a | --anon' authentication option
     # This is a hack. It depends on the implementation of ArgumentParser.
-    added_anon = False
     for m_group in parser.common_parser._mutually_exclusive_groups:
         for g_action in m_group._group_actions:
             for o_string in g_action.option_strings:
@@ -368,14 +367,9 @@ def _add_anon_option(parser):
                     m_group.add_argument(
                         '--anon', action='store_true',
                         help='use the service anonymously, long form')
-                    added_anon = True
-                    break
-            if added_anon:
-                break
-        if added_anon:
-            break
-    if not added_anon:
-        raise RuntimeError("Missing authentication option")
+                    return
+
+    raise RuntimeError("Missing authentication option")
 
 
 def _customize_parser(parser):
@@ -582,7 +576,6 @@ def main_app(command='cadc-tap query'):
         help='source of the data. It can be files or "-" for stdin.'
     )
 
-
 #    def handle_error(msg, exit_after=True):
 #        """
 #        Prints error message and exit (by default)
@@ -640,7 +633,7 @@ def main_app(command='cadc-tap query'):
         if ('http:' not in args.service and
                 'https:' not in args.service and
                 'cadc.nrc.ca' not in args.service):
-                args.service = SERVICE_ID_PREFIX + args.service
+            args.service = SERVICE_ID_PREFIX + args.service
 
         error_message = 'no tap service for ' + args.service
         client = CadcTapClient(subject, resource_id=args.service)
