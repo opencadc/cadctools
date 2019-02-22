@@ -72,6 +72,7 @@ from __future__ import (absolute_import, division, print_function,
 import os
 import sys
 import unittest
+import netrc
 from cadcutils import net
 
 from six import StringIO
@@ -79,6 +80,7 @@ from cadctap.core import main_app
 from mock import Mock, patch, call
 import pytest
 from cadctap import CadcTapClient
+from cadctap.core import _get_subject_from_netrc
 from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
     ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID, QUERY_CAPABILITY_ID,\
     TABLE_LOAD_CAPABILITY_ID
@@ -95,6 +97,14 @@ BASE_URL = 'https://ws-cadc.canfar.net/youcat/availability'
 class MyExitError(Exception):
     def __init__(self):
         self.message = "MyExitError"
+
+
+@patch('netrc.netrc')
+def test_get_subject_from_netrc(netrc_mock):
+    netrc_instance = netrc_mock.return_value
+    netrc_instance.hosts = {'no_such_host': 'my.host.ca'}
+    subject = _get_subject_from_netrc()
+    assert(subject is None)
 
 
 @patch('cadcutils.net.ws.BaseWsClient.put')
@@ -290,7 +300,6 @@ def test_query(caps_get_mock, base_post_mock):
     print(base_post_mock.call_args_list[0][0][0])
     assert base_post_mock.call_args_list[0][0][0] == \
         (QUERY_CAPABILITY_ID, None, 'uws:Sync')
-
 
 class TestCadcTapClient(unittest.TestCase):
     """Test the CadcTapClient class"""
