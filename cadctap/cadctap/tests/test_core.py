@@ -106,7 +106,6 @@ def test_get_subject_from_certificate():
         subject = _get_subject_from_certificate()
         assert(subject is None)
         # has certificate
-        #os.environ['HOME'] = 'cadctap/tests/data'
         cwd = os.getcwd()
         if 'tests' in cwd:
             os.environ['HOME'] = 'data'
