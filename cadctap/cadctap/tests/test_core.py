@@ -79,7 +79,7 @@ from cadctap.core import main_app
 from mock import Mock, patch, call
 import pytest
 from cadctap import CadcTapClient
-from cadctap.core import _get_subject_from_netrc
+from cadctap.core import _get_subject_from_netrc, _get_subject_from_certificate
 from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
     ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID, QUERY_CAPABILITY_ID,\
     TABLE_LOAD_CAPABILITY_ID
@@ -96,6 +96,18 @@ BASE_URL = 'https://ws-cadc.canfar.net/youcat/availability'
 class MyExitError(Exception):
     def __init__(self):
         self.message = "MyExitError"
+
+
+def test_get_subject_from_certificate():
+    # has no certificate
+    os.environ['HOME'] = '/tmp'
+    subject = _get_subject_from_certificate()
+    assert(subject is None)
+    # has certificate
+    os.environ['HOME'] = 'cadctap/tests/data'
+    subject = _get_subject_from_certificate()
+    assert(subject is not None)
+    assert(isinstance(subject, net.Subject))
 
 
 @patch('netrc.netrc')
