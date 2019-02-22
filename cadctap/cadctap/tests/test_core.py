@@ -101,9 +101,25 @@ class MyExitError(Exception):
 @patch('netrc.netrc')
 def test_get_subject_from_netrc(netrc_mock):
     netrc_instance = netrc_mock.return_value
+    # no matching domain
     netrc_instance.hosts = {'no_such_host': 'my.host.ca'}
     subject = _get_subject_from_netrc()
     assert(subject is None)
+    # matches CADC domain
+    netrc_instance.hosts = {'no_such_host': 'my.host.ca', \
+                            'cadc-ccda.hia-iha.nrc-cnrc.gc.ca': \
+                                'machine www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca \
+                                login auser password passwd'}
+    subject = _get_subject_from_netrc()
+    assert(subject is not None)
+    assert(isinstance(subject, net.Subject))
+    # matches CANFAR domain
+    netrc_instance.hosts = {'no_such_host': 'my.host.ca',\
+                            'canfar.net': 'machine www.canfar.net \
+                                login auser password passwd'}
+    subject = _get_subject_from_netrc()
+    assert(subject is not None)
+    assert(isinstance(subject, net.Subject))
 
 
 @patch('cadcutils.net.ws.BaseWsClient.put')
