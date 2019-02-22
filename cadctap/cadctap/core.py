@@ -112,7 +112,6 @@ __all__ = ['CadcTapClient']
 
 TABLES_CAPABILITY = 'ivo://ivoa.net/std/VOSI#tables-1.1'
 TAP_CAPABILITY = 'ivo://ivoa.net/std/TAP'
-# DEFAULT_URI = 'ivo://cadc.nrc.ca/'
 
 APP_NAME = 'cadc-tap'
 
@@ -295,11 +294,9 @@ class CadcTapClient(object):
 
         for f in source:
             if 'stdin' in f:
-                logger.debug('Uploading from stdin')
-                print('Uploading from stdin')
+                logger.info('Uploading from stdin')
             else:
-                logger.debug('Uploading file {}'.format(f))
-                print('Uploading file {}'.format(f))
+                logger.info('Uploading file {}'.format(f))
 
             headers = {'Content-Type': ALLOWED_CONTENT_TYPES[fformat]}
             with open(f, 'rb') as fh:
@@ -308,11 +305,9 @@ class CadcTapClient(object):
                                       data=fh)
 
             if 'stdin' in f:
-                logger.debug('Done uploading from stdin')
-                print('Done uploading from stdin')
+                logger.info('Done uploading from stdin')
             else:
-                logger.debug('Done uploading file {}'.format(fh.name))
-                print('Done uploading file {}'.format(fh.name))
+                logger.info('Done uploading file {}'.format(fh.name))
 
     def query(self, query, output_file=None, response_format='VOTable',
               tmptable=None, lang='ADQL'):
@@ -369,10 +364,10 @@ def _add_anon_option(parser):
                 if 'cert' in o_string or 'netrc' in o_string:
                     m_group.add_argument(
                         '-a', action='store_true',
-                        help='login as anonymous user, short form')
+                        help='use the service anonymously, short form')
                     m_group.add_argument(
                         '--anon', action='store_true',
-                        help='login as anonymous user, long form')
+                        help='use the service anonymously, long form')
                     added_anon = True
                     break
             if added_anon:
@@ -433,20 +428,24 @@ def _get_subject(args):
     subject = net.Subject.from_cmd_line_args(args)
     if (not subject.anon or args.a or args.anon):
         # authentication option specified
+        logger.debug('authentication option is specified')
         return subject
     else:
         # default, i.e. no authentication option specified
         netrc_subject = _get_subject_from_netrc()
         if (netrc_subject is not None):
             # pick -n option
+            logger.debug('use -n option')
             return netrc_subject
         else:
             cert_subject = _get_subject_from_certificate()
             if (cert_subject is not None):
                 # pick -cert option
+                logger.debug('use --cert option')
                 return cert_subject
             else:
                 # use anon subject
+                logger.debug('use --anon option')
                 return subject
 
 
@@ -583,8 +582,6 @@ def main_app(command='cadc-tap query'):
         help='source of the data. It can be files or "-" for stdin.'
     )
 
-    # handle errors
-#    errors = [0]
 
 #    def handle_error(msg, exit_after=True):
 #        """
@@ -643,9 +640,6 @@ def main_app(command='cadc-tap query'):
         if ('http:' not in args.service and
                 'https:' not in args.service and
                 'cadc.nrc.ca' not in args.service):
-            if args.service.startswith("/"):
-                args.service = SERVICE_ID_PREFIX + args.service[1:]
-            else:
                 args.service = SERVICE_ID_PREFIX + args.service
 
         error_message = 'no tap service for ' + args.service
