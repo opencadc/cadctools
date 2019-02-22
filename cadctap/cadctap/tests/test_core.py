@@ -99,15 +99,25 @@ class MyExitError(Exception):
 
 
 def test_get_subject_from_certificate():
-    # has no certificate
-    os.environ['HOME'] = '/tmp'
-    subject = _get_subject_from_certificate()
-    assert(subject is None)
-    # has certificate
-    os.environ['HOME'] = 'cadctap/tests/data'
-    subject = _get_subject_from_certificate()
-    assert(subject is not None)
-    assert(isinstance(subject, net.Subject))
+    orig_home = os.environ['HOME']
+    try:
+        # has no certificate
+        os.environ['HOME'] = '/tmp'
+        subject = _get_subject_from_certificate()
+        assert(subject is None)
+        # has certificate
+        #os.environ['HOME'] = 'cadctap/tests/data'
+        cwd = os.getcwd()
+        if 'tests' in cwd:
+            os.environ['HOME'] = 'data'
+        else:
+            os.environ['HOME'] = 'cadctap/tests/data'
+
+        subject = _get_subject_from_certificate()
+        assert(subject is not None)
+        assert(isinstance(subject, net.Subject))
+    finally:
+        os.environ['HOME'] = orig_home
 
 
 @patch('netrc.netrc')
