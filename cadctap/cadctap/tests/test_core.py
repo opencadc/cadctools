@@ -106,15 +106,15 @@ def test_get_subject_from_netrc(netrc_mock):
     subject = _get_subject_from_netrc()
     assert(subject is None)
     # matches CADC domain
-    netrc_instance.hosts = {'no_such_host': 'my.host.ca', \
-                            'cadc-ccda.hia-iha.nrc-cnrc.gc.ca': \
-                                'machine www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca \
+    netrc_instance.hosts = {'no_such_host': 'my.host.ca',
+                            'cadc-ccda.hia-iha.nrc-cnrc.gc.ca':
+                            'machine www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca \
                                 login auser password passwd'}
     subject = _get_subject_from_netrc()
     assert(subject is not None)
     assert(isinstance(subject, net.Subject))
     # matches CANFAR domain
-    netrc_instance.hosts = {'no_such_host': 'my.host.ca',\
+    netrc_instance.hosts = {'no_such_host': 'my.host.ca',
                             'canfar.net': 'machine www.canfar.net \
                                 login auser password passwd'}
     subject = _get_subject_from_netrc()
