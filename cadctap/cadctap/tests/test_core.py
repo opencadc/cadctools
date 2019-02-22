@@ -72,7 +72,6 @@ from __future__ import (absolute_import, division, print_function,
 import os
 import sys
 import unittest
-import netrc
 from cadcutils import net
 
 from six import StringIO
@@ -300,6 +299,7 @@ def test_query(caps_get_mock, base_post_mock):
     print(base_post_mock.call_args_list[0][0][0])
     assert base_post_mock.call_args_list[0][0][0] == \
         (QUERY_CAPABILITY_ID, None, 'uws:Sync')
+
 
 class TestCadcTapClient(unittest.TestCase):
     """Test the CadcTapClient class"""
