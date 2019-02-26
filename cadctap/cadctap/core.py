@@ -71,6 +71,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
+import traceback
 import sys
 from clint.textui import progress
 import datetime
@@ -78,6 +79,7 @@ from cadcutils import net, util
 # from cadcutils.net import wscapabilities
 # from cadcutils.net import ws
 from six.moves import input
+import netrc as netrclib
 import os
 from cadctap import version
 
@@ -86,8 +88,10 @@ from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 logger = logging.getLogger(__name__)
 
+# Prefix to be prepended to the short name of a service ID
+SERVICE_ID_PREFIX = 'ivo://cadc.nrc.ca/'
 # ID of the default catalog Web service
-DEFAULT_SERVICE_ID = 'ivo://cadc.nrc.ca/youcat'
+DEFAULT_SERVICE_ID = SERVICE_ID_PREFIX + 'youcat'
 # capabilities ids
 TABLES_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#tables-1.1'
 TABLE_UPDATE_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#table-update-async-1.x'
@@ -108,9 +112,12 @@ __all__ = ['CadcTapClient']
 
 TABLES_CAPABILITY = 'ivo://ivoa.net/std/VOSI#tables-1.1'
 TAP_CAPABILITY = 'ivo://ivoa.net/std/TAP'
-DEFAULT_URI = 'ivo://cadc.nrc.ca/'
 
 APP_NAME = 'cadc-tap'
+
+# for default authentication
+CADC_DOMAIN = 'cadc-ccda.hia-iha.nrc-cnrc.gc.ca'
+CANFAR_DOMAIN = 'canfar.net'
 
 
 class CadcTapClient(object):
@@ -159,17 +166,17 @@ class CadcTapClient(object):
         self._tap_client = net.BaseWsClient(resource_id, subject,
                                             agent, retry=True, host=self.host)
 
-    def create_table(self, table_name, table_defintion, type=None):
+    def create_table(self, table_name, table_definition, type=None):
         """
         Creates a table in the catalog service.
         :param table_name: Name of the table in the TAP service
-        :param table_defintion: Stream containing the table definition
+        :param table_definition: Stream containing the table definition
         :param type: Type of the table definition file
         """
-        if not table_name or not table_defintion:
+        if not table_name or not table_definition:
             raise AttributeError(
                 'table name and definition required in create: {}/{}'.
-                format(table_name, table_defintion))
+                format(table_name, table_definition))
 
         if type:
             if type not in ALLOWED_TB_DEF_TYPES.keys():
@@ -180,7 +187,7 @@ class CadcTapClient(object):
                 file_type = type
         else:
             m = magic.Magic()
-            t = m.from_file(table_defintion)
+            t = m.from_file(table_definition)
             if 'XML' in t:
                 file_type = 'VOTable'
             elif 'FITS' in t:
@@ -190,15 +197,15 @@ class CadcTapClient(object):
             else:
                 raise AttributeError('Cannot determine the type of the table '
                                      'definition file {}'.
-                                     format(table_defintion))
-            logger.info('Assuming the table defintion file type: {}'.
+                                     format(table_definition))
+            logger.info('Assuming the table definition file type: {}'.
                         format(file_type))
         logger.debug('Creating {} from file {} of type {}'.
-                     format(table_name, table_defintion, file_type))
+                     format(table_name, table_definition, file_type))
         headers = {'Content-Type': ALLOWED_TB_DEF_TYPES[file_type]}
         self._tap_client.put((TABLES_CAPABILITY_ID, table_name),
                              headers=headers,
-                             data=open(table_defintion, 'rb').read())
+                             data=open(table_definition, 'rb').read())
         logger.debug('Successfully created table {}'.format(table_name))
 
     def delete_table(self, table_name):
@@ -271,7 +278,7 @@ class CadcTapClient(object):
 
     def load(self, table_name, source, fformat='tsv'):
         """
-        Loads conent to a table
+        Loads content to a table
         :param table_name: name of the table
         :param source: list of files to load content from
         :param fformat: format of the content files
@@ -281,15 +288,26 @@ class CadcTapClient(object):
             raise AttributeError(
                 'table name and source requiered in upload: {}/{}'.
                 format(table_name, source))
+
+        if source == '-':
+            source = ["/dev/stdin"]
+
         for f in source:
-            logger.debug('Uploading file {}'.format(f))
+            if 'stdin' in f:
+                logger.info('Uploading from stdin')
+            else:
+                logger.info('Uploading file {}'.format(f))
 
             headers = {'Content-Type': ALLOWED_CONTENT_TYPES[fformat]}
             with open(f, 'rb') as fh:
                 self._tap_client.post((TABLE_LOAD_CAPABILITY_ID, table_name),
                                       headers=headers,
                                       data=fh)
-            logger.debug('Done uploading file {}'.format(fh.name))
+
+            if 'stdin' in f:
+                logger.info('Done uploading from stdin')
+            else:
+                logger.info('Done uploading file {}'.format(fh.name))
 
     def query(self, query, output_file=None, response_format='VOTable',
               tmptable=None, lang='ADQL'):
@@ -336,6 +354,24 @@ class CadcTapClient(object):
         print(results.text)
 
 
+def _add_anon_option(parser):
+    # cadc-tap supports '-a | --anon' authentication option
+    # This is a hack. It depends on the implementation of ArgumentParser.
+    for m_group in parser.common_parser._mutually_exclusive_groups:
+        for g_action in m_group._group_actions:
+            for o_string in g_action.option_strings:
+                if 'cert' in o_string or 'netrc' in o_string:
+                    m_group.add_argument(
+                        '-a', action='store_true',
+                        help='use the service anonymously, short form')
+                    m_group.add_argument(
+                        '--anon', action='store_true',
+                        help='use the service anonymously, long form')
+                    return
+
+    raise RuntimeError("Missing authentication option")
+
+
 def _customize_parser(parser):
     # cadc-tap customizes some of the options inherited from the CADC parser
     # TODO make it work or process list of subparsers
@@ -356,10 +392,62 @@ def _customize_parser(parser):
              DEFAULT_SERVICE_ID))
 
 
+def _get_subject_from_netrc():
+    # if .netrc contains hosts in cadc.ugly or canfar.net, return a subject
+    # else return None
+    try:
+        hosts = netrclib.netrc(None).hosts
+        for host in hosts.keys():
+            if (CADC_DOMAIN in host) or (CANFAR_DOMAIN in host):
+                return net.Subject(netrc=True)
+
+        return None
+    except Exception:
+        return None
+
+
+def _get_subject_from_certificate():
+    # if ~/.ssl/cadcproxy.pem exists, use certificate and return a subject
+    cert_path = os.path.join(os.environ['HOME'], ".ssl/cadcproxy.pem")
+    if os.path.isfile(cert_path):
+        return net.Subject(certificate=cert_path)
+    else:
+        return None
+
+
+def _get_subject(args):
+    # returns a subject either with the specified authentication option or
+    # by default pick the -n option if cadc.ugly or canfar.net is present in
+    # ~/.netrc or pick the -cert option if ~/ssl/cadcproxy.pem is available.
+    subject = net.Subject.from_cmd_line_args(args)
+    if (not subject.anon or args.a or args.anon):
+        # authentication option specified
+        logger.debug('authentication option is specified')
+        return subject
+    else:
+        # default, i.e. no authentication option specified
+        netrc_subject = _get_subject_from_netrc()
+        if (netrc_subject is not None):
+            # pick -n option
+            logger.debug('use -n option')
+            return netrc_subject
+        else:
+            cert_subject = _get_subject_from_certificate()
+            if (cert_subject is not None):
+                # pick -cert option
+                logger.debug('use --cert option')
+                return cert_subject
+            else:
+                # use anon subject
+                logger.debug('use --anon option')
+                return subject
+
+
 def main_app(command='cadc-tap query'):
     parser = util.get_base_parser(version=version.version,
                                   default_resource_id=DEFAULT_SERVICE_ID)
 
+    _add_anon_option(parser)
     _customize_parser(parser)
     parser.description = (
         'Client for accessing databases using TAP protocol at the Canadian '
@@ -405,9 +493,9 @@ def main_app(command='cadc-tap query'):
     """
     query_parser.add_argument(
         '-f', '--format',
-        default='VOTable',
+        default='tsv',
         choices=['VOTable', 'csv', 'tsv'],
-        help='output format, either tsv, csv, fits (TBD), or votable(default)',
+        help='output format, either tsv(default), csv, fits (TBD), or VOTable',
         required=False)
     query_parser.add_argument(
         '-t', '--tmptable',
@@ -419,16 +507,18 @@ def main_app(command='cadc-tap query'):
     query_parser.epilog = (
         'Examples:\n'
         '- Anonymously run a query string:\n'
-        '      {0} "SELECT TOP 10 type FROM caom2.Observation"\n'
+        '      {0} -a -s tap "SELECT TOP 10 type FROM caom2.Observation"\n'
         '- Use certificate to run a query from a file:\n'
-        '      {0} -i /data/query.sql --cert ~/.ssl/cadcproxy.pem\n'
+        '      {0} -s tap -i ./cadctap/tests/data/example_query.sql'
+        ' --cert ~/.ssl/cadcproxy.pem\n'
         '- Use username/password to run a query on the tap service:\n'
         '      {0} -s ivo://cadc.nrc.ca/tap '
         '"SELECT TOP 10 type FROM caom2.Observation"'
         ' -u <username>\n'
         '- Use netrc file to run a query on the ams/mast service'
         ' :\n'
-        '      {0} -i data/query.sql -n -s ivo://cadc.nrc.ca/ams/mast\n'.
+        '      {0} -i ./cadctap/tests/data/example_query.sql'
+        ' -n -s ivo://cadc.nrc.ca/ams/mast\n'.
         format(command))
 
     create_parser = subparsers.add_parser(
@@ -483,25 +573,41 @@ def main_app(command='cadc-tap query'):
         help='name of the table (<schema.table>) to load data to')
     load_parser.add_argument(
         'SOURCE', nargs='+',
-        help='source of the data. It can be files or "-" for stdout.'
+        help='source of the data. It can be files or "-" for stdin.'
     )
 
-    # handle errors
-    errors = [0]
+#    def handle_error(msg, exit_after=True):
+#        """
+#        Prints error message and exit (by default)
+#        :param msg: error message to print
+#        :param exit_after: True if log error message and exit,
+#        False if log error message and return
+#        :return:
+#        """
+#
+#        errors[0] += 1
+#        logger.error(msg)
+#        if exit_after:
+#            sys.exit(-1)  # TODO use different error codes?
 
-    def handle_error(msg, exit_after=True):
+    def exit_on_exception(ex, message=None):
         """
-        Prints error message and exit (by default)
-        :param msg: error message to print
-        :param exit_after: True if log error message and exit,
-        False if log error message and return
+        Exit program due to an exception,
+        print the exception and exit with error code.
+        :param ex:
+        :param message: error message to display
         :return:
         """
-
-        errors[0] += 1
-        logger.error(msg)
-        if exit_after:
-            sys.exit(-1)  # TODO use different error codes?
+        # Note: this could probably be updated to use an appropriate logging
+        # handler instead of writing to stderr
+        if message:
+            sys.stderr.write('ERROR:: {}\n'.format(message))
+        else:
+            sys.stderr.write('ERROR:: {}\n'.format(str(ex)))
+        tb = traceback.format_exc()
+        logging.debug(tb)
+        sys.exit(getattr(ex, 'errno', -1)) if getattr(ex, 'errno',
+                                                      -1) else sys.exit(-1)
 
     _customize_parser(schema_parser)
     _customize_parser(query_parser)
@@ -521,41 +627,52 @@ def main_app(command='cadc-tap query'):
     else:
         logging.basicConfig(level=logging.WARN, stream=sys.stdout)
 
-    subject = net.Subject.from_cmd_line_args(args)
+    subject = _get_subject(args)
 
-    client = CadcTapClient(subject, resource_id=args.service)
-    if args.cmd == 'create':
-        client.create_table(args.TABLENAME, args.TABLEDEFINITION,
-                            args.format)
-    elif args.cmd == 'delete':
-        reply = input(
-            'You are about to delete table {} and its content... '
-            'Continue? [yes/no] '.format(args.TABLENAME))
-        while True:
-            if reply == 'yes':
-                client.delete_table(args.TABLENAME)
-                break
-            elif reply == 'no':
-                logger.warn(
-                    'Table {} not deleted.'.
-                    format(args.TABLENAME))
-                sys.exit(-1)
+    try:
+        if ('http:' not in args.service and
+                'https:' not in args.service and
+                'cadc.nrc.ca' not in args.service):
+            args.service = SERVICE_ID_PREFIX + args.service
+
+        error_message = 'no tap service for ' + args.service
+        client = CadcTapClient(subject, resource_id=args.service)
+        error_message = None
+        if args.cmd == 'create':
+            client.create_table(args.TABLENAME, args.TABLEDEFINITION,
+                                args.format)
+        elif args.cmd == 'delete':
+            reply = input(
+                'You are about to delete table {} and its content... '
+                'Continue? [yes/no] '.format(args.TABLENAME))
+            while True:
+                if reply == 'yes':
+                    client.delete_table(args.TABLENAME)
+                    break
+                elif reply == 'no':
+                    logger.warn(
+                        'Table {} not deleted.'.
+                        format(args.TABLENAME))
+                    sys.exit(-1)
+                else:
+                    reply = input('Please reply with yes or no: ')
+        elif args.cmd == 'index':
+            client.create_index(args.TABLENAME, args.COLUMN, args.unique)
+        elif args.cmd == 'load':
+            client.load(args.TABLENAME, args.SOURCE, args.format)
+        elif args.cmd == 'query':
+            if args.input_file is not None:
+                with open(args.input_file) as f:
+                    query = f.read().strip()
             else:
-                reply = input('Please reply with yes or no: ')
-    elif args.cmd == 'index':
-        client.create_index(args.TABLENAME, args.COLUMN, args.unique)
-    elif args.cmd == 'load':
-        client.load(args.TABLENAME, args.SOURCE, args.format)
-    elif args.cmd == 'query':
-        if args.input_file is not None:
-            with open(args.input_file) as f:
-                query = f.read().strip()
-        else:
-            query = args.QUERY
-        client.query(query, args.output_file, args.format, args.tmptable)
-    elif args.cmd == 'schema':
-        client.schema()
-    print('DONE')
+                query = args.QUERY
+            client.query(query, args.output_file, args.format, args.tmptable)
+        elif args.cmd == 'schema':
+            client.schema()
+    except Exception as ex:
+        exit_on_exception(ex, error_message)
+    finally:
+        print('DONE')
 
 
 #############################################################################

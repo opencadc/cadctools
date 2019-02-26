@@ -1,6 +1,6 @@
-usage: cadc-tap delete [-h]
-                       [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                       [--host HOST] [-d | -q | -v] [-s SERVICE]
+usage: cadc-tap delete [-h] [-d | -q | -v] [--host HOST]
+                       [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a | --anon]
+                       [-s SERVICE]
                        TABLENAME
 
 Delete a table
@@ -10,6 +10,8 @@ positional arguments:
                         be deleted
 
 optional arguments:
+  -a                    use the service anonymously, short form
+  --anon                use the service anonymously, long form
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages

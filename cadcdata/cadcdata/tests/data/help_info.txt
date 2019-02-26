@@ -1,6 +1,6 @@
-usage: cadc-data info [-h]
+usage: cadc-data info [-h] [--resource-id RESOURCE_ID] [-d | -q | -v]
+                      [--host HOST]
                       [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                      [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
                       archive filename [filename ...]
 
 Get information regarding files in a CADC archive on the form:

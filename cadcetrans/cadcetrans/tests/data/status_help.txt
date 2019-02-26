@@ -1,7 +1,7 @@
-usage: cadc-etrans status [-h]
+usage: cadc-etrans status [-h] [--resource-id RESOURCE_ID] [-d | -q | -v]
+                          [--host HOST]
                           [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                          [--host HOST] [--resource-id RESOURCE_ID]
-                          [-d | -q | -v] [-b]
+                          [-b]
                           source
 
 Displays the status of the system
