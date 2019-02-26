@@ -487,7 +487,7 @@ class CadcDataClient(object):
         assert file_name is not None
         resource = (CADC_AD_CAPABILITY_ID, '{}/{}'.format(archive, file_name))
         self.logger.debug('HEAD {}'.format(resource))
-        response = self._data_client.head(resource)
+        response = self._data_client.head(resource, allow_redirects=True)
         h = response.headers
         hmap = {'name': 'Content-Disposition',
                 'size': 'Content-Length',

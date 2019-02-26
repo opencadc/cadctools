@@ -137,7 +137,7 @@ class Subject(object):
     @certificate.setter
     def certificate(self, value):
         if value is not None:
-            assert value is not '' and os.path.isfile(value),\
+            assert value != '' and os.path.isfile(value),\
                 'Certificate file {} not found'.format(value)
             self._certificate = value
 
