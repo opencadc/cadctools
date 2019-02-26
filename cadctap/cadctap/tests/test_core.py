@@ -467,3 +467,14 @@ class TestCadcTapClient(unittest.TestCase):
         main_app()
         calls = [call('tablename', ['path/to/file'], 'tsv')]
         load_mock.assert_has_calls(calls)
+
+        cwd = os.getcwd()
+        if 'tests' in cwd:
+            sys.argv = ['cadc-tap', 'query', '-i', 'data/example_query.sql',
+                        '-s', 'tap']
+        else:
+            sys.argv = ['cadc-tap', 'query', '-i',
+                        'cadctap/tests/data/example_query.sql', '-s', 'tap']
+        main_app()
+        calls = [call('QUERY', None, 'tsv', None)]
+        query_mock.assert_has_calls(calls)
