@@ -385,10 +385,10 @@ def _add_anon_option(parser):
                             non_auth_actions.append(action)
 
                     # fix actions in each mutually exclusive group
-                    for m_group in parser.common_parser._mutually_exclusive_groups:
-                        m_group._actions = []
-                        m_group._actions.extend(auth_actions)
-                        m_group._actions.extend(non_auth_actions)
+                    for g in parser.common_parser._mutually_exclusive_groups:
+                        g._actions = []
+                        g._actions.extend(auth_actions)
+                        g._actions.extend(non_auth_actions)
 
                     # fix the actions in the common parser
                     parser.common_parser._actions = m_group._actions
