@@ -1,5 +1,5 @@
-usage: cadc-client [-h] --resource-id RESOURCE_ID [-d | -q | -v] [--host HOST]
-                   [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER] [-x]
+usage: cadc-client [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                   [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v] [-x]
                    fileID [fileID ...]
 
 positional arguments:

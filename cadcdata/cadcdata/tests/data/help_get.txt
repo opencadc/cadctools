@@ -1,6 +1,6 @@
-usage: cadc-data get [-h] [--resource-id RESOURCE_ID] [-d | -q | -v]
-                     [--host HOST]
+usage: cadc-data get [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                     [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
                      [-o OUTPUT] [--cutout [CUTOUT [CUTOUT ...]]] [--nomd5]
                      [-z] [--wcs] [--fhead]
                      archive filename [filename ...]

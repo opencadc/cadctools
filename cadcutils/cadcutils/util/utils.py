@@ -300,6 +300,25 @@ def get_base_parser(subparsers=True, version=None, usecert=True,
     cparser = ArgumentParser(add_help=False,
                              formatter_class=SingleMetavarHelpFormatter)
 
+    auth_group = cparser.add_mutually_exclusive_group(required=auth_required)
+    if usecert:
+        auth_group.add_argument(
+            '--cert', type=str,
+            help='location of your X509 certificate to use for ' +
+                 'authentication (unencrypted, in PEM format)')
+    auth_group.add_argument('-n', action='store_true',
+                            help='use .netrc in $HOME for authentication')
+    auth_group.add_argument('--netrc-file',
+                            help='netrc file to use for authentication')
+    auth_group.add_argument('-u', '--user',
+                            help='name of user to authenticate. ' +
+                                 'Note: application prompts for the '
+                                 'corresponding password!')
+    cparser.add_argument('--host',
+                         help='base hostname for services - used mainly '
+                              'for testing (default: '
+                              'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)',
+                         default='www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')
     if default_resource_id is None:
         cparser.add_argument('--resource-id',
                              type=urlparse, required=True,
@@ -317,25 +336,7 @@ def get_base_parser(subparsers=True, version=None, usecert=True,
                            help='run quietly')
     log_group.add_argument('-v', '--verbose', action='store_true',
                            help='verbose messages')
-    cparser.add_argument('--host',
-                         help='base hostname for services - used mainly '
-                              'for testing (default: '
-                              'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)',
-                         default='www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')
-    auth_group = cparser.add_mutually_exclusive_group(required=auth_required)
-    if usecert:
-        auth_group.add_argument(
-            '--cert', type=str,
-            help='location of your X509 certificate to use for ' +
-                 'authentication (unencrypted, in PEM format)')
-    auth_group.add_argument('-n', action='store_true',
-                            help='use .netrc in $HOME for authentication')
-    auth_group.add_argument('--netrc-file',
-                            help='netrc file to use for authentication')
-    auth_group.add_argument('-u', '--user',
-                            help='name of user to authenticate. ' +
-                                 'Note: application prompts for the '
-                                 'corresponding password!')
+
     argparser = _CustomArgParser(subparsers=subparsers, common_parser=cparser,
                                  version=version)
     return argparser
