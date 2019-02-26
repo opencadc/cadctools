@@ -1,6 +1,7 @@
-usage: cadc-tap load [-h] [-d | -q | -v] [--host HOST]
-                     [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a | --anon]
-                     [-f {FITSTable,csv,tsv}] [-s SERVICE]
+usage: cadc-tap load [-h]
+                     [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a]
+                     [--host HOST] [-d | -q | -v] [-f {FITSTable,csv,tsv}]
+                     [-s SERVICE]
                      TABLENAME SOURCE [SOURCE ...]
 
 Load data to a table
@@ -10,8 +11,7 @@ positional arguments:
   TABLENAME             name of the table (<schema.table>) to load data to
 
 optional arguments:
-  -a                    use the service anonymously, short form
-  --anon                use the service anonymously, long form
+  -a, --anon            use the service anonymously
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages
