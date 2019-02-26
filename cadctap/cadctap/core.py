@@ -365,6 +365,8 @@ def _add_anon_option(parser):
                     m_group.add_argument(
                         '-a', '--anon', action='store_true',
                         help='use the service anonymously')
+
+                    # get the option strings for the auth options
                     g_action_o_strings = []
                     for group_action in m_group._group_actions:
                         g_action_o_strings.append(group_action.option_strings)
