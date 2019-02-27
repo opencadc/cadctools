@@ -106,12 +106,7 @@ def test_get_subject_from_certificate():
         subject = _get_subject_from_certificate()
         assert(subject is None)
         # has certificate
-        cwd = os.getcwd()
-        if 'tests' in cwd:
-            os.environ['HOME'] = 'data'
-        else:
-            os.environ['HOME'] = 'cadctap/tests/data'
-
+        os.environ['HOME'] = TESTDATA_DIR
         subject = _get_subject_from_certificate()
         assert(subject is not None)
         assert(isinstance(subject, net.Subject))
@@ -448,11 +443,6 @@ class TestCadcTapClient(unittest.TestCase):
         calls = [call()]
         schema_mock.assert_has_calls(calls)
 
-        sys.argv = ['cadc-tap', 'query', 'QUERY']
-        main_app()
-        calls = [call('QUERY', None, 'tsv', None)]
-        query_mock.assert_has_calls(calls)
-
         sys.argv = ['cadc-tap', 'create', 'tablename', 'path/to/file']
         main_app()
         calls = [call('tablename', 'path/to/file', None)]
@@ -468,13 +458,13 @@ class TestCadcTapClient(unittest.TestCase):
         calls = [call('tablename', ['path/to/file'], 'tsv')]
         load_mock.assert_has_calls(calls)
 
-        cwd = os.getcwd()
-        if 'tests' in cwd:
-            sys.argv = ['cadc-tap', 'query', '-i', 'data/example_query.sql',
-                        '-s', 'tap']
-        else:
-            sys.argv = ['cadc-tap', 'query', '-i',
-                        'cadctap/tests/data/example_query.sql', '-s', 'tap']
+        sys.argv = ['cadc-tap', 'query', 'QUERY']
+        main_app()
+        calls = [call('QUERY', None, 'tsv', None)]
+        query_mock.assert_has_calls(calls)
+
+        query_file = os.path.join(TESTDATA_DIR, 'example_query.sql')
+        sys.argv = ['cadc-tap', 'query', '-i', query_file, '-s', 'tap']
         main_app()
         calls = [call('QUERY', None, 'tsv', None)]
         query_mock.assert_has_calls(calls)
