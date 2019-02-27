@@ -651,38 +651,6 @@ def update_backup(subject, dirname):
         client.copy(f, '{}/{}'.format(backup_dir, os.path.basename(f)))
 
 
-def update_backup(subject, dirname):
-    """
-    Logs an update of the status of processing and rejecting files and
-    transfers the latest logging files to the configured (vos) backup
-    :param subject:
-    :param dirname:
-    :return:
-    """
-    backup_dir = etrans_config.get('etransfer', 'backup_dir')
-    # this should come from the config instance
-    config_file = os.path.join(utils._CONFIG_PATH, 'cadc-etrans-config')
-    if not backup_dir:
-        raise RuntimeError('backup_dir must be specified in {}'.
-                           format(config_file))
-    if not backup_dir.startswith('vos:'):
-        raise RuntimeError(not 'Only back_dir of form vos: supported in {}'.
-                           format(config_file))
-    rfiles = get_rejected_files(dirname)
-    tfiles = get_trans_files(dirname)
-    _get_transfer_log().info('{} - {}'.
-                             format(utils.LOG_STATUS_LABEL,
-                                    json.dumps({'rejected': rfiles,
-                                                'transferring': tfiles})))
-    logger.debug('Rsyncing the transfer logs')
-    translog = etrans_config.get('etransfer', 'transfer_log_dir')
-    client = vos.Client(vospace_certfile=subject.certificate,
-                        transfer_shortcut=True)
-    for f in glob.glob(
-            '{}*'.format(os.path.join(translog, TRANS_ROOT_LOGNAME))):
-        client.copy(f, '{}/{}'.format(backup_dir, os.path.basename(f)))
-
-
 def _get_mime(filename):
     """
     Gets mime time of a file according based on its extension and according
