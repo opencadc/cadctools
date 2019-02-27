@@ -106,10 +106,10 @@ ALLOWED_TB_DEF_TYPES = {'VOSITable': 'text/xml',
                         'VOTable': 'application/x-votable+xml'}
 AUTH_OPTION_EXPLANATION = \
     'If no authentication option is specified, cadc-tap will look in the\n'\
-    '~/.netrc file for the www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca or\n'\
-    'canfar.net domain, and if found, will use the -n option. If not,\n'\
-    'cadc-tap will look for ~/.ssl/cadcproxy.pem file, and if found, will\n'\
-    'use the --cert option. If not, cadc-tap will use the --anon option.'
+    '~/.netrc file for the cadc-ccda.hia-iha.nrc-cnrc.gc.ca or canfar.net\n'\
+    'domain, and if found, will use the -n option. If not, cadc-tap will\n'\
+    'look for ~/.ssl/cadcproxy.pem file, and if found, will use the --cert\n'\
+    'option. If not, cadc-tap will use the --anon option.'
 
 
 # make the stream bar show up on stdout
