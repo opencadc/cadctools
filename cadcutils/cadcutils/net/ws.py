@@ -257,9 +257,7 @@ class BaseWsClient(object):
         # build the corresponding capabilities instance
         self.caps = WsCapabilities(self, host)
         self._host = host
-        if resource_id.startswith('http'):
-            self._host = resource_id
-        if self._host is None:
+        if host is None:
             base_url = self.caps.get_access_url(SERVICE_AVAILABILITY_ID)
             self._host = urlparse(base_url).hostname
 
@@ -682,9 +680,6 @@ class WsCapabilities(object):
         capabilities feature of the Web Service
         :return: URL to the capabilities feature
         """
-        if self.ws.resource_id.startswith('http'):
-            return '{}/capabilities'.format(self.ws.resource_id)
-
         if (time.time() - self.last_regtime) > CACHE_REFRESH_INTERVAL:
             if self.last_regtime == 0:
                 # startup
