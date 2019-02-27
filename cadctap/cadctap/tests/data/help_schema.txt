@@ -3,7 +3,11 @@ usage: cadc-tap schema [-h]
                        [--host HOST] [-d | -q | -v] [-s SERVICE]
 
 Print the tables available for querying.
-If no authentication option is specified, cadc-tap will look in the ~/.netrc file for the cadc.ugly or canfar.net domain, and if found, will use the -n option. If not, cadc-tap will look for ~/.ssl/cadcproxy.pem file, and if found, will use the --cert option. If not, cadc-tap will use the --anon option.
+If no authentication option is specified, cadc-tap will look in the
+~/.netrc file for the www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca or
+canfar.net domain, and if found, will use the -n option. If not,
+cadc-tap will look for ~/.ssl/cadcproxy.pem file, and if found, will
+use the --cert option. If not, cadc-tap will use the --anon option.
 
 optional arguments:
   -a, --anon            use the service anonymously
