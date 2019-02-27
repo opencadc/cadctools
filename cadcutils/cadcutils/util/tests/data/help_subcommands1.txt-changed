@@ -1,9 +1,7 @@
-usage: cadc-client [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                   [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v] [-x]
-                   fileID [fileID ...]
-
-positional arguments:
-  fileID                the ID of the file in the archive
+usage: cadc-client cmd1 [-h] --resource-id RESOURCE_ID [-d | -q | -v]
+                        [--host HOST]
+                        [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                        [-x]
 
 optional arguments:
   --cert CERT           location of your X509 certificate to use for

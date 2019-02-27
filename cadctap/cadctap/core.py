@@ -361,12 +361,37 @@ def _add_anon_option(parser):
         for g_action in m_group._group_actions:
             for o_string in g_action.option_strings:
                 if 'cert' in o_string or 'netrc' in o_string:
+                    # add the --anon authentication option
                     m_group.add_argument(
-                        '-a', action='store_true',
-                        help='use the service anonymously, short form')
-                    m_group.add_argument(
-                        '--anon', action='store_true',
-                        help='use the service anonymously, long form')
+                        '-a', '--anon', action='store_true',
+                        help='use the service anonymously')
+
+                    # get the option strings for the auth options
+                    g_action_o_strings = []
+                    for group_action in m_group._group_actions:
+                        g_action_o_strings.append(group_action.option_strings)
+
+                    # get the actions for auth and non auth options
+                    auth_actions = []
+                    non_auth_actions = []
+                    for action in parser.common_parser._optionals._actions:
+                        is_auth_action = False
+                        for o_str in g_action_o_strings:
+                            if action.option_strings == o_str:
+                                auth_actions.append(action)
+                                is_auth_action = True
+                                break
+                        if not is_auth_action:
+                            non_auth_actions.append(action)
+
+                    # fix actions in each mutually exclusive group
+                    for g in parser.common_parser._mutually_exclusive_groups:
+                        g._actions = []
+                        g._actions.extend(auth_actions)
+                        g._actions.extend(non_auth_actions)
+
+                    # fix the actions in the common parser
+                    parser.common_parser._actions = m_group._actions
                     return
 
     raise RuntimeError("Missing authentication option")
@@ -420,7 +445,7 @@ def _get_subject(args):
     # by default pick the -n option if cadc.ugly or canfar.net is present in
     # ~/.netrc or pick the -cert option if ~/ssl/cadcproxy.pem is available.
     subject = net.Subject.from_cmd_line_args(args)
-    if (not subject.anon or args.a or args.anon):
+    if (not subject.anon or args.anon):
         # authentication option specified
         logger.debug('authentication option is specified')
         return subject

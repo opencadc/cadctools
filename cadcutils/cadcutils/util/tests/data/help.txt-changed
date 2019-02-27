@@ -1,9 +1,5 @@
-usage: cadc-client [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                   [--host HOST] --resource-id RESOURCE_ID [-d | -q | -v] [-x]
-                   fileID [fileID ...]
-
-positional arguments:
-  fileID                the ID of the file in the archive
+usage: cadc-client [-h] --resource-id RESOURCE_ID [-d | -q | -v] [--host HOST]
+                   [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER] [-V]
 
 optional arguments:
   --cert CERT           location of your X509 certificate to use for
@@ -21,4 +17,4 @@ optional arguments:
   -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
-  -x                    test argument
+  -V, --version         show program's version number and exit
