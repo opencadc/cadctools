@@ -366,6 +366,13 @@ def _add_anon_option(parser):
                         '-a', '--anon', action='store_true',
                         help='use the service anonymously')
 
+                    '''
+                    Note: argparse does not display the mutually exclusive
+                    options correctly when an option is added to the mutually
+                    exclusive group after other arguments are added. The
+                    following code is a work around to display the mutually
+                    exclusive options correctly in help.
+                    '''
                     # get the option strings for the auth options
                     g_action_o_strings = []
                     for group_action in m_group._group_actions:
