@@ -110,6 +110,13 @@ def test__parse_input():
 
     assert results[0] == 'CIRCLE=88.0 115.0 0.5', 'Wrong WCS input.'
 
+    inputs = ['[AMP]']
+
+    results = test_subject._parse_input(inputs)
+    pixel_cutout = results[0]
+
+    assert pixel_cutout.get_extension() == ('AMP', 1), 'Wrong extension found.'
+
 
 def test__sanity_check_input():
     test_subject = OpenCADCCutout()

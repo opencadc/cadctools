@@ -153,8 +153,8 @@ class PixelRangeInputParser(object):
         if not ranges:
             raise PixelRangeInputParserError(
                 'Invalid range specified.  Should be in the format of {}  \
-                (i.e.[0][8:35]), or single digit(i.e. 9). '.format(
-                    self.match_pattern))
+                (i.e.[0][8:35]), or single digit(i.e. 9), or single name (SCI).'
+                .format(self.match_pattern))
 
         parsed_items = []
 
