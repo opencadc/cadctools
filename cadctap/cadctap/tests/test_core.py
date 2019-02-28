@@ -79,6 +79,7 @@ from cadctap.core import main_app
 from mock import Mock, patch, call
 import pytest
 from cadctap import CadcTapClient
+from cadctap.core import _get_subject_from_netrc, _get_subject_from_certificate
 from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
     ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID, QUERY_CAPABILITY_ID,\
     TABLE_LOAD_CAPABILITY_ID
@@ -89,6 +90,7 @@ call.__wrapped__ = None
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
+BASE_URL = 'https://ws-cadc.canfar.net/youcat/availability'
 
 
 class MyExitError(Exception):
@@ -96,8 +98,50 @@ class MyExitError(Exception):
         self.message = "MyExitError"
 
 
-@patch('cadctap.core.net.BaseWsClient.put')
-def test_create_table(base_put_mock):
+def test_get_subject_from_certificate():
+    orig_home = os.environ['HOME']
+    try:
+        # has no certificate
+        os.environ['HOME'] = '/tmp'
+        subject = _get_subject_from_certificate()
+        assert(subject is None)
+        # has certificate
+        os.environ['HOME'] = TESTDATA_DIR
+        subject = _get_subject_from_certificate()
+        assert(subject is not None)
+        assert(isinstance(subject, net.Subject))
+    finally:
+        os.environ['HOME'] = orig_home
+
+
+@patch('netrc.netrc')
+def test_get_subject_from_netrc(netrc_mock):
+    netrc_instance = netrc_mock.return_value
+    # no matching domain
+    netrc_instance.hosts = {'no_such_host': 'my.host.ca'}
+    subject = _get_subject_from_netrc()
+    assert(subject is None)
+    # matches CADC domain
+    netrc_instance.hosts = {'no_such_host': 'my.host.ca',
+                            'cadc-ccda.hia-iha.nrc-cnrc.gc.ca':
+                            'machine www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca \
+                                login auser password passwd'}
+    subject = _get_subject_from_netrc()
+    assert(subject is not None)
+    assert(isinstance(subject, net.Subject))
+    # matches CANFAR domain
+    netrc_instance.hosts = {'no_such_host': 'my.host.ca',
+                            'canfar.net': 'machine www.canfar.net \
+                                login auser password passwd'}
+    subject = _get_subject_from_netrc()
+    assert(subject is not None)
+    assert(isinstance(subject, net.Subject))
+
+
+@patch('cadcutils.net.ws.BaseWsClient.put')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_create_table(caps_get_mock, base_put_mock):
+    caps_get_mock.return_value = BASE_URL
     client = CadcTapClient(net.Subject())
     # default format
     def_table = os.path.join(TESTDATA_DIR, 'createTable.vosi')
@@ -123,8 +167,10 @@ def test_create_table(base_put_mock):
         client.create_table('sometable', None)
 
 
-@patch('cadctap.core.net.BaseWsClient.delete')
-def test_delete_table(base_delete_mock):
+@patch('cadcutils.net.ws.BaseWsClient.delete')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_delete_table(caps_get_mock, base_delete_mock):
+    caps_get_mock.return_value = BASE_URL
     client = CadcTapClient(net.Subject())
     client.delete_table('sometable')
     base_delete_mock.assert_called_with((TABLES_CAPABILITY_ID,
@@ -135,10 +181,22 @@ def test_delete_table(base_delete_mock):
         client.delete(None)
 
 
-@patch('cadctap.core.net.BaseWsClient.post')
-def test_load_table(base_put_mock):
+@patch('cadcutils.net.ws.BaseWsClient.post')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_load_table(caps_get_mock, base_put_mock):
+    caps_get_mock.return_value = BASE_URL
     client = CadcTapClient(net.Subject())
     test_load_tb = os.path.join(TESTDATA_DIR, 'loadTable.txt')
+
+    # default format (tsv) using stdin
+    with open(test_load_tb, 'rb') as fh:
+        sys.stdin = fh
+        with patch('cadctap.core.open') as open_mock:
+            open_mock.return_value = fh
+            client.load('schema.sometable', '-')
+    base_put_mock.assert_called_with(
+        (TABLE_LOAD_CAPABILITY_ID, 'schema.sometable'), data=fh,
+        headers={'Content-Type': str(ALLOWED_CONTENT_TYPES['tsv'])})
 
     # default format (tsv)
     with open(test_load_tb, 'rb') as fh:
@@ -186,9 +244,11 @@ def test_load_table(base_put_mock):
         client.load('sometable', [])
 
 
-@patch('cadctap.core.net.BaseWsClient.post')
-@patch('cadctap.core.net.BaseWsClient.get')
-def test_create_index(base_get_mock, base_post_mock):
+@patch('cadcutils.net.ws.BaseWsClient.post')
+@patch('cadcutils.net.ws.BaseWsClient.get')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_create_index(caps_get_mock, base_get_mock, base_post_mock):
+    caps_get_mock.return_value = BASE_URL
     client = CadcTapClient(net.Subject())
     response1 = Mock()
     response1.status_code = 303
@@ -241,8 +301,10 @@ def test_create_index(base_get_mock, base_post_mock):
         client.create_index('sometable', 'col1')
 
 
-@patch('cadctap.core.net.BaseWsClient.get')
-def test_schema(base_get_mock):
+@patch('cadcutils.net.ws.BaseWsClient.get')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_schema(caps_get_mock, base_get_mock):
+    caps_get_mock.return_value = BASE_URL
     client = CadcTapClient(net.Subject())
     # default format
     client.schema()
@@ -250,8 +312,10 @@ def test_schema(base_get_mock):
         (TABLES_CAPABILITY_ID, None))
 
 
-@patch('cadctap.core.net.BaseWsClient.post')
-def test_query(base_post_mock):
+@patch('cadcutils.net.ws.BaseWsClient.post')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_query(caps_get_mock, base_post_mock):
+    caps_get_mock.return_value = BASE_URL
     client = CadcTapClient(net.Subject())
     # default format
     def_name = 'tmptable'
@@ -379,11 +443,6 @@ class TestCadcTapClient(unittest.TestCase):
         calls = [call()]
         schema_mock.assert_has_calls(calls)
 
-        sys.argv = ['cadc-tap', 'query', 'QUERY']
-        main_app()
-        calls = [call('QUERY', None, 'VOTable', None)]
-        query_mock.assert_has_calls(calls)
-
         sys.argv = ['cadc-tap', 'create', 'tablename', 'path/to/file']
         main_app()
         calls = [call('tablename', 'path/to/file', None)]
@@ -398,3 +457,14 @@ class TestCadcTapClient(unittest.TestCase):
         main_app()
         calls = [call('tablename', ['path/to/file'], 'tsv')]
         load_mock.assert_has_calls(calls)
+
+        sys.argv = ['cadc-tap', 'query', 'QUERY']
+        main_app()
+        calls = [call('QUERY', None, 'tsv', None)]
+        query_mock.assert_has_calls(calls)
+
+        query_file = os.path.join(TESTDATA_DIR, 'example_query.sql')
+        sys.argv = ['cadc-tap', 'query', '-i', query_file, '-s', 'tap']
+        main_app()
+        calls = [call('QUERY', None, 'tsv', None)]
+        query_mock.assert_has_calls(calls)
