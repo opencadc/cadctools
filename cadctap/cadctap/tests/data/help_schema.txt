@@ -1,10 +1,16 @@
 usage: cadc-tap schema [-h]
-                       [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                       [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a]
                        [--host HOST] [-d | -q | -v] [-s SERVICE]
 
 Print the tables available for querying.
+If no authentication option is specified, cadc-tap will look in the
+~/.netrc file for the cadc-ccda.hia-iha.nrc-cnrc.gc.ca or canfar.net
+domain, and if found, will use the -n option. If not, cadc-tap will
+look for ~/.ssl/cadcproxy.pem file, and if found, will use the --cert
+option. If not, cadc-tap will use the --anon option.
 
 optional arguments:
+  -a, --anon            use the service anonymously
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages

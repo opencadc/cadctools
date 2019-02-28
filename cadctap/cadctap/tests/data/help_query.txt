@@ -1,11 +1,16 @@
 usage: cadc-tap query [-h]
-                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a]
                       [--host HOST] [-d | -q | -v] [-o OUTPUT_FILE]
                       [-i INPUT_FILE] [-f {VOTable,csv,tsv}] [-t TMPTABLE]
                       [-s SERVICE]
                       [QUERY]
 
 Run an adql query
+If no authentication option is specified, cadc-tap will look in the
+~/.netrc file for the cadc-ccda.hia-iha.nrc-cnrc.gc.ca or canfar.net
+domain, and if found, will use the -n option. If not, cadc-tap will
+look for ~/.ssl/cadcproxy.pem file, and if found, will use the --cert
+option. If not, cadc-tap will use the --anon option.
 
 positional arguments:
   QUERY                 ADQL query to run, format is a string with quotes
@@ -13,12 +18,13 @@ positional arguments:
                         caom2.Observation"
 
 optional arguments:
+  -a, --anon            use the service anonymously
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages
   -f, --format {VOTable,csv,tsv}
-                        output format, either tsv, csv, fits (TBD), or
-                        votable(default)
+                        output format, either tsv(default), csv, fits (TBD),
+                        or VOTable
   -h, --help            show this help message and exit
   --host HOST           base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
@@ -44,10 +50,10 @@ optional arguments:
 
 Examples:
 - Anonymously run a query string:
-      cadc-tap query "SELECT TOP 10 type FROM caom2.Observation"
+      cadc-tap query -a -s tap "SELECT TOP 10 type FROM caom2.Observation"
 - Use certificate to run a query from a file:
-      cadc-tap query -i /data/query.sql --cert ~/.ssl/cadcproxy.pem
+      cadc-tap query -s tap -i ./cadctap/tests/data/example_query.sql --cert ~/.ssl/cadcproxy.pem
 - Use username/password to run a query on the tap service:
       cadc-tap query -s ivo://cadc.nrc.ca/tap "SELECT TOP 10 type FROM caom2.Observation" -u <username>
 - Use netrc file to run a query on the ams/mast service :
-      cadc-tap query -i data/query.sql -n -s ivo://cadc.nrc.ca/ams/mast
+      cadc-tap query -i ./cadctap/tests/data/example_query.sql -n -s ivo://cadc.nrc.ca/ams/mast
