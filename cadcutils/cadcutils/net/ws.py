@@ -85,6 +85,7 @@ import os
 import requests
 from requests import Session
 from six.moves.urllib.parse import urlparse
+import distro
 
 from cadcutils import exceptions
 from .. import version as cadctools_version
@@ -244,7 +245,7 @@ class BaseWsClient(object):
                                           platform.version())
         o_s = sys.platform
         if o_s.lower().startswith('linux'):
-            distname, version, osid = platform.linux_distribution()
+            distname, version, osid = distro.linux_distribution()
             self.os_info = "{} {}".format(distname, version)
         elif o_s == "darwin":
             release, version, machine = platform.mac_ver()
@@ -256,7 +257,9 @@ class BaseWsClient(object):
         # build the corresponding capabilities instance
         self.caps = WsCapabilities(self, host)
         self._host = host
-        if host is None:
+        if resource_id.startswith('http'):
+            self._host = resource_id
+        if self._host is None:
             base_url = self.caps.get_access_url(SERVICE_AVAILABILITY_ID)
             self._host = urlparse(base_url).hostname
 
@@ -679,6 +682,8 @@ class WsCapabilities(object):
         capabilities feature of the Web Service
         :return: URL to the capabilities feature
         """
+        if self.ws.resource_id.startswith('http'):
+            return '{}/capabilities'.format(self.ws.resource_id)
         if (time.time() - self.last_regtime) > CACHE_REFRESH_INTERVAL:
             if self.last_regtime == 0:
                 # startup

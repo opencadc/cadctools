@@ -116,8 +116,14 @@ class Capabilities(object):
         if (capability.get_interface(None) is not None) and \
                 ((capability.num_interfaces == 1) or
                  (len(security_methods) == 0)):
-            return capability.get_interface(None).access_url
-
+            i = capability.get_interface(None, interface_type)
+            if i is not None:
+                return i.access_url
+            else:
+                raise ValueError(
+                    'Capability {} does not support annonymous access. '
+                    'Please authenticate first'.
+                    format(capability_id))
         for sm in security_methods:
             interface = capability.get_interface(sm, interface_type)
             if interface is not None:
