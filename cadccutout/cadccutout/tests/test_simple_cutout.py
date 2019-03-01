@@ -119,8 +119,8 @@ def test_simple_cutout():
 
         for extension, result_hdu in enumerate(result_hdu_list):
             expected_hdu = expected_hdu_list[extension]
-            expected_wcs = WCS(header=expected_hdu.header)
-            result_wcs = WCS(header=result_hdu.header)
+            expected_wcs = WCS(header=expected_hdu.header, fix=False)
+            result_wcs = WCS(header=result_hdu.header, fix=False)
 
             np.testing.assert_array_equal(
                 expected_wcs.wcs.crpix, result_wcs.wcs.crpix,

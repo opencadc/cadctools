@@ -73,6 +73,7 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import numpy as np
 
+from math import ceil
 from copy import deepcopy
 
 from astropy.wcs import Sip
@@ -152,8 +153,14 @@ class CutoutND(object):
                 r_position, data_shape))
 
         if r_position:
-            c_data_shape = tuple(np.zeros(len_data, dtype=int))
-            position = (c_data_shape[:(len_data - len_pos)]) + r_position
+            # c_data_shape = tuple(np.zeros(len_data, dtype=int))
+            prepend_list = data_shape[:(len_data - len_pos)]
+            prepend_position_list = []
+
+            for idx, val in enumerate(prepend_list):
+                prepend_position_list.append(int(ceil((val / 2) - 0.5)))
+
+            position = tuple(prepend_position_list) + r_position
         else:
             position = None
 
@@ -175,7 +182,7 @@ class CutoutND(object):
             {}.'.format(
                 shape, position, cutout_region.get_extension(), data.shape))
             cutout_data, position = extract_array(
-                data, shape, position, mode='partial', return_position=True)
+                data, shape, position, mode='trim', return_position=True)
 
         if self.wcs:
             cutout_shape = cutout_data.shape
@@ -202,6 +209,7 @@ class CutoutND(object):
         else:
             logger.debug('No WCS present.')
             output_wcs = None
+            wcs_crpix = None
 
         return CutoutResult(data=cutout_data, wcs=output_wcs,
                             wcs_crpix=wcs_crpix)
