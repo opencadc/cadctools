@@ -5,6 +5,8 @@ usage: cadc-tap create [-h]
                        TABLENAME TABLEDEFINITION
 
 Create a table
+To use .netrc, either ws-cadc.canfar.net or
+www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca or both needs to be in .netrc
 If no authentication option is specified, cadc-tap will look in the
 ~/.netrc file for the cadc-ccda.hia-iha.nrc-cnrc.gc.ca or canfar.net
 domain, and if found, will use the -n option. If not, cadc-tap will

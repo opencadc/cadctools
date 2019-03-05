@@ -75,9 +75,7 @@ import traceback
 import sys
 from clint.textui import progress
 import datetime
-from cadcutils import net, util
-# from cadcutils.net import wscapabilities
-# from cadcutils.net import ws
+from cadcutils import net, util, exceptions
 from six.moves import input
 import netrc as netrclib
 import os
@@ -105,6 +103,8 @@ ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values',
 ALLOWED_TB_DEF_TYPES = {'VOSITable': 'text/xml',
                         'VOTable': 'application/x-votable+xml'}
 AUTH_OPTION_EXPLANATION = \
+    'To use .netrc, either ws-cadc.canfar.net or\n'\
+    'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca or both needs to be in .netrc\n'\
     'If no authentication option is specified, cadc-tap will look in the\n'\
     '~/.netrc file for the cadc-ccda.hia-iha.nrc-cnrc.gc.ca or canfar.net\n'\
     'domain, and if found, will use the -n option. If not, cadc-tap will\n'\
@@ -549,7 +549,7 @@ def main_app(command='cadc-tap query'):
         '- Anonymously run a query string:\n'
         '      {0} -a -s tap "SELECT TOP 10 type FROM caom2.Observation"\n'
         '- Use certificate to run a query from a file:\n'
-        '      {0} -s tap -i ./cadctap/tests/data/example_query.sql'
+        '      {0} -s tap -i /tmp/cadctap/data/example_query.sql'
         ' --cert ~/.ssl/cadcproxy.pem\n'
         '- Use username/password to run a query on the tap service:\n'
         '      {0} -s ivo://cadc.nrc.ca/tap '
@@ -557,7 +557,7 @@ def main_app(command='cadc-tap query'):
         ' -u <username>\n'
         '- Use netrc file to run a query on the ams/mast service'
         ' :\n'
-        '      {0} -i ./cadctap/tests/data/example_query.sql'
+        '      {0} -i /tmp/cadctap/data/example_query.sql'
         ' -n -s ivo://cadc.nrc.ca/ams/mast\n'.
         format(command))
 
@@ -667,9 +667,10 @@ def main_app(command='cadc-tap query'):
     else:
         logging.basicConfig(level=logging.WARN, stream=sys.stdout)
 
-    subject = _get_subject(args)
-
     try:
+        error_message = None
+        subject = _get_subject(args)
+
         if ('http:' not in args.service and
                 'https:' not in args.service and
                 'cadc.nrc.ca' not in args.service):
@@ -710,9 +711,9 @@ def main_app(command='cadc-tap query'):
         elif args.cmd == 'schema':
             client.schema()
     except Exception as ex:
+        if isinstance(ex, exceptions.HttpException):
+            error_message = ex.orig_exception.message
         exit_on_exception(ex, error_message)
-    finally:
-        print('DONE')
 
 
 #############################################################################
