@@ -77,7 +77,7 @@ from cadccutout.file_helpers.base_file_helper import BaseFileHelper
 from cadccutout.utils import is_integer
 from astropy.nddata import NoOverlapError
 from astropy.wcs import WCS
-from astropy.io.fits import PrimaryHDU, Header
+from astropy.io.fits import PrimaryHDU
 from astropy.io import fits
 
 
@@ -108,7 +108,6 @@ class FITSHelper(BaseFileHelper):
         """
         if cutout_result.wcs is not None:
             cutout_wcs = cutout_result.wcs
-            cutout_wcs_header = cutout_wcs.to_header(relax=True)
 
             if cutout_result.wcs_crpix is not None:
                 cutout_crpix = cutout_result.wcs_crpix
