@@ -84,8 +84,6 @@ logger = logging.getLogger(__name__)
 
 __all__ = ['OpenCADCCutout', 'WriteOnlyStream']
 
-UNSET_ARG = object()
-
 
 class OpenCADCCutout(object):
     """
@@ -150,8 +148,8 @@ class OpenCADCCutout(object):
         self.helper_factory = helper_factory
         self.input_range_parser = input_range_parser
 
-    def cutout(self, cutout_dimensions, input_reader=UNSET_ARG,
-               output_writer=UNSET_ARG, file_type='FITS'):
+    def cutout(self, cutout_dimensions, input_reader=None,
+               output_writer=None, file_type='FITS'):
         """
         Perform a Cutout of the given data at the given position and size.
 
@@ -174,9 +172,7 @@ class OpenCADCCutout(object):
         if not cutout_dimensions or len(cutout_dimensions) == 0:
             raise ValueError('No Cutout regions specified.')
 
-        if not input_reader:
-            raise ValueError('No input source specified.')
-        elif input_reader == UNSET_ARG:
+        if input_reader is None:
             # Python 3 uses the buffer property to treat stream data as binary.
             # Python 2 (sometimes) requires the -u command line switch.
             if hasattr(sys.stdin, 'buffer'):
@@ -186,9 +182,7 @@ class OpenCADCCutout(object):
         else:
             input_stream = input_reader
 
-        if not output_writer:
-            raise ValueError('No output target specified.')
-        elif output_writer == UNSET_ARG:
+        if output_writer is None:
             # Python 3 uses the buffer property to treat stream data as binary.
             # Python 2 (sometimes) requires the -u command line switch.
             if hasattr(sys.stdout, 'buffer'):
@@ -206,7 +200,7 @@ class OpenCADCCutout(object):
         except OSError as oe:
             raise ValueError(
                 'Output target or input source unusable (Did you specify an '
-                'input and output?).\n{}'.format(oe))
+                'input and output?).\n{}'.format(str(oe)))
 
     def _parse_input(self, input_cutout_dimensions):
         if self.input_range_parser.is_pixel_cutout(input_cutout_dimensions[0]):
@@ -231,8 +225,8 @@ class OpenCADCCutout(object):
 
         return input_cutout_dimensions
 
-    def cutout_from_string(self, cutout_dimensions_str, input_reader=UNSET_ARG,
-                           output_writer=UNSET_ARG, file_type='FITS'):
+    def cutout_from_string(self, cutout_dimensions_str, input_reader=None,
+                           output_writer=None, file_type='FITS'):
         """
         Perform a Cutout of the given data at the given position and size.
 
@@ -313,10 +307,10 @@ def main_app(argv=None):
     parser.add_argument('--type', '-t', choices=['FITS'], default='FITS',
                         help='Optional file type.  Defaults to FITS.')
     parser.add_argument('--infile', '-i', type=argparse.FileType(mode='rb'),
-                        nargs='?', default=UNSET_ARG,
+                        nargs='?', default=None,
                         help='Optional input file.  Defaults to stdin.')
     parser.add_argument('--outfile', '-o', type=argparse.FileType(mode='ab+'),
-                        nargs='?', default=UNSET_ARG,
+                        nargs='?', default=None,
                         help='Optional output file.  Defaults to stdout.')
 
     parser.add_argument(

@@ -168,13 +168,15 @@ class PixelRangeInputParser(object):
             if l_items == 2:
                 extension = split_items[0]
                 pixel_ranges = list(map(self._to_range_tuple, list(
-                    filter(self._is_valid_range, split_items[1].split(self.separator)))))
+                    filter(self._is_valid_range, split_items[1].split(
+                        self.separator)))))
             elif l_items == 1:
                 item = split_items[0]
                 if item.count(self.delimiter) > 0:
                     extension = '0'
                     pixel_ranges = list(map(self._to_range_tuple, list(
-                        filter(self._is_valid_range, item.split(self.separator)))))
+                        filter(self._is_valid_range,
+                               item.split(self.separator)))))
                 else:
                     extension = item
             else:

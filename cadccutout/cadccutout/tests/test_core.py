@@ -161,16 +161,6 @@ def test_construct():
     assert str(ve.value) == 'No Cutout regions specified.', \
         'Wrong error message.'
 
-    with pytest.raises(ValueError) as ve2:
-        test_subject.cutout([PixelCutoutHDU([(8, 10)])], input_reader=None)
-    assert str(ve2.value) == 'No input source specified.', \
-        'Wrong error message.'
-
-    with pytest.raises(ValueError) as ve3:
-        test_subject.cutout([PixelCutoutHDU([(8, 10)])], output_writer=None)
-    assert str(ve3.value) == 'No output target specified.', \
-        'Wrong error message.'
-
     with pytest.raises(FileNotFoundError):
         test_subject.cutout([PixelCutoutHDU([(8, 10)])],
                             input_reader=open('/no/such/file'))
