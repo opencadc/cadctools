@@ -120,23 +120,23 @@ def _extname_sort_func(hdu):
                           test_dir_name, wcs_naxis_val, use_extension_names',
     [
         ('[200:500,100:300,100:140]', '/usr/src/data/test-gmims-cube.fits',
-         '/usr/src/data/test-gmims-cube-cutout.fits', True, DEFAULT_TEST_FILE_DIR,
-         None, False),
+         '/usr/src/data/test-gmims-cube-cutout.fits', True,
+         DEFAULT_TEST_FILE_DIR, None, False),
         ('[1][20:40][2][20:40]', '/usr/src/data/public_fits.fits.fz',
-         '/usr/src/data/public_fits.cutout.fits.fz', True, DEFAULT_TEST_FILE_DIR,
-         None, True),
+         '/usr/src/data/public_fits.cutout.fits.fz', True,
+         DEFAULT_TEST_FILE_DIR, None, True),
         ('[80:220,100:150,100:150]', '/usr/src/data/test-alma-cube.fits',
-         '/usr/src/data/test-alma-cube-cutout.fits', True, DEFAULT_TEST_FILE_DIR,
-         None, False),
+         '/usr/src/data/test-alma-cube-cutout.fits', True,
+         DEFAULT_TEST_FILE_DIR, None, False),
         ('[200:400,500:1000,10:20]', '/usr/src/data/test-cgps-cube.fits',
-         '/usr/src/data/test-cgps-cube-cutout.fits', True, DEFAULT_TEST_FILE_DIR,
-         None, False),
+         '/usr/src/data/test-cgps-cube-cutout.fits', True,
+         DEFAULT_TEST_FILE_DIR, None, False),
         ('[1000:1200,800:1000,160:200]', '/usr/src/data/test-sitelle-cube.fits',
          '/usr/src/data/test-sitelle-cube-cutout.fits', False,
          DEFAULT_TEST_FILE_DIR, 2, False),
         ('[500:900,300:1000,8:12]', '/usr/src/data/test-vlass-cube.fits',
-         '/usr/src/data/test-vlass-cube-cutout.fits', True, DEFAULT_TEST_FILE_DIR,
-         None, False),
+         '/usr/src/data/test-vlass-cube-cutout.fits', True,
+         DEFAULT_TEST_FILE_DIR, None, False),
         ('[SCI,10][80:220,100:150][1][10:16,70:90][106][8:32,88:112][126]',
          '/usr/src/data/test-hst-mef.fits',
          '/usr/src/data/test-hst-mef-cutout.fits', True, DEFAULT_TEST_FILE_DIR,
@@ -197,7 +197,8 @@ def test_integration_test(
             result_data = result_hdu.data
 
             if expected_data is not None and result_data is not None:
-                assert expected_data.shape == result_data.shape, 'Shapes don\'t match.'
+                assert expected_data.shape == result_data.shape, \
+                    'Shapes don\'t match.'
                 np.testing.assert_array_equal(
                     expected_data, result_data, 'Arrays do not match.')
             else:
@@ -286,7 +287,8 @@ def test_integration_wcs_test(
 
             try:
                 if expected_data is not None and result_data is not None:
-                    assert expected_data.shape == result_data.shape, 'Shapes don\'t match.'
+                    assert expected_data.shape == result_data.shape, \
+                        'Shapes don\'t match.'
                     np.testing.assert_array_equal(
                         expected_data, result_data, 'Arrays do not match.')
                 else:

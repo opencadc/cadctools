@@ -124,6 +124,7 @@ def test_is_extension_requested():
     dimension = PixelCutoutHDU([(400, 800)], extension=2)
     assert test_subject._is_extension_requested('2', ('NOM', 7), dimension)
 
+
 def test_post_sanitize_header():
     test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
     data = np.arange(10000).reshape(100, 100)
@@ -140,6 +141,7 @@ def test_post_sanitize_header():
     test_subject._post_sanitize_header(header, result)
 
     assert 'VALUE1' == header.get('REMAIN1'), 'REMAIN1 should still be there.'
+
 
 def test_post_sanitize_header_crpix():
     test_subject = FITSHelper(io.BytesIO(), io.BytesIO())

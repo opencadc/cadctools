@@ -71,7 +71,6 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import io
-import sys
 import logging
 import pytest
 from cadccutout.core import OpenCADCCutout, WriteOnlyStream
@@ -166,6 +165,6 @@ def test_construct():
     assert str(ve3.value) == 'No output target specified.', \
         'Wrong error message.'
 
-    with pytest.raises(FileNotFoundError) as ve4:
+    with pytest.raises(FileNotFoundError):
         test_subject.cutout([PixelCutoutHDU([(8, 10)])],
                             input_reader=open('/no/such/file'))
