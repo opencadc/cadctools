@@ -4,7 +4,7 @@ import sys
 import os
 import logging
 from six import StringIO
-from mock import patch
+from mock import patch, Mock
 from astropy.io import fits
 import tempfile
 import numpy as np
@@ -40,7 +40,7 @@ TABLE_DEF = '{}/createTable.vosi'.format(TESTDATA_DIR)
 
 def test_commands(monkeypatch):
     # test cadc TAP service with anonymous access
-    sys.argv = ['cadc-tap', 'query', '-s', 'ivo://cadc.nrc.ca/tap',
+    sys.argv = ['cadc-tap', 'query', '-s', 'ivo://cadc.nrc.ca/tap', '-f', 'VOTable',
                 'select observationID FROM caom2.Observation '
                 'where observationID=\'dao_c122_2018_003262\'']
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
@@ -52,7 +52,8 @@ def test_commands(monkeypatch):
     sys.argv = 'cadc-tap delete --cert {} {}'.format(CERT, TABLE).split()
     try:
         monkeypatch.setattr('cadctap.core.input', lambda x: "yes")
-        main_app()
+        with patch('cadctap.core.sys.exit'):
+            main_app()
         logger.debug('Deleted table {}'.format(TABLE))
     except Exception as e:
         logger.debug(
@@ -69,7 +70,7 @@ def test_commands(monkeypatch):
             'Cannot create table {}. Reason: {}'.format(TABLE, str(e)))
         raise e
 
-    sys.argv = 'cadc-tap query --cert {}'.format(CERT).split()
+    sys.argv = 'cadc-tap query -f VOTable --cert {}'.format(CERT).split()
     sys.argv.append('select * from {}'.format(TABLE))
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         main_app()
@@ -98,7 +99,7 @@ def test_commands(monkeypatch):
             'Cannot load table csv {}. Reason: {}'.format(TABLE, str(e)))
         raise e
 
-    sys.argv = 'cadc-tap query --cert {}'.format(CERT).split()
+    sys.argv = 'cadc-tap query -f VOTable --cert {}'.format(CERT).split()
     sys.argv.append('select * from {}'.format(TABLE))
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         main_app()
@@ -121,7 +122,7 @@ def test_commands(monkeypatch):
             'Cannot load tsv table {}. Reason: {}'.format(TABLE, str(e)))
         raise e
 
-    sys.argv = 'cadc-tap query --cert {}'.format(CERT).split()
+    sys.argv = 'cadc-tap query -f VOTable --cert {}'.format(CERT).split()
     sys.argv.append('select * from {}'.format(TABLE))
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         main_app()
@@ -157,7 +158,7 @@ def test_commands(monkeypatch):
             'Cannot load table bintable {}. Reason: {}'.format(TABLE, str(e)))
         raise e
 
-    sys.argv = 'cadc-tap query --cert {}'.format(CERT).split()
+    sys.argv = 'cadc-tap query -f VOTable --cert {}'.format(CERT).split()
     sys.argv.append('select * from {}'.format(TABLE))
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         main_app()
