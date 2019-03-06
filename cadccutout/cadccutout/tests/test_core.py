@@ -76,6 +76,12 @@ import pytest
 from cadccutout.core import OpenCADCCutout, WriteOnlyStream
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 
+# Compatibility with Python 2.7, where there is no FileNotFoundError.
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
+
 logger = logging.getLogger('cadccutout')
 logger.setLevel(logging.DEBUG)
 
