@@ -106,14 +106,11 @@ class FITSHelper(BaseFileHelper):
         """
         Fix the CRPIX offset
         """
-        if cutout_result.wcs is not None:
-            cutout_wcs = cutout_result.wcs
+        if cutout_result.wcs_crpix is not None:
+            cutout_crpix = cutout_result.wcs_crpix
 
-            if cutout_result.wcs_crpix is not None:
-                cutout_crpix = cutout_result.wcs_crpix
-
-                for idx, val in enumerate(cutout_crpix):
-                    header.set('CRPIX{}'.format(idx + 1), val)
+            for idx, val in enumerate(cutout_crpix):
+                header.set('CRPIX{}'.format(idx + 1), val)
 
     def _get_wcs(self, header):
         naxis_value = header.get('NAXIS')
