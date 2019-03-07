@@ -79,7 +79,8 @@ from cadctap.core import main_app
 from mock import Mock, patch, call
 import pytest
 from cadctap import CadcTapClient
-from cadctap.core import _get_subject_from_netrc, _get_subject_from_certificate
+from cadctap.core import _get_subject_from_netrc, _get_subject_from_certificate,\
+    _get_subject
 from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
     ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID, QUERY_CAPABILITY_ID,\
     TABLE_LOAD_CAPABILITY_ID
@@ -140,6 +141,76 @@ def test_get_subject_from_netrc(netrc_mock, client_mock):
     subject = _get_subject_from_netrc('ivo://cadc.nrc.ca/sc2tap')
     assert(subject is not None)
     assert(isinstance(subject, net.Subject))
+
+
+@patch('cadctap.core.CadcTapClient')
+@patch('netrc.netrc')
+@patch('cadcutils.net.auth.Subject.from_cmd_line_args')
+def test_get_subject(from_cmd_line_mock, netrc_mock, client_mock):
+    args = Mock()
+    args.service = 'ivo://cadc.nrc.ca/sc2tap'
+    args.anon = None
+    # authentication option specified
+    netrc_subject = net.Subject(netrc=True)
+    from_cmd_line_mock.return_value = netrc_subject
+    netrc_instance = netrc_mock.return_value
+    client_instance = client_mock.return_value
+    ret_subject = _get_subject(args)
+    assert(ret_subject is not None)
+    assert(ret_subject == netrc_subject)
+
+    # no authentication options, pick -n option
+    anon_subject = net.Subject()
+    netrc_subject = net.Subject(netrc=True)
+    from_cmd_line_mock.return_value = anon_subject
+    netrc_instance = netrc_mock.return_value
+    netrc_instance.hosts = {'netrc.host':'netrc.host.ca'}
+    client_instance = client_mock.return_value
+    client_instance._tap_client._host = 'netrc.host'
+    ret_subject = _get_subject(args)
+    assert(ret_subject is not None)
+    assert(ret_subject.anon is False)
+    assert(ret_subject.certificate is None)
+    assert(ret_subject.netrc is not None)
+
+    # no authentication options, pick --cert option
+    orig_home = os.environ['HOME']
+    try:
+        # has certificate
+        os.environ['HOME'] = TESTDATA_DIR
+        anon_subject = net.Subject()
+        netrc_subject = net.Subject(netrc=True)
+        from_cmd_line_mock.return_value = anon_subject
+        netrc_instance = netrc_mock.return_value
+        netrc_instance.hosts = {'netrc.host':'netrc.host.ca'}
+        client_instance = client_mock.return_value
+        client_instance._tap_client._host = 'no.such.host'
+        ret_subject = _get_subject(args)
+        assert(ret_subject is not None)
+        assert(ret_subject.anon is False)
+        assert(ret_subject.certificate is not None)
+        assert(ret_subject.netrc is False)
+    finally:
+        os.environ['HOME'] = orig_home
+
+    # no authentication options, pick --anon option
+    orig_home = os.environ['HOME']
+    try:
+        # has no certificate
+        os.environ['HOME'] = 'tmp'
+        anon_subject = net.Subject()
+        netrc_subject = net.Subject(netrc=True)
+        from_cmd_line_mock.return_value = anon_subject
+        netrc_instance = netrc_mock.return_value
+        netrc_instance.hosts = {'netrc.host':'netrc.host.ca'}
+        client_instance = client_mock.return_value
+        client_instance._tap_client._host = 'no.such.host'
+        ret_subject = _get_subject(args)
+        assert(ret_subject is not None)
+        assert(ret_subject == anon_subject)
+    finally:
+        os.environ['HOME'] = orig_home
+
 
 
 @patch('cadcutils.net.ws.BaseWsClient.put')
