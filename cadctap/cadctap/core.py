@@ -103,12 +103,13 @@ ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values',
 ALLOWED_TB_DEF_TYPES = {'VOSITable': 'text/xml',
                         'VOTable': 'application/x-votable+xml'}
 AUTH_OPTION_EXPLANATION = \
-    'To use .netrc, either ws-cadc.canfar.net or\n'\
-    'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca or both needs to be in .netrc\n'\
-    'If no authentication option is specified, cadc-tap will look in the\n'\
-    '~/.netrc file for the cadc-ccda.hia-iha.nrc-cnrc.gc.ca or canfar.net\n'\
-    'domain, and if found, will use the -n option. If not, cadc-tap will\n'\
-    'look for ~/.ssl/cadcproxy.pem file, and if found, will use the --cert\n'\
+    '\nTo obtain the host associated with a service, execute a subcommand\n'\
+    'with the service in verbose mode without specifying any authentication\n'\
+    'option\n\n'\
+    'If no authentication option is specified, cadc-tap will determine the\n'\
+    'host associated with the service and look in the ~/.netrc file for the\n'\
+    'host, and if found, will use the -n option. If not, cadc-tap will look\n'\
+    'for ~/.ssl/cadcproxy.pem file, and if found, will use the --cert\n'\
     'option. If not, cadc-tap will use the --anon option.'
 
 
@@ -431,13 +432,17 @@ def _customize_parser(parser):
              DEFAULT_SERVICE_ID))
 
 
-def _get_subject_from_netrc():
+def _get_subject_from_netrc(service):
     # if .netrc contains hosts in cadc.ugly or canfar.net, return a subject
     # else return None
     try:
+        dummy_subject = net.Subject()
+        dummy_client = CadcTapClient(dummy_subject, resource_id=service)
+        service_host = dummy_client._tap_client._host
+        logger.info('host for service {} is {}'.format(service, service_host))
         hosts = netrclib.netrc(None).hosts
         for host in hosts.keys():
-            if (CADC_DOMAIN in host) or (CANFAR_DOMAIN in host):
+            if (service_host in host):
                 return net.Subject(netrc=True)
 
         return None
@@ -465,7 +470,7 @@ def _get_subject(args):
         return subject
     else:
         # default, i.e. no authentication option specified
-        netrc_subject = _get_subject_from_netrc()
+        netrc_subject = _get_subject_from_netrc(args.service)
         if (netrc_subject is not None):
             # pick -n option
             logger.debug('use -n option')
@@ -669,12 +674,12 @@ def main_app(command='cadc-tap query'):
 
     try:
         error_message = None
-        subject = _get_subject(args)
 
-        if ('http:' not in args.service and
-                'https:' not in args.service and
+        if (not args.service.startswith('http') and
                 'cadc.nrc.ca' not in args.service):
             args.service = SERVICE_ID_PREFIX + args.service
+
+        subject = _get_subject(args)
 
         error_message = 'no tap service for ' + args.service
         client = CadcTapClient(subject, resource_id=args.service)

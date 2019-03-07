@@ -114,26 +114,30 @@ def test_get_subject_from_certificate():
         os.environ['HOME'] = orig_home
 
 
+@patch('cadctap.core.CadcTapClient')
 @patch('netrc.netrc')
-def test_get_subject_from_netrc(netrc_mock):
+def test_get_subject_from_netrc(netrc_mock, client_mock):
     netrc_instance = netrc_mock.return_value
+    client_instance = client_mock.return_value
     # no matching domain
+    client_instance._tap_client._host = 'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca'
     netrc_instance.hosts = {'no_such_host': 'my.host.ca'}
-    subject = _get_subject_from_netrc()
+    subject = _get_subject_from_netrc('tap')
     assert(subject is None)
     # matches CADC domain
     netrc_instance.hosts = {'no_such_host': 'my.host.ca',
-                            'cadc-ccda.hia-iha.nrc-cnrc.gc.ca':
+                            'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca':
                             'machine www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca \
                                 login auser password passwd'}
-    subject = _get_subject_from_netrc()
+    subject = _get_subject_from_netrc('tap')
     assert(subject is not None)
     assert(isinstance(subject, net.Subject))
     # matches CANFAR domain
+    client_instance._tap_client._host = 'sc2.canfar.net'
     netrc_instance.hosts = {'no_such_host': 'my.host.ca',
-                            'canfar.net': 'machine www.canfar.net \
+                            'sc2.canfar.net': 'machine www.canfar.net \
                                 login auser password passwd'}
-    subject = _get_subject_from_netrc()
+    subject = _get_subject_from_netrc('ivo://cadc.nrc.ca/sc2tap')
     assert(subject is not None)
     assert(isinstance(subject, net.Subject))
 
