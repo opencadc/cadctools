@@ -112,7 +112,7 @@ class AxisType(object):
         else:
             naxis = naxis_value
 
-        return WCS(header=header, naxis=naxis)
+        return WCS(header=header, naxis=naxis, fix=False)
 
     COORDINATE_TYPE = 'coordinate_type'
     SPATIAL_KEYWORDS = ['celestial']
@@ -413,7 +413,7 @@ class Transform(object):
         # WCS from the header, extract only the spatial axes wcs, the sky to pix
         # transform will want to convert each axis in the wcs, and we only have
         # spatial data.
-        wcs = WCS(header, naxis=[naxis1, naxis2])
+        wcs = WCS(header, naxis=[naxis1, naxis2], fix=False)
 
         # Circle region with radius
         sky_region = CircleSkyRegion(sky_coords, radius=radius)
@@ -465,7 +465,7 @@ class Transform(object):
         # WCS from the header, extract only the spatial axes,
         # because the sky to pix transform will want to convert
         # every axis in the wcs, and we only have spatial data to convert.
-        wcs = WCS(header, naxis=[naxis1, naxis2])
+        wcs = WCS(header, naxis=[naxis1, naxis2], fix=False)
 
         # Polygon region
         sky_region = PolygonSkyRegion(sky_coords)
@@ -502,7 +502,7 @@ class Transform(object):
         """
 
         # WCS from the header
-        wcs = WCS(header)
+        wcs = WCS(header, fix=False)
 
         # if the spectral wcs isn't a wavelength, transform the
         # spectral axis to wavelength.

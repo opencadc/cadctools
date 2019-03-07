@@ -155,7 +155,7 @@ class PixelCutoutHDU(object):
 
             return (es[0], ext_int)
         else:
-            return ext
+            return (ext, 1)
 
     def __str__(self):
         return 'PixelCutoutHDU(dimensions={}, extension={})'.format(

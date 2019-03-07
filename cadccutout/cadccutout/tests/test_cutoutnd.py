@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2018.                            (c) 2018.
+#  (c) 2019.                            (c) 2019.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -70,120 +70,52 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import logging
-import re
+import pytest
+import numpy as np
+from cadccutout.cutoutnd import CutoutND
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
-from cadccutout.utils import to_num
-
-__all__ = ['PixelRangeInputParserError', 'PixelRangeInputParser']
-
-logger = logging.getLogger(__name__)
-
-RANGE_BEGIN_CHAR = '['
-RANGE_END_CHAR = ']'
 
 
-class PixelRangeInputParserError(ValueError):
-    pass
+def test_create():
+    with pytest.raises(ValueError):
+        CutoutND(data=None)
 
 
-class PixelRangeInputParser(object):
-    """
-    Parse the pixel input as it was delivered.
-    """
+def test_get_position_shape():
+    data_shape = (4, 4)
+    data = np.random.random_sample(data_shape)
+    test_subject = CutoutND(data)
+    cutout_region = PixelCutoutHDU([(1, 200), (305, 600)])
+    (position, shape) = test_subject._get_position_shape(data_shape,
+                                                         cutout_region)
 
-    def __init__(self, delimiter=':', separator=','):
-        self.delimiter = delimiter
-        self.separator = separator
-        self.match_pattern = re.compile(
-            r'[\[?[\w]*,?\s*\d*\]?]?[\[?[\d*:?\d*,?\s*]*\]?]')
-        self.valid_range_pattern = r'\d*:?\d+'
+    assert shape == (296, 200), 'Wrong shape returned'
+    assert position == (451, 99), 'Wrong shape returned'
 
-    def is_pixel_cutout(self, input_str):
-        return input_str and input_str.count(RANGE_BEGIN_CHAR) > 0
 
-    def _is_valid_range(self, rs):
-        match = re.search(self.valid_range_pattern, rs)
-        return match and match.group()
+def test_get_position_shape_err_shape():
+    data_shape = (4, 4)
+    data = np.random.random_sample(data_shape)
+    test_subject = CutoutND(data)
+    cutout_region = PixelCutoutHDU([(1, 200), (305, 600), (100, 155)])
 
-    def _to_range_tuple(self, rs):
-        if self.delimiter not in rs:
-            return (to_num(rs), to_num(rs))  # Turns 7 into 7:7
-        else:
-            start, end = rs.split(self.delimiter)
+    with pytest.raises(ValueError) as ve:
+        test_subject._get_position_shape(data_shape, cutout_region)
 
-            if not start or not end:
-                raise PixelRangeInputParserError(
-                    'Incomplete range specified {}'.format(rs))
-            else:
-                return (to_num(start), to_num(end))
+    error_output = str(ve)
+    ind = error_output.index('ValueError: ') + len('ValueError: ')
+    assert error_output[ind:] == \
+        'Invalid shape requested (tried to extract (56, 296, 200) from (4, 4)).'
 
-    def parse(self, pixel_range_input_str):
-        """
-        Parse a string range.
-        :param  pixel_range_input_str: The string to parse.
-        :return List of PixelCutoutHDU instances
 
-        Example:
+def test_get_position_shape_prepend():
+    data_shape = (4, 4)
+    data = np.random.random_sample(data_shape)
+    test_subject = CutoutND(data)
+    cutout_region = PixelCutoutHDU([(10)])
 
-        rp = PixelRangeInputParser()
-        rp.parse('[0][1]')
-        => [PixelCutoutHDU((1,1), extension='0')]
+    (position, shape) = \
+        test_subject._get_position_shape(data_shape, cutout_region)
 
-        rp.parse('[99:112]')
-        => [PixelCutoutHDU((99,112), extension='0')]
-
-        rp.parse('[SCI][99:112][5]')
-        => [PixelCutoutHDU((99,112), extension=SCI),
-            PixelCutoutHDU(extension='5')]
-
-        rp.parse('[IMG,2][100:112][6][300:600]')
-        => [PixelCutoutHDU((100,112), extension='IMG,2'),
-            PixelCutoutHDU((300,600), extension='6')]
-        """
-        rs = pixel_range_input_str.strip()
-
-        if not self.is_pixel_cutout(rs):
-            raise PixelRangeInputParserError(
-                'Not a valid pixel cutout string "{}".'.format(rs))
-
-        # List of ranges in format [ext][pixel ranges]
-        ranges = re.findall(self.match_pattern, rs)
-
-        if not ranges:
-            raise PixelRangeInputParserError(
-                'Invalid range specified.  Should be in the format of {}  \
-                (i.e.[0][8:35]), or single digit(i.e. 9), or single name (SCI).'
-                .format(self.match_pattern))
-
-        parsed_items = []
-
-        for r in ranges:
-            pixel_ranges = []
-            logger.debug('Next range is {}'.format(r))
-            split_items = list(map(lambda x: x.split(
-                '[')[1], list(filter(None, r.split(']')))))
-            l_items = len(split_items)
-
-            if l_items == 2:
-                extension = split_items[0]
-                pixel_ranges = list(map(self._to_range_tuple, list(
-                    filter(self._is_valid_range, split_items[1].split(
-                        self.separator)))))
-            elif l_items == 1:
-                item = split_items[0]
-                if item.count(self.delimiter) > 0:
-                    extension = '0'
-                    pixel_ranges = list(map(self._to_range_tuple, list(
-                        filter(self._is_valid_range,
-                               item.split(self.separator)))))
-                else:
-                    extension = item
-            else:
-                raise PixelRangeInputParserError(
-                    'Nothing usable for range {}'.format(r))
-
-            parsed_items.append(PixelCutoutHDU(
-                dimension_ranges=pixel_ranges, extension=extension))
-
-        return parsed_items
+    assert position == (2, 9), 'Wrong position.'
+    assert shape == (4, 1), 'Wrong shape.'

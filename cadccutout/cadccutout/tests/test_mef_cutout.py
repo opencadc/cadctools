@@ -151,8 +151,8 @@ def test_mef_cutout():
 
         hdu1 = result_hdu_list[1]
         hdu2 = result_hdu_list[2]
-        wcs1 = WCS(header=hdu1.header)
-        wcs2 = WCS(header=hdu2.header)
+        wcs1 = WCS(header=hdu1.header, fix=False)
+        wcs2 = WCS(header=hdu2.header, fix=False)
 
         np.testing.assert_array_equal(
             wcs1.wcs.crpix, [-19.0, -39.0], 'Wrong CRPIX values.')
