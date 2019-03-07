@@ -125,57 +125,11 @@ def test_is_extension_requested():
     assert test_subject._is_extension_requested('2', ('NOM', 7), dimension)
 
 
-def test_pc_leading_zeroes_header_fix():
-    test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
-    data = np.arange(10000).reshape(100, 100)
-    header = Header()
-    wcs = WCS()
-    header.set('NAXIS', 2)
-    header.set('NAXIS1', 88)
-    header.set('NAXIS2', 212)
-    header.set('PC01_01', 44)
-    header.set('PC01_02', 88)
-    header.set('PC02_01', 22)
-    header.set('PC02_02', 33)
-
-    result = CutoutResult(data, wcs=wcs)
-
-    test_subject._post_sanitize_header(header, result)
-
-    assert not header.get('PC01_02'), 'PC01_02 should be renamed.'
-    assert not header.get('PC01_01'), 'PC01_01 should be renamed.'
-    assert 22 == header.get('PC2_1'), 'PC2_1 should be 22.'
-    assert 88 == header.get('PC1_2'), 'PC1_2 should be 88.'
-
-
-def test_cd_pc_header_fix():
-    test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
-    data = np.arange(10000).reshape(100, 100)
-    header = Header()
-    wcs = WCS()
-    header.set('NAXIS', 2)
-    header.set('NAXIS1', 88)
-    header.set('NAXIS2', 212)
-    header.set('CD1_1', 44)
-    header.set('CD1_2', 88)
-    header.set('CD2_1', 22)
-    header.set('CD2_2', 33)
-
-    result = CutoutResult(data, wcs=wcs)
-
-    test_subject._post_sanitize_header(header, result)
-
-    assert not header.get('CD1_2'), 'CD1_2 should be renamed.'
-    assert not header.get('CD1_1'), 'CD1_1 should be renamed.'
-    assert 44 == header.get('PC1_1'), 'PC1_1 should be 44.'
-    assert 33 == header.get('PC2_2'), 'PC2_2 should be 33.'
-
-
 def test_post_sanitize_header():
     test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
     data = np.arange(10000).reshape(100, 100)
     header = Header()
-    wcs = WCS()
+    wcs = WCS(fix=False)
     header.set('REMAIN1', 'VALUE1')
     header.set('DQ1', 'dqvalue1')
     header.set('NAXIS', 2)
@@ -187,39 +141,13 @@ def test_post_sanitize_header():
     test_subject._post_sanitize_header(header, result)
 
     assert 'VALUE1' == header.get('REMAIN1'), 'REMAIN1 should still be there.'
-    assert not header.get('DQ1'), 'DQ1 should be gone.'
-
-
-def test_post_sanitize_header_ctype():
-    test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
-    data = np.arange(10000).reshape(100, 100)
-    header = Header()
-    wcs = WCS()
-    header.set('REMAIN1', 'VALUE1')
-    header.set('DQ1', 'dqvalue1')
-    header.set('NAXIS', 2)
-    header.set('NAXIS1', 88)
-    header.set('NAXIS2', 212)
-    header.set('CTYPE1', 'ctype1value')
-    header.set('WCSAXES', 2)
-
-    result = CutoutResult(data, wcs=wcs)
-
-    assert header.index('WCSAXES') > header.index('CTYPE1'), \
-        'Start with bad indexes...'
-
-    test_subject._post_sanitize_header(header, result)
-
-    assert 'VALUE1' == header.get('REMAIN1'), 'REMAIN1 should still be there.'
-    assert not header.get('DQ1'), 'DQ1 should be gone.'
-    assert header.index('WCSAXES') < header.index('CTYPE1'), 'Bad indexes'
 
 
 def test_post_sanitize_header_crpix():
     test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
     data = np.arange(10000).reshape(100, 100)
     header = Header()
-    wcs = WCS()
+    wcs = WCS(fix=False)
     header.set('REMAIN1', 'VALUE1')
     header.set('DQ1', 'dqvalue1')
     header.set('NAXIS', 2)
@@ -237,5 +165,3 @@ def test_post_sanitize_header_crpix():
     test_subject._post_sanitize_header(header, result)
 
     assert 'VALUE1' == header.get('REMAIN1'), 'REMAIN1 should still be there.'
-    assert not header.get('DQ1'), 'DQ1 should be gone.'
-    assert header.index('WCSAXES') < header.index('CRPIX1'), 'Bad indexes'

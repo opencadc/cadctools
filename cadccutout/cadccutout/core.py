@@ -148,8 +148,8 @@ class OpenCADCCutout(object):
         self.helper_factory = helper_factory
         self.input_range_parser = input_range_parser
 
-    def cutout(self, cutout_dimensions, input_reader=sys.stdin,
-               output_writer=sys.stdout, file_type='FITS'):
+    def cutout(self, cutout_dimensions, input_reader=None,
+               output_writer=None, file_type='FITS'):
         """
         Perform a Cutout of the given data at the given position and size.
 
@@ -168,22 +168,39 @@ class OpenCADCCutout(object):
         file_type: string
             The file type, in upper case.  Will usually be 'FITS'.
         """
-        if not input_reader:
-            raise ValueError('No input source specified.')
-        elif not output_writer:
-            raise ValueError('No output target specified.')
-        elif not cutout_dimensions or len(cutout_dimensions) == 0:
+
+        if not cutout_dimensions or len(cutout_dimensions) == 0:
             raise ValueError('No Cutout regions specified.')
 
+        if input_reader is None:
+            # Python 3 uses the buffer property to treat stream data as binary.
+            # Python 2 (sometimes) requires the -u command line switch.
+            if hasattr(sys.stdin, 'buffer'):
+                input_stream = sys.stdin.buffer
+            else:
+                input_stream = sys.stdin
+        else:
+            input_stream = input_reader
+
+        if output_writer is None:
+            # Python 3 uses the buffer property to treat stream data as binary.
+            # Python 2 (sometimes) requires the -u command line switch.
+            if hasattr(sys.stdout, 'buffer'):
+                output_stream = sys.stdout.buffer
+            else:
+                output_stream = sys.stdout
+        else:
+            output_stream = output_writer
+
         file_helper = self._get_file_helper(
-            file_type, input_reader, output_writer)
+            file_type, input_stream, output_stream)
 
         try:
             file_helper.cutout(cutout_dimensions)
-        except OSError:
+        except OSError as oe:
             raise ValueError(
                 'Output target or input source unusable (Did you specify an '
-                'input and output?).')
+                'input and output?).\n{}'.format(str(oe)))
 
     def _parse_input(self, input_cutout_dimensions):
         if self.input_range_parser.is_pixel_cutout(input_cutout_dimensions[0]):
@@ -208,8 +225,8 @@ class OpenCADCCutout(object):
 
         return input_cutout_dimensions
 
-    def cutout_from_string(self, cutout_dimensions_str, input_reader=sys.stdin,
-                           output_writer=sys.stdout, file_type='FITS'):
+    def cutout_from_string(self, cutout_dimensions_str, input_reader=None,
+                           output_writer=None, file_type='FITS'):
         """
         Perform a Cutout of the given data at the given position and size.
 
@@ -276,18 +293,6 @@ def main_app(argv=None):
     # Execute only if run as a script.
     parser = argparse.ArgumentParser()
 
-    # Python 3 uses the buffer property to treat stream data as binary.
-    # Python 2 (sometimes) requires the -u command line switch.
-    if hasattr(sys.stdin, 'buffer'):
-        default_input = sys.stdin.buffer
-    else:
-        default_input = sys.stdin
-
-    if hasattr(sys.stdout, 'buffer'):
-        default_output = sys.stdout.buffer
-    else:
-        default_output = sys.stdout
-
     parser.description = ('Cutout library to extract an N-Dimension array.')
     parser.formatter_class = argparse.RawTextHelpFormatter
 
@@ -299,14 +304,13 @@ def main_app(argv=None):
                         help='verbose messages')
     parser.add_argument('--version', action='version', version=version.version)
 
-    parser.add_argument('--type', '-t', choices=['FITS'],
-                        default='FITS',
+    parser.add_argument('--type', '-t', choices=['FITS'], default='FITS',
                         help='Optional file type.  Defaults to FITS.')
     parser.add_argument('--infile', '-i', type=argparse.FileType(mode='rb'),
-                        default=default_input, nargs='?',
+                        nargs='?', default=None,
                         help='Optional input file.  Defaults to stdin.')
     parser.add_argument('--outfile', '-o', type=argparse.FileType(mode='ab+'),
-                        default=default_output, nargs='?',
+                        nargs='?', default=None,
                         help='Optional output file.  Defaults to stdout.')
 
     parser.add_argument(
@@ -314,6 +318,7 @@ def main_app(argv=None):
         of the 0th extension along the first axis', nargs='+')
 
     args = parser.parse_args(args=argv)
+
     if not args:
         parser.print_usage(file=sys.stderr)
         sys.stderr.write("{}: error: too few arguments\n".format(__name__))
@@ -332,21 +337,18 @@ def main_app(argv=None):
 
     logging.info('Start cutout.')
 
-    try:
-        # Support multiple strings.  This will write out as many cutouts as
-        # it finds.
-        c.cutout_from_string(
-            args.cutout, input_reader=args.infile,
-            output_writer=WriteOnlyStream(args.outfile),
-            file_type=args.type)
-    finally:
-        logging.info('End cutout.')
+    # Support multiple strings.  This will write out as many cutouts as
+    # it finds.
+    c.cutout_from_string(
+        args.cutout, input_reader=args.infile,
+        output_writer=args.outfile,
+        file_type=args.type)
 
 
 if __name__ == "__main__":
     try:
         main_app()
-        exit(0)
+        sys.exit(0)
     except Exception as e:
         logging.error('{}'.format(str(e)))
-        exit(-1)
+        sys.exit(-1)

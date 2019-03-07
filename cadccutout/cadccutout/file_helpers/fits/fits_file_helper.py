@@ -89,11 +89,6 @@ __all__ = ['FITSHelper']
 logger = logging.getLogger(__name__)
 
 
-# Remove the DQ1 and DQ2 headers until the issue with wcslib is resolved:
-# https://github.com/astropy/astropy/issues/7828
-UNDESIREABLE_HEADER_KEYS = ['DQ1', 'DQ2']
-
-
 class FITSHelper(BaseFileHelper):
 
     def __init__(self, input_stream, output_writer):
@@ -109,97 +104,13 @@ class FITSHelper(BaseFileHelper):
 
     def _post_sanitize_header(self, header, cutout_result):
         """
-        Remove headers that don't belong in the cutout output.
+        Fix the CRPIX offset
         """
-        BOTTOM_BOUND_INDEX = 9999
-        # Remove known keys
-        for x in UNDESIREABLE_HEADER_KEYS:
-            header.remove(x, ignore_missing=True, remove_all=True)
+        if cutout_result.wcs_crpix is not None:
+            cutout_crpix = cutout_result.wcs_crpix
 
-        # Set it to a high number as we will want to (potentially) move the
-        # WCSAXES header card up, meaning a lower index.  So start at the
-        # bottom.
-        pc11_key_idx = BOTTOM_BOUND_INDEX
-        if cutout_result.wcs is not None:
-            naxis = header.get('NAXIS', 0)
-            cutout_wcs = cutout_result.wcs
-            cutout_wcs_header = cutout_wcs.to_header(relax=True)
-            header.update(cutout_wcs_header)
-
-            if cutout_result.wcs_crpix is not None:
-                cutout_crpix = cutout_result.wcs_crpix
-
-                for idx, val in enumerate(cutout_crpix):
-                    header.set('CRPIX{}'.format(idx + 1), val)
-
-            # Remove the CDi_j headers in favour of the PCi_j equivalents
-            for i in range(naxis):
-                for j in range(naxis):
-                    idx_val = '{}_{}'.format(i + 1, j + 1)
-                    cd_key = 'CD{}'.format(idx_val)
-                    cd_val = header.get(cd_key)
-
-                    if cd_val or cd_val == 0:
-                        pc_key = 'PC{}'.format(idx_val)
-
-                        if not header.get(pc_key):
-                            header.rename_keyword(cd_key, pc_key)
-                        else:
-                            header.remove(cd_key)
-
-                        if i == 0 and j == 0:
-                            pc11_key_idx = header.index(pc_key)
-
-            # Check for padded (leading) zeroes in the PC key names.
-            for i in range(naxis):
-                for j in range(naxis):
-                    pc_key = 'PC0{}_0{}'.format(i + 1, j + 1)
-                    pc_val = header.get(pc_key)
-
-                    if pc_val or pc_val == 0:
-                        pc_fix_key = 'PC{}_{}'.format(i + 1, j + 1)
-                        header.rename_keyword(pc_key, pc_fix_key)
-
-                        if i == 0 and j == 0:
-                            pc11_key_idx = header.index(pc_fix_key)
-
-            # Is this necessary?
-            header.set('WCSAXES', naxis)
-
-        # If a WCSAXES card exists, ensure that it comes before the CTYPE1
-        # and the CRPIX1 cards.
-        wcsaxes_keyword = 'WCSAXES'
-        ctype1_keyword = 'CTYPE1'
-        crpix1_keyword = 'CRPIX1'
-
-        if header.get(crpix1_keyword) is not None:
-            crpix1_index = header.index(crpix1_keyword)
-        else:
-            crpix1_index = BOTTOM_BOUND_INDEX
-
-        if header.get(ctype1_keyword) is not None:
-            ctype1_index = header.index(ctype1_keyword)
-        else:
-            ctype1_index = BOTTOM_BOUND_INDEX
-
-        if header.get(wcsaxes_keyword) is not None:
-            wcsaxes_index = header.index(wcsaxes_keyword)
-        else:
-            wcsaxes_index = BOTTOM_BOUND_INDEX
-
-        idx_threshold = min(ctype1_index, pc11_key_idx, crpix1_index)
-
-        logger.debug('Inserting WCSAXES at {} from {}'.format(idx_threshold,
-                                                              [ctype1_index,
-                                                               pc11_key_idx,
-                                                               crpix1_index]))
-
-        # Only proceed with this if both the WCSAXES and a threshold exists.
-        if wcsaxes_index > idx_threshold:
-            existing_wcsaxes_value = header.get(wcsaxes_keyword)
-            header.remove(wcsaxes_keyword)
-            header.insert(
-                idx_threshold, (wcsaxes_keyword, existing_wcsaxes_value))
+            for idx, val in enumerate(cutout_crpix):
+                header.set('CRPIX{}'.format(idx + 1), val)
 
     def _get_wcs(self, header):
         naxis_value = header.get('NAXIS')
@@ -215,7 +126,7 @@ class FITSHelper(BaseFileHelper):
         else:
             naxis = naxis_value
 
-        return WCS(header=header, naxis=naxis)
+        return WCS(header=header, naxis=naxis, fix=False)
 
     def _write_cutout(self, header, data, cutout_dimension, wcs):
         cutout_result = self.do_cutout(
@@ -223,15 +134,16 @@ class FITSHelper(BaseFileHelper):
 
         self._post_sanitize_header(header, cutout_result)
 
-        fits.append(filename=self.output_writer, header=header,
-                    data=cutout_result.data, overwrite=False,
-                    output_verify='silentfix', checksum='remove')
+        fits.append(filename=self.output_writer, data=cutout_result.data,
+                    header=header, overwrite=False,
+                    output_verify='exception', checksum='remove')
 
         self.output_writer.flush()
 
     def _pixel_cutout(self, header, data, cutout_dimension):
         extension = cutout_dimension.get_extension()
         wcs = self._get_wcs(header)
+
         try:
             logger.debug(
                 'Cutting out from extension {}'.format(extension))
