@@ -79,8 +79,8 @@ from cadctap.core import main_app
 from mock import Mock, patch, call
 import pytest
 from cadctap import CadcTapClient
-from cadctap.core import _get_subject_from_netrc, _get_subject_from_certificate,\
-    _get_subject
+from cadctap.core import _get_subject_from_netrc,\
+    _get_subject_from_certificate, _get_subject
 from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
     ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID, QUERY_CAPABILITY_ID,\
     TABLE_LOAD_CAPABILITY_ID
@@ -164,7 +164,7 @@ def test_get_subject(from_cmd_line_mock, netrc_mock, client_mock):
     netrc_subject = net.Subject(netrc=True)
     from_cmd_line_mock.return_value = anon_subject
     netrc_instance = netrc_mock.return_value
-    netrc_instance.hosts = {'netrc.host':'netrc.host.ca'}
+    netrc_instance.hosts = {'netrc.host': 'netrc.host.ca'}
     client_instance = client_mock.return_value
     client_instance._tap_client._host = 'netrc.host'
     ret_subject = _get_subject(args)
@@ -182,7 +182,7 @@ def test_get_subject(from_cmd_line_mock, netrc_mock, client_mock):
         netrc_subject = net.Subject(netrc=True)
         from_cmd_line_mock.return_value = anon_subject
         netrc_instance = netrc_mock.return_value
-        netrc_instance.hosts = {'netrc.host':'netrc.host.ca'}
+        netrc_instance.hosts = {'netrc.host': 'netrc.host.ca'}
         client_instance = client_mock.return_value
         client_instance._tap_client._host = 'no.such.host'
         ret_subject = _get_subject(args)
@@ -202,7 +202,7 @@ def test_get_subject(from_cmd_line_mock, netrc_mock, client_mock):
         netrc_subject = net.Subject(netrc=True)
         from_cmd_line_mock.return_value = anon_subject
         netrc_instance = netrc_mock.return_value
-        netrc_instance.hosts = {'netrc.host':'netrc.host.ca'}
+        netrc_instance.hosts = {'netrc.host': 'netrc.host.ca'}
         client_instance = client_mock.return_value
         client_instance._tap_client._host = 'no.such.host'
         ret_subject = _get_subject(args)
@@ -210,7 +210,6 @@ def test_get_subject(from_cmd_line_mock, netrc_mock, client_mock):
         assert(ret_subject == anon_subject)
     finally:
         os.environ['HOME'] = orig_home
-
 
 
 @patch('cadcutils.net.ws.BaseWsClient.put')
