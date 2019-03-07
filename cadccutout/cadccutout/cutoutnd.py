@@ -139,29 +139,16 @@ class CutoutND(object):
 
         if len_shape > len_data:
             raise ValueError('Invalid shape requested (tried to extract {} \
-            from {}).'.format(r_shape, data_shape))
+from {}).'.format(r_shape, data_shape))
 
-        if r_shape:
-            shape = (data_shape[:(len_data - len_shape)]) + r_shape
-        else:
-            shape = None
+        shape = (data_shape[:(len_data - len_shape)]) + r_shape
+        prepend_list = data_shape[:(len_data - len_pos)]
+        prepend_position_list = []
 
-        if len_pos > len_data:
-            raise ValueError('Invalid position requested (tried to extract \
-             {} from {}).'.format(
-                r_position, data_shape))
+        for idx, val in enumerate(prepend_list):
+            prepend_position_list.append(int(ceil((val / 2) - 0.5)))
 
-        if r_position:
-            # c_data_shape = tuple(np.zeros(len_data, dtype=int))
-            prepend_list = data_shape[:(len_data - len_pos)]
-            prepend_position_list = []
-
-            for idx, val in enumerate(prepend_list):
-                prepend_position_list.append(int(ceil((val / 2) - 0.5)))
-
-            position = tuple(prepend_position_list) + r_position
-        else:
-            position = None
+        position = tuple(prepend_position_list) + r_position
 
         return (position, shape)
 
