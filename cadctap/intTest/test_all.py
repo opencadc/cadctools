@@ -4,7 +4,7 @@ import sys
 import os
 import logging
 from six import StringIO
-from mock import patch, Mock
+from mock import patch
 from astropy.io import fits
 import tempfile
 import numpy as np
@@ -37,11 +37,10 @@ TABLE = '{}.{}'.format(DB_SCHEMA_NAME, TABLE_NAME)
 TABLE_DEF = '{}/createTable.vosi'.format(TESTDATA_DIR)
 
 
-
 def test_commands(monkeypatch):
     # test cadc TAP service with anonymous access
-    sys.argv = ['cadc-tap', 'query', '-s', 'ivo://cadc.nrc.ca/tap', '-f', 'VOTable',
-                'select observationID FROM caom2.Observation '
+    sys.argv = ['cadc-tap', 'query', '-s', 'ivo://cadc.nrc.ca/tap', '-f',
+                'VOTable', 'select observationID FROM caom2.Observation '
                 'where observationID=\'dao_c122_2018_003262\'']
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         main_app()
@@ -170,7 +169,7 @@ def test_commands(monkeypatch):
         assert '<TD>art{}</TD>'.format(i) in result
         assert '<TD>{}</TD>'.format(i) in result
 
-    #TODO query with temporary table
+    # TODO query with temporary table
 
     # cleanup
     sys.argv = 'cadc-tap delete --cert {} {}'.format(CERT, TABLE).split()
@@ -182,6 +181,3 @@ def test_commands(monkeypatch):
         logger.debug(
             'Cannot delete table {}. Reason: {}'.format(TABLE, str(e)))
         raise e
-
-
-

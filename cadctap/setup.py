@@ -4,20 +4,17 @@
 import glob
 import os
 import sys
-import imp
 from setuptools.command.test import test as TestCommand
 from setuptools import find_packages
 
 from setuptools import setup
 
-import distutils.cmd
-import distutils.log
-import subprocess
 
 # read the README.rst file and return as string.
 def readme():
     with open('README.rst') as r_obj:
         return r_obj.read()
+
 
 # Get some values from the setup.cfg
 try:
@@ -26,7 +23,7 @@ except ImportError:
     from configparser import ConfigParser
 
 conf = ConfigParser()
-conf.optionxform=str
+conf.optionxform = str
 conf.read(['setup.cfg'])
 metadata = dict(conf.items('metadata'))
 
@@ -42,7 +39,7 @@ VERSION = metadata.get('version', 'none')
 
 # generate the version file
 with open(os.path.join(PACKAGENAME, 'version.py'), 'w') as f:
-    f.write('version = \'{}\'\n'.format(VERSION))	
+    f.write('version = \'{}\'\n'.format(VERSION))
 
 # Treat everything in scripts except README.rst as a script to be installed
 scripts = [fname for fname in glob.glob(os.path.join('scripts', '*'))
@@ -55,6 +52,7 @@ entry_point_list = conf.items('entry_points')
 for entry_point in entry_point_list:
     entry_points['console_scripts'].append('{0} = {1}'.format(entry_point[0],
                                                               entry_point[1]))
+
 
 # add the --cov option to the test command
 class PyTest(TestCommand):
@@ -73,6 +71,7 @@ class PyTest(TestCommand):
         err_no = pytest.main(self.pytest_args)
         sys.exit(err_no)
 
+
 class PyIntTest(TestCommand):
     """class py.test for the int testing
 
@@ -88,6 +87,7 @@ class PyIntTest(TestCommand):
         import pytest
         err_no = pytest.main(self.pytest_args)
         sys.exit(err_no)
+
 
 class PyAllTest(TestCommand):
     """class py.test for the unit and integration testing
@@ -109,6 +109,7 @@ class PyAllTest(TestCommand):
 # ``setup``, since these are now deprecated. See this link for more details:
 # https://groups.google.com/forum/#!topic/astropy-dev/urYO8ckB2uM
 
+
 setup(name=PACKAGENAME,
       version=VERSION,
       description=DESCRIPTION,
@@ -125,7 +126,8 @@ setup(name=PACKAGENAME,
       entry_points=entry_points,
       python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, <4',
       packages=find_packages(),
-      package_data={PACKAGENAME: ['data/*', 'tests/data/*', '*/data/*', '*/tests/data/*']},
+      package_data={PACKAGENAME: ['data/*', 'tests/data/*', '*/data/*',
+                                  '*/tests/data/*']},
       classifiers=[
         'Natural Language :: English',
         'License :: OSI Approved :: GNU Affero General Public License v3',
@@ -136,7 +138,7 @@ setup(name=PACKAGENAME,
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6'
       ],
-      cmdclass = {
+      cmdclass={
           'coverage': PyTest, 'intTest': PyIntTest, 'allTest': PyAllTest
       }
-)
+      )
