@@ -440,7 +440,8 @@ def _get_subject_from_netrc(args):
         dummy_client = CadcTapClient(dummy_subject, resource_id=args.service,
                                      host=args.host)
         service_host = dummy_client._tap_client._host
-        logger.info('host for service {} is {}'.format(args.service, service_host))
+        logger.info('host for service {} is {}'.format(args.service,
+                                                       service_host))
         hosts = netrclib.netrc(None).hosts
         for host in hosts.keys():
             if (service_host in host):
