@@ -130,7 +130,10 @@ def test_get_subject_from_netrc(netrc_mock, client_mock):
                             'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca':
                             'machine www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca \
                                 login auser password passwd'}
-    subject = _get_subject_from_netrc('tap')
+    args = Mock()
+    args.service = 'tap'
+    args.host = None
+    subject = _get_subject_from_netrc(args)
     assert(subject is not None)
     assert(isinstance(subject, net.Subject))
     # matches CANFAR domain
@@ -138,7 +141,8 @@ def test_get_subject_from_netrc(netrc_mock, client_mock):
     netrc_instance.hosts = {'no_such_host': 'my.host.ca',
                             'sc2.canfar.net': 'machine www.canfar.net \
                                 login auser password passwd'}
-    subject = _get_subject_from_netrc('ivo://cadc.nrc.ca/sc2tap')
+    args.service = 'ivo://cadc.nrc.ca/sc2tap'
+    subject = _get_subject_from_netrc(args)
     assert(subject is not None)
     assert(isinstance(subject, net.Subject))
 

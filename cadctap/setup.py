@@ -5,7 +5,6 @@ import glob
 import os
 import sys
 import imp
-import shutil
 from setuptools.command.test import test as TestCommand
 from setuptools import find_packages
 
@@ -56,9 +55,6 @@ entry_point_list = conf.items('entry_points')
 for entry_point in entry_point_list:
     entry_points['console_scripts'].append('{0} = {1}'.format(entry_point[0],
                                                               entry_point[1]))
-# copy example_query.sql file to /tmp so that the examples in cadc-tap query -h work
-os.system('mkdir -p /tmp/cadctap/data')
-shutil.copyfile('cadctap/tests/data/example_query.sql', '/tmp/cadctap/data/example_query.sql')
 
 # add the --cov option to the test command
 class PyTest(TestCommand):

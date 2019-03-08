@@ -432,14 +432,15 @@ def _customize_parser(parser):
              DEFAULT_SERVICE_ID))
 
 
-def _get_subject_from_netrc(service):
+def _get_subject_from_netrc(args):
     # if .netrc contains hosts in cadc.ugly or canfar.net, return a subject
     # else return None
     try:
         dummy_subject = net.Subject()
-        dummy_client = CadcTapClient(dummy_subject, resource_id=service)
+        dummy_client = CadcTapClient(dummy_subject, resource_id=args.service,
+                                     host=args.host)
         service_host = dummy_client._tap_client._host
-        logger.info('host for service {} is {}'.format(service, service_host))
+        logger.info('host for service {} is {}'.format(args.service, service_host))
         hosts = netrclib.netrc(None).hosts
         for host in hosts.keys():
             if (service_host in host):
@@ -470,7 +471,7 @@ def _get_subject(args):
         return subject
     else:
         # default, i.e. no authentication option specified
-        netrc_subject = _get_subject_from_netrc(args.service)
+        netrc_subject = _get_subject_from_netrc(args)
         if (netrc_subject is not None):
             # pick -n option
             logger.debug('use -n option')
@@ -553,8 +554,8 @@ def main_app(command='cadc-tap query'):
         'Examples:\n'
         '- Anonymously run a query string:\n'
         '      {0} -a -s tap "SELECT TOP 10 type FROM caom2.Observation"\n'
-        '- Use certificate to run a query from a file:\n'
-        '      {0} -s tap -i /tmp/cadctap/data/example_query.sql'
+        '- Use certificate to run a query:\n'
+        '      {0} -s tap "SELECT TOP 10 type FROM caom2.Observation"'
         ' --cert ~/.ssl/cadcproxy.pem\n'
         '- Use username/password to run a query on the tap service:\n'
         '      {0} -s ivo://cadc.nrc.ca/tap '
@@ -562,8 +563,8 @@ def main_app(command='cadc-tap query'):
         ' -u <username>\n'
         '- Use netrc file to run a query on the ams/mast service'
         ' :\n'
-        '      {0} -i /tmp/cadctap/data/example_query.sql'
-        ' -n -s ivo://cadc.nrc.ca/ams/mast\n'.
+        '      {0} -n -s ivo://cadc.nrc.ca/ams/mast'
+        ' "SELECT TOP 10 target_name FROM caom2.Observation"\n'.
         format(command))
 
     create_parser = subparsers.add_parser(
