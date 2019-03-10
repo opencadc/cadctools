@@ -82,6 +82,10 @@ def test_create():
     test_subject = PixelCutoutHDU([(1, 200), (30)], 'SCI,5')
     assert test_subject.get_extension() == ('SCI', 5), 'Wrong extension.'
 
+    test_subject = PixelCutoutHDU([(99, 101), (44, 66)], 'AMS ,2')
+    assert test_subject.get_extension() == ('AMS', 2), \
+        'Wrong extension (didn''t filter out spaces)'
+
     test_subject = PixelCutoutHDU(extension='5')
     assert test_subject.get_extension() == 5, 'Wrong extension.'
 

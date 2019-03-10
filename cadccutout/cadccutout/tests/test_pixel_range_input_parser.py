@@ -128,3 +128,9 @@ def test_parse():
 
     result = test_subject.parse('[AMP]')
     assert result[0].get_extension() == ('AMP', 1), 'Wrong name and extension.'
+
+    result = test_subject.parse('[SCI ]')
+    assert result[0].get_extension() == ('SCI', 1), 'Wrong name and extension.'
+
+    result = test_subject.parse('[SCI ,2 ]')
+    assert result[0].get_extension() == ('SCI', 2), 'Wrong name and extension.'

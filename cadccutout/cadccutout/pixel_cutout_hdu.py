@@ -71,7 +71,7 @@ import logging
 import numpy as np
 
 from math import ceil
-from cadccutout.utils import is_integer
+from cadccutout.utils import is_integer, is_string
 
 __all__ = ['PixelCutoutHDU']
 
@@ -84,6 +84,8 @@ def fix_tuple(t):
         return (t, t)
     elif len(t) < 2:
         raise ValueError('Unusable dimension range {}'.format(t))
+    elif len(t) > 2:
+        raise ValueError('Specifying XTENSION type is not supported.')
     else:
         return t
 
@@ -153,7 +155,7 @@ class PixelCutoutHDU(object):
             if ext_int == 0:
                 ext_int = 1
 
-            return (es[0], ext_int)
+            return (str(es[0]).strip(), ext_int)
         else:
             return (ext, 1)
 
