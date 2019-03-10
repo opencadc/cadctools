@@ -71,7 +71,7 @@ import logging
 import numpy as np
 
 from math import ceil
-from cadccutout.utils import is_integer, is_string
+from cadccutout.utils import is_integer
 
 __all__ = ['PixelCutoutHDU']
 
