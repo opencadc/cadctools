@@ -53,13 +53,22 @@ Testing cadcdata
     cd ./cadcdata
     python setup.py test
 
+Testing cadccutout
+~~~~~~~~~~~~~~~~
+
+::
+
+    cd ./cadccutout
+    python setup.py test
+
+
 Checkstyle
 ~~~~~~~~~~
 flake8 style checking is enforced on pull requests. Following commands should
 not report errors
 
 ::
- 
+
      flake8 cadcutils/cadcutils cadcdata/cadcdata cadcetrans/cadcetrans
      cadccutout/cadccutout
 
