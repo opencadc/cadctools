@@ -104,10 +104,25 @@ class PixelCutoutHDU(object):
             This is zero (0) based.
         """
         self.dimension_ranges = list(map(fix_tuple, dimension_ranges))
-        self._extension = str(extension)  # For consistency.
+        self._extension = self._parse_extension(str(extension))
         logger.debug(
             'Requested dimension ranges ({}) for extension {}.'.format(
                 self.dimension_ranges, self._extension))
+
+    def _parse_extension(self, ext):
+        if is_integer(ext):
+            return int(ext)
+        elif ext.count(',') == 1:
+            es = ext.split(',')
+            ext_int = int(es[1])
+
+            # EXTNAME and EXTVER are 1-based.
+            if ext_int == 0:
+                ext_int = 1
+
+            return (str(es[0]).strip(), ext_int)
+        else:
+            return (ext, 1)
 
     def get_ranges(self):
         """
@@ -144,20 +159,7 @@ class PixelCutoutHDU(object):
         return tuple(acc)
 
     def get_extension(self):
-        ext = self._extension
-        if is_integer(ext):
-            return int(ext)
-        elif ext.count(',') == 1:
-            es = ext.split(',')
-            ext_int = int(es[1])
-
-            # EXTNAME and EXTVER are 1-based.
-            if ext_int == 0:
-                ext_int = 1
-
-            return (str(es[0]).strip(), ext_int)
-        else:
-            return (ext, 1)
+        return self._extension
 
     def __str__(self):
         return 'PixelCutoutHDU(dimensions={}, extension={})'.format(
