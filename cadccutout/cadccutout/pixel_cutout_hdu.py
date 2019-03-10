@@ -85,7 +85,7 @@ def fix_tuple(t):
     elif len(t) < 2:
         raise ValueError('Unusable dimension range {}'.format(t))
     elif len(t) > 2:
-        raise ValueError('Specifying XTENSION type is not supported.')
+        raise ValueError('Invalid range ({}).'.format(t))
     else:
         return t
 
@@ -112,6 +112,9 @@ class PixelCutoutHDU(object):
     def _parse_extension(self, ext):
         if is_integer(ext):
             return int(ext)
+        elif ext.count(',') == 2:
+            raise ValueError(
+                'Specifying XTENSION return type is not supported.')
         elif ext.count(',') == 1:
             es = ext.split(',')
             ext_int = int(es[1])

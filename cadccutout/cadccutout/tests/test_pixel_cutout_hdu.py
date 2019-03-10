@@ -84,7 +84,21 @@ def test_create():
 
     test_subject = PixelCutoutHDU([(99, 101), (44, 66)], 'AMS ,2')
     assert test_subject.get_extension() == ('AMS', 2), \
-        'Wrong extension (didn''t filter out spaces)'
+        'Wrong extension (didn' 't filter out spaces)'
+
+    test_subject = PixelCutoutHDU([(12, 30)], 'EXT,0')
+    assert test_subject.get_extension() == ('EXT', 1)
+
+    with pytest.raises(ValueError) as ve:
+        test_subject = PixelCutoutHDU([(23, 67), (23, 89)],
+                                      extension='SCI, 3, i')
+    assert str(ve).index(
+        'Specifying XTENSION return type is not supported.') > 0
+
+    with pytest.raises(ValueError) as ve:
+        test_subject = PixelCutoutHDU([(23, 67, 25), (23, 89)],
+                                      extension='SCI, 3')
+    assert str(ve).index('ValueError: Invalid range ((23, 67, 25)).') > 0
 
     test_subject = PixelCutoutHDU(extension='5')
     assert test_subject.get_extension() == 5, 'Wrong extension.'
