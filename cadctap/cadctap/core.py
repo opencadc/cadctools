@@ -719,7 +719,7 @@ def main_app(command='cadc-tap query'):
             client.schema()
     except Exception as ex:
         if isinstance(ex, exceptions.HttpException):
-            error_message = ex.orig_exception.message
+            error_message = str(ex.orig_exception)
         exit_on_exception(ex, error_message)
 
 
