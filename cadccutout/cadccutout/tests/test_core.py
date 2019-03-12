@@ -71,9 +71,19 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import io
+import logging
 import pytest
 from cadccutout.core import OpenCADCCutout, WriteOnlyStream
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
+
+# Compatibility with Python 2.7, where there is no FileNotFoundError.
+try:
+    FileNotFoundError
+except NameError:
+    FileNotFoundError = IOError
+
+logger = logging.getLogger('cadccutout')
+logger.setLevel(logging.DEBUG)
 
 
 def test__parse_input():
@@ -104,6 +114,13 @@ def test__parse_input():
     results = test_subject._parse_input(inputs)
 
     assert results[0] == 'CIRCLE=88.0 115.0 0.5', 'Wrong WCS input.'
+
+    inputs = ['[AMP]']
+
+    results = test_subject._parse_input(inputs)
+    pixel_cutout = results[0]
+
+    assert pixel_cutout.get_extension() == ('AMP', 1), 'Wrong extension found.'
 
 
 def test__sanity_check_input():
@@ -141,15 +158,9 @@ def test_construct():
 
     with pytest.raises(ValueError) as ve:
         test_subject.cutout([])
-        assert '{}'.format(ve) == 'No Cutout regions specified.', \
-            'Wrong error message.'
+    assert str(ve.value) == 'No Cutout regions specified.', \
+        'Wrong error message.'
 
-    with pytest.raises(ValueError) as ve:
-        test_subject.cutout([PixelCutoutHDU([(8, 10)])], input_reader=None)
-        assert '{}'.format(ve) == 'No input source specified.', \
-            'Wrong error message.'
-
-    with pytest.raises(ValueError) as ve:
-        test_subject.cutout([PixelCutoutHDU([(8, 10)])], output_writer=None)
-        assert '{}'.format(ve) == 'No output target specified.', \
-            'Wrong error message.'
+    with pytest.raises(FileNotFoundError):
+        test_subject.cutout([PixelCutoutHDU([(8, 10)])],
+                            input_reader=open('/no/such/file'))
