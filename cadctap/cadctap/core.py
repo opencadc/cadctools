@@ -720,6 +720,8 @@ def main_app(command='cadc-tap query'):
     except Exception as ex:
         if isinstance(ex, exceptions.HttpException):
             error_message = str(ex.orig_exception)
+            if 'certificate expired' in error_message:
+                error_message = "Certificate expired."
         exit_on_exception(ex, error_message)
 
 
