@@ -690,7 +690,7 @@ def main_app(command='cadc-tap query'):
 
         try:
             client = CadcTapClient(subject, resource_id=args.service)
-        except Exception as ex:
+        except Exception:
             raise RuntimeError('no tap service for ' + args.service)
 
         if args.cmd == 'create':
