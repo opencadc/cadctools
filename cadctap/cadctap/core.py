@@ -489,6 +489,33 @@ def _get_subject(args):
                 return subject
 
 
+def exit_on_exception(ex):
+    """
+    Exit program due to an exception,
+    print the exception and exit with error code.
+    :param ex:
+    :param message: error message to display
+    :return:
+    """
+    # Note: this could probably be updated to use an appropriate logging
+    # handler instead of writing to stderr
+    message = None
+    if isinstance(ex, exceptions.HttpException):
+        message = str(ex.orig_exception)
+        if 'Bad Request' in message:
+            message = str(ex)
+        if 'certificate expired' in message:
+            message = "Certificate expired."
+
+    if message:
+        sys.stderr.write('ERROR:: {}\n'.format(message))
+    else:
+        sys.stderr.write('ERROR:: {}\n'.format(str(ex)))
+    tb = traceback.format_exc()
+    logging.debug(tb)
+    sys.exit(getattr(ex, 'errno', -1)) if getattr(ex, 'errno',
+                                                  -1) else sys.exit(-1)
+
 def main_app(command='cadc-tap query'):
     parser = util.get_base_parser(version=version.version,
                                   default_resource_id=DEFAULT_SERVICE_ID)
@@ -636,32 +663,6 @@ def main_app(command='cadc-tap query'):
 #        logger.error(msg)
 #        if exit_after:
 #            sys.exit(-1)  # TODO use different error codes?
-
-    def exit_on_exception(ex):
-        """
-        Exit program due to an exception,
-        print the exception and exit with error code.
-        :param ex:
-        :param message: error message to display
-        :return:
-        """
-        # Note: this could probably be updated to use an appropriate logging
-        # handler instead of writing to stderr
-        if isinstance(ex, exceptions.HttpException):
-            message = str(ex.orig_exception)
-            if 'Bad Request' in message:
-                message = str(ex)
-            if 'certificate expired' in message:
-                message = "Certificate expired."
-
-        if message:
-            sys.stderr.write('ERROR:: {}\n'.format(message))
-        else:
-            sys.stderr.write('ERROR:: {}\n'.format(str(ex)))
-        tb = traceback.format_exc()
-        logging.debug(tb)
-        sys.exit(getattr(ex, 'errno', -1)) if getattr(ex, 'errno',
-                                                      -1) else sys.exit(-1)
 
     _customize_parser(schema_parser)
     _customize_parser(query_parser)
