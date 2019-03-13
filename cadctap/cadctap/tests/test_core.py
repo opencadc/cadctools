@@ -80,8 +80,7 @@ from mock import Mock, patch, call
 import pytest
 from cadctap import CadcTapClient
 from cadctap.core import _get_subject_from_netrc,\
-    _get_subject_from_certificate, _get_subject, main_app,\
-    exit_on_exception
+    _get_subject_from_certificate, _get_subject, exit_on_exception
 
 from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
     ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID, QUERY_CAPABILITY_ID,\
@@ -521,36 +520,48 @@ class TestCadcTapClient(unittest.TestCase):
             expected_message = "source error message"
             orig_ex = RuntimeError("Bad Request")
             ex = exceptions.HttpException(expected_message, orig_ex)
-            with self.assertRaises(MyExitError):
-                exit_on_exception(ex)
-            self.assertTrue(expected_message in stderr_mock.getvalue())
+            try:
+                raise ex
+            except Exception as ex:
+                with self.assertRaises(MyExitError):
+                    exit_on_exception(ex)
+                self.assertTrue(expected_message in stderr_mock.getvalue())
 
         # test handling of certificate expiration message from server
         with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
             expected_message = "Certificate expired"
-            orig_ex = RuntimeError("this message indicates certificate expired")
+            orig_ex = RuntimeError(
+                "this message indicates certificate expired")
             ex = exceptions.HttpException(None, orig_ex)
-            with self.assertRaises(MyExitError):
-                exit_on_exception(ex)
-            self.assertTrue(expected_message in stderr_mock.getvalue())
+            try:
+                raise ex
+            except Exception as ex:
+                with self.assertRaises(MyExitError):
+                    exit_on_exception(ex)
+                self.assertTrue(expected_message in stderr_mock.getvalue())
 
         # test handling of other server error messages
         with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
             expected_message = "other error message"
             orig_ex = RuntimeError(expected_message)
             ex = exceptions.HttpException(None, orig_ex)
-            with self.assertRaises(MyExitError):
-                exit_on_exception(ex)
-            self.assertTrue(expected_message in stderr_mock.getvalue())
+            try:
+                raise ex
+            except Exception as ex:
+                with self.assertRaises(MyExitError):
+                    exit_on_exception(ex)
+                self.assertTrue(expected_message in stderr_mock.getvalue())
 
         # test handling of other non-server error messages
         with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
             expected_message = "non-server error message"
             ex = RuntimeError(expected_message)
-            with self.assertRaises(MyExitError):
-                exit_on_exception(ex)
-            self.assertTrue(expected_message in stderr_mock.getvalue())
-
+            try:
+                raise ex
+            except Exception as ex:
+                with self.assertRaises(MyExitError):
+                    exit_on_exception(ex)
+                self.assertTrue(expected_message in stderr_mock.getvalue())
 
     @patch('cadctap.CadcTapClient.load')
     @patch('cadctap.CadcTapClient.create_index')

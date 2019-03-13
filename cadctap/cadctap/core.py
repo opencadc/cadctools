@@ -516,6 +516,7 @@ def exit_on_exception(ex):
     sys.exit(getattr(ex, 'errno', -1)) if getattr(ex, 'errno',
                                                   -1) else sys.exit(-1)
 
+
 def main_app(command='cadc-tap query'):
     parser = util.get_base_parser(version=version.version,
                                   default_resource_id=DEFAULT_SERVICE_ID)
