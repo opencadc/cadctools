@@ -118,5 +118,19 @@ def test_parse():
     assert result[0].dimension_ranges == [
         (10, 40), (60, 90)], 'Wrong ranges.'
 
+    result = test_subject.parse('[1][20:30,60:70] [3][10:40, 60:90]')
+    assert result[0].get_extension() == (1), 'Wrong extension for 1.'
+    assert result[1].get_extension() == (3), 'Wrong extension for 2.'
+    assert result[0].dimension_ranges == [
+        (20, 30), (60, 70)], 'Wrong ranges for 1.'
+    assert result[1].dimension_ranges == [
+        (10, 40), (60, 90)], 'Wrong ranges for 2.'
+
     result = test_subject.parse('[AMP]')
     assert result[0].get_extension() == ('AMP', 1), 'Wrong name and extension.'
+
+    result = test_subject.parse('[SCI ]')
+    assert result[0].get_extension() == ('SCI', 1), 'Wrong name and extension.'
+
+    result = test_subject.parse('[SCI ,2 ]')
+    assert result[0].get_extension() == ('SCI', 2), 'Wrong name and extension.'
