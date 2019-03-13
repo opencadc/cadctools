@@ -75,9 +75,7 @@ import traceback
 import sys
 from clint.textui import progress
 import datetime
-from cadcutils import net, util
-# from cadcutils.net import wscapabilities
-# from cadcutils.net import ws
+from cadcutils import net, util, exceptions
 from six.moves import input
 import netrc as netrclib
 import os
@@ -105,10 +103,13 @@ ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values',
 ALLOWED_TB_DEF_TYPES = {'VOSITable': 'text/xml',
                         'VOTable': 'application/x-votable+xml'}
 AUTH_OPTION_EXPLANATION = \
-    'If no authentication option is specified, cadc-tap will look in the\n'\
-    '~/.netrc file for the cadc-ccda.hia-iha.nrc-cnrc.gc.ca or canfar.net\n'\
-    'domain, and if found, will use the -n option. If not, cadc-tap will\n'\
-    'look for ~/.ssl/cadcproxy.pem file, and if found, will use the --cert\n'\
+    '\nTo obtain the host associated with a service, execute a subcommand\n'\
+    'with the service in verbose mode without specifying any authentication\n'\
+    'option\n\n'\
+    'If no authentication option is specified, cadc-tap will determine the\n'\
+    'host associated with the service and look in the ~/.netrc file for the\n'\
+    'host, and if found, will use the -n option. If not, cadc-tap will look\n'\
+    'for ~/.ssl/cadcproxy.pem file, and if found, will use the --cert\n'\
     'option. If not, cadc-tap will use the --anon option.'
 
 
@@ -431,13 +432,19 @@ def _customize_parser(parser):
              DEFAULT_SERVICE_ID))
 
 
-def _get_subject_from_netrc():
+def _get_subject_from_netrc(args):
     # if .netrc contains hosts in cadc.ugly or canfar.net, return a subject
     # else return None
     try:
+        dummy_subject = net.Subject()
+        dummy_client = CadcTapClient(dummy_subject, resource_id=args.service,
+                                     host=args.host)
+        service_host = dummy_client._tap_client._host
+        logger.info('host for service {} is {}'.format(args.service,
+                                                       service_host))
         hosts = netrclib.netrc(None).hosts
         for host in hosts.keys():
-            if (CADC_DOMAIN in host) or (CANFAR_DOMAIN in host):
+            if (service_host in host):
                 return net.Subject(netrc=True)
 
         return None
@@ -465,7 +472,7 @@ def _get_subject(args):
         return subject
     else:
         # default, i.e. no authentication option specified
-        netrc_subject = _get_subject_from_netrc()
+        netrc_subject = _get_subject_from_netrc(args)
         if (netrc_subject is not None):
             # pick -n option
             logger.debug('use -n option')
@@ -480,6 +487,34 @@ def _get_subject(args):
                 # use anon subject
                 logger.debug('use --anon option')
                 return subject
+
+
+def exit_on_exception(ex):
+    """
+    Exit program due to an exception,
+    print the exception and exit with error code.
+    :param ex:
+    :param message: error message to display
+    :return:
+    """
+    # Note: this could probably be updated to use an appropriate logging
+    # handler instead of writing to stderr
+    message = None
+    if isinstance(ex, exceptions.HttpException):
+        message = str(ex.orig_exception)
+        if 'Bad Request' in message:
+            message = str(ex)
+        if 'certificate expired' in message:
+            message = "Certificate expired."
+
+    if message:
+        sys.stderr.write('ERROR:: {}\n'.format(message))
+    else:
+        sys.stderr.write('ERROR:: {}\n'.format(str(ex)))
+    tb = traceback.format_exc()
+    logging.debug(tb)
+    sys.exit(getattr(ex, 'errno', -1)) if getattr(ex, 'errno',
+                                                  -1) else sys.exit(-1)
 
 
 def main_app(command='cadc-tap query'):
@@ -548,8 +583,8 @@ def main_app(command='cadc-tap query'):
         'Examples:\n'
         '- Anonymously run a query string:\n'
         '      {0} -a -s tap "SELECT TOP 10 type FROM caom2.Observation"\n'
-        '- Use certificate to run a query from a file:\n'
-        '      {0} -s tap -i ./cadctap/tests/data/example_query.sql'
+        '- Use certificate to run a query:\n'
+        '      {0} -s tap "SELECT TOP 10 type FROM caom2.Observation"'
         ' --cert ~/.ssl/cadcproxy.pem\n'
         '- Use username/password to run a query on the tap service:\n'
         '      {0} -s ivo://cadc.nrc.ca/tap '
@@ -557,8 +592,8 @@ def main_app(command='cadc-tap query'):
         ' -u <username>\n'
         '- Use netrc file to run a query on the ams/mast service'
         ' :\n'
-        '      {0} -i ./cadctap/tests/data/example_query.sql'
-        ' -n -s ivo://cadc.nrc.ca/ams/mast\n'.
+        '      {0} -n -s ivo://cadc.nrc.ca/ams/mast'
+        ' "SELECT TOP 10 target_name FROM caom2.Observation"\n'.
         format(command))
 
     create_parser = subparsers.add_parser(
@@ -630,25 +665,6 @@ def main_app(command='cadc-tap query'):
 #        if exit_after:
 #            sys.exit(-1)  # TODO use different error codes?
 
-    def exit_on_exception(ex, message=None):
-        """
-        Exit program due to an exception,
-        print the exception and exit with error code.
-        :param ex:
-        :param message: error message to display
-        :return:
-        """
-        # Note: this could probably be updated to use an appropriate logging
-        # handler instead of writing to stderr
-        if message:
-            sys.stderr.write('ERROR:: {}\n'.format(message))
-        else:
-            sys.stderr.write('ERROR:: {}\n'.format(str(ex)))
-        tb = traceback.format_exc()
-        logging.debug(tb)
-        sys.exit(getattr(ex, 'errno', -1)) if getattr(ex, 'errno',
-                                                      -1) else sys.exit(-1)
-
     _customize_parser(schema_parser)
     _customize_parser(query_parser)
     _customize_parser(create_parser)
@@ -667,17 +683,18 @@ def main_app(command='cadc-tap query'):
     else:
         logging.basicConfig(level=logging.WARN, stream=sys.stdout)
 
-    subject = _get_subject(args)
-
     try:
-        if ('http:' not in args.service and
-                'https:' not in args.service and
+        if (not args.service.startswith('http') and
                 'cadc.nrc.ca' not in args.service):
             args.service = SERVICE_ID_PREFIX + args.service
 
-        error_message = 'no tap service for ' + args.service
-        client = CadcTapClient(subject, resource_id=args.service)
-        error_message = None
+        subject = _get_subject(args)
+
+        try:
+            client = CadcTapClient(subject, resource_id=args.service)
+        except Exception:
+            raise RuntimeError('no tap service for ' + args.service)
+
         if args.cmd == 'create':
             client.create_table(args.TABLENAME, args.TABLEDEFINITION,
                                 args.format)
@@ -710,9 +727,7 @@ def main_app(command='cadc-tap query'):
         elif args.cmd == 'schema':
             client.schema()
     except Exception as ex:
-        exit_on_exception(ex, error_message)
-    finally:
-        print('DONE')
+        exit_on_exception(ex)
 
 
 #############################################################################
