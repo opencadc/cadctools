@@ -637,7 +637,7 @@ def main_app(command='cadc-tap query'):
 #        if exit_after:
 #            sys.exit(-1)  # TODO use different error codes?
 
-    def exit_on_exception(ex, message=None):
+    def exit_on_exception(ex):
         """
         Exit program due to an exception,
         print the exception and exit with error code.
@@ -647,6 +647,13 @@ def main_app(command='cadc-tap query'):
         """
         # Note: this could probably be updated to use an appropriate logging
         # handler instead of writing to stderr
+        if isinstance(ex, exceptions.HttpException):
+            message = str(ex.orig_exception)
+            if 'Bad Request' in message:
+                message = str(ex)
+            if 'certificate expired' in message:
+                message = "Certificate expired."
+
         if message:
             sys.stderr.write('ERROR:: {}\n'.format(message))
         else:
@@ -675,17 +682,17 @@ def main_app(command='cadc-tap query'):
         logging.basicConfig(level=logging.WARN, stream=sys.stdout)
 
     try:
-        error_message = None
-
         if (not args.service.startswith('http') and
                 'cadc.nrc.ca' not in args.service):
             args.service = SERVICE_ID_PREFIX + args.service
 
         subject = _get_subject(args)
 
-        error_message = 'no tap service for ' + args.service
-        client = CadcTapClient(subject, resource_id=args.service)
-        error_message = None
+        try:
+            client = CadcTapClient(subject, resource_id=args.service)
+        except Exception as ex:
+            raise RuntimeError('no tap service for ' + args.service)
+
         if args.cmd == 'create':
             client.create_table(args.TABLENAME, args.TABLEDEFINITION,
                                 args.format)
@@ -718,11 +725,7 @@ def main_app(command='cadc-tap query'):
         elif args.cmd == 'schema':
             client.schema()
     except Exception as ex:
-        if isinstance(ex, exceptions.HttpException):
-            error_message = str(ex.orig_exception)
-            if 'certificate expired' in error_message:
-                error_message = "Certificate expired."
-        exit_on_exception(ex, error_message)
+        exit_on_exception(ex)
 
 
 #############################################################################
