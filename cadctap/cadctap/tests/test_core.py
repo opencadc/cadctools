@@ -72,14 +72,16 @@ from __future__ import (absolute_import, division, print_function,
 import os
 import sys
 import unittest
-from cadcutils import net
+from cadcutils import net, exceptions
 
 from six import StringIO
 from cadctap.core import main_app
 from mock import Mock, patch, call
 import pytest
 from cadctap import CadcTapClient
-from cadctap.core import _get_subject_from_netrc, _get_subject_from_certificate
+from cadctap.core import _get_subject_from_netrc,\
+    _get_subject_from_certificate, _get_subject, exit_on_exception
+
 from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
     ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID, QUERY_CAPABILITY_ID,\
     TABLE_LOAD_CAPABILITY_ID
@@ -114,28 +116,105 @@ def test_get_subject_from_certificate():
         os.environ['HOME'] = orig_home
 
 
+@patch('cadctap.core.CadcTapClient')
 @patch('netrc.netrc')
-def test_get_subject_from_netrc(netrc_mock):
+def test_get_subject_from_netrc(netrc_mock, client_mock):
     netrc_instance = netrc_mock.return_value
+    client_instance = client_mock.return_value
     # no matching domain
+    client_instance._tap_client._host = 'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca'
     netrc_instance.hosts = {'no_such_host': 'my.host.ca'}
-    subject = _get_subject_from_netrc()
+    subject = _get_subject_from_netrc('tap')
     assert(subject is None)
     # matches CADC domain
     netrc_instance.hosts = {'no_such_host': 'my.host.ca',
-                            'cadc-ccda.hia-iha.nrc-cnrc.gc.ca':
+                            'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca':
                             'machine www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca \
                                 login auser password passwd'}
-    subject = _get_subject_from_netrc()
+    args = Mock()
+    args.service = 'tap'
+    args.host = None
+    subject = _get_subject_from_netrc(args)
     assert(subject is not None)
     assert(isinstance(subject, net.Subject))
     # matches CANFAR domain
+    client_instance._tap_client._host = 'sc2.canfar.net'
     netrc_instance.hosts = {'no_such_host': 'my.host.ca',
-                            'canfar.net': 'machine www.canfar.net \
+                            'sc2.canfar.net': 'machine www.canfar.net \
                                 login auser password passwd'}
-    subject = _get_subject_from_netrc()
+    args.service = 'ivo://cadc.nrc.ca/sc2tap'
+    subject = _get_subject_from_netrc(args)
     assert(subject is not None)
     assert(isinstance(subject, net.Subject))
+
+
+@patch('cadctap.core.CadcTapClient')
+@patch('netrc.netrc')
+@patch('cadcutils.net.auth.Subject.from_cmd_line_args')
+def test_get_subject(from_cmd_line_mock, netrc_mock, client_mock):
+    args = Mock()
+    args.service = 'ivo://cadc.nrc.ca/sc2tap'
+    args.anon = None
+    # authentication option specified
+    netrc_subject = net.Subject(netrc=True)
+    from_cmd_line_mock.return_value = netrc_subject
+    netrc_instance = netrc_mock.return_value
+    client_instance = client_mock.return_value
+    ret_subject = _get_subject(args)
+    assert(ret_subject is not None)
+    assert(ret_subject == netrc_subject)
+
+    # no authentication options, pick -n option
+    anon_subject = net.Subject()
+    netrc_subject = net.Subject(netrc=True)
+    from_cmd_line_mock.return_value = anon_subject
+    netrc_instance = netrc_mock.return_value
+    netrc_instance.hosts = {'netrc.host': 'netrc.host.ca'}
+    client_instance = client_mock.return_value
+    client_instance._tap_client._host = 'netrc.host'
+    ret_subject = _get_subject(args)
+    assert(ret_subject is not None)
+    assert(ret_subject.anon is False)
+    assert(ret_subject.certificate is None)
+    assert(ret_subject.netrc is not None)
+
+    # no authentication options, pick --cert option
+    orig_home = os.environ['HOME']
+    try:
+        # has certificate
+        os.environ['HOME'] = TESTDATA_DIR
+        anon_subject = net.Subject()
+        netrc_subject = net.Subject(netrc=True)
+        from_cmd_line_mock.return_value = anon_subject
+        netrc_instance = netrc_mock.return_value
+        netrc_instance.hosts = {'netrc.host': 'netrc.host.ca'}
+        client_instance = client_mock.return_value
+        client_instance._tap_client._host = 'no.such.host'
+        ret_subject = _get_subject(args)
+        assert(ret_subject is not None)
+        assert(ret_subject.anon is False)
+        assert(ret_subject.certificate is not None)
+        assert(ret_subject.netrc is False)
+    finally:
+        os.environ['HOME'] = orig_home
+
+    # no authentication options, pick --anon option
+    orig_home = os.environ['HOME']
+    try:
+        # has no certificate
+        os.environ['HOME'] = 'tmp'
+        anon_subject = net.Subject()
+        netrc_subject = net.Subject(netrc=True)
+        from_cmd_line_mock.return_value = anon_subject
+        netrc_instance = netrc_mock.return_value
+        netrc_instance.hosts = {'netrc.host': 'netrc.host.ca'}
+        client_instance = client_mock.return_value
+        client_instance._tap_client._host = 'no.such.host'
+        ret_subject = _get_subject(args)
+        assert(ret_subject is not None)
+        assert(ret_subject == anon_subject)
+    finally:
+        os.environ['HOME'] = orig_home
 
 
 @patch('cadcutils.net.ws.BaseWsClient.put')
@@ -429,6 +508,60 @@ class TestCadcTapClient(unittest.TestCase):
             with self.assertRaises(MyExitError):
                 main_app()
             self.assertEqual(usage, stdout_mock.getvalue())
+
+    @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
+                                         MyExitError, MyExitError, MyExitError,
+                                         MyExitError, MyExitError]))
+    def test_exit_on_exception(self):
+        """ Test the exit_on_exception function """
+
+        # test handling of 'Bad Request' server errors
+        with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
+            expected_message = "source error message"
+            orig_ex = RuntimeError("Bad Request")
+            ex = exceptions.HttpException(expected_message, orig_ex)
+            try:
+                raise ex
+            except Exception as ex:
+                with self.assertRaises(MyExitError):
+                    exit_on_exception(ex)
+                self.assertTrue(expected_message in stderr_mock.getvalue())
+
+        # test handling of certificate expiration message from server
+        with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
+            expected_message = "Certificate expired"
+            orig_ex = RuntimeError(
+                "this message indicates certificate expired")
+            ex = exceptions.HttpException(None, orig_ex)
+            try:
+                raise ex
+            except Exception as ex:
+                with self.assertRaises(MyExitError):
+                    exit_on_exception(ex)
+                self.assertTrue(expected_message in stderr_mock.getvalue())
+
+        # test handling of other server error messages
+        with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
+            expected_message = "other error message"
+            orig_ex = RuntimeError(expected_message)
+            ex = exceptions.HttpException(None, orig_ex)
+            try:
+                raise ex
+            except Exception as ex:
+                with self.assertRaises(MyExitError):
+                    exit_on_exception(ex)
+                self.assertTrue(expected_message in stderr_mock.getvalue())
+
+        # test handling of other non-server error messages
+        with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
+            expected_message = "non-server error message"
+            ex = RuntimeError(expected_message)
+            try:
+                raise ex
+            except Exception as ex:
+                with self.assertRaises(MyExitError):
+                    exit_on_exception(ex)
+                self.assertTrue(expected_message in stderr_mock.getvalue())
 
     @patch('cadctap.CadcTapClient.load')
     @patch('cadctap.CadcTapClient.create_index')
