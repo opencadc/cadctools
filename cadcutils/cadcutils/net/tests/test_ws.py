@@ -350,7 +350,7 @@ class TestRetrySession(unittest.TestCase):
         send_mock.return_value = Mock()
         rs = ws.RetrySession(False)
         rs.send(request)
-        send_mock.assert_called_with(request, timeout=30)
+        send_mock.assert_called_with(request, timeout=120)
 
         # retry to user defined timeout
         send_mock.return_value = Mock()
