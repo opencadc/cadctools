@@ -83,7 +83,7 @@ from cadctap.core import _get_subject_from_netrc,\
     _get_subject_from_certificate, _get_subject, exit_on_exception
 
 from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
-    ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID, QUERY_CAPABILITY_ID,\
+    ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID,\
     TABLE_LOAD_CAPABILITY_ID
 
 # The following is a temporary workaround for Python issue
