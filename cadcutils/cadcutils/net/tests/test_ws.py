@@ -869,9 +869,7 @@ class TestWsCapabilities(unittest.TestCase):
                          caps.get_access_url(
                              'vos://cadc.nrc.ca~service/CADC/mystnd01'))
 
-# TODO By default, internet tests fail. They only succeed when test with
-# --remote-data flag.
-# Need to figure out a way to skip the tests unless that flag is present.
+
 class TestWsOutsideCalls(unittest.TestCase):
     """ Class to test Ws with calls to outside sites"""
 
