@@ -170,8 +170,8 @@ class Capability(object):
         if security_method:
             check_valid_url(security_method)
         for i in self._interfaces:
-            if (i.security_method == security_method) and\
-               (i.type == interface_type):
+            if (i.security_method == security_method):
+               #(i.type == interface_type):
                 return i
         return None
 
@@ -262,27 +262,19 @@ class CapabilitiesReader(object):
                     raise ValueError('Error parsing capabilities document. '
                                      'No accessURL for interface for {}'.
                                      format(capability.standard_id))
-                security_method = child.find('securityMethod')
-                if security_method is not None:
-                    if security_method.get('standardID') is not None:
+                for sm in child.iterchildren('securityMethod'):
+                    if sm.get('standardID') is not None:
                         security_method = \
-                            security_method.get('standardID').strip()
+                            sm.get('standardID').strip()
                     else:
-                        raise ValueError(
-                            'Error parsing capabilities document. '
-                            'Invalid security method {} for URL {} of '
-                            'capability {}'.
-                            format(security_method.get('standardID'),
-                                   access_url, capability.standard_id))
-                try:
+                        security_method = None
                     capability.add_interface(access_url,
                                              security_method,
                                              interface_type)
-                except ValueError:
-                    raise ValueError('Error parsing capabilities document. '
-                                     'Invalid URL in access URL ({}) '
-                                     'or security method ({})'.
-                                     format(access_url, security_method))
+                if capability.num_interfaces == 0:
+                    # add default annonymous capability
+                    capability.add_interface(access_url, None, interface_type)
+
             if len(capability._interfaces) == 0:
                 raise ValueError('Error parsing capabilities document. '
                                  'No interfaces found for capability {}'.
