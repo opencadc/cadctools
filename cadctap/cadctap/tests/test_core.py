@@ -92,7 +92,7 @@ call.__wrapped__ = None
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
-BASE_URL = 'https://ws-cadc.canfar.net/youcat/availability'
+BASE_URL = 'https://ws-cadc.canfar.net/youcat'
 
 
 class MyExitError(Exception):
@@ -409,7 +409,7 @@ def test_query(caps_get_mock, base_post_mock):
     client.query('query', tmptable='tmptable:'+def_table)
     print(base_post_mock.call_args_list[0][0][0])
     assert base_post_mock.call_args_list[0][0][0] == \
-        (QUERY_CAPABILITY_ID, None, 'uws:Sync')
+        '{}/{}'.format(BASE_URL, 'sync')
 
 
 class TestCadcTapClient(unittest.TestCase):
