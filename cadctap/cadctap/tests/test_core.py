@@ -83,7 +83,7 @@ from cadctap.core import _get_subject_from_netrc,\
     _get_subject_from_certificate, _get_subject, exit_on_exception
 
 from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
-    ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID, QUERY_CAPABILITY_ID,\
+    ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID,\
     TABLE_LOAD_CAPABILITY_ID
 
 # The following is a temporary workaround for Python issue
@@ -92,7 +92,7 @@ call.__wrapped__ = None
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
-BASE_URL = 'https://ws-cadc.canfar.net/youcat/availability'
+BASE_URL = 'https://ws-cadc.canfar.net/youcat'
 
 
 class MyExitError(Exception):
@@ -409,7 +409,7 @@ def test_query(caps_get_mock, base_post_mock):
     client.query('query', tmptable='tmptable:'+def_table)
     print(base_post_mock.call_args_list[0][0][0])
     assert base_post_mock.call_args_list[0][0][0] == \
-        (QUERY_CAPABILITY_ID, None, 'uws:Sync')
+        '{}/{}'.format(BASE_URL, 'sync')
 
 
 class TestCadcTapClient(unittest.TestCase):
@@ -563,7 +563,6 @@ class TestCadcTapClient(unittest.TestCase):
                     exit_on_exception(ex)
                 self.assertTrue(expected_message in stderr_mock.getvalue())
 
-    @pytest.mark.skipif(True, reason='Waiting for fix')
     @patch('cadctap.CadcTapClient.load')
     @patch('cadctap.CadcTapClient.create_index')
     @patch('cadctap.CadcTapClient.delete_table')
@@ -577,12 +576,12 @@ class TestCadcTapClient(unittest.TestCase):
         calls = [call()]
         schema_mock.assert_has_calls(calls)
 
-        sys.argv = ['cadc-tap', 'create', 'tablename', 'path/to/file']
+        sys.argv = ['cadc-tap', 'create', '-d', 'tablename', 'path/to/file']
         main_app()
         calls = [call('tablename', 'path/to/file', None)]
         create_mock.assert_has_calls(calls)
 
-        sys.argv = ['cadc-tap', 'index', 'tablename', 'columnName']
+        sys.argv = ['cadc-tap', 'index', '-v', 'tablename', 'columnName']
         main_app()
         calls = [call('tablename', 'columnName', False)]
         index_mock.assert_has_calls(calls)
@@ -592,7 +591,7 @@ class TestCadcTapClient(unittest.TestCase):
         calls = [call('tablename', ['path/to/file'], 'tsv')]
         load_mock.assert_has_calls(calls)
 
-        sys.argv = ['cadc-tap', 'query', 'QUERY']
+        sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice', 'QUERY']
         main_app()
         calls = [call('QUERY', None, 'tsv', None)]
         query_mock.assert_has_calls(calls)

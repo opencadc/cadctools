@@ -78,6 +78,7 @@ from six import StringIO
 from six.moves.urllib.parse import urlparse
 
 from cadcutils import exceptions
+from cadcutils import net
 from cadcutils.net import ws, auth
 from cadcutils.net.ws import DEFAULT_RETRY_DELAY, MAX_RETRY_DELAY, \
     MAX_NUM_RETRIES, SERVICE_RETRY
@@ -868,30 +869,28 @@ class TestWsCapabilities(unittest.TestCase):
                          caps.get_access_url(
                              'vos://cadc.nrc.ca~service/CADC/mystnd01'))
 
-# TODO By default, internet tests fail. They only succeed when test with
-# --remote-data flag.
-# Need to figure out a way to skip the tests unless that flag is present.
-# class TestWsOutsideCalls(unittest.TestCase):
-#     """ Class to test Ws with calls to outside sites"""
-#
-#     @patch('time.sleep')
-#     def testCalls(self, time_mock):
-#         client = ws.BaseWsClient('httpbin.org')
-#         response = client.get('')
-#         self.assertEqual(response.status_code, requests.codes.ok)
-#
-#         with self.assertRaises(requests.HTTPError):
-#             client.get('status/500')
-#
-#         time_mock.reset_mock()
-#         with self.assertRaises(requests.HTTPError):
-#             client.get('status/503')
-#
-#         calls = [call(DEFAULT_RETRY_DELAY),
-#                  call(min(DEFAULT_RETRY_DELAY*2, MAX_RETRY_DELAY)),
-#                  call(min(DEFAULT_RETRY_DELAY * 4, MAX_RETRY_DELAY)),
-#                  call(min(DEFAULT_RETRY_DELAY * 8, MAX_RETRY_DELAY)),
-#                  call(min(DEFAULT_RETRY_DELAY * 16, MAX_RETRY_DELAY)),
-#                  call(min(DEFAULT_RETRY_DELAY * 32, MAX_RETRY_DELAY))]
-#
-#         time_mock.assert_has_calls(calls)
+
+class TestWsOutsideCalls(unittest.TestCase):
+    """ Class to test Ws with calls to outside sites"""
+
+    @patch('time.sleep')
+    def testCalls(self, time_mock):
+        client = ws.BaseWsClient('https://httpbin.org', net.Subject(), 'FOO')
+        response = client.get('https://httpbin.org')
+        self.assertEqual(response.status_code, requests.codes.ok)
+
+        with self.assertRaises(exceptions.InternalServerException):
+            client.get('https://httpbin.org/status/500')
+
+        time_mock.reset_mock()
+        with self.assertRaises(exceptions.HttpException):
+            client.get('https://httpbin.org/status/503')
+
+        calls = [call(DEFAULT_RETRY_DELAY),
+                 call(min(DEFAULT_RETRY_DELAY*2, MAX_RETRY_DELAY)),
+                 call(min(DEFAULT_RETRY_DELAY * 4, MAX_RETRY_DELAY)),
+                 call(min(DEFAULT_RETRY_DELAY * 8, MAX_RETRY_DELAY)),
+                 call(min(DEFAULT_RETRY_DELAY * 16, MAX_RETRY_DELAY)),
+                 call(min(DEFAULT_RETRY_DELAY * 32, MAX_RETRY_DELAY))]
+
+        time_mock.assert_has_calls(calls)
