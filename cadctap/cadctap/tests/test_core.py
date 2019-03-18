@@ -563,7 +563,6 @@ class TestCadcTapClient(unittest.TestCase):
                     exit_on_exception(ex)
                 self.assertTrue(expected_message in stderr_mock.getvalue())
 
-    @pytest.mark.skipif(True, reason='Waiting for fix')
     @patch('cadctap.CadcTapClient.load')
     @patch('cadctap.CadcTapClient.create_index')
     @patch('cadctap.CadcTapClient.delete_table')
@@ -577,12 +576,12 @@ class TestCadcTapClient(unittest.TestCase):
         calls = [call()]
         schema_mock.assert_has_calls(calls)
 
-        sys.argv = ['cadc-tap', 'create', 'tablename', 'path/to/file']
+        sys.argv = ['cadc-tap', 'create', '-d', 'tablename', 'path/to/file']
         main_app()
         calls = [call('tablename', 'path/to/file', None)]
         create_mock.assert_has_calls(calls)
 
-        sys.argv = ['cadc-tap', 'index', 'tablename', 'columnName']
+        sys.argv = ['cadc-tap', 'index', '-v', 'tablename', 'columnName']
         main_app()
         calls = [call('tablename', 'columnName', False)]
         index_mock.assert_has_calls(calls)
@@ -592,7 +591,7 @@ class TestCadcTapClient(unittest.TestCase):
         calls = [call('tablename', ['path/to/file'], 'tsv')]
         load_mock.assert_has_calls(calls)
 
-        sys.argv = ['cadc-tap', 'query', 'QUERY']
+        sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice', 'QUERY']
         main_app()
         calls = [call('QUERY', None, 'tsv', None)]
         query_mock.assert_has_calls(calls)

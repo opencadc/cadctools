@@ -353,7 +353,7 @@ class CadcTapClient(object):
         else:
             resource = self._tap_client._get_url((QUERY_CAPABILITY_ID, 'sync'))
 
-        with self._tap_client.post(resource,
+        with self._tap_client.post(resource, params=fields,
                                    data=m, headers={
                                        'Content-Type': m.content_type},
                                    stream=True) as result:
