@@ -344,7 +344,16 @@ class CadcTapClient(object):
 
         logger.debug('QUERY fileds: {}'.format(fields))
         m = MultipartEncoder(fields=fields)
-        with self._tap_client.post((QUERY_CAPABILITY_ID, None, 'uws:Sync'),
+        # TODO the following if/else is temporary to support both TAP1.0 and
+        # TAP1.1 capabilities. For TAP1.1 the resource argument in the post
+        # should be the (QUERY_CAPABILITY_ID, None) tuple
+        url = self._tap_client._get_url((QUERY_CAPABILITY_ID, None))
+        if url.endswith('async'):
+            resource = url.replace('async', 'sync')
+        else:
+            resource = self._tap_client._get_url((QUERY_CAPABILITY_ID, 'sync'))
+
+        with self._tap_client.post(resource, params=fields,
                                    data=m, headers={
                                        'Content-Type': m.content_type},
                                    stream=True) as result:
@@ -691,7 +700,8 @@ def main_app(command='cadc-tap query'):
         subject = _get_subject(args)
 
         try:
-            client = CadcTapClient(subject, resource_id=args.service)
+            client = CadcTapClient(subject, resource_id=args.service,
+                                   host=args.host)
         except Exception:
             raise RuntimeError('no tap service for ' + args.service)
 

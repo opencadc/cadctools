@@ -39,7 +39,7 @@ TABLE_DEF = '{}/createTable.vosi'.format(TESTDATA_DIR)
 
 def test_commands(monkeypatch):
     # test cadc TAP service with anonymous access
-    sys.argv = ['cadc-tap', 'query', '-s', 'ivo://cadc.nrc.ca/tap', '-f',
+    sys.argv = ['cadc-tap', 'query', '-a', '-s', 'ivo://cadc.nrc.ca/tap', '-f',
                 'VOTable', 'select observationID FROM caom2.Observation '
                 'where observationID=\'dao_c122_2018_003262\'']
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:

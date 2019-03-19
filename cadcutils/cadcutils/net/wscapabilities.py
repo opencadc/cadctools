@@ -101,12 +101,13 @@ class Capabilities(object):
         Returns the access URL corresponding to a capability ID and a list of
         security methods. Raises a ValueError if no entry found.
         :param capability_id: ID of the capability
-        :param security_methods: IDs of the security methods in the preferred
-        order
+        :param security_methods: lists of IDs of the security methods in the
+        preferred order
         :param interface_type: type of the interface
         :return: URL to use for accessing the feature/capability
         """
         capability = self._caps[capability_id]
+        sec_methods = security_methods if security_methods else []
         if capability is None:
             raise ValueError('Capability {} not found'.format(capability_id))
         # if the capability supports anonymous access and this is the only
@@ -115,7 +116,7 @@ class Capabilities(object):
         # corresponding to the anonymous access
         if (capability.get_interface(None) is not None) and \
                 ((capability.num_interfaces == 1) or
-                 (len(security_methods) == 0)):
+                 (len(sec_methods) == 0)):
             i = capability.get_interface(None, interface_type)
             if i is not None:
                 return i.access_url
@@ -124,7 +125,7 @@ class Capabilities(object):
                     'Capability {} does not support annonymous access. '
                     'Please authenticate first'.
                     format(capability_id))
-        for sm in security_methods:
+        for sm in sec_methods:
             interface = capability.get_interface(sm, interface_type)
             if interface is not None:
                 return interface.access_url
@@ -170,8 +171,7 @@ class Capability(object):
         if security_method:
             check_valid_url(security_method)
         for i in self._interfaces:
-            if (i.security_method == security_method) and\
-               (i.type == interface_type):
+            if (i.security_method == security_method):
                 return i
         return None
 
@@ -262,27 +262,19 @@ class CapabilitiesReader(object):
                     raise ValueError('Error parsing capabilities document. '
                                      'No accessURL for interface for {}'.
                                      format(capability.standard_id))
-                security_method = child.find('securityMethod')
-                if security_method is not None:
-                    if security_method.get('standardID') is not None:
+                for sm in child.iterchildren('securityMethod'):
+                    if sm.get('standardID') is not None:
                         security_method = \
-                            security_method.get('standardID').strip()
+                            sm.get('standardID').strip()
                     else:
-                        raise ValueError(
-                            'Error parsing capabilities document. '
-                            'Invalid security method {} for URL {} of '
-                            'capability {}'.
-                            format(security_method.get('standardID'),
-                                   access_url, capability.standard_id))
-                try:
+                        security_method = None
                     capability.add_interface(access_url,
                                              security_method,
                                              interface_type)
-                except ValueError:
-                    raise ValueError('Error parsing capabilities document. '
-                                     'Invalid URL in access URL ({}) '
-                                     'or security method ({})'.
-                                     format(access_url, security_method))
+                if capability.num_interfaces == 0:
+                    # add default annonymous capability
+                    capability.add_interface(access_url, None, interface_type)
+
             if len(capability._interfaces) == 0:
                 raise ValueError('Error parsing capabilities document. '
                                  'No interfaces found for capability {}'.

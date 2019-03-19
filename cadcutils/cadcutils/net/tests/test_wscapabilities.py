@@ -69,7 +69,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import unittest
-
+import pytest
 from six import assertRaisesRegex
 
 from cadcutils.net import wscapabilities
@@ -155,16 +155,16 @@ class TestWsCapabilities(unittest.TestCase):
         assert 'http://someurl/somepath' == \
                caps.get_access_url('ivo://provider/service', None)
 
-        # multiple interfaces => https url preferred
+        # multiple interfaces => go to the first one
         caps = cr.parsexml(
             '<capabilities '
             'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
             '<capability standardID="ivo://provider/service">'
             '<interface xsi:type="vs:ParamHTTP">'
-            '<accessURL>http://someurl/somepath'
+            '<accessURL>https://someurl/somepath'
             '</accessURL></interface>'
             '<interface xsi:type="vs:ParamHTTP">'
-            '<accessURL>https://someurl/somepath'
+            '<accessURL>http://someurl/somepath'
             '</accessURL></interface></capability></capabilities>')
 
         assert 'https://someurl/somepath' == \
@@ -215,12 +215,7 @@ class TestWsCapabilities(unittest.TestCase):
                caps.get_access_url('ivo://provider/service', None)
 
         # add security method
-        with assertRaisesRegex(self, ValueError,
-                               'Error parsing capabilities document. '
-                               'Invalid security method None for URL '
-                               'http://someurl/somepath of capability '
-                               'ivo://provider/service'):
-            cr.parsexml(
+        caps = cr.parsexml(
                 '<capabilities '
                 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
                 '<capability '
@@ -230,16 +225,74 @@ class TestWsCapabilities(unittest.TestCase):
                 '</accessURL><securityMethod></securityMethod>'
                 '</interface></capability></capabilities>')
 
-        with assertRaisesRegex(self, ValueError,
-                               r'Error parsing capabilities document. '
-                               r'Invalid URL in access URL '
-                               r'\(http://someurl/somepath\) or '
-                               r'security method \(mymethod\)'):
-            cr.parsexml(
-                '<capabilities '
-                'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
-                '<capability standardID="ivo://provider/service">'
-                '<interface xsi:type="vs:ParamHTTP">'
-                '<accessURL>http://someurl/somepath'
-                '</accessURL><securityMethod standardID="mymethod">'
-                '</securityMethod></interface></capability></capabilities>')
+        assert 'http://someurl/somepath' == \
+            caps.get_access_url('ivo://provider/service', None)
+
+        # multiple security methods TAP1.0 style
+        caps = cr.parsexml(
+            '<capabilities '
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+            '<capability standardID="ivo://provider/service">'
+            '<interface xsi:type="vs:ParamHTTP">'
+            '<accessURL>http://someurl/somepath1'
+            '</accessURL><securityMethod standardID="ivo://cadc/mymethod1">'
+            '</securityMethod></interface>'
+            '<interface xsi:type="vs:ParamHTTP">'
+            '<accessURL>http://someurl/somepath2'
+            '</accessURL><securityMethod standardID="ivo://cadc/mymethod2">'
+            '</securityMethod></interface>'
+            '</capability></capabilities>')
+        assert 'http://someurl/somepath1' == \
+               caps.get_access_url('ivo://provider/service',
+                                   ['ivo://cadc/mymethod1'])
+        assert 'http://someurl/somepath2' == \
+               caps.get_access_url('ivo://provider/service',
+                                   ['ivo://cadc/mymethod2'])
+        with pytest.raises(ValueError):
+            assert caps.get_access_url('ivo://provider/service', None)
+
+        # multiple security methods TAP1.1 style
+        caps = cr.parsexml(
+            '<capabilities '
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+            '<capability standardID="ivo://provider/service">'
+            '<interface xsi:type="vs:ParamHTTP">'
+            '<accessURL>http://someurl/somepath'
+            '</accessURL>'
+            '<securityMethod standardID="ivo://cadc/mymethod1">'
+            '</securityMethod>'
+            '<securityMethod standardID="ivo://cadc/mymethod2">'
+            '</securityMethod></interface>'
+            '</capability></capabilities>')
+        assert 'http://someurl/somepath' == \
+               caps.get_access_url('ivo://provider/service',
+                                   ['ivo://cadc/mymethod1'])
+        assert 'http://someurl/somepath' == \
+               caps.get_access_url('ivo://provider/service',
+                                   ['ivo://cadc/mymethod2'])
+        with pytest.raises(ValueError):
+            assert caps.get_access_url('ivo://provider/service', None)
+
+        # similar with the above test except anonymous security method
+        # accepted
+        caps = cr.parsexml(
+            '<capabilities '
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+            '<capability standardID="ivo://provider/service">'
+            '<interface xsi:type="vs:ParamHTTP">'
+            '<accessURL>http://someurl/somepath'
+            '</accessURL>'
+            '<securityMethod standardID="ivo://cadc/mymethod1">'
+            '</securityMethod>'
+            '<securityMethod/>'
+            '<securityMethod standardID="ivo://cadc/mymethod2">'
+            '</securityMethod></interface>'
+            '</capability></capabilities>')
+        assert 'http://someurl/somepath' == \
+               caps.get_access_url('ivo://provider/service',
+                                   ['ivo://cadc/mymethod1'])
+        assert 'http://someurl/somepath' == \
+               caps.get_access_url('ivo://provider/service',
+                                   ['ivo://cadc/mymethod2'])
+        assert 'http://someurl/somepath' == \
+               caps.get_access_url('ivo://provider/service', None)
