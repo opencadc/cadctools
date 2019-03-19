@@ -338,6 +338,37 @@ class TestWs(unittest.TestCase):
         self.assertTrue(isinstance(client._session, ws.RetrySession))
         self.assertEqual((certfile, certfile), client._session.cert)
 
+        # test cookie authentication
+        post_mock.reset_mock()
+        get_mock.reset_mock()
+        put_mock.reset_mock()
+        delete_mock.reset_mock()
+        head_mock.reset_mock()
+        subject = auth.Subject()
+        subject.cookies.append(auth.CookieInfo(resource_uri.netloc,
+                                               'MyTestCookie', 'cookievalue'))
+        client = ws.BaseWsClient(resource_id, subject, 'TestApp')
+        base_url = 'https://{}{}/observations'.format(resource_uri.netloc,
+                                                      resource_uri.path)
+        resource_url = '{}/{}'.format(base_url, resource)
+        self.assertEqual('TestApp', client.agent)
+        self.assertTrue(client.retry)
+        client.get(resource_url)
+        get_mock.assert_called_with(resource_url, params=None)
+        params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
+        client.post(resource_url, **params)
+        post_mock.assert_called_with(resource_url, **params)
+        client.delete(resource_url)
+        delete_mock.assert_called_with(resource_url)
+        client.head(resource_url)
+        head_mock.assert_called_with(resource_url)
+        client.put(resource_url, **params)
+        put_mock.assert_called_with(resource_url, **params)
+        self.assertTrue(isinstance(client._session, ws.RetrySession))
+        self.assertEqual(1, len(client._session.cookies))
+        self.assertEqual('cookievalue',
+                         client._session.cookies['MyTestCookie'])
+
 
 class TestRetrySession(unittest.TestCase):
     """ Class for testing retry session """

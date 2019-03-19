@@ -116,33 +116,47 @@ def test_get_subject_from_certificate():
         os.environ['HOME'] = orig_home
 
 
+@patch('cadctap.core.net.BaseWsClient')
 @patch('cadctap.core.CadcTapClient')
 @patch('netrc.netrc')
-def test_get_subject_from_netrc(netrc_mock, client_mock):
+def test_get_subject_from_netrc(netrc_mock, client_mock, base_client_mock):
     netrc_instance = netrc_mock.return_value
     client_instance = client_mock.return_value
-    # no matching domain
-    client_instance._tap_client._host = 'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca'
+    # test non-CADC services first
+    #  no matching domain
+    client_instance._tap_client._host = 'www.some.tap.service.com'
     netrc_instance.hosts = {'no_such_host': 'my.host.ca'}
-    subject = _get_subject_from_netrc('tap')
-    assert(subject is None)
-    # matches CADC domain
-    netrc_instance.hosts = {'no_such_host': 'my.host.ca',
-                            'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca':
-                            'machine www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca \
-                                login auser password passwd'}
     args = Mock()
     args.service = 'tap'
     args.host = None
+    subject = _get_subject_from_netrc('tap')
+    assert(subject is None)
+    # matches domain
+    netrc_instance.hosts = {'no_such_host': 'my.host.ca',
+                            'www.some.tap.service.com':
+                            'machine some.tap.service.com \
+                                login auser password passwd'}
     subject = _get_subject_from_netrc(args)
     assert(subject is not None)
     assert(isinstance(subject, net.Subject))
-    # matches CANFAR domain
+
+    # CADC services
+    args.service = 'ivo://cadc.nrc.ca/tap'
+    # no match
+    base_client_mock.return_value._get_url.return_value = \
+        'https://some.domain.com'
+    netrc_instance.hosts = {'no_such_host': 'my.host.ca',
+                            'sc2.canfar.net': 'machine www.canfar.net \
+                                   login auser password passwd'}
+    subject = _get_subject_from_netrc(args)
+    assert (subject is None)
+    # match domain
+    base_client_mock.return_value._get_url.return_value = \
+        'https://sc2.canfar.net/blah'
     client_instance._tap_client._host = 'sc2.canfar.net'
     netrc_instance.hosts = {'no_such_host': 'my.host.ca',
                             'sc2.canfar.net': 'machine www.canfar.net \
                                 login auser password passwd'}
-    args.service = 'ivo://cadc.nrc.ca/sc2tap'
     subject = _get_subject_from_netrc(args)
     assert(subject is not None)
     assert(isinstance(subject, net.Subject))
@@ -153,13 +167,11 @@ def test_get_subject_from_netrc(netrc_mock, client_mock):
 @patch('cadcutils.net.auth.Subject.from_cmd_line_args')
 def test_get_subject(from_cmd_line_mock, netrc_mock, client_mock):
     args = Mock()
-    args.service = 'ivo://cadc.nrc.ca/sc2tap'
+    args.service = 'tap'
     args.anon = None
     # authentication option specified
     netrc_subject = net.Subject(netrc=True)
     from_cmd_line_mock.return_value = netrc_subject
-    netrc_instance = netrc_mock.return_value
-    client_instance = client_mock.return_value
     ret_subject = _get_subject(args)
     assert(ret_subject is not None)
     assert(ret_subject == netrc_subject)

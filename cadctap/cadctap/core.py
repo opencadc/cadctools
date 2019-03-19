@@ -80,6 +80,7 @@ from six.moves import input
 import netrc as netrclib
 import os
 from cadctap import version
+from six.moves.urllib.parse import urlparse, urlencode
 
 import magic
 from requests_toolbelt.multipart.encoder import MultipartEncoder
@@ -95,6 +96,9 @@ TABLES_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#tables-1.1'
 TABLE_UPDATE_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#table-update-async-1.x'
 TABLE_LOAD_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#table-load-sync-1.x'
 QUERY_CAPABILITY_ID = 'ivo://ivoa.net/std/TAP'
+CADC_AC_SERVICE = 'ivo://cadc.nrc.ca/gms'
+CADC_LOGIN_CAPABILITY = 'ivo://ivoa.net/std/UMS#login-0.1'
+CADC_SSO_COOKIE_NAME = 'CADC_SSO'
 
 # allowed file formats for load
 ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values',
@@ -112,6 +116,7 @@ AUTH_OPTION_EXPLANATION = \
     'for ~/.ssl/cadcproxy.pem file, and if found, will use the --cert\n'\
     'option. If not, cadc-tap will use the --anon option.'
 
+cadctap_agent = 'cadc-tap-client/{}'.format(version.version)
 
 # make the stream bar show up on stdout
 progress.STREAM = sys.stdout
@@ -165,14 +170,42 @@ class CadcTapClient(object):
         """
         self.resource_id = resource_id
         self.host = host
+
         self._subject = subject
         if agent is None:
-            agent = "cadc-tap-client/{}".format(version.version)
+            self.agent = cadctap_agent
+        else:
+            self.agent = agent
 
-        self.agent = agent
+        # for the CADC TAP services, BasicAA is not supported anymore, so
+        # we need to login and get a cookie when the subject uses
+        # user/passwd
+        if resource_id.startswith('ivo://cadc.nrc.ca') and\
+           net.auth.SECURITY_METHODS_IDS['basic'] in \
+           subject.get_security_methods():
+            login = net.BaseWsClient(CADC_AC_SERVICE, net.Subject(), agent,
+                                     retry=True, host=self.host)
+            login_url = login._get_url((CADC_LOGIN_CAPABILITY, None))
+            realm = urlparse(login_url).hostname
+            (user, password) = subject.get_auth(realm)
+            args = {
+                "username": str(user),
+                "password": str(password)}
+            data = urlencode(args)
+            headers = {
+                "Content-type": "application/x-www-form-urlencoded",
+                "Accept": "text/plain"
+            }
+            cookie_response = \
+                login.post((CADC_LOGIN_CAPABILITY, None), data=data,
+                           headers=headers)
+            cookie_response.raise_for_status()
+            subject.cookies.append(
+                net.auth.CookieInfo(realm, CADC_SSO_COOKIE_NAME,
+                                    cookie_response.text))
 
-        self._tap_client = net.BaseWsClient(resource_id, subject,
-                                            agent, retry=True, host=self.host)
+        self._tap_client = net.BaseWsClient(resource_id, subject, self.agent,
+                                            retry=True, host=self.host)
 
     def create_table(self, table_name, table_definition, type=None):
         """
@@ -442,20 +475,28 @@ def _customize_parser(parser):
 
 
 def _get_subject_from_netrc(args):
-    # if .netrc contains hosts in cadc.ugly or canfar.net, return a subject
-    # else return None
+    # Checks to see if user has the required user/passwd in the .netrc file
+    # for the service host in order to use it.
     try:
-        dummy_subject = net.Subject()
-        dummy_client = CadcTapClient(dummy_subject, resource_id=args.service,
-                                     host=args.host)
-        service_host = dummy_client._tap_client._host
+        anon_subject = net.Subject()
+        if args.service.startswith('ivo://cadc.nrc.ca'):
+            # CADC services do not support BasicAA. Need to login first to
+            # get cookie, so check if login url is in .netrc
+            login = net.BaseWsClient(CADC_AC_SERVICE, anon_subject,
+                                     agent=cadctap_agent)
+            service_url = login._get_url((CADC_LOGIN_CAPABILITY, None))
+            service_host = urlparse(service_url).hostname
+        else:
+            dummy_client = CadcTapClient(anon_subject,
+                                         resource_id=args.service,
+                                         host=args.host)
+            service_host = dummy_client._tap_client._host
         logger.info('host for service {} is {}'.format(args.service,
                                                        service_host))
         hosts = netrclib.netrc(None).hosts
         for host in hosts.keys():
             if (service_host in host):
                 return net.Subject(netrc=True)
-
         return None
     except Exception:
         return None
