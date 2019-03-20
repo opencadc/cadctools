@@ -43,7 +43,11 @@ optional arguments:
                         write query results to file (default is to STDOUT)
   -q, --quiet           run quietly
   -s, --service SERVICE
-                        set the TAP service. Use ivo format, eg. default is
+                        set the TAP service. For the CADC TAP services both
+                        the ivo and the short formats
+                        (ivo://cadc.nrc.ca/youcat or youcat) are accepted.
+                        External TAP services can be referred to by their URL
+                        (https://almascience.nrao.edu/tap). Default is
                         ivo://cadc.nrc.ca/youcat
   -t, --tmptable TMPTABLE
                         Temp table upload, the value is in format:

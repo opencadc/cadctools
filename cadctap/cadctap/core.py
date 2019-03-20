@@ -447,6 +447,7 @@ def _add_anon_option(parser):
 def _customize_parser(parser):
     # cadc-tap customizes some of the options inherited from the CADC parser
     # TODO make it work or process list of subparsers
+    found = False
     for i, op in enumerate(parser._actions):
         if op.dest == 'resource_id':
             # Remove --resource-id option for now
@@ -457,11 +458,17 @@ def _customize_parser(parser):
                 for x in var_group_actions:
                     if x.dest == 'resource_id':
                         var_group_actions.remove(x)
+                        found = True
+    if not found:
+        return
     parser.add_argument(
         '-s', '--service',
         default=DEFAULT_SERVICE_ID,
-        help='set the TAP service. Use ivo format, eg. default is {}'.format(
-             DEFAULT_SERVICE_ID))
+        help='set the TAP service. For the CADC TAP services both the ivo '
+             'and the short formats (ivo://cadc.nrc.ca/youcat or youcat) are '
+             'accepted. External TAP services can be referred to by their URL '
+             '(https://almascience.nrao.edu/tap). Default is {}'.
+             format(DEFAULT_SERVICE_ID))
 
 
 def _get_subject_from_netrc(args):

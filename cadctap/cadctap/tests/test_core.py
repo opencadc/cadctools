@@ -452,8 +452,8 @@ class TestCadcTapClient(unittest.TestCase):
                 main_app()
             self.assertEqual(usage, stdout_mock.getvalue())
 
-        usage = ('usage: cadc-tap [-h] [-V] [-s SERVICE]\n'
-                 '                {schema,query,create,delete,index,load} ...'
+        usage = ('usage: cadc-tap [-h] [-V] '
+                 '{schema,query,create,delete,index,load} ...'
                  '\ncadc-tap: error: too few arguments\n')
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
