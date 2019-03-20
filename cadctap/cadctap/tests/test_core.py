@@ -237,7 +237,7 @@ def test_create_table(caps_get_mock, base_put_mock):
     # default format
     def_table = os.path.join(TESTDATA_DIR, 'createTable.vosi')
     def_table_content = open(def_table, 'rb').read()
-    client.create_table('sometable', def_table)
+    client.create_table('sometable', def_table, 'VOSITable')
     base_put_mock.assert_called_with(
         (TABLES_CAPABILITY_ID, 'sometable'), data=def_table_content,
         headers={'Content-Type': '{}'.format(
@@ -250,6 +250,14 @@ def test_create_table(caps_get_mock, base_put_mock):
         (TABLES_CAPABILITY_ID, 'sometable'), data=def_table_content,
         headers={'Content-Type': '{}'.format(
             ALLOWED_TB_DEF_TYPES['VOTable'])})
+
+    # default is VOTable format
+    base_put_mock.reset_mock()
+    client.create_table('sometable', def_table)
+    base_put_mock.assert_called_with(
+        (TABLES_CAPABILITY_ID, 'sometable'), data=def_table_content,
+        headers={'Content-Type': '{}'.format(
+            ALLOWED_TB_DEF_TYPES['VOSITable'])})
 
     # error cases
     with pytest.raises(AttributeError):
@@ -590,7 +598,7 @@ class TestCadcTapClient(unittest.TestCase):
 
         sys.argv = ['cadc-tap', 'create', '-d', 'tablename', 'path/to/file']
         main_app()
-        calls = [call('tablename', 'path/to/file', None)]
+        calls = [call('tablename', 'path/to/file', 'VOSITable')]
         create_mock.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'index', '-v', 'tablename', 'columnName']

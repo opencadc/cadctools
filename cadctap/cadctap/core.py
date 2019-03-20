@@ -82,7 +82,6 @@ import os
 from cadctap import version
 from six.moves.urllib.parse import urlparse, urlencode
 
-import magic
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 logger = logging.getLogger(__name__)
@@ -99,6 +98,8 @@ QUERY_CAPABILITY_ID = 'ivo://ivoa.net/std/TAP'
 CADC_AC_SERVICE = 'ivo://cadc.nrc.ca/gms'
 CADC_LOGIN_CAPABILITY = 'ivo://ivoa.net/std/UMS#login-0.1'
 CADC_SSO_COOKIE_NAME = 'CADC_SSO'
+CADC_REALMS = ['.canfar.net', '.cadc-ccda.hia-iha.nrc-cnrc.gc.ca',
+               '.cadc.dao.nrc.ca', '.canfar.phys.uvic.ca']
 
 # allowed file formats for load
 ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values',
@@ -183,14 +184,18 @@ class CadcTapClient(object):
         if resource_id.startswith('ivo://cadc.nrc.ca') and\
            net.auth.SECURITY_METHODS_IDS['basic'] in \
            subject.get_security_methods():
-            login = net.BaseWsClient(CADC_AC_SERVICE, net.Subject(), agent,
+            login = net.BaseWsClient(CADC_AC_SERVICE, net.Subject(),
+                                     self.agent,
                                      retry=True, host=self.host)
             login_url = login._get_url((CADC_LOGIN_CAPABILITY, None))
             realm = urlparse(login_url).hostname
-            (user, password) = subject.get_auth(realm)
+            auth = subject.get_auth(realm)
+            if not auth:
+                raise RuntimeError(
+                    'No user/password for realm {} in .netrc'.format(realm))
             args = {
-                "username": str(user),
-                "password": str(password)}
+                "username": str(auth[0]),
+                "password": str(auth[1])}
             data = urlencode(args)
             headers = {
                 "Content-type": "application/x-www-form-urlencoded",
@@ -200,14 +205,15 @@ class CadcTapClient(object):
                 login.post((CADC_LOGIN_CAPABILITY, None), data=data,
                            headers=headers)
             cookie_response.raise_for_status()
-            subject.cookies.append(
-                net.auth.CookieInfo(realm, CADC_SSO_COOKIE_NAME,
-                                    cookie_response.text))
+            for cadc_realm in CADC_REALMS:
+                subject.cookies.append(
+                    net.auth.CookieInfo(cadc_realm, CADC_SSO_COOKIE_NAME,
+                                        cookie_response.text))
 
         self._tap_client = net.BaseWsClient(resource_id, subject, self.agent,
                                             retry=True, host=self.host)
 
-    def create_table(self, table_name, table_definition, type=None):
+    def create_table(self, table_name, table_definition, type='VOSITable'):
         """
         Creates a table in the catalog service.
         :param table_name: Name of the table in the TAP service
@@ -219,28 +225,12 @@ class CadcTapClient(object):
                 'table name and definition required in create: {}/{}'.
                 format(table_name, table_definition))
 
-        if type:
-            if type not in ALLOWED_TB_DEF_TYPES.keys():
-                raise AttributeError(
-                    'Table definition file type {} not supported ({})'.
-                    format(type, ' '.join(ALLOWED_TB_DEF_TYPES.keys)))
-            else:
-                file_type = type
+        if type not in ALLOWED_TB_DEF_TYPES.keys():
+            raise AttributeError(
+                'Table definition file type {} not supported ({})'.
+                format(type, ' '.join(ALLOWED_TB_DEF_TYPES.keys)))
         else:
-            m = magic.Magic()
-            t = m.from_file(table_definition)
-            if 'XML' in t:
-                file_type = 'VOTable'
-            elif 'FITS' in t:
-                file_type = 'FITSTable'
-            elif 'ASCII' in t:
-                file_type = 'VOSITable'
-            else:
-                raise AttributeError('Cannot determine the type of the table '
-                                     'definition file {}'.
-                                     format(table_definition))
-            logger.info('Assuming the table definition file type: {}'.
-                        format(file_type))
+            file_type = type
         logger.debug('Creating {} from file {} of type {}'.
                      format(table_name, table_definition, file_type))
         headers = {'Content-Type': ALLOWED_TB_DEF_TYPES[file_type]}
@@ -652,8 +642,8 @@ def main_app(command='cadc-tap query'):
         help='Create a table')
     create_parser.add_argument(
         '-f', '--format', choices=sorted(ALLOWED_TB_DEF_TYPES.keys()),
-        required=False,
-        help='Format of the table definition file')
+        required=False, default='VOSITable',
+        help='Format of the table definition file. Default VOSITable format')
     create_parser.add_argument(
         'TABLENAME',
         help='name of the table (<schema.table>) in the tap service')
@@ -740,11 +730,8 @@ def main_app(command='cadc-tap query'):
 
         subject = _get_subject(args)
 
-        try:
-            client = CadcTapClient(subject, resource_id=args.service,
-                                   host=args.host)
-        except Exception:
-            raise RuntimeError('no tap service for ' + args.service)
+        client = CadcTapClient(subject, resource_id=args.service,
+                               host=args.host)
 
         if args.cmd == 'create':
             client.create_table(args.TABLENAME, args.TABLEDEFINITION,

@@ -27,7 +27,8 @@ optional arguments:
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages
   -f, --format {VOSITable,VOTable}
-                        Format of the table definition file
+                        Format of the table definition file. Default VOSITable
+                        format
   -h, --help            show this help message and exit
   --host HOST           base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
