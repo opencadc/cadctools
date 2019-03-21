@@ -75,6 +75,7 @@ import unittest
 from cadcutils import net, exceptions
 
 from six import StringIO
+import cadctap
 from cadctap.core import main_app
 from mock import Mock, patch, call
 import pytest
@@ -98,6 +99,33 @@ BASE_URL = 'https://ws-cadc.canfar.net/youcat'
 class MyExitError(Exception):
     def __init__(self):
         self.message = "MyExitError"
+
+
+@patch('cadctap.core.net.BaseWsClient')
+def test_cadc_client_basicaa(base_mock):
+    service_realm = 'some.domain.com'
+    service_url = 'https://{}'.format(service_realm)
+    base_mock.return_value._get_url.return_value = service_url
+    cookie_response = Mock()
+    cookie_response.status_code = 200
+    cookie_response.text = 'cookie val'
+    subject = net.Subject(netrc=True)
+    base_mock.return_value.post.return_value = cookie_response
+    # mock the get_auth of the subject to return user/passwd from netrc file
+    get_auth = Mock(return_value=('user', 'pswd'))
+    subject.get_auth = get_auth
+    # after calling CadcTapClient the subject is augmented with cookie info
+    CadcTapClient(subject)
+    get_auth.assert_called_with(service_realm)
+    assert len(subject.cookies) == len(cadctap.core.CADC_REALMS)
+    for cookie in subject.cookies:
+        # note "" around the value required by the cookie
+        assert cookie.value == '"cookie val"'
+    base_mock.return_value.post.assert_called_with(
+        ('ivo://ivoa.net/std/UMS#login-0.1', None),
+        data='password=pswd&username=user',
+        headers={'Content-type': 'application/x-www-form-urlencoded',
+                 'Accept': 'text/plain'})
 
 
 def test_get_subject_from_certificate():
@@ -405,10 +433,14 @@ def test_create_index(caps_get_mock, base_get_mock, base_post_mock):
 def test_schema(caps_get_mock, base_get_mock):
     caps_get_mock.return_value = BASE_URL
     client = CadcTapClient(net.Subject())
-    # default format
+    # default schema
     client.schema()
-    base_get_mock.assert_called_with(
-        (TABLES_CAPABILITY_ID, None))
+    base_get_mock.assert_called_with((TABLES_CAPABILITY_ID, None),
+                                     params={'detail': 'min'})
+    # table schema
+    client.schema('mytable')
+    base_get_mock.assert_called_with((TABLES_CAPABILITY_ID, 'mytable'),
+                                     params={'detail': 'min'})
 
 
 @patch('cadcutils.net.ws.BaseWsClient.post')
@@ -593,7 +625,12 @@ class TestCadcTapClient(unittest.TestCase):
                   index_mock, load_mock):
         sys.argv = ['cadc-tap', 'schema']
         main_app()
-        calls = [call()]
+        calls = [call(None)]
+        schema_mock.assert_has_calls(calls)
+
+        sys.argv = ['cadc-tap', 'schema', 'mytable']
+        main_app()
+        calls = [call('mytable')]
         schema_mock.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'create', '-d', 'tablename', 'path/to/file']
@@ -613,11 +650,18 @@ class TestCadcTapClient(unittest.TestCase):
 
         sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice', 'QUERY']
         main_app()
-        calls = [call('QUERY', None, 'tsv', None)]
+        calls = [call('QUERY', None, 'tsv', None, timeout=2)]
+        query_mock.assert_has_calls(calls)
+
+        sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice',
+                    '--timeout', '7', 'QUERY']
+        main_app()
+        calls = [call('QUERY', None, 'tsv', None, timeout=7)]
         query_mock.assert_has_calls(calls)
 
         query_file = os.path.join(TESTDATA_DIR, 'example_query.sql')
         sys.argv = ['cadc-tap', 'query', '-i', query_file, '-s', 'tap']
         main_app()
-        calls = [call('QUERY', None, 'tsv', None)]
+        calls = [call('SELECT TOP 10 target_name FROM caom2.Observation', None,
+                      'tsv', None, timeout=2)]
         query_mock.assert_has_calls(calls)

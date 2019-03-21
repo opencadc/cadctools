@@ -1,6 +1,7 @@
 usage: cadc-tap schema [-h]
                        [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a]
                        [--host HOST] [-d | -q | -v] [-s SERVICE]
+                       [SCHEMA.TABLENAME]
 
 Print the tables available for querying.
 
@@ -13,6 +14,9 @@ host associated with the service and look in the ~/.netrc file for the
 host, and if found, will use the -n option. If not, cadc-tap will look
 for ~/.ssl/cadcproxy.pem file, and if found, will use the --cert
 option. If not, cadc-tap will use the --anon option.
+
+positional arguments:
+  SCHEMA.TABLENAME      Table to get the schema for
 
 optional arguments:
   -a, --anon            use the service anonymously

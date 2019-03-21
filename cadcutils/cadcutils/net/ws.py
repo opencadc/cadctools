@@ -387,7 +387,7 @@ class BaseWsClient(object):
                 for cookie in self.subject.cookies:
                     cookie_obj = requests.cookies.create_cookie(
                         domain=cookie.domain, name=cookie.name,
-                        value='"{}"'.format(cookie.value))
+                        value=cookie.value)
                     self._session.cookies.set_cookie(cookie_obj)
             else:
                 if (not self.subject.anon) and (self.host is not None) and \

@@ -208,7 +208,7 @@ class CadcTapClient(object):
             for cadc_realm in CADC_REALMS:
                 subject.cookies.append(
                     net.auth.CookieInfo(cadc_realm, CADC_SSO_COOKIE_NAME,
-                                        cookie_response.text))
+                                        '"{}"'.format(cookie_response.text)))
 
         self._tap_client = net.BaseWsClient(resource_id, subject, self.agent,
                                             retry=True, host=self.host)
@@ -341,14 +341,16 @@ class CadcTapClient(object):
                 logger.info('Done uploading file {}'.format(fh.name))
 
     def query(self, query, output_file=None, response_format='VOTable',
-              tmptable=None, lang='ADQL'):
+              tmptable=None, lang='ADQL', timeout=2):
         """
         Send query to database and output or save results
-        :param lang: the language to use for the query (should be ADQL)
         :param query: the query to send to the database
         :param response_format: (VOTable, csv, tsv) format of returned result
         :param tmptable: tablename:/path/to/table, tmp table to upload
         :param output_file: name of the file to save results to
+        :param lang: the language to use for the query (should be ADQL)
+        :param timeout: time in minutes before the query should timeout when no
+        response receive from server.
         """
         pass
         if not query:
@@ -379,18 +381,23 @@ class CadcTapClient(object):
         with self._tap_client.post(resource, params=fields,
                                    data=m, headers={
                                        'Content-Type': m.content_type},
-                                   stream=True) as result:
+                                   stream=True, timeout=timeout*60) as result:
             if not output_file:
                 print(result.text)
             else:
                 with open(output_file, "wb") as f:
                     f.write(result.raw.read())
 
-    def schema(self):
+    def schema(self, table=None):
         """
         Outputs the tables available for queries
+
+        :param table: name of the table (schema.tablename) of the table to
+        get the schema for. Set to None to get the names of all the tables.
         """
-        results = self._tap_client.get((TABLES_CAPABILITY_ID, None))
+        results = self._tap_client.get((TABLES_CAPABILITY_ID, table),
+                                       params={'detail':'min'})
+        #TODO display something more user friendly than the VOSI XML
         print(results.text)
 
 
@@ -583,6 +590,9 @@ def main_app(command='cadc-tap query'):
         description=('Print the tables available for querying.\n') +
         AUTH_OPTION_EXPLANATION,
         help='Print the tables available for querying.')
+    schema_parser.add_argument(
+        'tablename', metavar='SCHEMA.TABLENAME',
+        help='Table to get the schema for', nargs='?')
     query_parser = subparsers.add_parser(
         'query',
         description=('Run an adql query\n') + AUTH_OPTION_EXPLANATION,
@@ -613,6 +623,9 @@ def main_app(command='cadc-tap query'):
              ' which only outputs the top 2000 results)',
         required=False)
     """
+    query_parser.add_argument(
+        '--timeout', default=2, help='query timeout in minutes. Default 2min',
+        required=False, type=int)
     query_parser.add_argument(
         '-f', '--format',
         default='tsv',
@@ -768,9 +781,10 @@ def main_app(command='cadc-tap query'):
                     query = f.read().strip()
             else:
                 query = args.QUERY
-            client.query(query, args.output_file, args.format, args.tmptable)
+            client.query(query, args.output_file, args.format, args.tmptable,
+                         timeout=args.timeout)
         elif args.cmd == 'schema':
-            client.schema()
+            client.schema(args.tablename)
     except Exception as ex:
         exit_on_exception(ex)
 

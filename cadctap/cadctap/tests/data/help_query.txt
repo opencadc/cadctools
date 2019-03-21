@@ -1,8 +1,8 @@
 usage: cadc-tap query [-h]
                       [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a]
                       [--host HOST] [-d | -q | -v] [-o OUTPUT_FILE]
-                      [-i INPUT_FILE] [-f {VOTable,csv,tsv}] [-t TMPTABLE]
-                      [-s SERVICE]
+                      [-i INPUT_FILE] [--timeout TIMEOUT]
+                      [-f {VOTable,csv,tsv}] [-t TMPTABLE] [-s SERVICE]
                       [QUERY]
 
 Run an adql query
@@ -49,6 +49,7 @@ optional arguments:
                         External TAP services can be referred to by their URL
                         (https://almascience.nrao.edu/tap). Default is
                         ivo://cadc.nrc.ca/youcat
+  --timeout TIMEOUT     query timeout in minutes. Default 2min
   -t, --tmptable TMPTABLE
                         Temp table upload, the value is in format:
                         "tablename:/path/to/table". In query to reference the
