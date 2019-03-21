@@ -366,7 +366,7 @@ class TestWs(unittest.TestCase):
         put_mock.assert_called_with(resource_url, **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
         self.assertEqual(1, len(client._session.cookies))
-        self.assertEqual('"cookievalue"',
+        self.assertEqual('cookievalue',
                          client._session.cookies['MyTestCookie'])
 
 
