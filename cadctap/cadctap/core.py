@@ -193,10 +193,7 @@ class CadcTapClient(object):
             if not auth:
                 raise RuntimeError(
                     'No user/password for realm {} in .netrc'.format(realm))
-            args = {
-                "username": str(auth[0]),
-                "password": str(auth[1])}
-            data = urlencode(args)
+            data = urlencode([('username', auth[0]), ('password', auth[1])])
             headers = {
                 "Content-type": "application/x-www-form-urlencoded",
                 "Accept": "text/plain"
@@ -396,8 +393,8 @@ class CadcTapClient(object):
         get the schema for. Set to None to get the names of all the tables.
         """
         results = self._tap_client.get((TABLES_CAPABILITY_ID, table),
-                                       params={'detail':'min'})
-        #TODO display something more user friendly than the VOSI XML
+                                       params={'detail': 'min'})
+        # TODO display something more user friendly than the VOSI XML
         print(results.text)
 
 

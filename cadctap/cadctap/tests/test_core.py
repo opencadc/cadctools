@@ -109,7 +109,8 @@ def test_cadc_client_basicaa(base_mock):
     cookie_response = Mock()
     cookie_response.status_code = 200
     cookie_response.text = 'cookie val'
-    subject = net.Subject(netrc=True)
+    subject = net.Subject()
+    subject._netrc = True  # avoid checking for the real .netrc file
     base_mock.return_value.post.return_value = cookie_response
     # mock the get_auth of the subject to return user/passwd from netrc file
     get_auth = Mock(return_value=('user', 'pswd'))
@@ -123,7 +124,7 @@ def test_cadc_client_basicaa(base_mock):
         assert cookie.value == '"cookie val"'
     base_mock.return_value.post.assert_called_with(
         ('ivo://ivoa.net/std/UMS#login-0.1', None),
-        data='password=pswd&username=user',
+        data='username=user&password=pswd',
         headers={'Content-type': 'application/x-www-form-urlencoded',
                  'Accept': 'text/plain'})
 
