@@ -27,7 +27,8 @@ optional arguments:
                         authentication (unencrypted, in PEM format)
   -d, --debug           debug messages
   -f, --format {VOSITable,VOTable}
-                        Format of the table definition file
+                        Format of the table definition file. Default VOSITable
+                        format
   -h, --help            show this help message and exit
   --host HOST           base hostname for services - used mainly for testing
                         (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
@@ -36,7 +37,11 @@ optional arguments:
                         netrc file to use for authentication
   -q, --quiet           run quietly
   -s, --service SERVICE
-                        set the TAP service. Use ivo format, eg. default is
+                        set the TAP service. For the CADC TAP services both
+                        the ivo and the short formats
+                        (ivo://cadc.nrc.ca/youcat or youcat) are accepted.
+                        External TAP services can be referred to by their URL
+                        (https://almascience.nrao.edu/tap). Default is
                         ivo://cadc.nrc.ca/youcat
   -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!

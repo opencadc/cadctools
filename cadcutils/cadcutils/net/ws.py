@@ -383,6 +383,12 @@ class BaseWsClient(object):
             if self.subject.certificate is not None:
                 self._session.cert = (
                     self.subject.certificate, self.subject.certificate)
+            elif self.subject.cookies:
+                for cookie in self.subject.cookies:
+                    cookie_obj = requests.cookies.create_cookie(
+                        domain=cookie.domain, name=cookie.name,
+                        value=cookie.value)
+                    self._session.cookies.set_cookie(cookie_obj)
             else:
                 if (not self.subject.anon) and (self.host is not None) and \
                         (self.subject.get_auth(self.host) is not None):
