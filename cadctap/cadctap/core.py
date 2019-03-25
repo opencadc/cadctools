@@ -430,6 +430,7 @@ def smart_open(filename=None):
         if fh is not sys.stdout:
             fh.close()
 
+
 def _add_anon_option(parser):
     # cadc-tap supports '-a | --anon' authentication option
     # This is a hack. It depends on the implementation of ArgumentParser.
