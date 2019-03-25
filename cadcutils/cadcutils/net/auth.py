@@ -95,9 +95,20 @@ __all__ = ['get_cert', 'Subject']
 # these are the security methods currently supported
 SECURITY_METHODS_IDS = {
     'certificate': 'ivo://ivoa.net/sso#tls-with-certificate',
-    'basic': 'ivo://ivoa.net/sso#BasicAA'}
+    'basic': 'ivo://ivoa.net/sso#BasicAA',
+    'cookie': 'ivo://ivoa.net/sso#cookie'}
 
 logger = util.get_logger(__name__)
+
+
+class CookieInfo(object):
+    """
+    Class to store information regarding an HTTP Cookie
+    """
+    def __init__(self, domain, name, value):
+        self.domain = domain
+        self.name = name
+        self.value = value
 
 
 class Subject(object):
@@ -125,6 +136,7 @@ class Subject(object):
         self.certificate = certificate
         self._netrc = False
         self.netrc = netrc
+        self._cookies = []
 
     @property
     def certificate(self):
@@ -169,6 +181,10 @@ class Subject(object):
         """
         return (self.certificate is None) and (self.netrc is False) and\
                (self.username is None)
+
+    @property
+    def cookies(self):
+        return self._cookies
 
     @staticmethod
     def from_cmd_line_args(args):
@@ -227,11 +243,16 @@ class Subject(object):
         returns the security method IDs that this subject is authentication
         for. The order of the returned methods is one that it is preferred:
         certificate, basic and anon.
+
+        Note: a realm would be required here as some methods (cookie, basic)
+        are bound to a realm
         :return: list of security method IDs
         """
         sms = []
         if self.certificate is not None:
             sms.append(SECURITY_METHODS_IDS['certificate'])
+        if self.cookies:
+            sms.append(SECURITY_METHODS_IDS['cookie'])
         if (self.netrc is not False) or (self.username is not None):
             sms.append(SECURITY_METHODS_IDS['basic'])
         return sms

@@ -80,8 +80,9 @@ from six.moves import input
 import netrc as netrclib
 import os
 from cadctap import version
+from six.moves.urllib.parse import urlparse, urlencode
+import contextlib
 
-import magic
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 logger = logging.getLogger(__name__)
@@ -95,6 +96,11 @@ TABLES_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#tables-1.1'
 TABLE_UPDATE_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#table-update-async-1.x'
 TABLE_LOAD_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#table-load-sync-1.x'
 QUERY_CAPABILITY_ID = 'ivo://ivoa.net/std/TAP'
+CADC_AC_SERVICE = 'ivo://cadc.nrc.ca/gms'
+CADC_LOGIN_CAPABILITY = 'ivo://ivoa.net/std/UMS#login-0.1'
+CADC_SSO_COOKIE_NAME = 'CADC_SSO'
+CADC_REALMS = ['.canfar.net', '.cadc-ccda.hia-iha.nrc-cnrc.gc.ca',
+               '.cadc.dao.nrc.ca', '.canfar.phys.uvic.ca']
 
 # allowed file formats for load
 ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values',
@@ -112,6 +118,7 @@ AUTH_OPTION_EXPLANATION = \
     'for ~/.ssl/cadcproxy.pem file, and if found, will use the --cert\n'\
     'option. If not, cadc-tap will use the --anon option.'
 
+cadctap_agent = 'cadc-tap-client/{}'.format(version.version)
 
 # make the stream bar show up on stdout
 progress.STREAM = sys.stdout
@@ -165,16 +172,46 @@ class CadcTapClient(object):
         """
         self.resource_id = resource_id
         self.host = host
+
         self._subject = subject
         if agent is None:
-            agent = "cadc-tap-client/{}".format(version.version)
+            self.agent = cadctap_agent
+        else:
+            self.agent = agent
 
-        self.agent = agent
+        # for the CADC TAP services, BasicAA is not supported anymore, so
+        # we need to login and get a cookie when the subject uses
+        # user/passwd
+        if resource_id.startswith('ivo://cadc.nrc.ca') and\
+           net.auth.SECURITY_METHODS_IDS['basic'] in \
+           subject.get_security_methods():
+            login = net.BaseWsClient(CADC_AC_SERVICE, net.Subject(),
+                                     self.agent,
+                                     retry=True, host=self.host)
+            login_url = login._get_url((CADC_LOGIN_CAPABILITY, None))
+            realm = urlparse(login_url).hostname
+            auth = subject.get_auth(realm)
+            if not auth:
+                raise RuntimeError(
+                    'No user/password for realm {} in .netrc'.format(realm))
+            data = urlencode([('username', auth[0]), ('password', auth[1])])
+            headers = {
+                "Content-type": "application/x-www-form-urlencoded",
+                "Accept": "text/plain"
+            }
+            cookie_response = \
+                login.post((CADC_LOGIN_CAPABILITY, None), data=data,
+                           headers=headers)
+            cookie_response.raise_for_status()
+            for cadc_realm in CADC_REALMS:
+                subject.cookies.append(
+                    net.auth.CookieInfo(cadc_realm, CADC_SSO_COOKIE_NAME,
+                                        '"{}"'.format(cookie_response.text)))
 
-        self._tap_client = net.BaseWsClient(resource_id, subject,
-                                            agent, retry=True, host=self.host)
+        self._tap_client = net.BaseWsClient(resource_id, subject, self.agent,
+                                            retry=True, host=self.host)
 
-    def create_table(self, table_name, table_definition, type=None):
+    def create_table(self, table_name, table_definition, type='VOSITable'):
         """
         Creates a table in the catalog service.
         :param table_name: Name of the table in the TAP service
@@ -186,28 +223,12 @@ class CadcTapClient(object):
                 'table name and definition required in create: {}/{}'.
                 format(table_name, table_definition))
 
-        if type:
-            if type not in ALLOWED_TB_DEF_TYPES.keys():
-                raise AttributeError(
-                    'Table definition file type {} not supported ({})'.
-                    format(type, ' '.join(ALLOWED_TB_DEF_TYPES.keys)))
-            else:
-                file_type = type
+        if type not in ALLOWED_TB_DEF_TYPES.keys():
+            raise AttributeError(
+                'Table definition file type {} not supported ({})'.
+                format(type, ' '.join(ALLOWED_TB_DEF_TYPES.keys)))
         else:
-            m = magic.Magic()
-            t = m.from_file(table_definition)
-            if 'XML' in t:
-                file_type = 'VOTable'
-            elif 'FITS' in t:
-                file_type = 'FITSTable'
-            elif 'ASCII' in t:
-                file_type = 'VOSITable'
-            else:
-                raise AttributeError('Cannot determine the type of the table '
-                                     'definition file {}'.
-                                     format(table_definition))
-            logger.info('Assuming the table definition file type: {}'.
-                        format(file_type))
+            file_type = type
         logger.debug('Creating {} from file {} of type {}'.
                      format(table_name, table_definition, file_type))
         headers = {'Content-Type': ALLOWED_TB_DEF_TYPES[file_type]}
@@ -318,14 +339,17 @@ class CadcTapClient(object):
                 logger.info('Done uploading file {}'.format(fh.name))
 
     def query(self, query, output_file=None, response_format='VOTable',
-              tmptable=None, lang='ADQL'):
+              tmptable=None, lang='ADQL', timeout=2, data_only=False):
         """
         Send query to database and output or save results
-        :param lang: the language to use for the query (should be ADQL)
         :param query: the query to send to the database
         :param response_format: (VOTable, csv, tsv) format of returned result
         :param tmptable: tablename:/path/to/table, tmp table to upload
         :param output_file: name of the file to save results to
+        :param lang: the language to use for the query (should be ADQL)
+        :param timeout: time in minutes before the query should timeout when no
+        response receive from server.
+        :param data_only: print only data - no headers or footers
         """
         pass
         if not query:
@@ -353,22 +377,58 @@ class CadcTapClient(object):
         else:
             resource = self._tap_client._get_url((QUERY_CAPABILITY_ID, 'sync'))
 
+        rows = 0
         with self._tap_client.post(resource, params=fields,
                                    data=m, headers={
                                        'Content-Type': m.content_type},
-                                   stream=True) as result:
-            if not output_file:
-                print(result.text)
-            else:
-                with open(output_file, "wb") as f:
-                    f.write(result.raw.read())
+                                   stream=True, timeout=timeout*60) as result:
+            with smart_open(output_file) as f:
+                header = True
+                for row in result.text.split('\n'):
+                    if row.strip():
+                        if header:
+                            header = False
+                            if data_only:
+                                continue
+                            print(row.strip(), file=f)
+                            print('-----------------------', file=f)
+                        else:
+                            rows += 1
+                            print(row.strip(), file=f)
+                if not data_only:
+                    if rows == 1:
+                        footer = '\n(1 row affected)'
+                    else:
+                        footer = '\n({} rows affected)'.format(rows)
+                    print(footer, file=f)
 
-    def schema(self):
+    def schema(self, table=None):
         """
         Outputs the tables available for queries
+
+        :param table: name of the table (schema.tablename) of the table to
+        get the schema for. Set to None to get the names of all the tables.
         """
-        results = self._tap_client.get((TABLES_CAPABILITY_ID, None))
+        results = self._tap_client.get((TABLES_CAPABILITY_ID, table),
+                                       params={'detail': 'min'})
+        # TODO display something more user friendly than the VOSI XML
         print(results.text)
+
+
+@contextlib.contextmanager
+def smart_open(filename=None):
+    # handles writing to files and stdout uniformly. If filename is None,
+    # it returns stdout to write to.
+    if filename and filename != '-':
+        fh = open(filename, 'w')
+    else:
+        fh = sys.stdout
+
+    try:
+        yield fh
+    finally:
+        if fh is not sys.stdout:
+            fh.close()
 
 
 def _add_anon_option(parser):
@@ -424,6 +484,7 @@ def _add_anon_option(parser):
 def _customize_parser(parser):
     # cadc-tap customizes some of the options inherited from the CADC parser
     # TODO make it work or process list of subparsers
+    found = False
     for i, op in enumerate(parser._actions):
         if op.dest == 'resource_id':
             # Remove --resource-id option for now
@@ -434,28 +495,42 @@ def _customize_parser(parser):
                 for x in var_group_actions:
                     if x.dest == 'resource_id':
                         var_group_actions.remove(x)
+                        found = True
+    if not found:
+        return
     parser.add_argument(
         '-s', '--service',
         default=DEFAULT_SERVICE_ID,
-        help='set the TAP service. Use ivo format, eg. default is {}'.format(
-             DEFAULT_SERVICE_ID))
+        help='set the TAP service. For the CADC TAP services both the ivo '
+             'and the short formats (ivo://cadc.nrc.ca/youcat or youcat) are '
+             'accepted. External TAP services can be referred to by their URL '
+             '(https://almascience.nrao.edu/tap). Default is {}'.
+             format(DEFAULT_SERVICE_ID))
 
 
 def _get_subject_from_netrc(args):
-    # if .netrc contains hosts in cadc.ugly or canfar.net, return a subject
-    # else return None
+    # Checks to see if user has the required user/passwd in the .netrc file
+    # for the service host in order to use it.
     try:
-        dummy_subject = net.Subject()
-        dummy_client = CadcTapClient(dummy_subject, resource_id=args.service,
-                                     host=args.host)
-        service_host = dummy_client._tap_client._host
+        anon_subject = net.Subject()
+        if args.service.startswith('ivo://cadc.nrc.ca'):
+            # CADC services do not support BasicAA. Need to login first to
+            # get cookie, so check if login url is in .netrc
+            login = net.BaseWsClient(CADC_AC_SERVICE, anon_subject,
+                                     agent=cadctap_agent)
+            service_url = login._get_url((CADC_LOGIN_CAPABILITY, None))
+            service_host = urlparse(service_url).hostname
+        else:
+            dummy_client = CadcTapClient(anon_subject,
+                                         resource_id=args.service,
+                                         host=args.host)
+            service_host = dummy_client._tap_client._host
         logger.info('host for service {} is {}'.format(args.service,
                                                        service_host))
         hosts = netrclib.netrc(None).hosts
         for host in hosts.keys():
             if (service_host in host):
                 return net.Subject(netrc=True)
-
         return None
     except Exception:
         return None
@@ -545,6 +620,9 @@ def main_app(command='cadc-tap query'):
         description=('Print the tables available for querying.\n') +
         AUTH_OPTION_EXPLANATION,
         help='Print the tables available for querying.')
+    schema_parser.add_argument(
+        'tablename', metavar='SCHEMA.TABLENAME',
+        help='Table to get the schema for', nargs='?')
     query_parser = subparsers.add_parser(
         'query',
         description=('Run an adql query\n') + AUTH_OPTION_EXPLANATION,
@@ -575,6 +653,9 @@ def main_app(command='cadc-tap query'):
              ' which only outputs the top 2000 results)',
         required=False)
     """
+    query_parser.add_argument(
+        '--timeout', default=2, help='query timeout in minutes. Default 2min',
+        required=False, type=int)
     query_parser.add_argument(
         '-f', '--format',
         default='tsv',
@@ -611,8 +692,8 @@ def main_app(command='cadc-tap query'):
         help='Create a table')
     create_parser.add_argument(
         '-f', '--format', choices=sorted(ALLOWED_TB_DEF_TYPES.keys()),
-        required=False,
-        help='Format of the table definition file')
+        required=False, default='VOSITable',
+        help='Format of the table definition file. Default VOSITable format')
     create_parser.add_argument(
         'TABLENAME',
         help='name of the table (<schema.table>) in the tap service')
@@ -699,11 +780,8 @@ def main_app(command='cadc-tap query'):
 
         subject = _get_subject(args)
 
-        try:
-            client = CadcTapClient(subject, resource_id=args.service,
-                                   host=args.host)
-        except Exception:
-            raise RuntimeError('no tap service for ' + args.service)
+        client = CadcTapClient(subject, resource_id=args.service,
+                               host=args.host)
 
         if args.cmd == 'create':
             client.create_table(args.TABLENAME, args.TABLEDEFINITION,
@@ -733,9 +811,10 @@ def main_app(command='cadc-tap query'):
                     query = f.read().strip()
             else:
                 query = args.QUERY
-            client.query(query, args.output_file, args.format, args.tmptable)
+            client.query(query, args.output_file, args.format, args.tmptable,
+                         timeout=args.timeout, data_only=args.quiet)
         elif args.cmd == 'schema':
-            client.schema()
+            client.schema(args.tablename)
     except Exception as ex:
         exit_on_exception(ex)
 

@@ -221,3 +221,10 @@ Expected /tmp/testcertfile to be a directory.
         subject = auth.Subject.from_cmd_line_args(args)
         self.assertFalse(subject.anon)
         self.assertEqual('mycert.pem', subject.certificate)
+
+        # subject with cookies
+        cookie = auth.CookieInfo('some.domain', 'MyCookie', 'somevalue')
+        subject = auth.Subject()
+        subject.cookies.append(cookie)
+        assert auth.SECURITY_METHODS_IDS['cookie'] in\
+            subject.get_security_methods()
