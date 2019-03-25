@@ -82,6 +82,7 @@ import pytest
 from cadctap import CadcTapClient
 from cadctap.core import _get_subject_from_netrc,\
     _get_subject_from_certificate, _get_subject, exit_on_exception
+import tempfile
 
 from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
     ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID,\
@@ -460,9 +461,28 @@ def test_query(caps_get_mock, base_post_mock):
     fields['UPLOAD'] = '{},param:{}'.format(def_name, tablefile)
     fields[tablefile] = (def_table, open(def_table, 'rb'))
     client.query('query', tmptable='tmptable:'+def_table)
-    print(base_post_mock.call_args_list[0][0][0])
     assert base_post_mock.call_args_list[0][0][0] == \
         '{}/{}'.format(BASE_URL, 'sync')
+
+    base_post_mock.reset_mock()
+    response = Mock()
+    response.status_code = 200
+    response.text = 'Header 1\nVal1\nVal2\n'
+    # NOTE: post mock returns a context manager with the responose, hence
+    # the __enter__
+    base_post_mock.return_value.__enter__.return_value = response
+    with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+        client.query('query', data_only=True)
+    assert stdout_mock.getvalue() == 'Val1\nVal2\n'
+
+    # save in a file
+    tf = tempfile.NamedTemporaryFile()
+    base_post_mock.reset_mock()
+    base_post_mock.return_value.__enter__.return_value = response
+    client.query('query', output_file=tf.name)
+    actual = open(tf.name).read()
+    assert actual == 'Header 1\n-----------------------\n' \
+                     'Val1\nVal2\n\n(2 rows affected)\n'
 
 
 class TestCadcTapClient(unittest.TestCase):
