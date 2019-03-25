@@ -81,6 +81,7 @@ import netrc as netrclib
 import os
 from cadctap import version
 from six.moves.urllib.parse import urlparse, urlencode
+import contextlib
 
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
@@ -338,7 +339,7 @@ class CadcTapClient(object):
                 logger.info('Done uploading file {}'.format(fh.name))
 
     def query(self, query, output_file=None, response_format='VOTable',
-              tmptable=None, lang='ADQL', timeout=2):
+              tmptable=None, lang='ADQL', timeout=2, data_only=False):
         """
         Send query to database and output or save results
         :param query: the query to send to the database
@@ -348,6 +349,7 @@ class CadcTapClient(object):
         :param lang: the language to use for the query (should be ADQL)
         :param timeout: time in minutes before the query should timeout when no
         response receive from server.
+        :param data_only: print only data - no headers or footers
         """
         pass
         if not query:
@@ -375,15 +377,30 @@ class CadcTapClient(object):
         else:
             resource = self._tap_client._get_url((QUERY_CAPABILITY_ID, 'sync'))
 
+        rows = 0
         with self._tap_client.post(resource, params=fields,
                                    data=m, headers={
                                        'Content-Type': m.content_type},
                                    stream=True, timeout=timeout*60) as result:
-            if not output_file:
-                print(result.text)
-            else:
-                with open(output_file, "wb") as f:
-                    f.write(result.raw.read())
+            with smart_open(output_file) as f:
+                header = True
+                for row in result.text.split('\n'):
+                    if row.strip():
+                        if header:
+                            header = False
+                            if data_only:
+                                continue
+                            print(row.strip(), file=f)
+                            print('-----------------------', file=f)
+                        else:
+                            rows += 1
+                            print(row.strip(), file=f)
+                if not data_only:
+                    if rows == 1:
+                        footer = '\n(1 row affected)'
+                    else:
+                        footer = '\n({} rows affected)'.format(rows)
+                    print(footer, file=f)
 
     def schema(self, table=None):
         """
@@ -396,6 +413,22 @@ class CadcTapClient(object):
                                        params={'detail': 'min'})
         # TODO display something more user friendly than the VOSI XML
         print(results.text)
+
+
+@contextlib.contextmanager
+def smart_open(filename=None):
+    # handles writing to files and stdout uniformly. If filename is None,
+    # it returns stdout to write to.
+    if filename and filename != '-':
+        fh = open(filename, 'w')
+    else:
+        fh = sys.stdout
+
+    try:
+        yield fh
+    finally:
+        if fh is not sys.stdout:
+            fh.close()
 
 
 def _add_anon_option(parser):
@@ -779,7 +812,7 @@ def main_app(command='cadc-tap query'):
             else:
                 query = args.QUERY
             client.query(query, args.output_file, args.format, args.tmptable,
-                         timeout=args.timeout)
+                         timeout=args.timeout, data_only=args.quiet)
         elif args.cmd == 'schema':
             client.schema(args.tablename)
     except Exception as ex:
