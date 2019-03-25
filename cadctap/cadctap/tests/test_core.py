@@ -651,18 +651,27 @@ class TestCadcTapClient(unittest.TestCase):
 
         sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice', 'QUERY']
         main_app()
-        calls = [call('QUERY', None, 'tsv', None, timeout=2)]
+        calls = [call('QUERY', None, 'tsv', None, data_only=False, timeout=2)]
         query_mock.assert_has_calls(calls)
 
+        query_mock.reset_mock()
+        sys.argv = ['cadc-tap', 'query', '-q', '-s', 'http://someservice',
+                    'QUERY']
+        main_app()
+        calls = [call('QUERY', None, 'tsv', None, data_only=True, timeout=2)]
+        query_mock.assert_has_calls(calls)
+
+        query_mock.reset_mock()
         sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice',
                     '--timeout', '7', 'QUERY']
         main_app()
-        calls = [call('QUERY', None, 'tsv', None, timeout=7)]
+        calls = [call('QUERY', None, 'tsv', None, data_only=False, timeout=7)]
         query_mock.assert_has_calls(calls)
 
+        query_mock.reset_mock()
         query_file = os.path.join(TESTDATA_DIR, 'example_query.sql')
         sys.argv = ['cadc-tap', 'query', '-i', query_file, '-s', 'tap']
         main_app()
         calls = [call('SELECT TOP 10 target_name FROM caom2.Observation', None,
-                      'tsv', None, timeout=2)]
+                      'tsv', None, data_only=False, timeout=2)]
         query_mock.assert_has_calls(calls)
