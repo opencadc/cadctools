@@ -52,7 +52,7 @@
 #  warranty of MERCHANTABILITY          implicite de COMMERCIALISABILITÉ
 #  or FITNESS FOR A PARTICULAR          ni d’ADÉQUATION À UN OBJECTIF
 #  PURPOSE.  See the GNU Affero         PARTICULIER. Consultez la Licence
-#  General Public License for           Générale Publique GNU AfferoF
+#  General Public License for           Générale Publique GNU Affero
 #  more details.                        pour plus de détails.
 #
 #  You should have received             Vous devriez avoir reçu une
@@ -99,6 +99,7 @@ def random_test_file_name_path(file_extension='fits', dir_name='/tmp'):
         dir=dir_name, prefix=__name__, suffix='.{}'.format(file_extension)).name
 
 
+@pytest.mark.skip
 def test_hst_mef_cutout_missing_one():
     # Should result in a 3-HDU MEF.  Extension 2 is an ERR one with no data.
     cutout_region_string = \

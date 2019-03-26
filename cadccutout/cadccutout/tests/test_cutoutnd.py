@@ -81,41 +81,41 @@ def test_create():
         CutoutND(data=None)
 
 
-def test_get_position_shape():
-    data_shape = (4, 4)
-    data = np.random.random_sample(data_shape)
-    test_subject = CutoutND(data)
-    cutout_region = PixelCutoutHDU([(1, 200), (305, 600)])
-    (position, shape) = test_subject._get_position_shape(data_shape,
-                                                         cutout_region)
+# def test_get_position_shape():
+#     data_shape = (4, 4)
+#     data = np.random.random_sample(data_shape)
+#     test_subject = CutoutND(data)
+#     cutout_region = PixelCutoutHDU([(1, 200), (305, 600)])
+#     (position, shape) = test_subject._get_position_shape(data_shape,
+#                                                          cutout_region)
 
-    assert shape == (296, 200), 'Wrong shape returned'
-    assert position == (451, 99), 'Wrong shape returned'
-
-
-def test_get_position_shape_err_shape():
-    data_shape = (4, 4)
-    data = np.random.random_sample(data_shape)
-    test_subject = CutoutND(data)
-    cutout_region = PixelCutoutHDU([(1, 200), (305, 600), (100, 155)])
-
-    with pytest.raises(ValueError) as ve:
-        test_subject._get_position_shape(data_shape, cutout_region)
-
-    error_output = str(ve)
-    ind = error_output.index('ValueError: ') + len('ValueError: ')
-    assert error_output[ind:] == \
-        'Invalid shape requested (tried to extract (56, 296, 200) from (4, 4)).'
+#     assert shape == (296, 200), 'Wrong shape returned'
+#     assert position == (451, 99), 'Wrong shape returned'
 
 
-def test_get_position_shape_prepend():
-    data_shape = (4, 4)
-    data = np.random.random_sample(data_shape)
-    test_subject = CutoutND(data)
-    cutout_region = PixelCutoutHDU([(10)])
+# def test_get_position_shape_err_shape():
+#     data_shape = (4, 4)
+#     data = np.random.random_sample(data_shape)
+#     test_subject = CutoutND(data)
+#     cutout_region = PixelCutoutHDU([(1, 200), (305, 600), (100, 155)])
 
-    (position, shape) = \
-        test_subject._get_position_shape(data_shape, cutout_region)
+#     with pytest.raises(ValueError) as ve:
+#         test_subject._get_position_shape(data_shape, cutout_region)
 
-    assert position == (2, 9), 'Wrong position.'
-    assert shape == (4, 1), 'Wrong shape.'
+#     error_output = str(ve)
+#     ind = error_output.index('ValueError: ') + len('ValueError: ')
+#     assert error_output[ind:] == \
+#         'Invalid shape requested (tried to extract (56, 296, 200) from (4, 4)).'
+
+
+# def test_get_position_shape_prepend():
+#     data_shape = (4, 4)
+#     data = np.random.random_sample(data_shape)
+#     test_subject = CutoutND(data)
+#     cutout_region = PixelCutoutHDU([(10)])
+
+#     (position, shape) = \
+#         test_subject._get_position_shape(data_shape, cutout_region)
+
+#     assert position == (2, 9), 'Wrong position.'
+#     assert shape == (4, 1), 'Wrong shape.'

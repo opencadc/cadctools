@@ -110,6 +110,11 @@ class FITSHelper(BaseFileHelper):
             cutout_crpix = cutout_result.wcs_crpix
 
             for idx, val in enumerate(cutout_crpix):
+                header_key = 'CRPIX{}'.format(idx + 1)
+                curr_val = header.get(header_key)
+                logger.debug(
+                    'Adjusting {} from {} to {}'.format(
+                        header_key, curr_val, val))
                 header.set('CRPIX{}'.format(idx + 1), val)
 
     def _get_wcs(self, header):

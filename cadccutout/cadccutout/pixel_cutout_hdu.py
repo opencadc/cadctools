@@ -103,6 +103,8 @@ class PixelCutoutHDU(object):
              or use int to get the extension[int].
             This is zero (0) based.
         """
+        self.original_dimension_ranges = dimension_ranges
+        self.original_extension = extension
         self.dimension_ranges = list(map(fix_tuple, dimension_ranges))
         self._extension = self._parse_extension(str(extension))
         logger.debug(

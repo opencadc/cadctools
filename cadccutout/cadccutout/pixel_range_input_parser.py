@@ -110,13 +110,13 @@ class PixelRangeInputParser(object):
         if self.delimiter not in rs:
             return (to_num(rs), to_num(rs))  # Turns 7 into 7:7
         else:
-            start, end = rs.split(self.delimiter)
+            items = rs.split(self.delimiter)
 
-            if not start or not end:
+            if not items:
                 raise PixelRangeInputParserError(
                     'Incomplete range specified {}'.format(rs))
             else:
-                return (to_num(start), to_num(end))
+                return tuple(map(lambda t: to_num(t), items))
 
     def parse(self, pixel_range_input_str):
         """

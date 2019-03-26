@@ -75,8 +75,8 @@ import logging
 from math import ceil
 from copy import deepcopy
 
+from cadccutout.utils import to_num
 from astropy.wcs import Sip
-from astropy.nddata.utils import extract_array
 from cadccutout.no_content_error import NoContentError
 
 __all__ = ['CutoutResult', 'CutoutND']
@@ -120,70 +120,61 @@ class CutoutND(object):
         self.data = data
         self.wcs = wcs
 
-    def _get_position_shape(self, data_shape, cutout_region):
-        requested_shape = cutout_region.get_shape()
-        requested_position = cutout_region.get_position()
+    def _to_slice(self, cutout_region):
+        if len(cutout_region) == 3:
+            return slice(
+                to_num(cutout_region[0] - 1), to_num(cutout_region[1]),
+                cutout_region[2])
+        else:
+            return slice(
+                to_num(cutout_region[0] - 1), to_num(cutout_region[1]))
 
-        # reverse position because extract_array uses reverse ordering
-        # (i.e. x,y -> y,x).
-        r_position = tuple(reversed(requested_position))
-        r_shape = tuple(reversed(requested_shape))
-
+    def _pad_cutout(self, cutout_shape):
+        len_shape = len(cutout_shape)
+        data_shape = self.data.shape
         len_data = len(data_shape)
-        len_pos = len(r_position)
-        len_shape = len(r_shape)
+        missing_shape_bounds = data_shape[:(len_data - len_shape)]
 
-        logger.debug('Data shape: {}'.format(data_shape))
-        logger.debug('Requested shape: {}'.format(r_shape))
-        logger.debug('Requested position: {}'.format(r_position))
-
-        if len_shape > len_data:
-            raise ValueError('Invalid shape requested (tried to extract {} \
-from {}).'.format(r_shape, data_shape))
-
-        shape = (data_shape[:(len_data - len_shape)]) + r_shape
-        prepend_list = data_shape[:(len_data - len_pos)]
-        prepend_position_list = []
-
-        for idx, val in enumerate(prepend_list):
-            prepend_position_list.append(int(ceil((val / 2) - 0.5)))
-
-        position = tuple(prepend_position_list) + r_position
-
-        return (position, shape)
+        for idx, val in enumerate(missing_shape_bounds):
+            cutout_shape.append(slice(val))
 
     def extract(self, cutout_region):
-        data = self.data
-        data_shape = data.shape
-        position, shape = self._get_position_shape(data_shape, cutout_region)
-        logger.debug('Position {} and Shape {}'.format(position, shape))
+        """
+        Perform the extraction from the data for the provided region.  If the
+        provided region is smaller than the data, it will be padded with the
+        values from the data.
 
-        # No pixels specified, so return the entire HDU
-        if (not position and not shape) or shape == data_shape:
-            logger.debug('Returning entire HDU data for {}'.format(
-                cutout_region.get_extension()))
-            cutout_data = data
-        else:
-            logger.debug('Cutting out {} at {} for extension {} from  \
-            {}.'.format(
-                shape, position, cutout_region.get_extension(), data.shape))
-            cutout_data, position = extract_array(
-                data, shape, position, mode='trim', return_position=True)
+        :param cutout_region:    The PixelCutoutHDU region specified.
+        """
+        try:
+            cutout_shape = list(
+                map(self._to_slice, cutout_region.original_dimension_ranges))
+            self._pad_cutout(cutout_shape)
+
+            cutout = tuple(reversed(cutout_shape))
+            logger.debug('Cutout is {}'.format(cutout))
+            cutout_data = self.data[cutout]
+        except IndexError:
+            raise NoContentError('No content (arrays do not overlap).')
+
+        logger.debug('Extracted {} of data from {}.'.format(cutout_data.shape,
+                                                            self.data.shape))
 
         if self.wcs:
-            cutout_shape = cutout_data.shape
             output_wcs = deepcopy(self.wcs)
             wcs_crpix = output_wcs.wcs.crpix
             l_wcs_crpix = len(wcs_crpix)
-            ranges = cutout_region.get_ranges()
+            ranges = cutout_region.original_dimension_ranges
 
             logger.debug('Adjusting WCS.')
 
             for idx, _ in enumerate(ranges):
                 if idx < l_wcs_crpix:
+                    curr_val = wcs_crpix[idx]
                     wcs_crpix[idx] -= (ranges[idx][0] - 1.0)
-
-            output_wcs._naxis = list(cutout_shape)
+                    logger.debug(
+                        'Adjusted wcs_crpix val from {} to {}'.format(
+                            curr_val, wcs_crpix[idx]))
 
             if self.wcs.sip:
                 curr_sip = self.wcs.sip
