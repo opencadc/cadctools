@@ -1,15 +1,20 @@
 usage: cadc-tap query [-h]
                       [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a]
                       [--host HOST] [-d | -q | -v] [-o OUTPUT_FILE]
-                      [-i INPUT_FILE] [-f {VOTable,csv,tsv}] [-t TMPTABLE]
-                      [-s SERVICE]
+                      [-i INPUT_FILE] [--timeout TIMEOUT]
+                      [-f {VOTable,csv,tsv}] [-t TMPTABLE] [-s SERVICE]
                       [QUERY]
 
 Run an adql query
-If no authentication option is specified, cadc-tap will look in the
-~/.netrc file for the cadc-ccda.hia-iha.nrc-cnrc.gc.ca or canfar.net
-domain, and if found, will use the -n option. If not, cadc-tap will
-look for ~/.ssl/cadcproxy.pem file, and if found, will use the --cert
+
+To obtain the host associated with a service, execute a subcommand
+with the service in verbose mode without specifying any authentication
+option
+
+If no authentication option is specified, cadc-tap will determine the
+host associated with the service and look in the ~/.netrc file for the
+host, and if found, will use the -n option. If not, cadc-tap will look
+for ~/.ssl/cadcproxy.pem file, and if found, will use the --cert
 option. If not, cadc-tap will use the --anon option.
 
 positional arguments:
@@ -38,8 +43,13 @@ optional arguments:
                         write query results to file (default is to STDOUT)
   -q, --quiet           run quietly
   -s, --service SERVICE
-                        set the TAP service. Use ivo format, eg. default is
+                        set the TAP service. For the CADC TAP services both
+                        the ivo and the short formats
+                        (ivo://cadc.nrc.ca/youcat or youcat) are accepted.
+                        External TAP services can be referred to by their URL
+                        (https://almascience.nrao.edu/tap). Default is
                         ivo://cadc.nrc.ca/youcat
+  --timeout TIMEOUT     query timeout in minutes. Default 2min
   -t, --tmptable TMPTABLE
                         Temp table upload, the value is in format:
                         "tablename:/path/to/table". In query to reference the
@@ -51,9 +61,9 @@ optional arguments:
 Examples:
 - Anonymously run a query string:
       cadc-tap query -a -s tap "SELECT TOP 10 type FROM caom2.Observation"
-- Use certificate to run a query from a file:
-      cadc-tap query -s tap -i ./cadctap/tests/data/example_query.sql --cert ~/.ssl/cadcproxy.pem
+- Use certificate to run a query:
+      cadc-tap query -s tap "SELECT TOP 10 type FROM caom2.Observation" --cert ~/.ssl/cadcproxy.pem
 - Use username/password to run a query on the tap service:
       cadc-tap query -s ivo://cadc.nrc.ca/tap "SELECT TOP 10 type FROM caom2.Observation" -u <username>
 - Use netrc file to run a query on the ams/mast service :
-      cadc-tap query -i ./cadctap/tests/data/example_query.sql -n -s ivo://cadc.nrc.ca/ams/mast
+      cadc-tap query -n -s ivo://cadc.nrc.ca/ams/mast "SELECT TOP 10 target_name FROM caom2.Observation"

@@ -4,10 +4,15 @@ usage: cadc-tap delete [-h]
                        TABLENAME
 
 Delete a table
-If no authentication option is specified, cadc-tap will look in the
-~/.netrc file for the cadc-ccda.hia-iha.nrc-cnrc.gc.ca or canfar.net
-domain, and if found, will use the -n option. If not, cadc-tap will
-look for ~/.ssl/cadcproxy.pem file, and if found, will use the --cert
+
+To obtain the host associated with a service, execute a subcommand
+with the service in verbose mode without specifying any authentication
+option
+
+If no authentication option is specified, cadc-tap will determine the
+host associated with the service and look in the ~/.netrc file for the
+host, and if found, will use the -n option. If not, cadc-tap will look
+for ~/.ssl/cadcproxy.pem file, and if found, will use the --cert
 option. If not, cadc-tap will use the --anon option.
 
 positional arguments:
@@ -27,7 +32,11 @@ optional arguments:
                         netrc file to use for authentication
   -q, --quiet           run quietly
   -s, --service SERVICE
-                        set the TAP service. Use ivo format, eg. default is
+                        set the TAP service. For the CADC TAP services both
+                        the ivo and the short formats
+                        (ivo://cadc.nrc.ca/youcat or youcat) are accepted.
+                        External TAP services can be referred to by their URL
+                        (https://almascience.nrao.edu/tap). Default is
                         ivo://cadc.nrc.ca/youcat
   -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!

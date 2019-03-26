@@ -78,6 +78,7 @@ from six import StringIO
 from six.moves.urllib.parse import urlparse
 
 from cadcutils import exceptions
+from cadcutils import net
 from cadcutils.net import ws, auth
 from cadcutils.net.ws import DEFAULT_RETRY_DELAY, MAX_RETRY_DELAY, \
     MAX_NUM_RETRIES, SERVICE_RETRY
@@ -337,6 +338,37 @@ class TestWs(unittest.TestCase):
         self.assertTrue(isinstance(client._session, ws.RetrySession))
         self.assertEqual((certfile, certfile), client._session.cert)
 
+        # test cookie authentication
+        post_mock.reset_mock()
+        get_mock.reset_mock()
+        put_mock.reset_mock()
+        delete_mock.reset_mock()
+        head_mock.reset_mock()
+        subject = auth.Subject()
+        subject.cookies.append(auth.CookieInfo(resource_uri.netloc,
+                                               'MyTestCookie', 'cookievalue'))
+        client = ws.BaseWsClient(resource_id, subject, 'TestApp')
+        base_url = 'https://{}{}/observations'.format(resource_uri.netloc,
+                                                      resource_uri.path)
+        resource_url = '{}/{}'.format(base_url, resource)
+        self.assertEqual('TestApp', client.agent)
+        self.assertTrue(client.retry)
+        client.get(resource_url)
+        get_mock.assert_called_with(resource_url, params=None)
+        params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
+        client.post(resource_url, **params)
+        post_mock.assert_called_with(resource_url, **params)
+        client.delete(resource_url)
+        delete_mock.assert_called_with(resource_url)
+        client.head(resource_url)
+        head_mock.assert_called_with(resource_url)
+        client.put(resource_url, **params)
+        put_mock.assert_called_with(resource_url, **params)
+        self.assertTrue(isinstance(client._session, ws.RetrySession))
+        self.assertEqual(1, len(client._session.cookies))
+        self.assertEqual('cookievalue',
+                         client._session.cookies['MyTestCookie'])
+
 
 class TestRetrySession(unittest.TestCase):
     """ Class for testing retry session """
@@ -350,7 +382,7 @@ class TestRetrySession(unittest.TestCase):
         send_mock.return_value = Mock()
         rs = ws.RetrySession(False)
         rs.send(request)
-        send_mock.assert_called_with(request, timeout=30)
+        send_mock.assert_called_with(request, timeout=120)
 
         # retry to user defined timeout
         send_mock.return_value = Mock()
@@ -868,30 +900,28 @@ class TestWsCapabilities(unittest.TestCase):
                          caps.get_access_url(
                              'vos://cadc.nrc.ca~service/CADC/mystnd01'))
 
-# TODO By default, internet tests fail. They only succeed when test with
-# --remote-data flag.
-# Need to figure out a way to skip the tests unless that flag is present.
-# class TestWsOutsideCalls(unittest.TestCase):
-#     """ Class to test Ws with calls to outside sites"""
-#
-#     @patch('time.sleep')
-#     def testCalls(self, time_mock):
-#         client = ws.BaseWsClient('httpbin.org')
-#         response = client.get('')
-#         self.assertEqual(response.status_code, requests.codes.ok)
-#
-#         with self.assertRaises(requests.HTTPError):
-#             client.get('status/500')
-#
-#         time_mock.reset_mock()
-#         with self.assertRaises(requests.HTTPError):
-#             client.get('status/503')
-#
-#         calls = [call(DEFAULT_RETRY_DELAY),
-#                  call(min(DEFAULT_RETRY_DELAY*2, MAX_RETRY_DELAY)),
-#                  call(min(DEFAULT_RETRY_DELAY * 4, MAX_RETRY_DELAY)),
-#                  call(min(DEFAULT_RETRY_DELAY * 8, MAX_RETRY_DELAY)),
-#                  call(min(DEFAULT_RETRY_DELAY * 16, MAX_RETRY_DELAY)),
-#                  call(min(DEFAULT_RETRY_DELAY * 32, MAX_RETRY_DELAY))]
-#
-#         time_mock.assert_has_calls(calls)
+
+class TestWsOutsideCalls(unittest.TestCase):
+    """ Class to test Ws with calls to outside sites"""
+
+    @patch('time.sleep')
+    def testCalls(self, time_mock):
+        client = ws.BaseWsClient('https://httpbin.org', net.Subject(), 'FOO')
+        response = client.get('https://httpbin.org')
+        self.assertEqual(response.status_code, requests.codes.ok)
+
+        with self.assertRaises(exceptions.InternalServerException):
+            client.get('https://httpbin.org/status/500')
+
+        time_mock.reset_mock()
+        with self.assertRaises(exceptions.HttpException):
+            client.get('https://httpbin.org/status/503')
+
+        calls = [call(DEFAULT_RETRY_DELAY),
+                 call(min(DEFAULT_RETRY_DELAY*2, MAX_RETRY_DELAY)),
+                 call(min(DEFAULT_RETRY_DELAY * 4, MAX_RETRY_DELAY)),
+                 call(min(DEFAULT_RETRY_DELAY * 8, MAX_RETRY_DELAY)),
+                 call(min(DEFAULT_RETRY_DELAY * 16, MAX_RETRY_DELAY)),
+                 call(min(DEFAULT_RETRY_DELAY * 32, MAX_RETRY_DELAY))]
+
+        time_mock.assert_has_calls(calls)

@@ -383,6 +383,12 @@ class BaseWsClient(object):
             if self.subject.certificate is not None:
                 self._session.cert = (
                     self.subject.certificate, self.subject.certificate)
+            elif self.subject.cookies:
+                for cookie in self.subject.cookies:
+                    cookie_obj = requests.cookies.create_cookie(
+                        domain=cookie.domain, name=cookie.name,
+                        value=cookie.value)
+                    self._session.cookies.set_cookie(cookie_obj)
             else:
                 if (not self.subject.anon) and (self.host is not None) and \
                         (self.subject.get_auth(self.host) is not None):
@@ -461,7 +467,7 @@ class RetrySession(Session):
         # requests does not provide a default timeout, hence we might need
         # to add it
         if 'timeout' not in kwargs or kwargs['timeout'] is None:
-            kwargs['timeout'] = 30
+            kwargs['timeout'] = 120
 
         if self.retry:
             current_delay = max(self.start_delay, DEFAULT_RETRY_DELAY)
