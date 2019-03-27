@@ -449,6 +449,12 @@ def test_schema(caps_get_mock, base_get_mock):
 @patch('cadcutils.net.ws.WsCapabilities.get_access_url')
 def test_query(caps_get_mock, base_post_mock):
     caps_get_mock.return_value = BASE_URL
+    response = Mock()
+    response.status_code = 200
+    response.text = 'Header 1\nVal1\nVal2\n'
+    # NOTE: post mock returns a context manager with the responose, hence
+    # the __enter__
+    base_post_mock.return_value.__enter__.return_value = response
     client = CadcTapClient(net.Subject())
     # default format
     def_name = 'tmptable'
@@ -465,24 +471,26 @@ def test_query(caps_get_mock, base_post_mock):
         '{}/{}'.format(BASE_URL, 'sync')
 
     base_post_mock.reset_mock()
-    response = Mock()
-    response.status_code = 200
-    response.text = 'Header 1\nVal1\nVal2\n'
-    # NOTE: post mock returns a context manager with the responose, hence
-    # the __enter__
-    base_post_mock.return_value.__enter__.return_value = response
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-        client.query('query', data_only=True)
+        client.query('query', data_only=True, response_format='tsv')
     assert stdout_mock.getvalue() == 'Val1\nVal2\n'
 
     # save in a file
     tf = tempfile.NamedTemporaryFile()
     base_post_mock.reset_mock()
     base_post_mock.return_value.__enter__.return_value = response
-    client.query('query', output_file=tf.name)
+    client.query('query', output_file=tf.name, response_format='tsv')
     actual = open(tf.name).read()
     assert actual == 'Header 1\n-----------------------\n' \
                      'Val1\nVal2\n\n(2 rows affected)\n'
+
+    # different format => result from server not altered
+    base_post_mock.reset_mock()
+    base_post_mock.return_value.__enter__.return_value = response
+    with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+        client.query('query')
+    actual = open(tf.name).read()
+    assert stdout_mock.getvalue() == response.text
 
 
 class TestCadcTapClient(unittest.TestCase):
