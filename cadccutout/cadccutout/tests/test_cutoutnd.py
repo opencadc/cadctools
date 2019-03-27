@@ -81,41 +81,73 @@ def test_create():
         CutoutND(data=None)
 
 
-# def test_get_position_shape():
-#     data_shape = (4, 4)
-#     data = np.random.random_sample(data_shape)
-#     test_subject = CutoutND(data)
-#     cutout_region = PixelCutoutHDU([(1, 200), (305, 600)])
-#     (position, shape) = test_subject._get_position_shape(data_shape,
-#                                                          cutout_region)
-
-#     assert shape == (296, 200), 'Wrong shape returned'
-#     assert position == (451, 99), 'Wrong shape returned'
-
-
-# def test_get_position_shape_err_shape():
-#     data_shape = (4, 4)
-#     data = np.random.random_sample(data_shape)
-#     test_subject = CutoutND(data)
-#     cutout_region = PixelCutoutHDU([(1, 200), (305, 600), (100, 155)])
-
-#     with pytest.raises(ValueError) as ve:
-#         test_subject._get_position_shape(data_shape, cutout_region)
-
-#     error_output = str(ve)
-#     ind = error_output.index('ValueError: ') + len('ValueError: ')
-#     assert error_output[ind:] == \
-#         'Invalid shape requested (tried to extract (56, 296, 200) from (4, 4)).'
+def test_extract():
+    data_shape = (9, 4)
+    data = np.arange(36).reshape(data_shape)
+    test_subject = CutoutND(data)
+    cutout_region = PixelCutoutHDU([(4, 18)])
+    cutout = test_subject.extract(cutout_region.get_ranges())
+    expected_data = np.array([[3],
+                              [7],
+                              [11],
+                              [15],
+                              [19],
+                              [23],
+                              [27],
+                              [31],
+                              [35]])
+    np.testing.assert_array_equal(
+        expected_data, cutout.data, 'Arrays do not match.')
 
 
-# def test_get_position_shape_prepend():
-#     data_shape = (4, 4)
-#     data = np.random.random_sample(data_shape)
-#     test_subject = CutoutND(data)
-#     cutout_region = PixelCutoutHDU([(10)])
+def test_extract_striding():
+    data_shape = (10, 10)
+    data = np.arange(100).reshape(data_shape)
+    test_subject = CutoutND(data)
+    cutout_regions = [(4, 18, 5)]
+    cutout = test_subject.extract(cutout_regions)
+    expected_data = np.array([[3,  8],
+                              [13, 18],
+                              [23, 28],
+                              [33, 38],
+                              [43, 48],
+                              [53, 58],
+                              [63, 68],
+                              [73, 78],
+                              [83, 88],
+                              [93, 98]])
+    np.testing.assert_array_equal(
+        expected_data, cutout.data, 'Arrays do not match.')
 
-#     (position, shape) = \
-#         test_subject._get_position_shape(data_shape, cutout_region)
 
-#     assert position == (2, 9), 'Wrong position.'
-#     assert shape == (4, 1), 'Wrong shape.'
+def test_extract_striding_wildcard():
+    data_shape = (10, 10)
+    data = np.arange(100).reshape(data_shape)
+    test_subject = CutoutND(data)
+    cutout_regions = [('*', 7)]
+    cutout = test_subject.extract(cutout_regions)
+    expected_data = np.array([[0,  7],
+                              [10, 17],
+                              [20, 27],
+                              [30, 37],
+                              [40, 47],
+                              [50, 57],
+                              [60, 67],
+                              [70, 77],
+                              [80, 87],
+                              [90, 97]])
+    np.testing.assert_array_equal(
+        expected_data, cutout.data, 'Arrays do not match.')
+
+
+def test_extract_invalid():
+    data_shape = (10, 10)
+    data = np.arange(100).reshape(data_shape)
+    test_subject = CutoutND(data)
+    cutout_regions = [('*')]
+
+    with pytest.raises(ValueError) as ve:
+        test_subject.extract(cutout_regions)
+
+    assert str(ve).index(
+        'Should have at least two values (lower, upper).') > 0

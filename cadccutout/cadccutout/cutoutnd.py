@@ -72,7 +72,6 @@ from __future__ import (absolute_import, division, print_function,
 
 import logging
 
-from math import ceil
 from copy import deepcopy
 
 from cadccutout.utils import to_num
@@ -120,14 +119,29 @@ class CutoutND(object):
         self.data = data
         self.wcs = wcs
 
-    def _to_slice(self, cutout_region):
-        if len(cutout_region) == 3:
-            return slice(
-                to_num(cutout_region[0] - 1), to_num(cutout_region[1]),
-                cutout_region[2])
+    def _to_slice(self, idx, cutout_region):
+        len_region = len(cutout_region)
+
+        if len_region > 1:
+            low_bound = cutout_region[0]
+
+            if low_bound == '*':
+                lower_bound = 0
+                upper_bound = self.data.shape[idx]
+                step = to_num(cutout_region[1])
+            else:
+                lower_bound = to_num(low_bound) - 1
+                upper_bound = to_num(cutout_region[1])
+                if (len_region == 3):
+                    step = to_num(cutout_region[2])
+                else:
+                    step = None
+
+            logger.debug('Bounds are {}:{}:{}'.format(
+                lower_bound, upper_bound, step))
+            return slice(lower_bound, upper_bound, step)
         else:
-            return slice(
-                to_num(cutout_region[0] - 1), to_num(cutout_region[1]))
+            raise ValueError('Should have at least two values (lower, upper).')
 
     def _pad_cutout(self, cutout_shape):
         len_shape = len(cutout_shape)
@@ -138,17 +152,19 @@ class CutoutND(object):
         for idx, val in enumerate(missing_shape_bounds):
             cutout_shape.append(slice(val))
 
-    def extract(self, cutout_region):
+    def extract(self, cutout_regions):
         """
         Perform the extraction from the data for the provided region.  If the
         provided region is smaller than the data, it will be padded with the
         values from the data.
 
-        :param cutout_region:    The PixelCutoutHDU region specified.
+        :param cutout_regions:    List of region tuples.
         """
         try:
-            cutout_shape = list(
-                map(self._to_slice, cutout_region.original_dimension_ranges))
+            cutout_shape = [
+                self._to_slice(idx, cutout_region) for idx, cutout_region in
+                enumerate(cutout_regions)]
+            # cutout_shape = list(map(self._to_slice, enumerate(cutout_regions)))
             self._pad_cutout(cutout_shape)
 
             cutout = tuple(reversed(cutout_shape))
@@ -164,14 +180,13 @@ class CutoutND(object):
             output_wcs = deepcopy(self.wcs)
             wcs_crpix = output_wcs.wcs.crpix
             l_wcs_crpix = len(wcs_crpix)
-            ranges = cutout_region.original_dimension_ranges
 
             logger.debug('Adjusting WCS.')
 
-            for idx, _ in enumerate(ranges):
+            for idx, _ in enumerate(cutout_regions):
                 if idx < l_wcs_crpix:
                     curr_val = wcs_crpix[idx]
-                    wcs_crpix[idx] -= (ranges[idx][0] - 1.0)
+                    wcs_crpix[idx] -= (cutout_regions[idx][0] - 1.0)
                     logger.debug(
                         'Adjusted wcs_crpix val from {} to {}'.format(
                             curr_val, wcs_crpix[idx]))
