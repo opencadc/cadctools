@@ -181,7 +181,7 @@ class FITSHelper(BaseFileHelper):
     def _check_hdu_list(self, cutout_dimensions, hdu_list):
         has_match = False
         len_cutout_dimensions = len(cutout_dimensions)
-        if len_cutout_dimensions > 0:          
+        if len_cutout_dimensions > 0:
 
             # Check for a pixel cutout
             if isinstance(cutout_dimensions[0], PixelCutoutHDU):
@@ -203,9 +203,10 @@ class FITSHelper(BaseFileHelper):
                             'Skipping non-overlapping cutout {}'.format(
                                 cutout_dimension))
             else:
-                self._write_primary_hdu(hdu_list)
+                if len(hdu_list) > 1:
+                    self._write_primary_hdu(hdu_list)
                 # Skip the primary as it should be written out already.
-                for hdu in hdu_list[1:]:
+                for hdu in hdu_list:
                     if hdu.is_image and hdu.data is not None:
                         transform = Transform()
                         logger.debug(
