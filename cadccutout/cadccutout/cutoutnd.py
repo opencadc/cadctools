@@ -89,10 +89,9 @@ class CutoutResult(object):
     tuple.
     """
 
-    def __init__(self, data, wcs=None, wcs_crpix=None):
+    def __init__(self, data, wcs=None):
         self.data = data
         self.wcs = wcs
-        self.wcs_crpix = wcs_crpix
 
 
 class CutoutND(object):
@@ -164,7 +163,6 @@ class CutoutND(object):
             cutout_shape = [
                 self._to_slice(idx, cutout_region) for idx, cutout_region in
                 enumerate(cutout_regions)]
-            # cutout_shape = list(map(self._to_slice, enumerate(cutout_regions)))
             self._pad_cutout(cutout_shape)
 
             cutout = tuple(reversed(cutout_shape))
@@ -183,13 +181,41 @@ class CutoutND(object):
 
             logger.debug('Adjusting WCS.')
 
-            for idx, _ in enumerate(cutout_regions):
+            for idx, cutout_region in enumerate(cutout_shape):
                 if idx < l_wcs_crpix:
                     curr_val = wcs_crpix[idx]
-                    wcs_crpix[idx] -= (cutout_regions[idx][0] - 1.0)
+
+                    if cutout_region.step:
+                        step = cutout_region.step
+                        if cutout_region.start:
+                            distance = (cutout_region.stop
+                                        - (cutout_region.start + 1.0))
+                            wcs_crpix[idx] -= distance
+                            wcs_crpix[idx] /= step
+                            wcs_crpix[idx] += 1.0
+                        else:
+                            wcs_crpix[idx] /= step
+                    elif cutout_region.start:
+                        wcs_crpix[idx] -= cutout_region.start
+
                     logger.debug(
                         'Adjusted wcs_crpix val from {} to {}'.format(
                             curr_val, wcs_crpix[idx]))
+
+            if output_wcs.wcs.has_pc():
+                pc = output_wcs.wcs.pc
+                for i in range(output_wcs.wcs.naxis):
+                    for j in range(output_wcs.wcs.naxis):
+                        step = cutout_shape[j].step
+                        if step:
+                            pc[i][j] *= step
+            elif output_wcs.wcs.has_cd():
+                cd = output_wcs.wcs.cd
+                for i in range(output_wcs.wcs.naxis):
+                    for j in range(output_wcs.wcs.naxis):
+                        step = cutout_shape[j].step
+                        if step:
+                            cd[i][j] *= step
 
             if self.wcs.sip:
                 curr_sip = self.wcs.sip
@@ -203,5 +229,4 @@ class CutoutND(object):
             output_wcs = None
             wcs_crpix = None
 
-        return CutoutResult(data=cutout_data, wcs=output_wcs,
-                            wcs_crpix=wcs_crpix)
+        return CutoutResult(data=cutout_data, wcs=output_wcs)

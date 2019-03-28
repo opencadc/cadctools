@@ -87,10 +87,6 @@ target_file_name = '/usr/src/data/test-hst-mef.fits'
 expected_cutout_file_path = '/usr/src/data/test-hst-mef-cutout.fits'
 cutout_region_string = \
     '[SCI,10][80:220,100:150][1][10:16,70:90][106][8:32,88:112][126]'
-# target_file_name = 'source_calibrated_line_image_162608-24202.image.fits'
-# vos_uri = 'vos://cadc.nrc.ca!vospace/helenkirk/ALMA_fits_files/2013.1.00187. \
-# S/{}'.format(target_file_name)
-# data_dir = '/usr/src/data'
 logger = logging.getLogger()
 
 
@@ -99,7 +95,6 @@ def random_test_file_name_path(file_extension='fits', dir_name='/tmp'):
         dir=dir_name, prefix=__name__, suffix='.{}'.format(file_extension)).name
 
 
-@pytest.mark.skip
 def test_hst_mef_cutout_missing_one():
     # Should result in a 3-HDU MEF.  Extension 2 is an ERR one with no data.
     cutout_region_string = \

@@ -104,6 +104,7 @@ class AxisType(object):
         if naxis_value is not None and int(naxis_value) > 0:
             for nax in range(1, naxis_value + 1):
                 ctype = header.get('CTYPE{0} '.format(nax))
+                logger.debug('CTYPE value is {}'.format(ctype))
                 if ctype is not None and ctype.endswith('-SIP'):
                     naxis = 2
                     break
@@ -112,6 +113,7 @@ class AxisType(object):
         else:
             naxis = naxis_value
 
+        logger.debug('Final transform calculated NAXIS is {}'.format(naxis))
         return WCS(header=header, naxis=naxis, fix=False)
 
     COORDINATE_TYPE = 'coordinate_type'
@@ -413,6 +415,8 @@ class Transform(object):
         # WCS from the header, extract only the spatial axes wcs, the sky to pix
         # transform will want to convert each axis in the wcs, and we only have
         # spatial data.
+        logger.debug('NAXIS values in transform are {}'.format(
+            [naxis1, naxis2]))
         wcs = WCS(header, naxis=[naxis1, naxis2], fix=False)
 
         # Circle region with radius
