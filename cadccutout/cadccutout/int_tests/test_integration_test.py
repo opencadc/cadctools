@@ -232,7 +232,7 @@ def test_integration_test(
         ('CIRCLE 189.1726880000002 62.17111899999974 0.01',
             '/usr/src/data/test-hst-mef.fits',
             '/usr/src/data/test-hst-mef-cutout-wcs.fits', True,
-            '/usr/src/app', 2, False)
+            DEFAULT_TEST_FILE_DIR, 2, False)
     ])
 def test_integration_wcs_test(
         cutout_region_string, target_file_name, expected_cutout_file_path,

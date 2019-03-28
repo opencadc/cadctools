@@ -101,7 +101,7 @@ def _create_mef_file(dir_name='/tmp'):
     data2 = np.arange(20000).reshape(200, 100)
     hdu2 = fits.ImageHDU(data=data2)
 
-    data3 = np.arange(50000).reshape(100, 500)
+    data3 = np.arange(50000).reshape(500, 100)
     hdu3 = fits.ImageHDU(data=data3)
 
     hdulist = fits.HDUList([hdu0, hdu1, hdu2, hdu3])
@@ -128,10 +128,6 @@ def test_mef_cutout_no_overlap():
             'Wrong message.'
 
 
-@pytest.mark.skipif(
-    sys.version_info >= (3, 5),
-    reason='Awaiting Astropy bug fix \
-                https://github.com/astropy/astropy/issues/7854')
 def test_mef_cutout():
     test_subject = OpenCADCCutout()
     target_file_name = _create_mef_file()
@@ -176,10 +172,10 @@ def test_mef_cutout():
             'DATASUM') is None, 'Should not contain DATASUM.'
 
         expected1 = np.zeros((11, 16), dtype=hdu1.data.dtype)
-        expected2 = np.arange(50000, dtype=hdu2.data.dtype).reshape(100, 500)
+        expected2 = np.arange(50000, dtype=hdu2.data.dtype).reshape(500, 100)
 
         for i in range(11):
-            start = 3918 + (i * 100)
+            start = 3919 + (i * 100)
             expected1[i] = np.arange(start, start + 16, dtype=hdu1.data.dtype)
 
         np.testing.assert_array_equal(

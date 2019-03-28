@@ -144,13 +144,8 @@ class FITSHelper(BaseFileHelper):
 
         return WCS(header=header, naxis=naxis, fix=False)
 
-    def _write_cutout(self, header, data, cutout_dimension, wcs):
-        cutout_result = self.do_cutout(
-            data=data, cutout_dimension=cutout_dimension, wcs=wcs)
-
-        self._post_sanitize_header(header, cutout_result)
-
-        fits.append(filename=self.output_writer, data=cutout_result.data,
+    def _write_cutout(self, header, data):
+        fits.append(filename=self.output_writer, data=data,
                     header=header, overwrite=False,
                     output_verify='exception', checksum='remove')
 
@@ -161,10 +156,13 @@ class FITSHelper(BaseFileHelper):
         header = hdu.header
         wcs = self._get_wcs(header)
 
-        logger.debug(
-            'Cutting out from extension {}'.format(extension))
-        self._write_cutout(header=header, data=hdu.data,
-                           cutout_dimension=cutout_dimension, wcs=wcs)
+        logger.debug('Cutting out from extension {}'.format(extension))
+
+        cutout_result = self.do_cutout(
+            data=hdu.data, cutout_dimension=cutout_dimension, wcs=wcs)
+
+        self._post_sanitize_header(header, cutout_result)
+        self._write_cutout(header=header, data=cutout_result.data)
 
     def _write_primary_hdu(self, hdu_list):
         primary_hdu = hdu_list[0]
@@ -192,16 +190,21 @@ class FITSHelper(BaseFileHelper):
                     ext = cutout_dimension.get_extension()
                     ext_idx = hdu_list.index_of(ext)
                     hdu = hdu_list[ext_idx]
-                    try:
-                        self._pixel_cutout(hdu, cutout_dimension)
-                        has_match = True
-                        logger.debug(
-                            'Successfully cutout from {} ({})'.format(
-                                ext, ext_idx))
-                    except NoContentError:
-                        logger.debug(
-                            'Skipping non-overlapping cutout {}'.format(
-                                cutout_dimension))
+
+                    # Entire extension was requested.
+                    if not cutout_dimension.get_ranges():
+                        self._write_cutout(header=hdu.header, data=hdu.data)
+                    else:
+                        try:
+                            self._pixel_cutout(hdu, cutout_dimension)
+                            has_match = True
+                            logger.debug(
+                                'Successfully cutout from {} ({})'.format(
+                                    ext, ext_idx))
+                        except NoContentError:
+                            logger.debug(
+                                'Skipping non-overlapping cutout {}'.format(
+                                    cutout_dimension))
             else:
                 if len(hdu_list) > 1:
                     self._write_primary_hdu(hdu_list)
