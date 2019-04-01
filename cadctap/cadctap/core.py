@@ -383,6 +383,9 @@ class CadcTapClient(object):
                                        'Content-Type': m.content_type},
                                    stream=True, timeout=timeout*60) as result:
             with smart_open(output_file) as f:
+                if response_format == 'VOTable':
+                    f.write(result.text)
+                    return
                 header = True
                 for row in result.text.split('\n'):
                     if row.strip():
