@@ -147,7 +147,7 @@ class FITSHelper(BaseFileHelper):
     def _write_cutout(self, header, data):
         fits.append(filename=self.output_writer, data=data,
                     header=header, overwrite=False,
-                    output_verify='exception', checksum='remove')
+                    output_verify='silentfix', checksum='remove')
 
         self.output_writer.flush()
 
@@ -193,7 +193,9 @@ class FITSHelper(BaseFileHelper):
 
                     # Entire extension was requested.
                     if not cutout_dimension.get_ranges():
+                        logger.debug('Writing out entire extension')
                         self._write_cutout(header=hdu.header, data=hdu.data)
+                        has_match = True
                     else:
                         try:
                             self._pixel_cutout(hdu, cutout_dimension)

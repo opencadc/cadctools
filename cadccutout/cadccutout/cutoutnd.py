@@ -187,6 +187,8 @@ class CutoutND(object):
 
                     if cutout_region.step:
                         step = cutout_region.step
+                        logger.debug(
+                            'Taking step {} into account.'.format(step))
                         if cutout_region.start:
                             distance = (cutout_region.stop
                                         - (cutout_region.start + 1.0))
