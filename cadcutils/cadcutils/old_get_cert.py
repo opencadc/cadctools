@@ -123,8 +123,7 @@ def _main():
     parser.add_argument('--daysValid', type=int, default=10,
                         help='Number of days the cetificate should be valid.')
     parser.add_argument('--cert-filename',
-                        default=os.path.join(
-                            os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'),
+                        default='$HOME/.ssl/cadcproxy.pem',
                         help="Filesysm location to store the proxy "
                              "certifcate.")
     parser.add_argument('--cert-server', default=None,

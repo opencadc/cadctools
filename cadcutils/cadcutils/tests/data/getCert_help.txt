@@ -15,6 +15,6 @@ optional arguments:
                         (default: 10)
   --cert-filename CERT_FILENAME
                         Filesysm location to store the proxy certifcate.
-                        (default: /Users/adriand/.ssl/cadcproxy.pem)
+                        (default: $HOME/.ssl/cadcproxy.pem)
   --cert-server CERT_SERVER
                         Deprecated. Used for testing only (default: None)

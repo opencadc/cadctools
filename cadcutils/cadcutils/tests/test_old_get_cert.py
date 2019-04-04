@@ -99,8 +99,7 @@ def test_get_cert_main():
             auth_mock.return_value = 'somepass'
             sys.argv = ["getCert"]
             old_get_cert._main()
-    m.assert_called_once_with(os.path.join(
-        os.getenv('HOME'), '.ssl', 'cadcproxy.pem'), 'w')
+    m.assert_called_once_with('$HOME/.ssl/cadcproxy.pem', 'w')
     m().write.assert_called_once_with(value)
 
     # save certificate in a file
