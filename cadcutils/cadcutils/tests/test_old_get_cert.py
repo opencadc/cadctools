@@ -106,7 +106,7 @@ def test_get_cert_main():
     cert_file = tempfile.NamedTemporaryFile()
     with patch('cadcutils.old_get_cert.netrc.netrc.authenticators') as \
             auth_mock:
-        auth_mock.return_value = 'somepass'
+        auth_mock.return_value = ('user', None, 'somepass')
         sys.argv = ['getCert', '--cert-filename', cert_file.name]
         old_get_cert._main()
     with open(cert_file.name, 'r') as f:
