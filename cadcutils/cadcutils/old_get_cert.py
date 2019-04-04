@@ -100,8 +100,8 @@ def _main():
 
     # Note: we make the assumption that the CDP end point and its availability
     # end point are on the same host. We build a dummy anonymous client to
-    # the service and retrieve the access url of the availability end point to
-    # determine the real of the service
+    # the service and retrieve the access url of the availability end point
+    # which then is used to determine the actual realm of the service
     dummy = BaseWsClient(CRED_RESOURCE_ID, Subject(),
                          agent="getCert/1.0", retry=True)
     access_url = dummy._get_url((SERVICE_AVAILABILITY_ID, None))
