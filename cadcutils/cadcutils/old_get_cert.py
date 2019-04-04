@@ -80,7 +80,10 @@ from six.moves.urllib.parse import urlparse
 from .net.auth import get_cert, CRED_RESOURCE_ID, Subject
 from .net.ws import BaseWsClient, SERVICE_AVAILABILITY_ID
 
-
+# CADC realms
+CADC_REALMS = ['www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca',
+               'www.canfar.net',
+               'www.canfar.phys.uvic.ca']
 """
 
 The code in this file is deprecated being replaced by certificate related code
@@ -109,13 +112,14 @@ def _main():
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        description=("Retrieve a security certificate for interation with "
+        description=("Retrieve a security certificate for interaction with "
                      "VOSpace. Certificate will be valid for daysValid and "
                      "stored as local file cert_filename. First looks for an "
                      "entry in the users .netrc matching the realm {0}, "
                      "the user is prompted for a username and "
                      "password if no entry is found.".format(service_realm)))
 
+    parser.add_argument('--version', '-V', action='version', version='1.1')
     parser.add_argument('--daysValid', type=int, default=10,
                         help='Number of days the cetificate should be valid.')
     parser.add_argument('--cert-filename',
@@ -127,9 +131,24 @@ def _main():
                         help="Deprecated. Used for testing only")
 
     args = parser.parse_args()
+    if args.cert_server:
+        # update service_realm
+        dummy = BaseWsClient(CRED_RESOURCE_ID, Subject(),
+                             agent="getCert/1.0", retry=True,
+                             host=args.cert_server)
+        access_url = dummy._get_url((SERVICE_AVAILABILITY_ID, None))
+        service_realm = urlparse(access_url).netloc
+        print('Service realm: {}'.format(service_realm))
 
     if os.access(os.path.join(os.environ.get('HOME', '/'), ".netrc"), os.R_OK):
+        # try the service_realm first and if that is not found in the
+        # .netrc file, try any of the CADC equivalents
         auth = netrc.netrc().authenticators(service_realm)
+        if not auth:
+            for r in CADC_REALMS:
+                auth = netrc.netrc().authenticators(r)
+                if auth:
+                    break
     else:
         auth = False
     if not auth:
@@ -139,6 +158,9 @@ def _main():
         subject = Subject(username=username)
     else:
         subject = Subject(netrc=True)
+        # the following prevents reading the .netrc file and uses the
+        # auth already discovered.
+        subject._hosts_auth[service_realm] = (auth[0], auth[2])
 
     retry = True
     while retry:
