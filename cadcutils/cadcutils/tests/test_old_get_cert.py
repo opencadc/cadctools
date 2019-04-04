@@ -86,6 +86,7 @@ TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
 @patch('cadcutils.old_get_cert.get_cert', Mock(return_value='CERTVALUE'))
 @patch('cadcutils.old_get_cert.BaseWsClient._get_url',
        Mock(return_value='http://the.cadc.domain/service'))
+@patch('cadcutils.old_get_cert.os.access', Mock())
 def test_get_cert_main():
     """ Test the getCert function """
 
@@ -93,33 +94,38 @@ def test_get_cert_main():
 
     # get certificate default location
     m = mock_open()  # use a mock to avoid overriding the original file
-    with patch('cadcutils.old_get_cert.netrc.netrc.authenticators') as \
-            auth_mock:
+    with patch('cadcutils.old_get_cert.netrc.netrc') as \
+            netrc_mock:
         with patch('cadcutils.old_get_cert.open', m, create=True):
-            auth_mock.return_value = 'somepass'
+            netrc_mock.return_value.authenticators.return_value = \
+                ('someuser', None, 'somepass')
             sys.argv = ["getCert"]
             old_get_cert._main()
     m.assert_called_once_with('$HOME/.ssl/cadcproxy.pem', 'w')
     m().write.assert_called_once_with(value)
 
     # save certificate in a file
+    m.reset_mock()
     cert_file = tempfile.NamedTemporaryFile()
-    with patch('cadcutils.old_get_cert.netrc.netrc.authenticators') as \
-            auth_mock:
-        auth_mock.return_value = ('user', None, 'somepass')
-        sys.argv = ['getCert', '--cert-filename', cert_file.name]
-        old_get_cert._main()
-    with open(cert_file.name, 'r') as f:
-        assert value == f.read()
+    with patch('cadcutils.old_get_cert.netrc.netrc') as \
+            netrc_mock:
+        with patch('cadcutils.old_get_cert.open', m, create=True):
+            netrc_mock.return_value.authenticators.return_value = \
+                ('user', None, 'somepass')
+            sys.argv = ['getCert', '--cert-filename', cert_file.name]
+            old_get_cert._main()
+    m.assert_called_once_with(cert_file.name, 'w')
+    m().write.assert_called_once_with(value)
 
     # test when realm not in the .netrc
     cert_file = tempfile.NamedTemporaryFile()
     m.reset_mock()
-    with patch('cadcutils.old_get_cert.netrc.netrc.authenticators') as \
-            auth_mock:
+    with patch('cadcutils.old_get_cert.netrc.netrc') as netrc_mock:
         with patch('cadcutils.old_get_cert.sys.stdin.readline') as stdin_mock:
             with patch('cadcutils.old_get_cert.Subject') as subject_mock:
-                auth_mock.return_value = None
+                authenticators_mock = \
+                    Mock(side_effect=[None, None, None, None, None])
+                netrc_mock.return_value.authenticators = authenticators_mock
                 stdin_mock.return_value = 'auser'
                 subject_mock.return_value = Subject()
                 sys.argv = ['getCert', '--cert-filename', cert_file.name]
@@ -129,23 +135,24 @@ def test_get_cert_main():
     netrc_calls = [call('the.cadc.domain')]
     for realm in old_get_cert.CADC_REALMS:
         netrc_calls.append(call(realm))
-    auth_mock.assert_has_calls(netrc_calls)
+    authenticators_mock.assert_has_calls(netrc_calls)
     with open(cert_file.name, 'r') as f:
         assert value == f.read()
 
     # test when realm not in the .netrc but other CADC realm (the first one) is
     cert_file = tempfile.NamedTemporaryFile()
     m.reset_mock()
-    with patch('cadcutils.old_get_cert.netrc.netrc.authenticators') as \
-            auth_mock:
+    with patch('cadcutils.old_get_cert.netrc.netrc') as netrc_mock:
         with patch('cadcutils.old_get_cert.Subject') as subject_mock:
-            auth_mock.side_effect = [None, ('user1', None, 'pwd1')]
+            authenticators_mock = Mock(
+                side_effect=[None, ('user1', None, 'pwd1')])
+            netrc_mock.return_value.authenticators = authenticators_mock
             user_subject = Subject()
             subject_mock.return_value = user_subject
             sys.argv = ['getCert', '--cert-filename', cert_file.name]
             old_get_cert._main()
     netrc_calls = [call('the.cadc.domain'), call(old_get_cert.CADC_REALMS[0])]
-    auth_mock.assert_has_calls(netrc_calls)
+    authenticators_mock.assert_has_calls(netrc_calls)
     assert user_subject._hosts_auth['the.cadc.domain'] == ('user1', 'pwd1')
     with open(cert_file.name, 'r') as f:
         assert value == f.read()
