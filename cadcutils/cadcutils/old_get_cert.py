@@ -80,9 +80,8 @@ from six.moves.urllib.parse import urlparse
 from .net.auth import get_cert, CRED_RESOURCE_ID, Subject
 from .net.ws import BaseWsClient, SERVICE_AVAILABILITY_ID
 
-# CADC realms
+# CADC realms current and old
 CADC_REALMS = ['www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca',
-               'www.canfar.net',
                'www.canfar.phys.uvic.ca']
 """
 
@@ -118,12 +117,12 @@ def _main():
                      "entry in the users .netrc matching the realm {0}, "
                      "the user is prompted for a username and "
                      "password if no entry is found.".format(service_realm)))
-
     parser.add_argument('--version', '-V', action='version', version='1.1')
     parser.add_argument('--daysValid', type=int, default=10,
                         help='Number of days the cetificate should be valid.')
     parser.add_argument('--cert-filename',
-                        default='$HOME/.ssl/cadcproxy.pem',
+                        default=os.path.join(
+                            os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'),
                         help="Filesysm location to store the proxy "
                              "certifcate.")
     parser.add_argument('--cert-server', default=None,
