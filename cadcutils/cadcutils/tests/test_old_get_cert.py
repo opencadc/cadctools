@@ -87,6 +87,7 @@ TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
 @patch('cadcutils.old_get_cert.BaseWsClient._get_url',
        Mock(return_value='http://the.cadc.domain/service'))
 @patch('cadcutils.old_get_cert.os.access', Mock())
+@patch('cadcutils.old_get_cert.os.getenv', Mock(return_value='/tmp'))
 def test_get_cert_main():
     """ Test the getCert function """
 
@@ -101,7 +102,7 @@ def test_get_cert_main():
                 ('someuser', None, 'somepass')
             sys.argv = ["getCert"]
             old_get_cert._main()
-    m.assert_called_once_with('$HOME/.ssl/cadcproxy.pem', 'w')
+    m.assert_called_once_with('/tmp/.ssl/cadcproxy.pem', 'w')
     m().write.assert_called_once_with(value)
 
     # save certificate in a file
@@ -163,6 +164,7 @@ class NoExit(Exception):
 
 
 @patch('sys.exit', Mock(side_effect=[NoExit, NoExit]))
+@patch('cadcutils.old_get_cert.os.getenv', Mock(return_value='/tmp'))
 def test_get_cert_main_help():
     """ Test the help option of the getCert app """
     # update the default cert location line
