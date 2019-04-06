@@ -197,8 +197,7 @@ class CutoutND(object):
                     if step is not None:
                         logger.debug('Taking step {} into account.'.format(step))
                         wcs_crpix[idx] /= step
-
-                    wcs_crpix[idx] += 1.0
+                        wcs_crpix[idx] += 1.0
 
                     logger.debug(
                         'Adjusted wcs_crpix val from {} to {}'.format(
