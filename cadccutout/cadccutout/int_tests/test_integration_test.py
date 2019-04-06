@@ -148,8 +148,8 @@ def _extname_sort_func(hdu):
          '/usr/src/data/test-hst-mef-cutout.fits', True, DEFAULT_TEST_FILE_DIR,
          None, True),
         ('[7970:8481,14843:14332]', '/usr/src/data/test-megapipe.fits',
-         '/usr/src/data/test-megapipe-cutout.fits', True, DEFAULT_TEST_FILE_DIR, None,
-         True),
+         '/usr/src/data/test-megapipe-cutout.fits', True, DEFAULT_TEST_FILE_DIR, 
+         None, True),
         ('[7970:8481:4,14843:14332:4]', '/usr/src/data/test-megapipe.fits',
          '/usr/src/data/test-megapipe-cutout-striding.fits', True,
          DEFAULT_TEST_FILE_DIR, None, True)
