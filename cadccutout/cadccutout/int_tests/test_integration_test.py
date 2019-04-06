@@ -146,7 +146,13 @@ def _extname_sort_func(hdu):
         ('[SCI,10][80:220,100:150][1][10:16,70:90][106][8:32,88:112][126]',
          '/usr/src/data/test-hst-mef.fits',
          '/usr/src/data/test-hst-mef-cutout.fits', True, DEFAULT_TEST_FILE_DIR,
-         None, True)
+         None, True),
+        ('[7970:8481,14843:14332]', '/usr/src/data/test-megapipe.fits',
+         '/usr/src/data/test-megapipe-cutout.fits', True, DEFAULT_TEST_FILE_DIR, None,
+         True),
+        ('[7970:8481:4,14843:14332:4]', '/usr/src/data/test-megapipe.fits',
+         '/usr/src/data/test-megapipe-cutout-striding.fits', True,
+         DEFAULT_TEST_FILE_DIR, None, True)
     ])
 def test_integration_test(
         cutout_region_string, target_file_name, expected_cutout_file_path,

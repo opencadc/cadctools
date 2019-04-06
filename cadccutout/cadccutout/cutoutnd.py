@@ -133,8 +133,14 @@ class CutoutND(object):
                 upper_bound = to_num(cutout_region[1])
                 if (len_region == 3):
                     step = to_num(cutout_region[2])
+                    if lower_bound > upper_bound:
+                        upper_bound -= 2
+                        step *= -1
+                elif lower_bound > upper_bound:
+                    upper_bound -= 2
+                    step = -1
                 else:
-                    step = None
+                    step = 1
 
             logger.debug('Bounds are {}:{}:{}'.format(
                 lower_bound, upper_bound, step))
@@ -148,7 +154,7 @@ class CutoutND(object):
         len_data = len(data_shape)
         missing_shape_bounds = data_shape[:(len_data - len_shape)]
 
-        for idx, val in enumerate(missing_shape_bounds):
+        for val in missing_shape_bounds:
             cutout_shape.append(slice(val))
 
     def extract(self, cutout_regions):
@@ -185,20 +191,11 @@ class CutoutND(object):
                 if idx < l_wcs_crpix:
                     curr_val = wcs_crpix[idx]
 
-                    if cutout_region.step:
-                        step = cutout_region.step
-                        logger.debug(
-                            'Taking step {} into account.'.format(step))
-                        if cutout_region.start:
-                            distance = (cutout_region.stop
-                                        - (cutout_region.start + 1.0))
-                            wcs_crpix[idx] -= distance
-                            wcs_crpix[idx] /= step
-                            wcs_crpix[idx] += 1.0
-                        else:
-                            wcs_crpix[idx] /= step
-                    elif cutout_region.start:
-                        wcs_crpix[idx] -= cutout_region.start
+                    step = cutout_region.step
+                    logger.debug('Taking step {} into account.'.format(step))
+                    wcs_crpix[idx] -= cutout_region.start + 1.0
+                    wcs_crpix[idx] /= step
+                    wcs_crpix[idx] += 1.0
 
                     logger.debug(
                         'Adjusted wcs_crpix val from {} to {}'.format(
