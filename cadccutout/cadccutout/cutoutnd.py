@@ -191,11 +191,13 @@ class CutoutND(object):
                 if idx < l_wcs_crpix:
                     curr_val = wcs_crpix[idx]
 
-                    step = cutout_region.step
-                    logger.debug('Taking step {} into account.'.format(step))
+                    step = cutout_region.step                    
                     if cutout_region.start is not None:
                         wcs_crpix[idx] -= cutout_region.start + 1.0
-                    wcs_crpix[idx] /= step
+                    if step is not None:
+                        logger.debug('Taking step {} into account.'.format(step))
+                        wcs_crpix[idx] /= step
+
                     wcs_crpix[idx] += 1.0
 
                     logger.debug(
