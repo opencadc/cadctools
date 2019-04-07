@@ -121,7 +121,7 @@ class CutoutND(object):
     def _to_slice(self, idx, cutout_region):
         len_region = len(cutout_region)
 
-        if len_region > 1:
+        if len_region > 0:
             low_bound = cutout_region[0]
 
             if low_bound == '*':
@@ -151,11 +151,14 @@ class CutoutND(object):
     def _pad_cutout(self, cutout_shape):
         len_shape = len(cutout_shape)
         data_shape = self.data.shape
+        logger.debug('Data shape is {} with length {}'.format(data_shape, len(self.data)))
         len_data = len(data_shape)
-        missing_shape_bounds = data_shape[:(len_data - len_shape)]
+        if len_data > len_shape:
+            missing_shape_bounds = data_shape[:len_shape]
+            logger.debug('Missing shape bounds are {} for length {}'.format(missing_shape_bounds, len_data - len_shape))
 
-        for val in missing_shape_bounds:
-            cutout_shape.append(slice(val))
+            for val in missing_shape_bounds:
+                cutout_shape.append(slice(val))
 
     def extract(self, cutout_regions):
         """
@@ -190,14 +193,20 @@ class CutoutND(object):
             for idx, cutout_region in enumerate(cutout_shape):
                 if idx < l_wcs_crpix:
                     curr_val = wcs_crpix[idx]
+                    start = cutout_region.start
 
                     step = cutout_region.step
-                    if cutout_region.start is not None:
-                        wcs_crpix[idx] -= cutout_region.start + 1.0
+                    if start is None:
+                        wcs_crpix[idx] -= 1.0
+                    elif start != 0:
+                        wcs_crpix[idx] -= start + 1.0
+
                     if step is not None:
                         logger.debug('Taking step {} into account.'.format(
                             step))
                         wcs_crpix[idx] /= step
+
+                    if start is None or start > 0:
                         wcs_crpix[idx] += 1.0
 
                     logger.debug(

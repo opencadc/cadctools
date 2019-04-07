@@ -144,7 +144,7 @@ def test_extract_invalid():
     data_shape = (10, 10)
     data = np.arange(100).reshape(data_shape)
     test_subject = CutoutND(data)
-    cutout_regions = [('*')]
+    cutout_regions = [('')]
 
     with pytest.raises(ValueError) as ve:
         test_subject.extract(cutout_regions)
