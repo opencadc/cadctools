@@ -151,11 +151,13 @@ class CutoutND(object):
     def _pad_cutout(self, cutout_shape):
         len_shape = len(cutout_shape)
         data_shape = self.data.shape
-        logger.debug('Data shape is {} with length {}'.format(data_shape, len(self.data)))
+        logger.debug('Data shape is {} with length {}'.format(
+            data_shape, len(self.data)))
         len_data = len(data_shape)
         if len_data > len_shape:
             missing_shape_bounds = data_shape[:len_shape]
-            logger.debug('Missing shape bounds are {} for length {}'.format(missing_shape_bounds, len_data - len_shape))
+            logger.debug('Missing shape bounds are {} for length {}'.format(
+                missing_shape_bounds, len_data - len_shape))
 
             for val in missing_shape_bounds:
                 cutout_shape.append(slice(val))
