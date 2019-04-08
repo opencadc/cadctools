@@ -135,7 +135,8 @@ class CutoutND(object):
                     step = to_num(cutout_region[2])
                     if lower_bound > upper_bound:
                         upper_bound -= 2
-                        step *= -1
+                        if step > 0:
+                            step *= -1
                 elif lower_bound > upper_bound:
                     upper_bound -= 2
                     step = -1
