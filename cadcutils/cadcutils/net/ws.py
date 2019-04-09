@@ -88,7 +88,7 @@ from six.moves.urllib.parse import urlparse
 import distro
 
 from cadcutils import exceptions
-from .. import version as cadctools_version
+from cadcutils import version as cadctools_version
 from . import wscapabilities
 
 # an issue related to the requests library

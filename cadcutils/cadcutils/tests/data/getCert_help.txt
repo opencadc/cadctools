@@ -1,0 +1,20 @@
+usage: getCert [-h] [--version] [--daysValid DAYSVALID]
+               [--cert-filename CERT_FILENAME] [--cert-server CERT_SERVER]
+
+Retrieve a security certificate for interaction with VOSpace. Certificate will
+be valid for daysValid and stored as local file cert_filename. First looks for
+an entry in the users .netrc matching the realm www.cadc-ccda.hia-iha.nrc-
+cnrc.gc.ca, the user is prompted for a username and password if no entry is
+found.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --version, -V         show program's version number and exit
+  --daysValid DAYSVALID
+                        Number of days the cetificate should be valid.
+                        (default: 10)
+  --cert-filename CERT_FILENAME
+                        Filesysm location to store the proxy certifcate.
+                        (default: /tmp/.ssl/cadcproxy.pem)
+  --cert-server CERT_SERVER
+                        Deprecated. Used for testing only (default: None)
