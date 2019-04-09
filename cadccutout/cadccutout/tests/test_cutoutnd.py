@@ -73,6 +73,8 @@ from __future__ import (absolute_import, division, print_function,
 import pytest
 import numpy as np
 from cadccutout.cutoutnd import CutoutND
+from astropy.io.fits import Header
+from astropy.wcs import WCS
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 
 
@@ -96,6 +98,36 @@ def test_extract():
                               [27],
                               [31],
                               [35]])
+    np.testing.assert_array_equal(
+        expected_data, cutout.data, 'Arrays do not match.')
+
+
+def test_inverse_y():
+    data_shape = (10, 10)
+    data = np.arange(100).reshape(data_shape)
+    test_subject = CutoutND(data)
+    cutout_regions = [(1, 2), (8, 4)]
+    cutout = test_subject.extract(cutout_regions)
+    expected_data = np.array([[70, 71],
+                              [60, 61],
+                              [50, 51],
+                              [40, 41],
+                              [30, 31]])
+    np.testing.assert_array_equal(
+        expected_data, cutout.data, 'Arrays do not match.')
+
+
+def test_inverse_y_striding():
+    data_shape = (10, 10)
+    data = np.arange(100).reshape(data_shape)
+    test_subject = CutoutND(data)
+    cutout_regions = [(1, 2), (10, 2, 2)]
+    cutout = test_subject.extract(cutout_regions)
+    expected_data = np.array([[90, 91],
+                              [70, 71],
+                              [50, 51],
+                              [30, 31],
+                              [10, 11]])
     np.testing.assert_array_equal(
         expected_data, cutout.data, 'Arrays do not match.')
 
@@ -151,3 +183,19 @@ def test_extract_invalid():
 
     assert str(ve).index(
         'Should have at least two values (lower, upper).') > 0
+
+
+def test_with_wcs():
+    data = np.arange(100).reshape(10, 10)
+    header = Header()
+    wcs = WCS(fix=False)
+    wcs.wcs.cd = [[0.9, 0.8], [0.7, 0.6]]
+    header.set('REMAIN1', 'VALUE1')
+    header.set('DQ1', 'dqvalue1')
+    header.set('NAXIS', 2)
+
+    test_subject = CutoutND(data, wcs=wcs)
+    cutout_result = test_subject.extract([(1, 6, 2), (4, 10, 2)])
+    result_wcs = cutout_result.wcs
+    np.testing.assert_array_equal([[1.8, 1.6], [1.4, 1.2]],
+                                  result_wcs.wcs.cd, 'Wrong CD output.')
