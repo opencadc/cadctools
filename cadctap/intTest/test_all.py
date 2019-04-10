@@ -8,6 +8,10 @@ from mock import patch
 from astropy.io import fits
 import tempfile
 import numpy as np
+import cadctap
+from cadcutils.net import Subject
+from six import BytesIO
+from astropy.io.votable import parse_single_table
 
 from cadctap.core import main_app
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -37,15 +41,25 @@ TABLE = '{}.{}'.format(DB_SCHEMA_NAME, TABLE_NAME)
 TABLE_DEF = '{}/createTable.vosi'.format(TESTDATA_DIR)
 
 
+def test_astropytable():
+    # example of how to integrate with astropy table. Not sure it belongs here
+    client = cadctap.CadcTapClient(Subject(),
+                                   resource_id='ivo://cadc.nrc.ca/tap')
+    buffer = BytesIO()
+    client.query('select top 1000 * from caom2.Observation', output_file=buffer)
+    tb = parse_single_table(buffer).to_table()
+    assert len(tb) == 1000
+
+
 def test_commands(monkeypatch):
     # test cadc TAP service with anonymous access
-    sys.argv = ['cadc-tap', 'query', '-a', '-s', 'ivo://cadc.nrc.ca/tap', '-f',
+    sys.argv = ['cadc-tap', 'query', '-d', '-a', '-s', 'ivo://cadc.nrc.ca/tap', '-f',
                 'VOTable', 'select observationID FROM caom2.Observation '
                 'where observationID=\'dao_c122_2018_003262\'']
-    with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+    with patch('sys.stdout', new_callable=BytesIO) as stdout_mock:
         main_app()
-    assert '<INFO name="QUERY_STATUS" value="OK" />' in stdout_mock.getvalue()
-    assert '<TD>dao_c122_2018_003262</TD>' in stdout_mock.getvalue()
+    assert b'<INFO name="QUERY_STATUS" value="OK" />' in stdout_mock.getvalue()
+    assert b'<TD>dao_c122_2018_003262</TD>' in stdout_mock.getvalue()
 
     # monkeypatch required for the "user interaction"
     sys.argv = 'cadc-tap delete --cert {} {}'.format(CERT, TABLE).split()
@@ -71,10 +85,10 @@ def test_commands(monkeypatch):
 
     sys.argv = 'cadc-tap query -f VOTable --cert {}'.format(CERT).split()
     sys.argv.append('select * from {}'.format(TABLE))
-    with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+    with patch('sys.stdout', new_callable=BytesIO) as stdout_mock:
         main_app()
-    assert '<INFO name="QUERY_STATUS" value="OK" />' in stdout_mock.getvalue()
-    assert '<TABLEDATA />' in stdout_mock.getvalue()
+    assert b'<INFO name="QUERY_STATUS" value="OK" />' in stdout_mock.getvalue()
+    assert b'<TABLEDATA />' in stdout_mock.getvalue()
 
     # create index
     sys.argv = 'cadc-tap index --cert {} {} article'.format(
@@ -98,17 +112,14 @@ def test_commands(monkeypatch):
             'Cannot load table csv {}. Reason: {}'.format(TABLE, str(e)))
         raise e
 
-    sys.argv = 'cadc-tap query -f VOTable --cert {}'.format(CERT).split()
+    sys.argv = 'cadc-tap query -f csv --cert {}'.format(CERT).split()
     sys.argv.append('select * from {}'.format(TABLE))
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         main_app()
     result = stdout_mock.getvalue()
-    assert '<INFO name="QUERY_STATUS" value="OK" />' in result
-    # 3 rows
-    assert 3 == result.count('<TD>art')
-    for i in range(1, 3):
-        assert '<TD>art{}</TD>'.format(i) in result
-        assert '<TD>{}</TD>'.format(i) in result
+    assert result == \
+           'count,article\n-----------------------\n1,art1\n2,' \
+           'art2\n3,art3\n\n(3 rows affected)\n'
 
     # load data tsv format
     sys.argv = 'cadc-tap load --cert {} {} {}'.format(
@@ -123,15 +134,15 @@ def test_commands(monkeypatch):
 
     sys.argv = 'cadc-tap query -f VOTable --cert {}'.format(CERT).split()
     sys.argv.append('select * from {}'.format(TABLE))
-    with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+    with patch('sys.stdout', new_callable=BytesIO) as stdout_mock:
         main_app()
     result = stdout_mock.getvalue()
-    assert '<INFO name="QUERY_STATUS" value="OK" />' in result
+    assert b'<INFO name="QUERY_STATUS" value="OK" />' in result
     # 6 rows
-    assert 6 == result.count('<TD>art')
+    assert 6 == result.count(b'<TD>art')
     for i in range(1, 6):
-        assert '<TD>art{}</TD>'.format(i) in result
-        assert '<TD>{}</TD>'.format(i) in result
+        assert '<TD>art{}</TD>'.format(i).encode('utf-8') in result
+        assert '<TD>{}</TD>'.format(i).encode('utf-8') in result
 
     # load data BINTABLE format
     hdu0 = fits.PrimaryHDU()
@@ -159,15 +170,15 @@ def test_commands(monkeypatch):
 
     sys.argv = 'cadc-tap query -f VOTable --cert {}'.format(CERT).split()
     sys.argv.append('select * from {}'.format(TABLE))
-    with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+    with patch('sys.stdout', new_callable=BytesIO) as stdout_mock:
         main_app()
     result = stdout_mock.getvalue()
-    assert '<INFO name="QUERY_STATUS" value="OK" />' in result
+    assert b'<INFO name="QUERY_STATUS" value="OK" />' in result
     # 9 rows
-    assert 9 == result.count('<TD>art')
+    assert 9 == result.count(b'<TD>art')
     for i in range(1, 9):
-        assert '<TD>art{}</TD>'.format(i) in result
-        assert '<TD>{}</TD>'.format(i) in result
+        assert '<TD>art{}</TD>'.format(i).encode('utf-8') in result
+        assert '<TD>{}</TD>'.format(i).encode('utf-8') in result
 
     # TODO query with temporary table
 
