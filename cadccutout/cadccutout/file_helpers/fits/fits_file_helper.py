@@ -174,7 +174,7 @@ class FITSHelper(BaseFileHelper):
                 checksum='remove')
             logger.debug('Wrote out Primary HDU.')
         else:
-            logger.warn('HDU List does NOT contain a Primary HDU.  Skipping.')
+            logger.debug('HDU List does NOT contain a Primary HDU.  Skipping.')
 
     def _check_hdu_list(self, cutout_dimensions, hdu_list):
         has_match = False
@@ -239,7 +239,7 @@ class FITSHelper(BaseFileHelper):
         # Start with the first extension
         hdu_list = fits.open(
             name=self.input_stream, memmap=True, mode='readonly',
-            do_not_scale_image_data=True)
+            do_not_scale_image_data=True, ignore_missing_end=True)
 
         # Keep a tally of whether at least one HDU matched.
         has_match = self._check_hdu_list(cutout_dimensions, hdu_list)

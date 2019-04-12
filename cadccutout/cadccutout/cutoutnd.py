@@ -73,8 +73,8 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 
 from copy import deepcopy
+from math import ceil
 
-from cadccutout.utils import to_num
 from astropy.wcs import Sip
 from cadccutout.no_content_error import NoContentError
 
@@ -118,7 +118,21 @@ class CutoutND(object):
         self.data = data
         self.wcs = wcs
 
-    def _to_slice(self, idx, cutout_region):
+    def to_slice(self, idx, cutout_region):
+        """
+        Convert a region (tuple) into a slice to be used in a data array.  Some
+        fenangling is added here to adjust the values based on a striding step,
+        or to handle a two-dimensional cutout where y2 < y1.
+
+        Some math is translated (or invented) to match what cfitsio (imcopy) is
+        producing.
+
+        Parameters
+        ----------
+        idx:        Index of the current region requested.  Used to lookup the
+                    shape of the data to "pad" the cutout if necessary.
+        cutout_region:  The requested region to be cutout.
+        """
         len_region = len(cutout_region)
 
         if len_region > 0:
@@ -127,12 +141,14 @@ class CutoutND(object):
             if low_bound == '*':
                 lower_bound = 0
                 upper_bound = self.data.shape[idx]
-                step = to_num(cutout_region[1])
+                step = int(cutout_region[1])
             else:
-                lower_bound = to_num(low_bound) - 1
-                upper_bound = to_num(cutout_region[1])
+                lower_bound = int(low_bound)
+                if lower_bound > 0:
+                    lower_bound -= 1
+                upper_bound = int(cutout_region[1])
                 if (len_region == 3):
-                    step = to_num(cutout_region[2])
+                    step = int(cutout_region[2])
                     if lower_bound > upper_bound:
                         upper_bound -= 2
                         if step > 0:
@@ -163,6 +179,75 @@ class CutoutND(object):
             for val in missing_shape_bounds:
                 cutout_shape.append(slice(val))
 
+    def format_wcs(self, cutout_shape):
+        """
+        Re-calculate the CRPIX values for the WCS.  The SIP values are also
+        re-calculated, if present.
+
+        CRPIX values are tricky and there exists some black magic math in here,
+        not to mention some values are set differently to accommodate the subtle
+        variations with Python 2/3 float values.
+
+        Parameters
+        ----------
+        cutout_shape:   The tuple containing the bounding values (shape) of the
+        resulting cutout.
+
+        Returns
+        -------
+        The formatted WCS object.
+        """
+        output_wcs = deepcopy(self.wcs)
+        wcs_crpix = output_wcs.wcs.crpix
+        l_wcs_crpix = len(wcs_crpix)
+
+        logger.debug('Adjusting WCS.')
+
+        for idx, cutout_region in enumerate(cutout_shape):
+            if idx < l_wcs_crpix:
+                curr_val = wcs_crpix[idx]
+                start = cutout_region.start
+                step = cutout_region.step
+
+                if start:
+                    wcs_crpix[idx] -= float(ceil(start + 0.5))
+
+                if step is not None:
+                    logger.debug('Taking step {} into account.'.format(step))
+                    wcs_crpix[idx] /= step
+
+                if start:
+                    wcs_crpix[idx] += 1.0
+
+                logger.debug(
+                    'Adjusted wcs_crpix val from {} to {}'.format(
+                        curr_val, wcs_crpix[idx]))
+
+        if output_wcs.wcs.has_pc():
+            pc = output_wcs.wcs.pc
+            for i in range(output_wcs.wcs.naxis):
+                for j in range(output_wcs.wcs.naxis):
+                    step = cutout_shape[j].step
+                    if step:
+                        pc[i][j] *= step
+        elif output_wcs.wcs.has_cd():
+            cd = output_wcs.wcs.cd
+            for i in range(output_wcs.wcs.naxis):
+                for j in range(output_wcs.wcs.naxis):
+                    step = cutout_shape[j].step
+                    if step:
+                        cd[i][j] *= step
+
+        if self.wcs.sip:
+            curr_sip = self.wcs.sip
+            output_wcs.sip = Sip(curr_sip.a, curr_sip.b,
+                                 curr_sip.ap, curr_sip.bp,
+                                 wcs_crpix[0:2])
+
+        logger.debug('WCS adjusted.')
+
+        return output_wcs
+
     def extract(self, cutout_regions):
         """
         Perform the extraction from the data for the provided region.  If the
@@ -173,7 +258,7 @@ class CutoutND(object):
         """
         try:
             cutout_shape = [
-                self._to_slice(idx, cutout_region) for idx, cutout_region in
+                self.to_slice(idx, cutout_region) for idx, cutout_region in
                 enumerate(cutout_regions)]
             self._pad_cutout(cutout_shape)
 
@@ -187,60 +272,9 @@ class CutoutND(object):
                                                             self.data.shape))
 
         if self.wcs:
-            output_wcs = deepcopy(self.wcs)
-            wcs_crpix = output_wcs.wcs.crpix
-            l_wcs_crpix = len(wcs_crpix)
-
-            logger.debug('Adjusting WCS.')
-
-            for idx, cutout_region in enumerate(cutout_shape):
-                if idx < l_wcs_crpix:
-                    curr_val = wcs_crpix[idx]
-                    start = cutout_region.start
-
-                    step = cutout_region.step
-                    if start is None:
-                        wcs_crpix[idx] -= 1.0
-                    elif start != 0:
-                        wcs_crpix[idx] -= start + 1.0
-
-                    if step is not None:
-                        logger.debug('Taking step {} into account.'.format(
-                            step))
-                        wcs_crpix[idx] /= step
-
-                    if start is None or start > 0:
-                        wcs_crpix[idx] += 1.0
-
-                    logger.debug(
-                        'Adjusted wcs_crpix val from {} to {}'.format(
-                            curr_val, wcs_crpix[idx]))
-
-            if output_wcs.wcs.has_pc():
-                pc = output_wcs.wcs.pc
-                for i in range(output_wcs.wcs.naxis):
-                    for j in range(output_wcs.wcs.naxis):
-                        step = cutout_shape[j].step
-                        if step:
-                            pc[i][j] *= step
-            elif output_wcs.wcs.has_cd():
-                cd = output_wcs.wcs.cd
-                for i in range(output_wcs.wcs.naxis):
-                    for j in range(output_wcs.wcs.naxis):
-                        step = cutout_shape[j].step
-                        if step:
-                            cd[i][j] *= step
-
-            if self.wcs.sip:
-                curr_sip = self.wcs.sip
-                output_wcs.sip = Sip(curr_sip.a, curr_sip.b,
-                                     curr_sip.ap, curr_sip.bp,
-                                     wcs_crpix[0:2])
-
-            logger.debug('WCS adjusted.')
+            output_wcs = self.format_wcs(cutout_shape)
         else:
             logger.debug('No WCS present.')
             output_wcs = None
-            wcs_crpix = None
 
         return CutoutResult(data=cutout_data, wcs=output_wcs)
