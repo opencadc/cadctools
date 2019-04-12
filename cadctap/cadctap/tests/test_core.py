@@ -74,7 +74,7 @@ import sys
 import unittest
 from cadcutils import net, exceptions
 
-from six import StringIO
+from six import StringIO, BytesIO
 import cadctap
 from cadctap.core import main_app
 from mock import Mock, patch, call
@@ -451,6 +451,7 @@ def test_query(caps_get_mock, base_post_mock):
     caps_get_mock.return_value = BASE_URL
     response = Mock()
     response.status_code = 200
+    response.raw.read.return_value = b'<VOTable format>'
     response.text = 'Header 1\nVal1\nVal2\n'
     # NOTE: post mock returns a context manager with the responose, hence
     # the __enter__
@@ -466,7 +467,8 @@ def test_query(caps_get_mock, base_post_mock):
     tablefile = os.path.basename(def_table)
     fields['UPLOAD'] = '{},param:{}'.format(def_name, tablefile)
     fields[tablefile] = (def_table, open(def_table, 'rb'))
-    client.query('query', tmptable='tmptable:'+def_table)
+    with patch('cadctap.core.sys.stdout', new_callable=BytesIO):
+        client.query('query', tmptable='tmptable:'+def_table)
     assert base_post_mock.call_args_list[0][0][0] == \
         '{}/{}'.format(BASE_URL, 'sync')
 
@@ -487,10 +489,9 @@ def test_query(caps_get_mock, base_post_mock):
     # different format => result from server not altered
     base_post_mock.reset_mock()
     base_post_mock.return_value.__enter__.return_value = response
-    with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+    with patch('sys.stdout', new_callable=BytesIO) as stdout_mock:
         client.query('query')
-    actual = open(tf.name).read()
-    assert stdout_mock.getvalue() == response.text
+    assert stdout_mock.getvalue() == response.raw.read()
 
 
 class TestCadcTapClient(unittest.TestCase):
