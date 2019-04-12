@@ -113,18 +113,6 @@ def test__check_hdu_list():
     assert has_match, 'Should match.'
 
 
-def test_is_extension_requested():
-    test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
-    dimension = PixelCutoutHDU([(400, 800)], extension=1)
-    assert not test_subject._is_extension_requested('4', ('EXN', 4), dimension)
-
-    dimension = PixelCutoutHDU([(400, 800)])
-    assert not test_subject._is_extension_requested('4', ('NOM', 1), dimension)
-
-    dimension = PixelCutoutHDU([(400, 800)], extension=2)
-    assert test_subject._is_extension_requested('2', ('NOM', 7), dimension)
-
-
 def test_post_sanitize_header():
     test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
     data = np.arange(10000).reshape(100, 100)
@@ -163,5 +151,75 @@ def test_post_sanitize_header_crpix():
         'Start with bad indexes...'
 
     test_subject._post_sanitize_header(header, result)
+
+    assert 'VALUE1' == header.get('REMAIN1'), 'REMAIN1 should still be there.'
+
+
+def test_post_sanitize_header_cd():
+    test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
+    data = np.arange(10000).reshape(100, 100)
+    header = Header()
+    wcs = WCS(fix=False)
+    wcs.wcs.cd = [[0.9, 0.8], [0.7, 0.6]]
+    header.set('REMAIN1', 'VALUE1')
+    header.set('DQ1', 'dqvalue1')
+    header.set('NAXIS', 2)
+    header.set('NAXIS1', 88)
+    header.set('NAXIS2', 212)
+    header.set('CRPIX1', 77.0)
+    header.set('WCSAXES', 2)
+    header.set('CTYPE1', 'ctype1value')
+
+    assert header.get('CD1_1') is None, 'Should not contain CD1_1'
+    assert header.get('CD2_1') is None, 'Should not contain CD2_1'
+    assert header.get('CD1_2') is None, 'Should not contain CD1_2'
+    assert header.get('CD2_2') is None, 'Should not contain CD2_2'
+
+    result = CutoutResult(data, wcs=wcs)
+
+    assert header.index('WCSAXES') > header.index('CRPIX1'), \
+        'Start with bad indexes...'
+
+    test_subject._post_sanitize_header(header, result)
+
+    assert header.get('CD1_1') == 0.9, 'Wrong CD1_1 value.'
+    assert header.get('CD2_1') == 0.7, 'Wrong CD2_1 value.'
+    assert header.get('CD1_2') == 0.8, 'Wrong CD1_2 value.'
+    assert header.get('CD2_2') == 0.6, 'Wrong CD2_2 value.'
+
+    assert 'VALUE1' == header.get('REMAIN1'), 'REMAIN1 should still be there.'
+
+
+def test_post_sanitize_header_pc():
+    test_subject = FITSHelper(io.BytesIO(), io.BytesIO())
+    data = np.arange(10000).reshape(100, 100)
+    header = Header()
+    wcs = WCS(fix=False)
+    wcs.wcs.pc = [[0.9, 0.8], [0.7, 0.6]]
+    header.set('REMAIN1', 'VALUE1')
+    header.set('DQ1', 'dqvalue1')
+    header.set('NAXIS', 2)
+    header.set('NAXIS1', 88)
+    header.set('NAXIS2', 212)
+    header.set('CRPIX1', 77.0)
+    header.set('WCSAXES', 2)
+    header.set('CTYPE1', 'ctype1value')
+
+    assert header.get('PC1_1') is None, 'Should not contain PC1_1'
+    assert header.get('PC2_1') is None, 'Should not contain PC2_1'
+    assert header.get('PC1_2') is None, 'Should not contain PC1_2'
+    assert header.get('PC2_2') is None, 'Should not contain PC2_2'
+
+    result = CutoutResult(data, wcs=wcs)
+
+    assert header.index('WCSAXES') > header.index('CRPIX1'), \
+        'Start with bad indexes...'
+
+    test_subject._post_sanitize_header(header, result)
+
+    assert header.get('PC1_1') == 0.9, 'Wrong PC1_1 value.'
+    assert header.get('PC2_1') == 0.7, 'Wrong PC2_1 value.'
+    assert header.get('PC1_2') == 0.8, 'Wrong PC1_2 value.'
+    assert header.get('PC2_2') == 0.6, 'Wrong PC2_2 value.'
 
     assert 'VALUE1' == header.get('REMAIN1'), 'REMAIN1 should still be there.'

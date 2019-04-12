@@ -70,7 +70,6 @@
 import logging
 import numpy as np
 
-from math import ceil
 from cadccutout.utils import is_integer
 
 __all__ = ['PixelCutoutHDU']
@@ -80,12 +79,8 @@ logger = logging.getLogger(__name__)
 
 
 def fix_tuple(t):
-    if np.isscalar(t):
+    if np.isscalar(t) or len(t) == 1:
         return (t, t)
-    elif len(t) < 2:
-        raise ValueError('Unusable dimension range {}'.format(t))
-    elif len(t) > 2:
-        raise ValueError('Invalid range ({}).'.format(t))
     else:
         return t
 
@@ -95,7 +90,7 @@ class PixelCutoutHDU(object):
         """
         A Pixel cutout.
         :param dimension_ranges: list    Dimension ranges expressed as tuples
-        (i.e. (lower,upper)).
+        (i.e. (lower,upper,nth-value)).
         :param extension: tuple, int, string
             The Extension specification to use.  If tuple, use (str, int) to
              get the nth count of the EXTNAME=str
@@ -131,35 +126,7 @@ class PixelCutoutHDU(object):
         """
         Obtain the range tuples.
         """
-        acc = []
-        for range_tuple in self.dimension_ranges:
-            acc.append(
-                (int(np.round(range_tuple[0])), int(np.round(range_tuple[1]))))
-
-        return acc
-
-    def get_shape(self):
-        """
-        Convert the given dimensions to a shape.
-        """
-        acc = []
-        for range_tuple in self.dimension_ranges:
-            acc.append(int(np.round((range_tuple[1] - range_tuple[0]) + 1)))
-
-        return tuple(acc)
-
-    def get_position(self):
-        """
-        Convert the given dimensions to a position to extract.
-        """
-        acc = []
-        for range_tuple in self.dimension_ranges:
-            acc.append(int(ceil(
-                range_tuple[0] - 0.5) + int(ceil(((range_tuple[1]
-                                                   - range_tuple[0]) / 2)
-                                                 - 0.5))) - 1)
-
-        return tuple(acc)
+        return self.dimension_ranges
 
     def get_extension(self):
         return self._extension

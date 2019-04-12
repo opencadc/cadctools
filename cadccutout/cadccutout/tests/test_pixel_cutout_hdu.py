@@ -95,26 +95,11 @@ def test_create():
     assert str(ve).index(
         'Specifying XTENSION return type is not supported.') > 0
 
-    with pytest.raises(ValueError) as ve:
-        test_subject = PixelCutoutHDU([(23, 67, 25), (23, 89)],
-                                      extension='SCI, 3')
-    assert str(ve).index('ValueError: Invalid range ((23, 67, 25)).') > 0
-
     test_subject = PixelCutoutHDU(extension='5')
     assert test_subject.get_extension() == 5, 'Wrong extension.'
 
-    with pytest.raises(ValueError):
-        test_subject = PixelCutoutHDU([()])
-
-
-def test_get_shape():
-    test_subject = PixelCutoutHDU([(1, 200), (305, 600)])
-    shape = test_subject.get_shape()
-    assert shape == (200, 296), 'Wrong shape output.'
-
-    test_subject = PixelCutoutHDU([(10, 20), (30)])
-    shape = test_subject.get_shape()
-    assert shape == (11, 1), 'Wrong shape output.'
+    test_subject = PixelCutoutHDU([()])
+    assert test_subject.get_extension() == 0
 
 
 def test_get_ranges():
@@ -126,12 +111,10 @@ def test_get_ranges():
     ranges = test_subject.get_ranges()
     assert ranges == [(10, 20), (30, 30)], 'Wrong ranges output.'
 
+    test_subject = PixelCutoutHDU([(10, 15, 2), (30)])
+    ranges = test_subject.get_ranges()
+    assert ranges == [(10, 15, 2), (30, 30)], 'Wrong ranges output.'
 
-def test_get_position():
-    test_subject = PixelCutoutHDU([(1, 200), (305, 360), (400, 1000)])
-    position = test_subject.get_position()
-    assert position == (99, 331, 699), 'Wrong position output.'
-
-    test_subject = PixelCutoutHDU([(10, 20), (30), (400, 406)])
-    position = test_subject.get_position()
-    assert position == (14, 29, 402), 'Wrong position output.'
+    test_subject = PixelCutoutHDU([('*', 20)])
+    ranges = test_subject.get_ranges()
+    assert ranges == [('*', 20)], 'Wrong ranges output.'
