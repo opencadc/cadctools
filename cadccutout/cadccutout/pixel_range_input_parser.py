@@ -73,7 +73,7 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import re
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
-from cadccutout.utils import to_num
+from cadccutout.utils import to_num, is_integer
 
 __all__ = ['PixelRangeInputParserError', 'PixelRangeInputParser']
 
@@ -108,15 +108,26 @@ class PixelRangeInputParser(object):
 
     def _to_range_tuple(self, rs):
         if self.delimiter not in rs:
-            return (to_num(rs), to_num(rs))  # Turns 7 into 7:7
+            if is_integer(rs):
+                val = to_num(rs)
+            else:
+                val = rs
+            return (val, val)  # Turns 7 into 7:7
         else:
-            start, end = rs.split(self.delimiter)
+            items = rs.split(self.delimiter)
 
-            if not start or not end:
+            if not items:
                 raise PixelRangeInputParserError(
                     'Incomplete range specified {}'.format(rs))
             else:
-                return (to_num(start), to_num(end))
+                sanitized_items = []
+                for item in items:
+                    if is_integer(item):
+                        sanitized_items.append(to_num(item))
+                    else:
+                        sanitized_items.append(item)
+
+                return tuple(sanitized_items)
 
     def parse(self, pixel_range_input_str):
         """

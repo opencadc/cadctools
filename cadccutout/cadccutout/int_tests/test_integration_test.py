@@ -125,6 +125,9 @@ def _extname_sort_func(hdu):
         ('[1][20:40][2][20:40]', '/usr/src/data/public_fits.fits.fz',
          '/usr/src/data/public_fits.cutout.fits.fz', True,
          DEFAULT_TEST_FILE_DIR, None, True),
+        ('[1][20:40:12]', '/usr/src/data/public_fits.fits.fz',
+         '/usr/src/data/public_fits.cutout_striding.fits.fz', True,
+         DEFAULT_TEST_FILE_DIR, None, True),
         ('[80:220,100:150,100:150]', '/usr/src/data/test-alma-cube.fits',
          '/usr/src/data/test-alma-cube-cutout.fits', True,
          DEFAULT_TEST_FILE_DIR, None, False),
@@ -137,10 +140,19 @@ def _extname_sort_func(hdu):
         ('[500:900,300:1000,8:12]', '/usr/src/data/test-vlass-cube.fits',
          '/usr/src/data/test-vlass-cube-cutout.fits', True,
          DEFAULT_TEST_FILE_DIR, None, False),
+        ('[2][*:20]', '/usr/src/data/test-cfht.fits.fz',
+         '/usr/src/data/test-cfht-cutout.fits.fz', True,
+         DEFAULT_TEST_FILE_DIR, None, False),
         ('[SCI,10][80:220,100:150][1][10:16,70:90][106][8:32,88:112][126]',
          '/usr/src/data/test-hst-mef.fits',
          '/usr/src/data/test-hst-mef-cutout.fits', True, DEFAULT_TEST_FILE_DIR,
-         None, True)
+         None, True),
+        ('[7970:8481,14843:14332]', '/usr/src/data/test-megapipe.fits',
+         '/usr/src/data/test-megapipe-cutout.fits', True, DEFAULT_TEST_FILE_DIR,
+         None, True),
+        ('[7970:8481:4,14843:14332:4]', '/usr/src/data/test-megapipe.fits',
+         '/usr/src/data/test-megapipe-cutout-striding.fits', True,
+         DEFAULT_TEST_FILE_DIR, None, True)
     ])
 def test_integration_test(
         cutout_region_string, target_file_name, expected_cutout_file_path,
@@ -209,27 +221,28 @@ def test_integration_test(
     'cutout_region_string, target_file_name, \
                           expected_cutout_file_path, use_fits_diff, \
                           test_dir_name, wcs_naxis_val, use_extension_names',
-    [('CIRCLE 70.3389 -2.8361 0.016666666666666666',
-      '/usr/src/data/test-sitelle-cube.fits',
-      '/usr/src/data/test-sitelle-cube-cutout-wcs.fits', True,
-      DEFAULT_TEST_FILE_DIR, 2, False),
-     ('CIRCLE 40.05 58.05 0.7',
-      '/usr/src/data/test-cgps-cube.fits',
-      '/usr/src/data/test-cgps-cube-cutout-wcs.fits', True,
-      DEFAULT_TEST_FILE_DIR, 2, False),
-     ('CIRCLE 246.52 -24.33 0.01',
-      '/usr/src/data/test-alma-cube.fits',
-      '/usr/src/data/test-alma-cube-cutout-wcs.fits', True,
-      DEFAULT_TEST_FILE_DIR, 2, False),
-     ('CIRCLE 161.52 77.472 0.03',
-      '/usr/src/data/test-vlass-cube.fits',
-      '/usr/src/data/test-vlass-cube-cutout-wcs.fits', True,
-      DEFAULT_TEST_FILE_DIR, 2, False),
-     ('CIRCLE 189.1726880000002 62.17111899999974 0.01',
-      '/usr/src/data/test-hst-mef.fits',
-      '/usr/src/data/test-hst-mef-cutout-wcs.fits', True,
-      '/usr/src/app', 2, False)
-     ])
+    [
+        ('CIRCLE 70.3389 -2.8361 0.016666666666666666',
+         '/usr/src/data/test-sitelle-cube.fits',
+         '/usr/src/data/test-sitelle-cube-cutout-wcs.fits', True,
+         DEFAULT_TEST_FILE_DIR, 2, False),
+        ('CIRCLE 40.05 58.05 0.7',
+            '/usr/src/data/test-cgps-cube.fits',
+            '/usr/src/data/test-cgps-cube-cutout-wcs.fits', True,
+            DEFAULT_TEST_FILE_DIR, 2, False),
+        ('CIRCLE 246.52 -24.33 0.01',
+            '/usr/src/data/test-alma-cube.fits',
+            '/usr/src/data/test-alma-cube-cutout-wcs.fits', True,
+            DEFAULT_TEST_FILE_DIR, 2, False),
+        ('CIRCLE 161.52 77.472 0.03',
+            '/usr/src/data/test-vlass-cube.fits',
+            '/usr/src/data/test-vlass-cube-cutout-wcs.fits', True,
+            DEFAULT_TEST_FILE_DIR, 2, False),
+        ('CIRCLE 189.1726880000002 62.17111899999974 0.01',
+            '/usr/src/data/test-hst-mef.fits',
+            '/usr/src/data/test-hst-mef-cutout-wcs.fits', True,
+            DEFAULT_TEST_FILE_DIR, 2, False)
+    ])
 def test_integration_wcs_test(
         cutout_region_string, target_file_name, expected_cutout_file_path,
         use_fits_diff, test_dir_name, wcs_naxis_val, use_extension_names):

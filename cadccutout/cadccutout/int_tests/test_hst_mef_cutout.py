@@ -52,7 +52,7 @@
 #  warranty of MERCHANTABILITY          implicite de COMMERCIALISABILITÉ
 #  or FITNESS FOR A PARTICULAR          ni d’ADÉQUATION À UN OBJECTIF
 #  PURPOSE.  See the GNU Affero         PARTICULIER. Consultez la Licence
-#  General Public License for           Générale Publique GNU AfferoF
+#  General Public License for           Générale Publique GNU Affero
 #  more details.                        pour plus de détails.
 #
 #  You should have received             Vous devriez avoir reçu une
@@ -87,10 +87,6 @@ target_file_name = '/usr/src/data/test-hst-mef.fits'
 expected_cutout_file_path = '/usr/src/data/test-hst-mef-cutout.fits'
 cutout_region_string = \
     '[SCI,10][80:220,100:150][1][10:16,70:90][106][8:32,88:112][126]'
-# target_file_name = 'source_calibrated_line_image_162608-24202.image.fits'
-# vos_uri = 'vos://cadc.nrc.ca!vospace/helenkirk/ALMA_fits_files/2013.1.00187. \
-# S/{}'.format(target_file_name)
-# data_dir = '/usr/src/data'
 logger = logging.getLogger()
 
 

@@ -117,4 +117,4 @@ class BaseFileHelper(object):
         """
 
         c = CutoutND(data=data, wcs=wcs)
-        return c.extract(cutout_dimension)
+        return c.extract(cutout_dimension.get_ranges())
