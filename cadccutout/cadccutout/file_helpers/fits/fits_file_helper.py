@@ -175,17 +175,29 @@ class FITSHelper(BaseFileHelper):
                          'Skipping.')
             return result_hdu_list
 
+    def _require_primary_hdu(self, cutout_dimensions):
+        # returns True if resulting cutout requires primary HDU from the
+        # original hdu list. This is the case when cutouts are done in
+        # different extensions of the file
+        last_ext = -1
+        for c in cutout_dimensions:
+            if last_ext != -1 and last_ext != c._extension:
+                return True
+            last_ext = c._extension
+        return False
+
     def _check_hdu_list(self, cutout_dimensions, hdu_list):
         has_match = False
         len_cutout_dimensions = len(cutout_dimensions)
         if len_cutout_dimensions > 0:
-
             result_hdu_list = None
+            if self._require_primary_hdu(cutout_dimensions) and \
+               'NAXIS' in hdu_list[0].header and \
+               hdu_list[0].header['NAXIS'] == 0:
+                # add the PrimaryHDU from the original HDU list
+                result_hdu_list = fits.HDUList([hdu_list[0]])
             # Check for a pixel cutout
             if isinstance(cutout_dimensions[0], PixelCutoutHDU):
-                if len_cutout_dimensions > 1:
-                    result_hdu_list = \
-                        self._add_primary_hdu(hdu_list, result_hdu_list)
                 for cutout_dimension in cutout_dimensions:
                     ext = cutout_dimension.get_extension()
                     ext_idx = hdu_list.index_of(ext)
@@ -211,9 +223,6 @@ class FITSHelper(BaseFileHelper):
                                 'Skipping non-overlapping cutout {}'.format(
                                     cutout_dimension))
             else:
-                if len(hdu_list) > 1:
-                    result_hdu_list = \
-                        self._add_primary_hdu(hdu_list, result_hdu_list)
                 # Skip the primary as it should be written out already.
                 for hdu in hdu_list:
                     if hdu.is_image and hdu.data is not None:

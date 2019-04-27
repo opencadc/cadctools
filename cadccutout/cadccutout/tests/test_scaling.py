@@ -160,7 +160,7 @@ def test_astropy_scaling():
     # print("*********************************************")
 
 
-def test_multiple_cutouts():
+def test_multiple_ext_cutouts():
     test_subject = OpenCADCCutout()
     cutout_file_name_path = test_context.random_test_file_name_path()
     cutout_regions = [PixelCutoutHDU([(1, 100), (1, 100)], "1"),
@@ -183,3 +183,27 @@ def test_multiple_cutouts():
     assert expected[1].header['BZERO'] == actual[1].header['BZERO']
     assert expected[3].header['BSCALE'] == actual[2].header['BSCALE']
     assert expected[3].header['BZERO'] == actual[2].header['BZERO']
+
+
+def test_multiple_cutouts_single_ext():
+    test_subject = OpenCADCCutout()
+    cutout_file_name_path = test_context.random_test_file_name_path()
+    cutout_regions = [PixelCutoutHDU([(1, 100), (1, 100)], "1"),
+                      PixelCutoutHDU([(200, 300), (2, 300)], "1")]
+    with open(cutout_file_name_path, 'wb') as output_writer, \
+            open(target_file_name, 'rb') as input_reader:
+        test_subject.cutout(cutout_regions, input_reader, output_writer,
+                            'FITS')
+    expected = fits.open(target_file_name, do_not_scale_image_data=True)
+    actual = fits.open(cutout_file_name_path, do_not_scale_image_data=True)
+
+    # cutouts in the same extension => no extra primary HDU
+    assert len(actual) == 2
+    # test primary header changed
+    assert len(expected[0].header) != len(actual[0].header)
+
+    # check BSCALE and BZERO correct in cutout file
+    assert expected[1].header['BSCALE'] == actual[0].header['BSCALE']
+    assert expected[1].header['BZERO'] == actual[0].header['BZERO']
+    assert expected[1].header['BSCALE'] == actual[1].header['BSCALE']
+    assert expected[1].header['BZERO'] == actual[1].header['BZERO']
