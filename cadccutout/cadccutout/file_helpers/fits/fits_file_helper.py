@@ -144,13 +144,6 @@ class FITSHelper(BaseFileHelper):
 
         return WCS(header=header, naxis=naxis, fix=False)
 
-    def _write_cutout(self, header, data):
-        fits.append(filename=self.output_writer, data=data,
-                    header=header, overwrite=False,
-                    output_verify='ignore', checksum='remove')
-
-        self.output_writer.flush()
-
     def _pixel_cutout(self, hdu, cutout_dimension):
         extension = cutout_dimension.get_extension()
         header = hdu.header
