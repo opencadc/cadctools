@@ -192,7 +192,6 @@ class FITSHelper(BaseFileHelper):
         if len_cutout_dimensions > 0:
             result_hdu_list = None
             if self._require_primary_hdu(cutout_dimensions) and \
-               'NAXIS' in hdu_list[0].header and \
                hdu_list[0].header['NAXIS'] == 0:
                 # add the PrimaryHDU from the original HDU list
                 result_hdu_list = fits.HDUList([hdu_list[0]])
