@@ -207,3 +207,31 @@ def test_multiple_cutouts_single_ext():
     assert expected[1].header['BZERO'] == actual[0].header['BZERO']
     assert expected[1].header['BSCALE'] == actual[1].header['BSCALE']
     assert expected[1].header['BZERO'] == actual[1].header['BZERO']
+
+
+def test_multiple_cutout_tyypes():
+    test_subject = OpenCADCCutout()
+    cutout_file_name_path = test_context.random_test_file_name_path()
+    cutout_regions = [PixelCutoutHDU([(1, 100), (1, 100)], "1"),
+                      'CIRCLE 304.37 55.95 0.0052']
+    with open(cutout_file_name_path, 'wb') as output_writer, \
+            open(target_file_name, 'rb') as input_reader:
+        test_subject.cutout(cutout_regions, input_reader, output_writer,
+                            'FITS')
+    expected = fits.open(target_file_name, do_not_scale_image_data=True)
+    actual = fits.open(cutout_file_name_path, do_not_scale_image_data=True)
+
+    # expected extensions: primary + 1 pixel cutout + 3 WCS cutout = 5
+    assert len(actual) == 5
+    # test primary header unchanged
+    assert len(expected[0].header) == len(actual[0].header)
+
+    # check BSCALE and BZERO correct in cutout file
+    # first extension is pixel cutout
+    assert expected[1].header['BSCALE'] == actual[1].header['BSCALE']
+    assert expected[1].header['BZERO'] == actual[1].header['BZERO']
+    # next extensions correspond are wcs cutouts and correspond to the
+    # original extensions in the file
+    for i in range(1, 3):
+        assert expected[i].header['BSCALE'] == actual[i+1].header['BSCALE']
+        assert expected[i].header['BZERO'] == actual[i+1].header['BZERO']

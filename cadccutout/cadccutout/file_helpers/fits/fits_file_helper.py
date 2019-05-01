@@ -186,62 +186,61 @@ class FITSHelper(BaseFileHelper):
             last_ext = c._extension
         return False
 
-    def _check_hdu_list(self, cutout_dimensions, hdu_list):
-        has_match = False
-        len_cutout_dimensions = len(cutout_dimensions)
-        if len_cutout_dimensions > 0:
-            result_hdu_list = None
-            if self._require_primary_hdu(cutout_dimensions) and \
-               hdu_list[0].header['NAXIS'] == 0:
-                # add the PrimaryHDU from the original HDU list
-                result_hdu_list = fits.HDUList([hdu_list[0]])
-            # Check for a pixel cutout
-            if isinstance(cutout_dimensions[0], PixelCutoutHDU):
-                for cutout_dimension in cutout_dimensions:
-                    ext = cutout_dimension.get_extension()
-                    ext_idx = hdu_list.index_of(ext)
-                    hdu = hdu_list[ext_idx]
-
-                    # Entire extension was requested.
-                    if not cutout_dimension.get_ranges():
-                        logger.debug(
-                            'Appending entire extension {}'.format(ext))
-                        result_hdu_list = self._add_hdu(hdu, result_hdu_list)
-                        has_match = True
-                    else:
-                        try:
-                            result_hdu_list = self._add_hdu(
-                                self._pixel_cutout(hdu, cutout_dimension),
-                                result_hdu_list)
-                            has_match = True
-                            logger.debug(
-                                'Successfully cutout from {} ({})'.format(
-                                    ext, ext_idx))
-                        except NoContentError:
-                            logger.debug(
-                                'Skipping non-overlapping cutout {}'.format(
-                                    cutout_dimension))
+    def _get_pixel_cutouts(self, cutout_dimensions, hdu_list):
+        pixel_cutouts = []
+        transform = Transform()
+        for c in cutout_dimensions:
+            if isinstance(c, PixelCutoutHDU):
+                pixel_cutouts.append(c)
             else:
-                # Skip the primary as it should be written out already.
+                # do the transformation
                 for hdu in hdu_list:
                     if hdu.is_image and hdu.data is not None:
-                        transform = Transform()
                         logger.debug(
                             'Transforming {}'.format(cutout_dimensions))
                         transformed_cutout_dimension = \
-                            transform.world_to_pixels(
-                                cutout_dimensions, hdu.header)
+                            transform.world_to_pixels([c], hdu.header)
                         logger.debug('Transformed {} into {}'.format(
                             cutout_dimensions, transformed_cutout_dimension))
-                        try:
-                            result_hdu_list = self._add_hdu(self._pixel_cutout(
-                                hdu,
-                                transformed_cutout_dimension), result_hdu_list)
-                            has_match = True
-                        except NoContentError:
-                            logger.debug(
-                                'Skipping non-overlapping cutout {}'.format(
-                                     cutout_dimensions))
+                        transformed_cutout_dimension._extension = \
+                            hdu_list.index_of(hdu)
+                        pixel_cutouts.append(transformed_cutout_dimension)
+        return pixel_cutouts
+
+    def _check_hdu_list(self, cutout_dimensions, hdu_list):
+        has_match = False
+        cutouts = self._get_pixel_cutouts(cutout_dimensions, hdu_list)
+        len_cutout_dimensions = len(cutouts)
+        if len_cutout_dimensions > 0:
+            result_hdu_list = None
+            if self._require_primary_hdu(cutouts) and \
+               hdu_list[0].header['NAXIS'] == 0:
+                # add the PrimaryHDU from the original HDU list
+                result_hdu_list = fits.HDUList([hdu_list[0]])
+            for cutout_dimension in cutouts:
+                ext = cutout_dimension.get_extension()
+                ext_idx = hdu_list.index_of(ext)
+                hdu = hdu_list[ext_idx]
+
+                # Entire extension was requested.
+                if not cutout_dimension.get_ranges():
+                    logger.debug(
+                        'Appending entire extension {}'.format(ext))
+                    result_hdu_list = self._add_hdu(hdu, result_hdu_list)
+                    has_match = True
+                else:
+                    try:
+                        result_hdu_list = self._add_hdu(
+                            self._pixel_cutout(hdu, cutout_dimension),
+                            result_hdu_list)
+                        has_match = True
+                        logger.debug(
+                            'Successfully cutout from {} ({})'.format(
+                                ext, ext_idx))
+                    except NoContentError:
+                        logger.debug(
+                            'Skipping non-overlapping cutout {}'.format(
+                                cutout_dimension))
 
             # time to write the cutout file
             result_hdu_list.writeto(
