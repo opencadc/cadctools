@@ -166,15 +166,6 @@ class FITSHelper(BaseFileHelper):
         if 'BZERO' in original:
             target['BZERO'] = original['BZERO']
 
-    def _add_primary_hdu(self, hdu_list, result_hdu_list):
-        if isinstance(hdu_list[0], PrimaryHDU):
-            logger.debug('Appending Primary HDU.')
-            return fits.HDUList([hdu_list[0]])
-        else:
-            logger.debug('HDU List does NOT contain a Primary HDU.'
-                         'Skipping.')
-            return result_hdu_list
-
     def _require_primary_hdu(self, cutout_dimensions):
         # returns True if resulting cutout requires primary HDU from the
         # original hdu list. This is the case when cutouts are done in
@@ -208,7 +199,7 @@ class FITSHelper(BaseFileHelper):
                                 hdu_list.index_of(hdu)
                             pixel_cutouts.append(transformed_cutout_dimension)
                     except NoContentError as e:
-                        logger.info(
+                        logger.debug(
                             'No pixel cutout from WCS: {}'.format(str(e)))
                         pass
         return pixel_cutouts
@@ -248,10 +239,7 @@ class FITSHelper(BaseFileHelper):
                                              header=hdu.header).header
                     # reset BSCALE and BZERO to the originals if astropy has
                     # changed them
-                    if 'BSCALE' in hdu.header:
-                        prim_header['BSCALE'] = hdu.header['BSCALE']
-                    if 'BZERO' in hdu.header:
-                        prim_header['BZERO'] = hdu.header['BZERO']
+                    self._fix_header(prim_header, hdu.header)
                     shdu = StreamingHDU(self.output_writer,
                                         prim_header)
                     shdu.write(hdu.data)
@@ -261,8 +249,8 @@ class FITSHelper(BaseFileHelper):
                     # that the stream adds to an existing one so that it
                     # doesn't add the default primary header to it.
                     has_filename = True
-                    if not hasattr(self.output_writer, 'filename'):
-                        self.output_writer.filename = None
+                    if not hasattr(self.output_writer, 'name'):
+                        setattr(self.output_writer, 'name', None)
                         has_filename = False
                     try:
                         shdu = StreamingHDU(self.output_writer,
@@ -270,23 +258,13 @@ class FITSHelper(BaseFileHelper):
                         shdu.write(hdu.data)
                     finally:
                         if not has_filename:
-                            del self.output_writer.filename
+                            del self.output_writer.name
                 has_match = True
         else:
             raise NoContentError('No overlap found (No cutout specified).')
 
         logger.debug('Has match in list? -- {}'.format(has_match))
         return has_match
-
-    def _add_hdu(self, hdu, result_hdu_list):
-        if result_hdu_list:
-            result_hdu_list.append(hdu)
-        else:
-            primary_hdu = fits.PrimaryHDU(header=hdu.header, data=hdu.data)
-            # astropy might remove BSCALE and BZERO. Put them back if true
-            self._fix_header(primary_hdu.header, hdu.header)
-            result_hdu_list = fits.HDUList([primary_hdu])
-        return result_hdu_list
 
     def cutout(self, cutout_dimensions):
         # Start with the first extension

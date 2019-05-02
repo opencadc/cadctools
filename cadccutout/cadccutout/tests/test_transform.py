@@ -427,6 +427,24 @@ def test_get_circle_cutout_pixels_iris_all_overlap():
     assert pixels[3] == 500
 
 
+def test_get_polygon_cutout_pixels_iris_all_overlap():
+    header_filename = os.path.join(TESTDATA_DIR, IRIS_3D_CUBE_HEADER)
+    header = fits.Header.fromtextfile(header_filename)
+    polygon = Polygon([[150.0, -2.5e-15], [140.0, -10.0],
+                      [130.0, 1.25e-15], [140.0, 10.0]])
+    test_subject = Transform()
+    pixels = test_subject.get_polygon_cutout_pixels(polygon, header, 1, 2)
+
+    # cutout pixels: -125:676, -143:659
+    # cutout returning entire image returns empty list
+    assert pixels is not None
+    assert len(pixels) == 4
+    assert pixels[0] == 1
+    assert pixels[1] == 500
+    assert pixels[2] == 1
+    assert pixels[3] == 500
+
+
 def test_get_polygon_cutout_pixels_vlass():
     header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
     header = fits.Header.fromtextfile(header_filename)

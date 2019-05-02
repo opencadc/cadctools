@@ -97,7 +97,7 @@ def test_astropy_scaling():
                             'FITS')
     # save the cutout file
     tf = tempfile.NamedTemporaryFile()
-    with open(tf.name, 'bw') as f:
+    with open(tf.name, 'wb') as f:
         f.write(output.getvalue())
     # now check that BZERO and BSCALE have not been changed
     expected = fits.open(target_file_name, do_not_scale_image_data=True)
@@ -128,7 +128,7 @@ def test_astropy_scaling():
                             'FITS')
     # save the cutout file
     tf = tempfile.NamedTemporaryFile()
-    with open(tf.name, 'bw') as f:
+    with open(tf.name, 'wb') as f:
         f.write(output.getvalue())
     # now check that BZERO and BSCALE have not been changed
     expected = fits.open(target_file_name, do_not_scale_image_data=True)
@@ -176,7 +176,7 @@ def test_multiple_ext_cutouts():
         test_subject.cutout(cutout_regions, input_reader, output, 'FITS')
     # save the cutout file
     tf = tempfile.NamedTemporaryFile()
-    with open(tf.name, 'bw') as f:
+    with open(tf.name, 'wb') as f:
         f.write(output.getvalue())
     expected = fits.open(target_file_name, do_not_scale_image_data=True)
     actual = fits.open(tf.name, do_not_scale_image_data=True)
@@ -204,7 +204,7 @@ def test_multiple_cutouts_single_ext():
 
     # save the cutout file
     tf = tempfile.NamedTemporaryFile()
-    with open(tf.name, 'bw') as f:
+    with open(tf.name, 'wb') as f:
         f.write(output.getvalue())
     expected = fits.open(target_file_name, do_not_scale_image_data=True)
     actual = fits.open(tf.name, do_not_scale_image_data=True)
@@ -232,7 +232,7 @@ def test_multiple_cutout_types_cicle():
 
     # save the cutout file
     tf = tempfile.NamedTemporaryFile()
-    with open(tf.name, 'bw') as f:
+    with open(tf.name, 'wb') as f:
         f.write(output.getvalue())
     expected = fits.open(target_file_name, do_not_scale_image_data=True)
     actual = fits.open(tf.name, do_not_scale_image_data=True)
@@ -270,7 +270,7 @@ def test_multiple_cutout_types_polygon():
 
     # save the cutout file
     tf = tempfile.NamedTemporaryFile()
-    with open(tf.name, 'bw') as f:
+    with open(tf.name, 'wb') as f:
         f.write(output.getvalue())
     expected = fits.open(target_file_name, do_not_scale_image_data=True)
     actual = fits.open(tf.name, do_not_scale_image_data=True)
