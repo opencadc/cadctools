@@ -73,7 +73,8 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import numpy as np
 import os
-import context as test_context
+from six import BytesIO
+import tempfile
 from astropy.io import fits
 
 from cadccutout.core import OpenCADCCutout
@@ -88,17 +89,19 @@ logger = logging.getLogger()
 
 def test_astropy_scaling():
     test_subject = OpenCADCCutout()
-    cutout_file_name_path = test_context.random_test_file_name_path()
     cutout_regions = [PixelCutoutHDU([], "2")]
     # Write out a test file with the test result FITS data.
-    with open(cutout_file_name_path, 'wb') as output_writer, \
-            open(target_file_name, 'rb') as input_reader:
-        test_subject.cutout(cutout_regions, input_reader, output_writer,
+    output = BytesIO()
+    with open(target_file_name, 'rb') as input_reader:
+        test_subject.cutout(cutout_regions, input_reader, output,
                             'FITS')
-
+    # save the cutout file
+    tf = tempfile.NamedTemporaryFile()
+    with open(tf.name, 'bw') as f:
+        f.write(output.getvalue())
     # now check that BZERO and BSCALE have not been changed
     expected = fits.open(target_file_name, do_not_scale_image_data=True)
-    actual = fits.open(cutout_file_name_path, do_not_scale_image_data=True)
+    actual = fits.open(tf.name, do_not_scale_image_data=True)
 
     # check headers and data not changed. Except ...
     # expected missing keywords from actual: PCOUNT, XTENSION and GCOUNT
@@ -117,16 +120,19 @@ def test_astropy_scaling():
         'Arrays do not match.')
 
     # do a cutout
+    output = BytesIO()
     cutout_regions = [PixelCutoutHDU([(1, 100), (1, 100)], "3")]
     # Write out a test file with the test result FITS data.
-    with open(cutout_file_name_path, 'wb') as output_writer, \
-            open(target_file_name, 'rb') as input_reader:
-        test_subject.cutout(cutout_regions, input_reader, output_writer,
+    with open(target_file_name, 'rb') as input_reader:
+        test_subject.cutout(cutout_regions, input_reader, output,
                             'FITS')
-
+    # save the cutout file
+    tf = tempfile.NamedTemporaryFile()
+    with open(tf.name, 'bw') as f:
+        f.write(output.getvalue())
     # now check that BZERO and BSCALE have not been changed
     expected = fits.open(target_file_name, do_not_scale_image_data=True)
-    actual = fits.open(cutout_file_name_path, do_not_scale_image_data=True)
+    actual = fits.open(tf.name, do_not_scale_image_data=True)
 
     # check only expected headers changed
     # changed headers
@@ -162,15 +168,18 @@ def test_astropy_scaling():
 
 def test_multiple_ext_cutouts():
     test_subject = OpenCADCCutout()
-    cutout_file_name_path = test_context.random_test_file_name_path()
     cutout_regions = [PixelCutoutHDU([(1, 100), (1, 100)], "1"),
                       PixelCutoutHDU([(1, 100), (1, 100)], "3")]
-    with open(cutout_file_name_path, 'wb') as output_writer, \
-            open(target_file_name, 'rb') as input_reader:
-        test_subject.cutout(cutout_regions, input_reader, output_writer,
-                            'FITS')
+
+    output = BytesIO()
+    with open(target_file_name, 'rb') as input_reader:
+        test_subject.cutout(cutout_regions, input_reader, output, 'FITS')
+    # save the cutout file
+    tf = tempfile.NamedTemporaryFile()
+    with open(tf.name, 'bw') as f:
+        f.write(output.getvalue())
     expected = fits.open(target_file_name, do_not_scale_image_data=True)
-    actual = fits.open(cutout_file_name_path, do_not_scale_image_data=True)
+    actual = fits.open(tf.name, do_not_scale_image_data=True)
 
     assert len(actual) == 3
     # test primary header unchanged
@@ -187,15 +196,18 @@ def test_multiple_ext_cutouts():
 
 def test_multiple_cutouts_single_ext():
     test_subject = OpenCADCCutout()
-    cutout_file_name_path = test_context.random_test_file_name_path()
+    output = BytesIO()
     cutout_regions = [PixelCutoutHDU([(1, 100), (1, 100)], "1"),
                       PixelCutoutHDU([(200, 300), (2, 300)], "1")]
-    with open(cutout_file_name_path, 'wb') as output_writer, \
-            open(target_file_name, 'rb') as input_reader:
-        test_subject.cutout(cutout_regions, input_reader, output_writer,
-                            'FITS')
+    with open(target_file_name, 'rb') as input_reader:
+        test_subject.cutout(cutout_regions, input_reader, output, 'FITS')
+
+    # save the cutout file
+    tf = tempfile.NamedTemporaryFile()
+    with open(tf.name, 'bw') as f:
+        f.write(output.getvalue())
     expected = fits.open(target_file_name, do_not_scale_image_data=True)
-    actual = fits.open(cutout_file_name_path, do_not_scale_image_data=True)
+    actual = fits.open(tf.name, do_not_scale_image_data=True)
 
     # cutouts in the same extension => no extra primary HDU
     assert len(actual) == 2
@@ -209,20 +221,24 @@ def test_multiple_cutouts_single_ext():
     assert expected[1].header['BZERO'] == actual[1].header['BZERO']
 
 
-def test_multiple_cutout_tyypes():
+def test_multiple_cutout_types_cicle():
     test_subject = OpenCADCCutout()
-    cutout_file_name_path = test_context.random_test_file_name_path()
+    output = BytesIO()
     cutout_regions = [PixelCutoutHDU([(1, 100), (1, 100)], "1"),
-                      'CIRCLE 304.37 55.95 0.0052']
-    with open(cutout_file_name_path, 'wb') as output_writer, \
-            open(target_file_name, 'rb') as input_reader:
-        test_subject.cutout(cutout_regions, input_reader, output_writer,
-                            'FITS')
+                      'CIRCLE 341.59 -19.58 0.0052']
+
+    with open(target_file_name, 'rb') as input_reader:
+        test_subject.cutout(cutout_regions, input_reader, output, 'FITS')
+
+    # save the cutout file
+    tf = tempfile.NamedTemporaryFile()
+    with open(tf.name, 'bw') as f:
+        f.write(output.getvalue())
     expected = fits.open(target_file_name, do_not_scale_image_data=True)
-    actual = fits.open(cutout_file_name_path, do_not_scale_image_data=True)
+    actual = fits.open(tf.name, do_not_scale_image_data=True)
 
     # expected extensions: primary + 1 pixel cutout + 3 WCS cutout = 5
-    assert len(actual) == 5
+    assert len(actual) == 3
     # test primary header unchanged
     assert len(expected[0].header) == len(actual[0].header)
 
@@ -230,8 +246,44 @@ def test_multiple_cutout_tyypes():
     # first extension is pixel cutout
     assert expected[1].header['BSCALE'] == actual[1].header['BSCALE']
     assert expected[1].header['BZERO'] == actual[1].header['BZERO']
-    # next extensions correspond are wcs cutouts and correspond to the
-    # original extensions in the file
-    for i in range(1, 3):
-        assert expected[i].header['BSCALE'] == actual[i+1].header['BSCALE']
-        assert expected[i].header['BZERO'] == actual[i+1].header['BZERO']
+    # expected WCS cutouts in extension 2
+    assert expected[2].header['BSCALE'] == actual[2].header['BSCALE']
+    assert expected[2].header['BZERO'] == actual[2].header['BZERO']
+
+
+def test_multiple_cutout_types_polygon():
+    test_subject = OpenCADCCutout()
+    output = BytesIO()
+    # generate the polygon
+    ra1 = 341.59
+    dec1 = -19.58
+    rad = 0.0052
+    polygon = "POLYGON "
+    for theta in np.arange(np.pi*2, 0, -np.pi/2.0):
+        polygon += " {}".format(ra1 + rad*np.cos(theta))
+        polygon += " {}".format(dec1 + rad*np.sin(theta))
+
+    cutout_regions = [PixelCutoutHDU([(1, 100), (1, 100)], "1"), polygon]
+
+    with open(target_file_name, 'rb') as input_reader:
+        test_subject.cutout(cutout_regions, input_reader, output, 'FITS')
+
+    # save the cutout file
+    tf = tempfile.NamedTemporaryFile()
+    with open(tf.name, 'bw') as f:
+        f.write(output.getvalue())
+    expected = fits.open(target_file_name, do_not_scale_image_data=True)
+    actual = fits.open(tf.name, do_not_scale_image_data=True)
+
+    # expected extensions: primary + 1 pixel cutout + 3 WCS cutout = 5
+    assert len(actual) == 3
+    # test primary header unchanged
+    assert len(expected[0].header) == len(actual[0].header)
+
+    # check BSCALE and BZERO correct in cutout file
+    # first extension is pixel cutout
+    assert expected[1].header['BSCALE'] == actual[1].header['BSCALE']
+    assert expected[1].header['BZERO'] == actual[1].header['BZERO']
+    # expected WCS cutouts in extension 2
+    assert expected[2].header['BSCALE'] == actual[2].header['BSCALE']
+    assert expected[2].header['BZERO'] == actual[2].header['BZERO']

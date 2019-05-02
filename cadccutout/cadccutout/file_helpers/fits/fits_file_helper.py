@@ -76,7 +76,7 @@ from cadccutout.no_content_error import NoContentError
 from cadccutout.file_helpers.base_file_helper import BaseFileHelper
 from astropy.wcs import WCS
 from astropy.io import fits
-from astropy.io.fits import PrimaryHDU
+from astropy.io.fits import PrimaryHDU, StreamingHDU
 
 
 import logging
@@ -195,45 +195,47 @@ class FITSHelper(BaseFileHelper):
             else:
                 # do the transformation
                 for hdu in hdu_list:
-                    if hdu.is_image and hdu.data is not None:
-                        logger.debug(
-                            'Transforming {}'.format(cutout_dimensions))
-                        transformed_cutout_dimension = \
-                            transform.world_to_pixels([c], hdu.header)
-                        logger.debug('Transformed {} into {}'.format(
-                            cutout_dimensions, transformed_cutout_dimension))
-                        transformed_cutout_dimension._extension = \
-                            hdu_list.index_of(hdu)
-                        pixel_cutouts.append(transformed_cutout_dimension)
+                    try:
+                        if hdu.is_image and hdu.data is not None:
+                            logger.debug(
+                                'Transforming {}'.format(cutout_dimensions))
+                            transformed_cutout_dimension = \
+                                transform.world_to_pixels([c], hdu.header)
+                            logger.debug('Transformed {} into {}'.format(
+                                cutout_dimensions,
+                                transformed_cutout_dimension))
+                            transformed_cutout_dimension._extension = \
+                                hdu_list.index_of(hdu)
+                            pixel_cutouts.append(transformed_cutout_dimension)
+                    except NoContentError as e:
+                        logger.info(
+                            'No pixel cutout from WCS: {}'.format(str(e)))
+                        pass
         return pixel_cutouts
 
     def _check_hdu_list(self, cutout_dimensions, hdu_list):
         has_match = False
+        primary_streamed = False  # True if primary header has been sent
         cutouts = self._get_pixel_cutouts(cutout_dimensions, hdu_list)
         len_cutout_dimensions = len(cutouts)
         if len_cutout_dimensions > 0:
-            result_hdu_list = None
             if self._require_primary_hdu(cutouts) and \
                hdu_list[0].header['NAXIS'] == 0:
                 # add the PrimaryHDU from the original HDU list
-                result_hdu_list = fits.HDUList([hdu_list[0]])
+                StreamingHDU(self.output_writer, hdu_list[0].header)
+                primary_streamed = True
+
             for cutout_dimension in cutouts:
                 ext = cutout_dimension.get_extension()
                 ext_idx = hdu_list.index_of(ext)
                 hdu = hdu_list[ext_idx]
 
-                # Entire extension was requested.
                 if not cutout_dimension.get_ranges():
                     logger.debug(
                         'Appending entire extension {}'.format(ext))
-                    result_hdu_list = self._add_hdu(hdu, result_hdu_list)
-                    has_match = True
                 else:
                     try:
-                        result_hdu_list = self._add_hdu(
-                            self._pixel_cutout(hdu, cutout_dimension),
-                            result_hdu_list)
-                        has_match = True
+                        hdu = self._pixel_cutout(hdu, cutout_dimension)
                         logger.debug(
                             'Successfully cutout from {} ({})'.format(
                                 ext, ext_idx))
@@ -241,10 +243,35 @@ class FITSHelper(BaseFileHelper):
                         logger.debug(
                             'Skipping non-overlapping cutout {}'.format(
                                 cutout_dimension))
-
-            # time to write the cutout file
-            result_hdu_list.writeto(
-                self.output_writer, output_verify='ignore', checksum='remove')
+                if not primary_streamed:
+                    prim_header = PrimaryHDU(data=hdu.data,
+                                             header=hdu.header).header
+                    # reset BSCALE and BZERO to the originals if astropy has
+                    # changed them
+                    if 'BSCALE' in hdu.header:
+                        prim_header['BSCALE'] = hdu.header['BSCALE']
+                    if 'BZERO' in hdu.header:
+                        prim_header['BZERO'] = hdu.header['BZERO']
+                    shdu = StreamingHDU(self.output_writer,
+                                        prim_header)
+                    shdu.write(hdu.data)
+                    primary_streamed = True
+                else:
+                    # HACK: this is done in order to trick astropy in thinking
+                    # that the stream adds to an existing one so that it
+                    # doesn't add the default primary header to it.
+                    has_filename = True
+                    if not hasattr(self.output_writer, 'filename'):
+                        self.output_writer.filename = None
+                        has_filename = False
+                    try:
+                        shdu = StreamingHDU(self.output_writer,
+                                            hdu.header)
+                        shdu.write(hdu.data)
+                    finally:
+                        if not has_filename:
+                            del self.output_writer.filename
+                has_match = True
         else:
             raise NoContentError('No overlap found (No cutout specified).')
 

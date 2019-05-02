@@ -90,6 +90,8 @@ class CutoutResult(object):
     """
 
     def __init__(self, data, wcs=None):
+        if data is None or not data.any():
+            raise NoContentError('Nothing to cutout from.')
         self.data = data
         self.wcs = wcs
 
@@ -112,7 +114,7 @@ class CutoutND(object):
         -------
         CutoutResult instance
         """
-        if data is None:
+        if data is None or not data.any():
             raise NoContentError('Nothing to cutout from.')
 
         self.data = data

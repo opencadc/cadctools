@@ -267,7 +267,7 @@ class Transform(object):
                     no_content_errors.append(repr(e))
             elif isinstance(shape, Polygon):
                 try:
-                    # length of the two axes
+                    # dimensions of the two axes
                     naxis1 = axis_types.get_spatial_axes()[0]
                     naxis2 = axis_types.get_spatial_axes()[1]
 
@@ -422,6 +422,8 @@ class Transform(object):
         # Circle region with radius
         sky_region = CircleSkyRegion(sky_coords, radius=radius)
 
+        length1 = header['NAXIS{}'.format(naxis1)]
+        length2 = header['NAXIS{}'.format(naxis2)]
         try:
             # convert to pixel coordinates
             pixels = sky_region.to_pixel(wcs)
@@ -430,6 +432,12 @@ class Transform(object):
             x_max = pixels.bounding_box.ixmax
             y_min = pixels.bounding_box.iymin
             y_max = pixels.bounding_box.iymax
+            if (x_min < 0 and x_max < 0) or (y_min < 0 and y_max < 0) or\
+               (x_min > length1 and x_max > length1) or\
+               (y_min > length2 and y_max > length2):
+                raise ValueError(
+                    'Array outside bounds [{}:{}, {}:{}] - [0:{}, 0:{}]'.
+                    format(x_min, x_max, y_min, y_max, length1, length2))
             logger.debug('Circle bounding box [{}, {}, {}, {}]'.format(
                 x_min, x_max, y_min, y_max))
         except ValueError as e:
@@ -476,13 +484,19 @@ class Transform(object):
 
         # convert to pixel coordinates
         pixels = sky_region.to_pixel(wcs)
+        length1 = header['NAXIS{}'.format(naxis1)]
+        length2 = header['NAXIS{}'.format(naxis2)]
         try:
             x_min = pixels.bounding_box.ixmin
             x_max = pixels.bounding_box.ixmax
             y_min = pixels.bounding_box.iymin
             y_max = pixels.bounding_box.iymax
-            logger.info('Polygon bounding box [{}, {}, {}, {}]'.format(
-                x_min, x_max, y_min, y_max))
+            if (x_min < 0 and x_max < 0) or (y_min < 0 and y_max < 0) or\
+               (x_min > length1 and x_max > length1) or\
+               (y_min > length2 and y_max > length2):
+                raise ValueError(
+                    'Array outside bounds [{}:{}, {}:{}] - [0:{}, 0:{}]'.
+                    format(x_min, x_max, y_min, y_max, length1, length2))
         except ValueError as e:
             # bounding_box raises ValueError if the cutout
             # doesn't intersect the image
