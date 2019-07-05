@@ -144,13 +144,6 @@ class FITSHelper(BaseFileHelper):
 
         return WCS(header=header, naxis=naxis, fix=False)
 
-    def _write_cutout(self, header, data):
-        fits.append(filename=self.output_writer, data=data,
-                    header=header, overwrite=False,
-                    output_verify='silentfix', checksum='remove')
-
-        self.output_writer.flush()
-
     def _pixel_cutout(self, hdu, cutout_dimension):
         extension = cutout_dimension.get_extension()
         header = hdu.header
@@ -162,30 +155,48 @@ class FITSHelper(BaseFileHelper):
             data=hdu.data, cutout_dimension=cutout_dimension, wcs=wcs)
 
         self._post_sanitize_header(header, cutout_result)
-        self._write_cutout(header=header, data=cutout_result.data)
+        result = fits.ImageHDU(header=header, data=cutout_result.data)
+        self._fix_header(result.header, header)
+        return result
 
-    def _write_primary_hdu(self, hdu_list):
-        primary_hdu = hdu_list[0]
-        if isinstance(primary_hdu, PrimaryHDU):
-            logger.debug('Writing out Primary HDU.')
-            fits.append(
-                filename=self.output_writer, header=primary_hdu.header,
-                data=None, overwrite=False, output_verify='silentfix',
-                checksum='remove')
-            logger.debug('Wrote out Primary HDU.')
+    def _fix_header(self, target, original):
+        # overcome astropy's tendency to remove keywords from original headers
+        if 'BSCALE' in original:
+            target['BSCALE'] = original['BSCALE']
+        if 'BZERO' in original:
+            target['BZERO'] = original['BZERO']
+
+    def _add_primary_hdu(self, hdu_list, result_hdu_list):
+        if isinstance(hdu_list[0], PrimaryHDU):
+            logger.debug('Appending Primary HDU.')
+            return fits.HDUList([hdu_list[0]])
         else:
-            logger.debug('HDU List does NOT contain a Primary HDU.  Skipping.')
+            logger.debug('HDU List does NOT contain a Primary HDU.'
+                         'Skipping.')
+            return result_hdu_list
+
+    def _require_primary_hdu(self, cutout_dimensions):
+        # returns True if resulting cutout requires primary HDU from the
+        # original hdu list. This is the case when cutouts are done in
+        # different extensions of the file
+        last_ext = -1
+        for c in cutout_dimensions:
+            if last_ext != -1 and last_ext != c._extension:
+                return True
+            last_ext = c._extension
+        return False
 
     def _check_hdu_list(self, cutout_dimensions, hdu_list):
         has_match = False
         len_cutout_dimensions = len(cutout_dimensions)
         if len_cutout_dimensions > 0:
-
+            result_hdu_list = None
+            if self._require_primary_hdu(cutout_dimensions) and \
+               hdu_list[0].header['NAXIS'] == 0:
+                # add the PrimaryHDU from the original HDU list
+                result_hdu_list = fits.HDUList([hdu_list[0]])
             # Check for a pixel cutout
             if isinstance(cutout_dimensions[0], PixelCutoutHDU):
-                if len_cutout_dimensions > 1:
-                    self._write_primary_hdu(hdu_list)
-
                 for cutout_dimension in cutout_dimensions:
                     ext = cutout_dimension.get_extension()
                     ext_idx = hdu_list.index_of(ext)
@@ -193,12 +204,15 @@ class FITSHelper(BaseFileHelper):
 
                     # Entire extension was requested.
                     if not cutout_dimension.get_ranges():
-                        logger.debug('Writing out entire extension')
-                        self._write_cutout(header=hdu.header, data=hdu.data)
+                        logger.debug(
+                            'Appending entire extension {}'.format(ext))
+                        result_hdu_list = self._add_hdu(hdu, result_hdu_list)
                         has_match = True
                     else:
                         try:
-                            self._pixel_cutout(hdu, cutout_dimension)
+                            result_hdu_list = self._add_hdu(
+                                self._pixel_cutout(hdu, cutout_dimension),
+                                result_hdu_list)
                             has_match = True
                             logger.debug(
                                 'Successfully cutout from {} ({})'.format(
@@ -208,8 +222,6 @@ class FITSHelper(BaseFileHelper):
                                 'Skipping non-overlapping cutout {}'.format(
                                     cutout_dimension))
             else:
-                if len(hdu_list) > 1:
-                    self._write_primary_hdu(hdu_list)
                 # Skip the primary as it should be written out already.
                 for hdu in hdu_list:
                     if hdu.is_image and hdu.data is not None:
@@ -222,18 +234,33 @@ class FITSHelper(BaseFileHelper):
                         logger.debug('Transformed {} into {}'.format(
                             cutout_dimensions, transformed_cutout_dimension))
                         try:
-                            self._pixel_cutout(
-                                hdu, transformed_cutout_dimension)
+                            result_hdu_list = self._add_hdu(self._pixel_cutout(
+                                hdu,
+                                transformed_cutout_dimension), result_hdu_list)
                             has_match = True
                         except NoContentError:
                             logger.debug(
                                 'Skipping non-overlapping cutout {}'.format(
-                                    cutout_dimension))
+                                     cutout_dimensions))
+
+            # time to write the cutout file
+            result_hdu_list.writeto(
+                self.output_writer, output_verify='ignore', checksum='remove')
         else:
             raise NoContentError('No overlap found (No cutout specified).')
 
         logger.debug('Has match in list? -- {}'.format(has_match))
         return has_match
+
+    def _add_hdu(self, hdu, result_hdu_list):
+        if result_hdu_list:
+            result_hdu_list.append(hdu)
+        else:
+            primary_hdu = fits.PrimaryHDU(header=hdu.header, data=hdu.data)
+            # astropy might remove BSCALE and BZERO. Put them back if true
+            self._fix_header(primary_hdu.header, hdu.header)
+            result_hdu_list = fits.HDUList([primary_hdu])
+        return result_hdu_list
 
     def cutout(self, cutout_dimensions):
         # Start with the first extension
