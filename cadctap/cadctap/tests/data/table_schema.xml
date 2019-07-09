@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vosi:table xmlns:vosi="http://www.ivoa.net/xml/VOSITables/v1.0" xmlns:vod="http://www.ivoa.net/xml/VODataService/v1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" type="output">
+  <name>caom2.Observation</name>
+  <description>the main CAOM Observation table</description>
+  <column>
+    <name>observationURI</name>
+    <description>unique URI for this observation</description>
+    <utype>caom2:Observation.uri</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+    <flag>indexed</flag>
+  </column>
+  <column>
+    <name>obsID</name>
+    <description>unique observation identifier</description>
+    <utype>caom2:Observation.id</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="36" extendedType="uuid">char</dataType>
+    <flag>indexed</flag>
+  </column>
+  <column>
+    <name>collection</name>
+    <description>data collection this observation belongs to</description>
+    <utype>caom2:Observation.collection</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+    <flag>indexed</flag>
+  </column>
+  <column>
+    <name>observationID</name>
+    <description>collection-specific unique observation identifier</description>
+    <utype>caom2:Observation.observationID</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+    <flag>indexed</flag>
+  </column>
+  <column>
+    <name>algorithm_name</name>
+    <description>algorithm that defines the observation( exposure for simple, grouping algorithm for composites)</description>
+    <utype>caom2:Observation.algorithm.name</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+  </column>
+  <column>
+    <name>type</name>
+    <description>type of data collected (e.g. FITS OBSTYPE header)</description>
+    <utype>caom2:Observation.type</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+  </column>
+  <column>
+    <name>intent</name>
+    <description>intended purpose of data (one of: science, calibration)</description>
+    <utype>caom2:Observation.intent</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+  </column>
+  <column>
+    <name>sequenceNumber</name>
+    <description>sequence number assigned by the observatory</description>
+    <utype>caom2:Observation.sequenceNumber</utype>
+    <dataType xsi:type="vod:VOTableType">int</dataType>
+  </column>
+  <column>
+    <name>metaRelease</name>
+    <description>date the metadata for an observation is public (UTC)</description>
+    <utype>caom2:Observation.metaRelease</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+  </column>
+  <column>
+    <name>proposal_id</name>
+    <description>collection-specific unique proposal identifier</description>
+    <utype>caom2:Observation.proposal.id</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+    <flag>indexed</flag>
+  </column>
+  <column>
+    <name>proposal_pi</name>
+    <description>proposal principal investigator</description>
+    <utype>caom2:Observation.proposal.pi</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+  </column>
+  <column>
+    <name>proposal_project</name>
+    <description>project that created/acquired the observation</description>
+    <utype>caom2:Observation.proposal.project</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+  </column>
+  <column>
+    <name>proposal_title</name>
+    <description>proposal title</description>
+    <utype>caom2:Observation.proposal.title</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="256*">char</dataType>
+  </column>
+  <column>
+    <name>proposal_keywords</name>
+    <description>proposal keywords (separated by |)</description>
+    <utype>caom2:Observation.proposal.keywords</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="*">char</dataType>
+  </column>
+  <column>
+    <name>target_name</name>
+    <description>name of intended target</description>
+    <utype>caom2:Observation.target.name</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+  </column>
+  <column>
+    <name>target_type</name>
+    <description>classification of intended target</description>
+    <utype>caom2:Observation.target.type</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+  </column>
+  <column>
+    <name>target_standard</name>
+    <description>intended target is a standard (0=false, 1=true)</description>
+    <utype>caom2:Observation.target.standard</utype>
+    <dataType xsi:type="vod:VOTableType">int</dataType>
+  </column>
+  <column>
+    <name>target_redshift</name>
+    <description>redshift of intended target</description>
+    <utype>caom2:Observation.target.redshift</utype>
+    <dataType xsi:type="vod:VOTableType">double</dataType>
+  </column>
+  <column>
+    <name>target_moving</name>
+    <description>flag for moving target</description>
+    <utype>caom2:Observation.target.moving</utype>
+    <dataType xsi:type="vod:VOTableType">int</dataType>
+  </column>
+  <column>
+    <name>target_keywords</name>
+    <description>target keywords (separated by |)</description>
+    <utype>caom2:Observation.target.keywords</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="*">char</dataType>
+  </column>
+  <column>
+    <name>targetPosition_coordinates_cval1</name>
+    <description>longitude of target position</description>
+    <unit>deg</unit>
+    <utype>caom2:Observation.targetPosition.coordinates.cval1</utype>
+    <dataType xsi:type="vod:VOTableType">double</dataType>
+  </column>
+  <column>
+    <name>targetPosition_coordinates_cval2</name>
+    <description>latitude of target position</description>
+    <unit>deg</unit>
+    <utype>caom2:Observation.targetPosition.coordinates.cval2</utype>
+    <dataType xsi:type="vod:VOTableType">double</dataType>
+  </column>
+  <column>
+    <name>targetPosition_coordsys</name>
+    <description>coordinate system for target position</description>
+    <utype>caom2:Observation.targetPosition.coordsys</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="16*">char</dataType>
+  </column>
+  <column>
+    <name>targetPosition_equinox</name>
+    <description>equinox of target position coordinate system</description>
+    <utype>caom2:Observation.targetPosition.equinox</utype>
+    <dataType xsi:type="vod:VOTableType">double</dataType>
+  </column>
+  <column>
+    <name>telescope_name</name>
+    <description>name of telescope used to acquire observation</description>
+    <utype>caom2:Observation.telescope.name</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+  </column>
+  <column>
+    <name>telescope_geoLocationX</name>
+    <description>x component of geocentric location of telescope</description>
+    <utype>caom2:Observation.telescope.geoLocationX</utype>
+    <dataType xsi:type="vod:VOTableType">double</dataType>
+  </column>
+  <column>
+    <name>telescope_geoLocationY</name>
+    <description>y component of geocentric location of telescope</description>
+    <utype>caom2:Observation.telescope.geoLocationY</utype>
+    <dataType xsi:type="vod:VOTableType">double</dataType>
+  </column>
+  <column>
+    <name>telescope_geoLocationZ</name>
+    <description>z component of geocentric location of telescope</description>
+    <utype>caom2:Observation.telescope.geoLocationZ</utype>
+    <dataType xsi:type="vod:VOTableType">double</dataType>
+  </column>
+  <column>
+    <name>telescope_keywords</name>
+    <description>telescope keywords (separated by |)</description>
+    <utype>caom2:Observation.telescope.keywords</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="*">char</dataType>
+  </column>
+  <column>
+    <name>requirements_flag</name>
+    <description>flag describing satisfied proposal requirements (possible values: fail)</description>
+    <utype>caom2:Observation.requirements.flag</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="16">char</dataType>
+  </column>
+  <column>
+    <name>instrument_name</name>
+    <description>name of instrument used to acquire observation</description>
+    <utype>caom2:Observation.instrument.name</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+  </column>
+  <column>
+    <name>instrument_keywords</name>
+    <description>instrument keywords (separated by |)</description>
+    <utype>caom2:Observation.instrument.keywords</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="*">char</dataType>
+  </column>
+  <column>
+    <name>environment_seeing</name>
+    <description>atmospheric seeing (FWHM)</description>
+    <unit>arcsec</unit>
+    <utype>caom2:Observation.environment.seeing</utype>
+    <dataType xsi:type="vod:VOTableType">double</dataType>
+  </column>
+  <column>
+    <name>environment_humidity</name>
+    <description>humidity at telescope during observation</description>
+    <utype>caom2:Observation.environment.humidity</utype>
+    <dataType xsi:type="vod:VOTableType">double</dataType>
+  </column>
+  <column>
+    <name>environment_elevation</name>
+    <description>elevation above horizon (0 to 90)</description>
+    <unit>deg</unit>
+    <utype>caom2:Observation.environment.elevation</utype>
+    <dataType xsi:type="vod:VOTableType">double</dataType>
+  </column>
+  <column>
+    <name>environment_tau</name>
+    <description>zenith optical depth</description>
+    <utype>caom2:Observation.environment.tau</utype>
+    <dataType xsi:type="vod:VOTableType">double</dataType>
+  </column>
+  <column>
+    <name>environment_wavelengthTau</name>
+    <description>wavelength at which Tau has been measured</description>
+    <unit>m</unit>
+    <utype>caom2:Observation.environment.wavelengthTau</utype>
+    <dataType xsi:type="vod:VOTableType">double</dataType>
+  </column>
+  <column>
+    <name>environment_ambientTemp</name>
+    <description>ambient temperature telescope during observation</description>
+    <unit>C</unit>
+    <utype>caom2:Observation.environment.ambientTemp</utype>
+    <dataType xsi:type="vod:VOTableType">double</dataType>
+  </column>
+  <column>
+    <name>environment_photometric</name>
+    <description>conditions were photometric (0=false, 1=true)</description>
+    <utype>caom2:Observation.environment.photometric</utype>
+    <dataType xsi:type="vod:VOTableType">int</dataType>
+  </column>
+  <column>
+    <name>members</name>
+    <description>members of a composite observation (space-separated list of Observation URIs)</description>
+    <utype>caom2:Observation.members</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="clob">char</dataType>
+  </column>
+  <column>
+    <name>typeCode</name>
+    <description>single character code to denote type: S(impleObservation) or C(ompositeOvservation)</description>
+    <utype>caom2:Observation.typeCOde</utype>
+    <dataType xsi:type="vod:VOTableType">char</dataType>
+  </column>
+  <column>
+    <name>lastModified</name>
+    <description>timestamp of last modification of this row</description>
+    <utype>caom2:Observation.lastModified</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+  </column>
+  <column>
+    <name>maxLastModified</name>
+    <description>timestamp of last modification of this observation</description>
+    <utype>caom2:Observation.maxLastModified</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+  </column>
+  <column>
+    <name>metaChecksum</name>
+    <description>checksum of the metadata in this entity (URI of the form &lt;algorithm&gt;:&lt;value&gt;)</description>
+    <utype>caom2:Observation.metaChecksum</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+  </column>
+  <column>
+    <name>accMetaChecksum</name>
+    <description>checksum of the metadata in this entity+children (URI of the form &lt;algorithm&gt;:&lt;value&gt;)</description>
+    <utype>caom2:Observation.accMetaChecksum</utype>
+    <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+  </column>
+  <foreignKey>
+    <targetTable>caom2.ObservationMember</targetTable>
+    <fkColumn>
+      <fromColumn>obsID</fromColumn>
+      <targetColumn>compositeID</targetColumn>
+    </fkColumn>
+    <description>standard way to join caom2.Observation (CompositeObservation) and caom2.ObservationMember [join table]</description>
+  </foreignKey>
+</vosi:table>

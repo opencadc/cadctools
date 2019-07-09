@@ -83,6 +83,7 @@ from cadctap import version
 from six.moves.urllib.parse import urlparse, urlencode
 import six
 import contextlib
+from xml.dom import minidom
 
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
@@ -389,6 +390,8 @@ class CadcTapClient(object):
                     return
                 header = True
                 for row in result.text.split('\n'):
+                    # TODO implement get_query_result and parse result.text
+                    # into TabularInfo object and use display_tab to display it
                     if row.strip():
                         if header:
                             header = False
@@ -408,15 +411,169 @@ class CadcTapClient(object):
 
     def schema(self, table=None):
         """
-        Outputs the tables available for queries
+        Outputs information about the tables available for queries
 
         :param table: name of the table (schema.tablename) of the table to
         get the schema for. Set to None to get the names of all the tables.
         """
+        if table:
+            tab_info = self.get_table_schema(table)
+            for tab in tab_info:
+                print('')
+                self.display_tab(tab)
+
+        else:
+            schema = self.get_schema()
+            self.display_tab(schema)
+
+    def display_tab(self, info):
+        """
+        Displays tabular information
+        :param info: Information to display. Expected TabularInfo type
+        """
+        # determine the maximum length of the table names:
+        print('\n{}: {}\n'.format(info.name, info.description))
+        for i, f in enumerate(info.columns):
+            sys.stdout.write('{field: <{fsize}}  '.
+                             format(field=f,
+                                    fsize=info.max_col_lengths[i]))
+        print('\n' + '-' * sum(info.max_col_lengths))
+        for r in info.rows:
+            for i, f in enumerate(r):
+                sys.stdout.write(
+                    '{field: <{fsize}}  '.
+                    format(field=f, fsize=info.max_col_lengths[i]))
+            sys.stdout.write('\n')
+        if len(info.rows) == 1:
+            print('\n(1 row affected)')
+        else:
+            print('\n({} rows affected)'.format(len(info.rows)))
+
+    def get_schema(self):
+        """
+        Return DB schema in tabular format.
+        :return: TabularInfo object describing the schema of the database.
+        Columns are ['Table', 'Description']
+        """
+        results = self._tap_client.get((TABLES_CAPABILITY_ID, None),
+                                       params={'detail': 'min'})
+        from xml.dom import minidom
+        doc = minidom.parseString(results.text)
+        schema_info = TabularInfo(name=self.resource_id,
+                                  description='DB schema',
+                                  columns=['Table', 'Description'])
+        for s in doc.getElementsByTagName('schema'):
+            for t in s.getElementsByTagName('table'):
+                name = t.getElementsByTagName('name')[0].firstChild.nodeValue
+                description = t.getElementsByTagName('description')[0]. \
+                    firstChild.nodeValue
+                schema_info.add_row((name, description))
+        return schema_info
+
+    def get_table_schema(self, table):
+        """
+        Returns the schema information regarding a table in TabularInfo form
+        NOTE: columns ctypes are currently ignored
+        :param table: table name
+        :return: Information about the table as a list of TabularInfo objects.
+        First object represents information about columns, while the second
+        entry describes table foreign keys if any.
+        """
         results = self._tap_client.get((TABLES_CAPABILITY_ID, table),
                                        params={'detail': 'min'})
-        # TODO display something more user friendly than the VOSI XML
-        print(results.text)
+        doc = minidom.parseString(results.text)
+
+        cols_info = TabularInfo(name=table,
+                                description=doc.getElementsByTagName(
+                                     'description')[0].firstChild.nodeValue,
+                                columns=['Name', 'Type', 'Index',
+                                         'Description'])
+        for s in doc.getElementsByTagName('column'):
+            name = s.getElementsByTagName('name')[0].firstChild.nodeValue
+            description = s.getElementsByTagName('description')[0]. \
+                firstChild.nodeValue
+            if s.getElementsByTagName('utype'):
+                col_type = s.getElementsByTagName('utype')[0]. \
+                    firstChild.nodeValue
+            else:
+                col_type = ''
+            flag = s.getElementsByTagName('flag')
+            if flag and flag[0].firstChild.nodeValue == 'indexed':
+                indexed = 'Y'
+            else:
+                indexed = 'N'
+            cols_info.add_row((name, col_type, indexed, description))
+
+        fk = doc.getElementsByTagName('foreignKey')
+        if fk:
+            fk_info = TabularInfo('Foreign Keys', 'Foreign Keys for table',
+                                  ['Target Table', 'Target Col',
+                                   'From Column', 'Description'])
+            for row in fk:
+                target_table = row.getElementsByTagName('targetTable')[0].\
+                    firstChild.nodeValue
+                target_column = row.getElementsByTagName('targetColumn')[0]. \
+                    firstChild.nodeValue
+                from_column = row.getElementsByTagName('fromColumn')[0]. \
+                    firstChild.nodeValue
+                if row.getElementsByTagName('description'):
+                    description = row.getElementsByTagName('description')[0]. \
+                        firstChild.nodeValue
+                else:
+                    description = ''
+                fk_info.add_row((target_table, target_column,
+                                 from_column, description))
+            return [cols_info, fk_info]
+        else:
+            return [cols_info]
+
+
+class TabularInfo:
+    """
+    Class to store a very simple tabular information to be displayed in tabular
+    format. The table has a name, a description and an arbitrary number of
+    columns (all the text format).
+    """
+    def __init__(self, name, description, columns):
+        """
+        :param name: name of the schema
+        :param description: description of the schema
+        :param columns: name of the columns. Must match the number of
+        tuple fields in rows
+        """
+        self.name = name
+        self.description = description
+        self.columns = columns
+        self._rows = []
+        self._max_col_lengths = []
+        for c in self.columns:
+            self._max_col_lengths.append(len(c))
+
+    @property
+    def rows(self):
+        """
+        :return: Info regarding elements in the schena. Each row is a tuple
+        """
+        return self._rows
+
+    @property
+    def max_col_lengths(self):
+        return self._max_col_lengths
+
+    def add_row(self, values):
+        """
+        Adds info regarding and entry in the schema info
+        :param values: tuple with the values. Must have the same length as the
+        columns in this class
+        """
+        if len(values) != len(self.columns):
+            raise AttributeError(
+                'Number of tuple elements does not match the number of '
+                'the columns: {} != {}'.format(values, self.columns))
+        for i in range(len(values)):
+            if self._max_col_lengths[i] < len(values[i]):
+                self._max_col_lengths[i] = len(values[i])
+        self.rows.append(values)
 
 
 @contextlib.contextmanager

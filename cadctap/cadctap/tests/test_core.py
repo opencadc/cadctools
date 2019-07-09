@@ -434,15 +434,40 @@ def test_create_index(caps_get_mock, base_get_mock, base_post_mock):
 @patch('cadcutils.net.ws.WsCapabilities.get_access_url')
 def test_schema(caps_get_mock, base_get_mock):
     caps_get_mock.return_value = BASE_URL
+    base_get_mock.return_value.text = \
+        open(os.path.join(TESTDATA_DIR, 'db_schema.xml'), 'r').read()
     client = CadcTapClient(net.Subject())
     # default schema
-    client.schema()
+    db_schema = client.get_schema()
+    assert db_schema.name == client.resource_id
+    assert 'DB schema' == db_schema.description
+    assert ['Table', 'Description'] == db_schema.columns
+    assert 22 == len(db_schema.rows)
     base_get_mock.assert_called_with((TABLES_CAPABILITY_ID, None),
                                      params={'detail': 'min'})
     # table schema
-    client.schema('mytable')
-    base_get_mock.assert_called_with((TABLES_CAPABILITY_ID, 'mytable'),
+    base_get_mock.return_value.text = \
+        open(os.path.join(TESTDATA_DIR, 'table_schema.xml'), 'r').read()
+    tb_schema = client.get_table_schema('caom2.Observation')
+    assert 2 == len(tb_schema)
+    assert 'caom2.Observation' == tb_schema[0].name
+    assert 'the main CAOM Observation table' == tb_schema[0].description
+    assert ['Name', 'Type', 'Index', 'Description'] == tb_schema[0].columns
+    assert 45 == len(tb_schema[0].rows)
+    assert 'Foreign Keys' == tb_schema[1].name
+    assert 'Foreign Keys for table' == tb_schema[1].description
+    assert ['Target Table', 'Target Col', 'From Column', 'Description'] == \
+        tb_schema[1].columns
+    assert 1 == len(tb_schema[1].rows)
+    assert 'caom2.ObservationMember' == tb_schema[1].rows[0][0]
+    base_get_mock.assert_called_with((TABLES_CAPABILITY_ID,
+                                      'caom2.Observation'),
                                      params={'detail': 'min'})
+    # check displays are also working although the visual part not tested
+    client.get_schema = Mock(return_value=db_schema)
+    client.schema()
+    client.get_schema = Mock(return_value=tb_schema)
+    client.schema('caom2.Observation')
 
 
 @patch('cadcutils.net.ws.BaseWsClient.post')
