@@ -439,10 +439,18 @@ def test_schema(caps_get_mock, base_get_mock):
     client = CadcTapClient(net.Subject())
     # default schema
     db_schema = client.get_schema()
-    assert db_schema.name == client.resource_id
-    assert 'DB schema' == db_schema.description
-    assert ['Table', 'Description'] == db_schema.columns
-    assert 22 == len(db_schema.rows)
+    assert 3 == len(db_schema)
+    for schema in db_schema:
+        assert 'DB schema' == schema.description
+        assert ['Table', 'Description'] == schema.columns
+        if 'ivoa' == schema.name:
+            assert 3 == len(schema.rows)
+        elif 'caom2' in schema.name:
+            assert 14 == len(schema.rows)
+        elif 'tap_schema' == schema.name:
+            assert 5 == len(schema.rows)
+        else:
+            assert False, 'Unexpected schema'
     base_get_mock.assert_called_with((TABLES_CAPABILITY_ID, None),
                                      params={'detail': 'min'})
     # table schema

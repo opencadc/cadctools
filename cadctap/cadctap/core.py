@@ -83,6 +83,7 @@ from cadctap import version
 from six.moves.urllib.parse import urlparse, urlencode
 import six
 import contextlib
+import cadcutils
 from xml.dom import minidom
 
 from requests_toolbelt.multipart.encoder import MultipartEncoder
@@ -174,6 +175,8 @@ class CadcTapClient(object):
         """
         self.resource_id = resource_id
         self.host = host
+        # cache schema info for multiple calls
+        self._db_schemas = {}
 
         self._subject = subject
         if agent is None:
@@ -409,22 +412,26 @@ class CadcTapClient(object):
                         footer = '\n({} rows affected)'.format(rows)
                     print(footer, file=f)
 
-    def schema(self, table=None):
+    def schema(self, name=None):
         """
         Outputs information about the tables available for queries
 
-        :param table: name of the table (schema.tablename) of the table to
-        get the schema for. Set to None to get the names of all the tables.
+        :param name: name of the schema or table (schema.tablename) to
+        get the schema for. Set to None to get the names of all the schemas
+        and tables.
         """
-        if table:
-            tab_info = self.get_table_schema(table)
-            for tab in tab_info:
-                print('')
-                self.display_tab(tab)
+        try:
+            # try name as a schema first
+            tab_info = self.get_schema(name)
+            if not tab_info:
+                # try name as a table name
+                tab_info = self.get_table_schema(name)
+        except cadcutils.exceptions.NotFoundException:
+            raise AttributeError("Resource {} not found.".format(name))
 
-        else:
-            schema = self.get_schema()
-            self.display_tab(schema)
+        for tab in tab_info:
+            print('')
+            self.display_tab(tab)
 
     def display_tab(self, info):
         """
@@ -437,7 +444,10 @@ class CadcTapClient(object):
             sys.stdout.write('{field: <{fsize}}  '.
                              format(field=f,
                                     fsize=info.max_col_lengths[i]))
-        print('\n' + '-' * sum(info.max_col_lengths))
+        print('')
+        for col in info.max_col_lengths:
+            sys.stdout.write('-' * col + '  ')
+        print('')
         for r in info.rows:
             for i, f in enumerate(r):
                 sys.stdout.write(
@@ -449,26 +459,40 @@ class CadcTapClient(object):
         else:
             print('\n({} rows affected)'.format(len(info.rows)))
 
-    def get_schema(self):
+    def get_schema(self, schema_name=None):
         """
         Return DB schema in tabular format.
-        :return: TabularInfo object describing the schema of the database.
+        :param schema_name: name of the schema or all the schemas if name is
+        None
+        :return: List of TabularInfo objects describing schema of one database
+        or all databases if schema_name not found.
         Columns are ['Table', 'Description']
         """
-        results = self._tap_client.get((TABLES_CAPABILITY_ID, None),
-                                       params={'detail': 'min'})
-        from xml.dom import minidom
-        doc = minidom.parseString(results.text)
-        schema_info = TabularInfo(name=self.resource_id,
-                                  description='DB schema',
-                                  columns=['Table', 'Description'])
-        for s in doc.getElementsByTagName('schema'):
-            for t in s.getElementsByTagName('table'):
-                name = t.getElementsByTagName('name')[0].firstChild.nodeValue
-                description = t.getElementsByTagName('description')[0]. \
-                    firstChild.nodeValue
-                schema_info.add_row((name, description))
-        return schema_info
+        if not self._db_schemas:
+            results = self._tap_client.get((TABLES_CAPABILITY_ID, None),
+                                           params={'detail': 'min'})
+            doc = minidom.parseString(results.text)
+            for s in doc.getElementsByTagName('schema'):
+                schema_info = TabularInfo(
+                    name=s.getElementsByTagName('name')[0].
+                    firstChild.nodeValue,
+                    description='DB schema',
+                    columns=['Table', 'Description'])
+                for t in s.getElementsByTagName('table'):
+                    name = \
+                        t.getElementsByTagName('name')[0].firstChild.nodeValue
+                    description = t.getElementsByTagName('description')[0]. \
+                        firstChild.nodeValue
+                    schema_info.add_row((name, description))
+                self._db_schemas[schema_info.name] = schema_info
+
+        if schema_name:
+            if schema_name in self._db_schemas.keys():
+                return [self._db_schemas[schema_name]]
+            else:
+                return None
+        else:
+            return list(self._db_schemas.values())
 
     def get_table_schema(self, table):
         """
