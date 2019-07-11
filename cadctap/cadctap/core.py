@@ -85,6 +85,8 @@ import six
 import contextlib
 import cadcutils
 from xml.dom import minidom
+import re
+from argparse import ArgumentError
 
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
@@ -99,6 +101,7 @@ TABLES_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#tables-1.1'
 TABLE_UPDATE_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#table-update-async-1.x'
 TABLE_LOAD_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#table-load-sync-1.x'
 QUERY_CAPABILITY_ID = 'ivo://ivoa.net/std/TAP'
+PERMISSIONS_CAPABILITY_ID = 'ivo://ivoa.net/std/VOSI#table-permissions-1.x'
 CADC_AC_SERVICE = 'ivo://cadc.nrc.ca/gms'
 CADC_LOGIN_CAPABILITY = 'ivo://ivoa.net/std/UMS#login-0.1'
 CADC_SSO_COOKIE_NAME = 'CADC_SSO'
@@ -427,7 +430,9 @@ class CadcTapClient(object):
                 # try name as a table name
                 tab_info = self.get_table_schema(name)
         except cadcutils.exceptions.NotFoundException:
-            raise AttributeError("Resource {} not found.".format(name))
+            raise AttributeError('Resource {} not found.'.format(name))
+        except cadcutils.exceptions.ForbiddenException:
+            raise AttributeError('Resource {} access denied'.format(name))
 
         for tab in tab_info:
             print('')
@@ -503,9 +508,9 @@ class CadcTapClient(object):
         First object represents information about columns, while the second
         entry describes table foreign keys if any.
         """
-        results = self._tap_client.get((TABLES_CAPABILITY_ID, table),
-                                       params={'detail': 'min'})
-        doc = minidom.parseString(results.text)
+        response = self._tap_client.get((TABLES_CAPABILITY_ID, table),
+                                        params={'detail': 'min'})
+        doc = minidom.parseString(response.text)
 
         cols_info = TabularInfo(name=table,
                                 description=doc.getElementsByTagName(
@@ -527,6 +532,7 @@ class CadcTapClient(object):
             else:
                 indexed = 'N'
             cols_info.add_row((name, col_type, indexed, description))
+        result = [cols_info]
 
         fk = doc.getElementsByTagName('foreignKey')
         if fk:
@@ -547,9 +553,73 @@ class CadcTapClient(object):
                     description = ''
                 fk_info.add_row((target_table, target_column,
                                  from_column, description))
-            return [cols_info, fk_info]
-        else:
-            return [cols_info]
+            result.append(fk_info)
+
+        # check the table permissions
+        response = self._tap_client.get((PERMISSIONS_CAPABILITY_ID, table))
+        perm = TabularInfo('Permissions', 'Permissions for table ' + table,
+                           ['Owner', 'Others Read',
+                            'Group Read', 'Group Write'])
+        permissions = {}
+        for row in (response.text.split('\n')):
+            p = row.split('=')
+            if len(p) == 2:
+                permissions[p[0]] = p[1]
+            else:
+                permissions[p[0]] = ''
+        # simplify display of local groups by using just their name
+        pro = permissions['r-group']
+        if pro.startswith(CADC_AC_SERVICE):
+            pro = pro[pro.find('?')+1:]
+        prw = permissions['rw-group']
+        if prw.startswith(CADC_AC_SERVICE):
+            prw = prw[prw.find('?')+1:]
+        perm.add_row((permissions['owner'], permissions['public'], pro, prw))
+        result.append(perm)
+        return result
+
+    def set_permissions(self, resource, read_anon=None, read_only=None,
+                        read_write=None):
+        """
+        Set permissions on a resource (schema or table). Only the permissions
+        that are specified (not None) are being updated on the server.
+
+        :param read_anon: True if anonymous reads are allowed, False otherwise
+        :param read_only: Group URI or empty string (clear existing group)
+        :param read_write: Group URI or empty string (clear existing group)
+        :return:
+        """
+        logger.debug('set_permissions on resource {}: read_anon={}, '
+                     'read_only={}, read_write={}'.format(
+                        resource, read_anon, read_only, read_write))
+        if read_anon is None and read_only is None and read_write is None:
+            logger.warning('No permissions values passed in set_permissions')
+            return
+        if read_only is not None and not read_only.startswith('ivo://'):
+            raise AttributeError('Expected URI for read group: '.
+                                 format(read_only))
+        if read_write is not None and not read_write.startswith('ivo://'):
+            raise AttributeError('Expected URI for write group: '.
+                                 format(read_write))
+        params = ''
+        if read_anon is not None:
+            params += 'public={}\n'.format(str(read_anon).lower())
+        if read_only is not None:
+            ro = read_only
+            if ro and not ro.startswith('ivo'):
+                # local group. turn it into a corresponding uri
+                ro = '{}/{}'.format(CADC_AC_SERVICE, resource)
+            params += 'r-group={}\n'.format(ro)
+        if read_write is not None:
+            rw = read_write
+            if rw and not rw.startswith('ivo'):
+                # local group. turn it into a corresponding uri
+                rw = '{}/{}'.format(CADC_AC_SERVICE, resource)
+            params += 'rw-group={}\n'.format(rw)
+        self._tap_client.post((PERMISSIONS_CAPABILITY_ID, resource),
+                              data=params,
+                              headers={
+                                  'Content-Type': 'text/plain'})
 
 
 class TabularInfo:
@@ -901,7 +971,7 @@ def main_app(command='cadc-tap query'):
     delete_parser = subparsers.add_parser(
         'delete',
         description='Delete a table\n' + AUTH_OPTION_EXPLANATION,
-        help='delete a table')
+        help='Delete a table')
     delete_parser.add_argument(
         'TABLENAME',
         help='name of the table (<schema.table)'
@@ -937,6 +1007,56 @@ def main_app(command='cadc-tap query'):
         help='source of the data. It can be files or "-" for stdin.'
     )
 
+    permission_parser = subparsers.add_parser(
+        'permission',
+        description='Update access permissions of a table or a schema. '
+                    'Use schema command to display the existing permissions',
+        help='Control table access'
+    )
+
+    def check_mode(mode):
+        """
+        Checks the validity of a mode attribute
+        :param mode:
+        :return: mode dictionary
+         :rtype: re.groupdict
+        """
+        _mode = re.match(
+            r"(?P<who>og|go|o|g)(?P<op>[+\-=])(?P<what>rw|wr|r|w)",
+            mode)
+        if _mode is None:
+            raise ArgumentError(_mode, 'Invalid mode: {}'.format(mode))
+        return _mode.groupdict()
+
+    permission_parser.add_argument(
+        'mode', type=check_mode,
+        help='permission setting accepted modes: (og|go|o|g)[+-=](rw|wr|r|w)')
+    permission_parser.add_argument('TARGET', help='table or schema name')
+    permission_parser.add_argument(
+        'groups', nargs='*',
+        help="name(s) of group(s) to assign read/write permission to. "
+             "One group per r or w permission.")
+    # options_parser = permission_parser.add_mutually_exclusive_group(
+    #     required=False)
+    # options_parser.add_argument(
+    #     '-o-r', action='store_true',
+    #     help='remove anonymous read access')
+    # options_parser.add_argument(
+    #     '-o+r', action='store_true',
+    #     help='add anonymous read access')
+    # options_parser.add_argument(
+    #     '-g+r', metavar='<group name>',
+    #     help='grant group read permission')
+    # options_parser.add_argument(
+    #     '-g-r', action='store_true',
+    #     help='revoke group read permission')
+    # options_parser.add_argument(
+    #     '-g+w', metavar = '<group name>',
+    #     help='grant group write (and implicitly read) permission')
+    # options_parser.add_argument(
+    #     '-g-w', action='store_true',
+    #     help='revoke group write permission')
+
 #    def handle_error(msg, exit_after=True):
 #        """
 #        Prints error message and exit (by default)
@@ -957,6 +1077,7 @@ def main_app(command='cadc-tap query'):
     _customize_parser(delete_parser)
     _customize_parser(index_parser)
     _customize_parser(load_parser)
+    _customize_parser(permission_parser)
     args = parser.parse_args()
     if len(sys.argv) < 2:
         parser.print_usage(file=sys.stderr)
@@ -1011,5 +1132,63 @@ def main_app(command='cadc-tap query'):
                          timeout=args.timeout, data_only=args.quiet)
         elif args.cmd == 'schema':
             client.schema(args.tablename)
+        elif args.cmd == 'permission':
+            try:
+                perms = _get_permission_modes(args)
+            except ArgumentError as e:
+                permission_parser.print_usage(file=sys.stderr)
+                raise e
+            client.set_permissions(args.TARGET, read_anon=perms['read_anon'],
+                                   read_only=perms['read_only'],
+                                   read_write=perms['read_write'])
     except Exception as ex:
         exit_on_exception(ex)
+
+
+def _get_permission_modes(opt):
+    """
+    Extracts permissions modes from the mode argument. Duplicated from vchmod
+    :param opt: argparse arguments
+    :return: dictionary of permission modes
+    """
+    group_names = opt.groups
+
+    mode = opt.mode
+
+    props = {'read_anon': None, 'read_only': None, 'read_write': None}
+    if 'o' in mode['who']:
+        if mode['op'] == '-':
+            props['read_anon'] = False
+        else:
+            props['read_anon'] = True
+    if 'g' in mode['who']:
+        if '-' == mode['op']:
+            if not len(group_names) == 0:
+                raise ArgumentError(
+                    None,
+                    "Names of groups not valid with remove permission")
+            if 'r' in mode['what']:
+                props['read_only'] = ''
+            if "w" in mode['what']:
+                props['read_write'] = ''
+        else:
+            if not len(group_names) == len(mode['what']):
+                name = len(mode['what']) > 1 and "names" or "name"
+                raise ArgumentError(None,
+                                    "{} group {} required for {}".format(
+                                        len(mode['what']), name,
+                                        mode['what']))
+            if mode['what'].find('r') > -1:
+                # remove duplicate whitespaces
+                rgroups = " ".join(
+                    group_names[mode['what'].find('r')].split())
+                props['read_only'] = \
+                    '{}?{}'.format(CADC_AC_SERVICE,
+                                   rgroups.replace(" ", " " + CADC_AC_SERVICE))
+            if mode['what'].find('w') > -1:
+                wgroups = " ".join(
+                    group_names[mode['what'].find('w')].split())
+                props['read_write'] = \
+                    '{}?{}'.format(CADC_AC_SERVICE,
+                                   wgroups.replace(" ", " " + CADC_AC_SERVICE))
+    return props

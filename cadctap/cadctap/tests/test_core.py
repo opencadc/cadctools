@@ -454,10 +454,15 @@ def test_schema(caps_get_mock, base_get_mock):
     base_get_mock.assert_called_with((TABLES_CAPABILITY_ID, None),
                                      params={'detail': 'min'})
     # table schema
-    base_get_mock.return_value.text = \
-        open(os.path.join(TESTDATA_DIR, 'table_schema.xml'), 'r').read()
+    table_schema_mock = Mock()
+    table_schema_mock.text = open(os.path.join(TESTDATA_DIR,
+                                               'table_schema.xml'), 'r').read()
+    permission_mock = Mock()
+    permission_mock.text = 'owner=someone\npublic=true\nr-group=\n' \
+                           'rw-group=ivo://cadc.nrc.ca/gms?CADC'
+    base_get_mock.side_effect = {table_schema_mock, permission_mock}
     tb_schema = client.get_table_schema('caom2.Observation')
-    assert 2 == len(tb_schema)
+    assert 3 == len(tb_schema)
     assert 'caom2.Observation' == tb_schema[0].name
     assert 'the main CAOM Observation table' == tb_schema[0].description
     assert ['Name', 'Type', 'Index', 'Description'] == tb_schema[0].columns
@@ -468,9 +473,23 @@ def test_schema(caps_get_mock, base_get_mock):
         tb_schema[1].columns
     assert 1 == len(tb_schema[1].rows)
     assert 'caom2.ObservationMember' == tb_schema[1].rows[0][0]
-    base_get_mock.assert_called_with((TABLES_CAPABILITY_ID,
-                                      'caom2.Observation'),
-                                     params={'detail': 'min'})
+    assert 1 == len(tb_schema[2].rows)
+    assert ['Owner', 'Others Read', 'Group Read', 'Group Write'] == \
+        tb_schema[2].columns
+    assert 'Permissions' == tb_schema[2].name
+    assert 'Permissions for table caom2.Observation' == \
+           tb_schema[2].description
+    assert 'someone' == tb_schema[2].rows[0][0]
+    assert 'true' == tb_schema[2].rows[0][1]
+    assert '' == tb_schema[2].rows[0][2]
+    assert 'CADC' == tb_schema[2].rows[0][3]
+    calls = [call(('ivo://ivoa.net/std/VOSI#tables-1.1', None),
+                  params={'detail': 'min'}),
+             call(('ivo://ivoa.net/std/VOSI#tables-1.1', 'caom2.Observation'),
+                  params={'detail': 'min'}),
+             call(('ivo://ivoa.net/std/VOSI#table-permissions-1.x',
+                   'caom2.Observation'))]
+    base_get_mock.assert_has_calls(calls)
     # check displays are also working although the visual part not tested
     client.get_schema = Mock(return_value=db_schema)
     client.schema()
@@ -530,9 +549,7 @@ def test_query(caps_get_mock, base_post_mock):
 class TestCadcTapClient(unittest.TestCase):
     """Test the CadcTapClient class"""
 
-    @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
-                                         MyExitError, MyExitError, MyExitError,
-                                         MyExitError, MyExitError]))
+    @patch('sys.exit', Mock(side_effect=[MyExitError for x in range(25)]))
     def test_help(self):
         """ Tests the helper displays for commands and subcommands in main"""
         self.maxDiff = None
@@ -547,8 +564,9 @@ class TestCadcTapClient(unittest.TestCase):
                 main_app()
             self.assertEqual(usage, stdout_mock.getvalue())
 
-        usage = ('usage: cadc-tap [-h] [-V] '
-                 '{schema,query,create,delete,index,load} ...'
+        usage = ('usage: cadc-tap [-h] [-V]\n'
+                 '                {schema,query,create,delete,index,'
+                 'load,permission} ...'
                  '\ncadc-tap: error: too few arguments\n')
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
@@ -624,6 +642,17 @@ class TestCadcTapClient(unittest.TestCase):
                 main_app()
             self.assertEqual(usage, stdout_mock.getvalue())
 
+        # permission -h
+        with open(os.path.join(TESTDATA_DIR,
+                               'help_permission.txt'), 'r') as myfile:
+            usage = myfile.read()
+
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            sys.argv = ['cadc-tap', 'permission', '--help']
+            with self.assertRaises(MyExitError):
+                main_app()
+            self.assertEqual(usage, stdout_mock.getvalue())
+
     @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
                                          MyExitError, MyExitError, MyExitError,
                                          MyExitError, MyExitError]))
@@ -678,6 +707,7 @@ class TestCadcTapClient(unittest.TestCase):
                     exit_on_exception(ex)
                 self.assertTrue(expected_message in stderr_mock.getvalue())
 
+    @patch('cadctap.CadcTapClient.set_permissions')
     @patch('cadctap.CadcTapClient.load')
     @patch('cadctap.CadcTapClient.create_index')
     @patch('cadctap.CadcTapClient.delete_table')
@@ -685,7 +715,7 @@ class TestCadcTapClient(unittest.TestCase):
     @patch('cadctap.CadcTapClient.query')
     @patch('cadctap.CadcTapClient.schema')
     def test_main(self, schema_mock, query_mock, create_mock, delete_mock,
-                  index_mock, load_mock):
+                  index_mock, load_mock, permissions_mock):
         sys.argv = ['cadc-tap', 'schema']
         main_app()
         calls = [call(None)]
@@ -737,3 +767,25 @@ class TestCadcTapClient(unittest.TestCase):
         calls = [call('SELECT TOP 10 target_name FROM caom2.Observation', None,
                       'tsv', None, data_only=False, timeout=2)]
         query_mock.assert_has_calls(calls)
+
+        sys.argv = ['cadc-tap', 'permission', 'o+r', 'table']
+        main_app()
+        calls = [call('table', read_anon=True, read_only=None,
+                      read_write=None)]
+        permissions_mock.assert_has_calls(calls)
+
+        permissions_mock.reset_mock()
+        sys.argv = ['cadc-tap', 'permission', 'g+rw', 'table', 'CADC1',
+                    'CADC2']
+        main_app()
+        calls = [call('table', read_anon=None,
+                      read_only='ivo://cadc.nrc.ca/gms?CADC1',
+                      read_write='ivo://cadc.nrc.ca/gms?CADC2')]
+        permissions_mock.assert_has_calls(calls)
+
+        permissions_mock.reset_mock()
+        sys.argv = ['cadc-tap', 'permission', 'og-r', 'table']
+        main_app()
+        calls = [call('table', read_anon=False, read_only='',
+                      read_write=None)]
+        permissions_mock.assert_has_calls(calls)
