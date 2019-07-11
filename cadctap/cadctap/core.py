@@ -832,3 +832,6 @@ def main_app(command='cadc-tap query'):
             client.schema(args.tablename)
     except Exception as ex:
         exit_on_exception(ex)
+    except KeyboardInterrupt:
+        sys.stderr.write('KeyboardInterrupt\n')
+        sys.exit(0)
