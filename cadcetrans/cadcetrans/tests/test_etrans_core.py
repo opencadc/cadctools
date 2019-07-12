@@ -128,7 +128,7 @@ def test_transfer_dryrun(get_files_mock, data_client_mock, config_mock):
     with pytest.raises(CommandError) as e:
         transfer(PROC_DIR, 'new', True, Subject())
     assert 'Errors occurred during transfer ({} error(s))'\
-           .format(len(invalid_files)) in str(e)
+           .format(len(invalid_files)) in str(e.value)
 
     # remove the "invalid" files
     for f in invalid_files:
@@ -180,7 +180,7 @@ def test_transfer(get_files_mock, put_mock, data_client_mock, config_mock):
                  namecheck_file=os.path.join(TESTDATA_DIR,
                                              'namecheck.xml'))
     assert 'Errors occurred during transfer ({} error(s))'\
-           .format(len(invalid_files)) in str(e)
+           .format(len(invalid_files)) in str(e.value)
     assert put_mock.call_count == len(src_files) - len(invalid_files), 'Calls'
     calls = []
     for f in valid_files:
@@ -209,7 +209,7 @@ def test_transfer(get_files_mock, put_mock, data_client_mock, config_mock):
     put_mock.reset_mock()
     transfer(PROC_DIR, 'new', False, subject)
     assert 'Errors occurred during transfer ({} error(s))'\
-           .format(len(invalid_files)) in str(e)
+           .format(len(invalid_files)) in str(e.value)
     assert put_mock.call_count == 0
 
 
