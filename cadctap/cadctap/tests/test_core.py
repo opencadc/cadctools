@@ -455,12 +455,13 @@ def test_schema(caps_get_mock, base_get_mock):
                                      params={'detail': 'min'})
     # table schema
     table_schema_mock = Mock()
+    base_get_mock.reset_mock()
     table_schema_mock.text = open(os.path.join(TESTDATA_DIR,
                                                'table_schema.xml'), 'r').read()
     permission_mock = Mock()
     permission_mock.text = 'owner=someone\npublic=true\nr-group=\n' \
                            'rw-group=ivo://cadc.nrc.ca/gms?CADC'
-    base_get_mock.side_effect = {table_schema_mock, permission_mock}
+    base_get_mock.side_effect = [table_schema_mock, permission_mock]
     tb_schema = client.get_table_schema('caom2.Observation')
     assert 3 == len(tb_schema)
     assert 'caom2.Observation' == tb_schema[0].name
@@ -483,9 +484,7 @@ def test_schema(caps_get_mock, base_get_mock):
     assert 'true' == tb_schema[2].rows[0][1]
     assert '' == tb_schema[2].rows[0][2]
     assert 'CADC' == tb_schema[2].rows[0][3]
-    calls = [call(('ivo://ivoa.net/std/VOSI#tables-1.1', None),
-                  params={'detail': 'min'}),
-             call(('ivo://ivoa.net/std/VOSI#tables-1.1', 'caom2.Observation'),
+    calls = [call(('ivo://ivoa.net/std/VOSI#tables-1.1', 'caom2.Observation'),
                   params={'detail': 'min'}),
              call(('ivo://ivoa.net/std/VOSI#table-permissions-1.x',
                    'caom2.Observation'))]
