@@ -138,7 +138,7 @@ def test_extract_striding():
     test_subject = CutoutND(data)
     cutout_regions = [(4, 18, 5)]
     cutout = test_subject.extract(cutout_regions)
-    expected_data = np.array([[3,  8],
+    expected_data = np.array([[3, 8],
                               [13, 18],
                               [23, 28],
                               [33, 38],
@@ -158,7 +158,7 @@ def test_extract_striding_wildcard():
     test_subject = CutoutND(data)
     cutout_regions = [('*', 7)]
     cutout = test_subject.extract(cutout_regions)
-    expected_data = np.array([[0,  7],
+    expected_data = np.array([[0, 7],
                               [10, 17],
                               [20, 27],
                               [30, 37],
@@ -178,11 +178,10 @@ def test_extract_invalid():
     test_subject = CutoutND(data)
     cutout_regions = [('')]
 
-    with pytest.raises(ValueError) as ve:
+    with pytest.raises(ValueError,
+                       match=r"Should have at least two values "
+                             r"\(lower, upper\)\."):
         test_subject.extract(cutout_regions)
-
-    assert str(ve).index(
-        'Should have at least two values (lower, upper).') > 0
 
 
 def test_with_wcs():
