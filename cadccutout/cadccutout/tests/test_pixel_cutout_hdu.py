@@ -89,7 +89,8 @@ def test_create():
     test_subject = PixelCutoutHDU([(12, 30)], 'EXT,0')
     assert test_subject.get_extension() == ('EXT', 1)
 
-    with pytest.raises(ValueError, match=r".*Specifying XTENSION return type is not supported\..*"):
+    with pytest.raises(ValueError, match=r"Specifying XTENSION return type "
+                                         r"is not supported\."):
         PixelCutoutHDU([(23, 67), (23, 89)], extension='SCI, 3, i')
 
     test_subject = PixelCutoutHDU(extension='5')
