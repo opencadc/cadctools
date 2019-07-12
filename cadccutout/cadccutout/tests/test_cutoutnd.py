@@ -178,11 +178,8 @@ def test_extract_invalid():
     test_subject = CutoutND(data)
     cutout_regions = [('')]
 
-    with pytest.raises(ValueError) as ve:
+    with pytest.raises(ValueError, match=r".*Should have at least two values \(lower, upper\)\..*"):
         test_subject.extract(cutout_regions)
-
-    assert str(ve).index(
-        'Should have at least two values (lower, upper).') > 0
 
 
 def test_with_wcs():
