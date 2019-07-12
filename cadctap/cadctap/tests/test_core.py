@@ -86,7 +86,7 @@ import tempfile
 
 from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
     ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID,\
-    TABLE_LOAD_CAPABILITY_ID
+    TABLE_LOAD_CAPABILITY_ID, PERMISSIONS_CAPABILITY_ID
 
 # The following is a temporary workaround for Python issue
 # 25532 (https://bugs.python.org/issue25532)
@@ -428,6 +428,58 @@ def test_create_index(caps_get_mock, base_get_mock, base_post_mock):
     client = CadcTapClient(net.Subject())
     with pytest.raises(RuntimeError):
         client.create_index('sometable', 'col1')
+
+
+@patch('cadcutils.net.ws.BaseWsClient.post')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_set_permissions(caps_get_mock, post_mock):
+    caps_get_mock.return_value = BASE_URL
+    client = CadcTapClient(net.Subject())
+    resource = 'mytable'
+    client.set_permissions(resource=resource, read_anon=True)
+    post_mock.assert_called_with((PERMISSIONS_CAPABILITY_ID, resource),
+                                 data='public=true\n',
+                                 headers={'Content-Type': 'text/plain'})
+
+    post_mock.reset_mock()
+    client.set_permissions(resource=resource, read_anon=False,
+                           read_only='ivo://cadc.nrc.ca/groups?ABC')
+    post_mock.assert_called_with(
+        (PERMISSIONS_CAPABILITY_ID, resource),
+        data='public=false\nr-group=ivo://cadc.nrc.ca/groups?ABC\n',
+        headers={'Content-Type': 'text/plain'})
+
+    post_mock.reset_mock()
+    client.set_permissions(resource=resource,
+                           read_write='ivo://cadc.nrc.ca/groups?DEF',
+                           read_only='ivo://cadc.nrc.ca/groups?ABC')
+    post_mock.assert_called_with(
+        (PERMISSIONS_CAPABILITY_ID, resource),
+        data='r-group=ivo://cadc.nrc.ca/groups?ABC\n'
+             'rw-group=ivo://cadc.nrc.ca/groups?DEF\n',
+        headers={'Content-Type': 'text/plain'})
+
+    post_mock.reset_mock()
+    client.set_permissions(resource=resource,
+                           read_write='',
+                           read_only='')
+    post_mock.assert_called_with(
+        (PERMISSIONS_CAPABILITY_ID, resource),
+        data='r-group=\nrw-group=\n',
+        headers={'Content-Type': 'text/plain'})
+
+    with pytest.raises(AttributeError, match='No resource'):
+        client.set_permissions(None)
+
+    with pytest.raises(
+            AttributeError, match='Expected URI for read group: ABC'):
+        client.set_permissions(resource, read_only='ABC')
+
+    with pytest.raises(
+            AttributeError, match='Expected URI for write group: ABC'):
+        client.set_permissions(resource, read_write='ABC')
+    # test dummy call
+    client.set_permissions(resource=resource)
 
 
 @patch('cadcutils.net.ws.BaseWsClient.get')

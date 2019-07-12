@@ -592,29 +592,25 @@ class CadcTapClient(object):
         logger.debug('set_permissions on resource {}: read_anon={}, '
                      'read_only={}, read_write={}'.format(
                         resource, read_anon, read_only, read_write))
+        if not resource:
+            raise AttributeError("No resource")
         if read_anon is None and read_only is None and read_write is None:
             logger.warning('No permissions values passed in set_permissions')
             return
-        if read_only is not None and not read_only.startswith('ivo://'):
-            raise AttributeError('Expected URI for read group: '.
+        if read_only and not read_only.startswith('ivo://'):
+            raise AttributeError('Expected URI for read group: {}'.
                                  format(read_only))
-        if read_write is not None and not read_write.startswith('ivo://'):
-            raise AttributeError('Expected URI for write group: '.
+        if read_write and not read_write.startswith('ivo://'):
+            raise AttributeError('Expected URI for write group: {}'.
                                  format(read_write))
         params = ''
         if read_anon is not None:
             params += 'public={}\n'.format(str(read_anon).lower())
         if read_only is not None:
             ro = read_only
-            if ro and not ro.startswith('ivo'):
-                # local group. turn it into a corresponding uri
-                ro = '{}/{}'.format(CADC_AC_SERVICE, resource)
             params += 'r-group={}\n'.format(ro)
         if read_write is not None:
             rw = read_write
-            if rw and not rw.startswith('ivo'):
-                # local group. turn it into a corresponding uri
-                rw = '{}/{}'.format(CADC_AC_SERVICE, resource)
             params += 'rw-group={}\n'.format(rw)
         self._tap_client.post((PERMISSIONS_CAPABILITY_ID, resource),
                               data=params,
