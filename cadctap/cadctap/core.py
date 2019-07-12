@@ -867,6 +867,55 @@ def exit_on_exception(ex):
                                                   -1) else sys.exit(-1)
 
 
+def _get_permission_modes(opt):
+    """
+    Extracts permissions modes from the mode argument. Duplicated from vchmod
+    :param opt: argparse arguments
+    :return: dictionary of permission modes
+    """
+    group_names = opt.groups
+
+    mode = opt.mode
+
+    props = {'read_anon': None, 'read_only': None, 'read_write': None}
+    if 'o' in mode['who']:
+        if mode['op'] == '-':
+            props['read_anon'] = False
+        else:
+            props['read_anon'] = True
+    if 'g' in mode['who']:
+        if '-' == mode['op']:
+            if not len(group_names) == 0:
+                raise ArgumentError(
+                    None,
+                    "Names of groups not valid with remove permission")
+            if 'r' in mode['what']:
+                props['read_only'] = ''
+            if "w" in mode['what']:
+                props['read_write'] = ''
+        else:
+            if not len(group_names) == len(mode['what']):
+                name = len(mode['what']) > 1 and "names" or "name"
+                raise ArgumentError(None,
+                                    "{} group {} required for {}".format(
+                                        len(mode['what']), name,
+                                        mode['what']))
+            if mode['what'].find('r') > -1:
+                # remove duplicate whitespaces
+                rgroups = " ".join(
+                    group_names[mode['what'].find('r')].split())
+                props['read_only'] = \
+                    '{}?{}'.format(CADC_AC_SERVICE,
+                                   rgroups.replace(" ", " " + CADC_AC_SERVICE))
+            if mode['what'].find('w') > -1:
+                wgroups = " ".join(
+                    group_names[mode['what'].find('w')].split())
+                props['read_write'] = \
+                    '{}?{}'.format(CADC_AC_SERVICE,
+                                   wgroups.replace(" ", " " + CADC_AC_SERVICE))
+    return props
+
+
 def main_app(command='cadc-tap query'):
     parser = util.get_base_parser(version=version.version,
                                   default_resource_id=DEFAULT_SERVICE_ID)
@@ -1143,52 +1192,6 @@ def main_app(command='cadc-tap query'):
                                    read_write=perms['read_write'])
     except Exception as ex:
         exit_on_exception(ex)
-
-
-def _get_permission_modes(opt):
-    """
-    Extracts permissions modes from the mode argument. Duplicated from vchmod
-    :param opt: argparse arguments
-    :return: dictionary of permission modes
-    """
-    group_names = opt.groups
-
-    mode = opt.mode
-
-    props = {'read_anon': None, 'read_only': None, 'read_write': None}
-    if 'o' in mode['who']:
-        if mode['op'] == '-':
-            props['read_anon'] = False
-        else:
-            props['read_anon'] = True
-    if 'g' in mode['who']:
-        if '-' == mode['op']:
-            if not len(group_names) == 0:
-                raise ArgumentError(
-                    None,
-                    "Names of groups not valid with remove permission")
-            if 'r' in mode['what']:
-                props['read_only'] = ''
-            if "w" in mode['what']:
-                props['read_write'] = ''
-        else:
-            if not len(group_names) == len(mode['what']):
-                name = len(mode['what']) > 1 and "names" or "name"
-                raise ArgumentError(None,
-                                    "{} group {} required for {}".format(
-                                        len(mode['what']), name,
-                                        mode['what']))
-            if mode['what'].find('r') > -1:
-                # remove duplicate whitespaces
-                rgroups = " ".join(
-                    group_names[mode['what'].find('r')].split())
-                props['read_only'] = \
-                    '{}?{}'.format(CADC_AC_SERVICE,
-                                   rgroups.replace(" ", " " + CADC_AC_SERVICE))
-            if mode['what'].find('w') > -1:
-                wgroups = " ".join(
-                    group_names[mode['what'].find('w')].split())
-                props['read_write'] = \
-                    '{}?{}'.format(CADC_AC_SERVICE,
-                                   wgroups.replace(" ", " " + CADC_AC_SERVICE))
-    return props
+    except KeyboardInterrupt:
+        sys.stderr.write('KeyboardInterrupt\n')
+        sys.exit(0)

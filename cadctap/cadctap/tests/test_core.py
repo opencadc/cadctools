@@ -789,3 +789,14 @@ class TestCadcTapClient(unittest.TestCase):
         calls = [call('table', read_anon=False, read_only='',
                       read_write=None)]
         permissions_mock.assert_has_calls(calls)
+
+    @patch('cadctap.CadcTapClient.query')
+    def test_keyboard_interrupt(self, query_mock):
+        query_mock.reset_mock()
+        query_mock.side_effect = KeyboardInterrupt()
+        sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice', 'QUERY']
+        with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
+            try:
+                main_app()
+            except SystemExit:
+                assert stderr_mock.getvalue() == 'KeyboardInterrupt\n'
