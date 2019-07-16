@@ -361,7 +361,8 @@ class CadcTapClient(object):
         :param query: the query to send to the database
         :param response_format: (VOTable, csv, tsv) format of returned result
         :param tmptable: tablename:/path/to/table, tmp table to upload
-        :param output_file: name of the file or a buffer (BytesIO) to save results to.
+        :param output_file: name of the file or a buffer (BytesIO) to save
+        results to.
         :param lang: the language to use for the query (should be ADQL)
         :param timeout: time in minutes before the query should timeout when no
         response receive from server.
