@@ -1,0 +1,36 @@
+usage: cadc-tap permission [-h]
+                           [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a]
+                           [--host HOST] [-d | -q | -v] [-s SERVICE]
+                           mode TARGET [groups [groups ...]]
+
+Update access permissions of a table or a schema. Use schema command to display the existing permissions
+
+positional arguments:
+  TARGET                table or schema name
+  groups                name(s) of group(s) to assign read/write permission
+                        to. One group per r or w permission.
+  mode                  permission setting accepted modes:
+                        (og|go|o|g)[+-=](rw|wr|r|w)
+
+optional arguments:
+  -a, --anon            use the service anonymously
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -d, --debug           debug messages
+  -h, --help            show this help message and exit
+  --host HOST           base hostname for services - used mainly for testing
+                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
+  -n                    use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -q, --quiet           run quietly
+  -s, --service SERVICE
+                        set the TAP service. For the CADC TAP services both
+                        the ivo and the short formats
+                        (ivo://cadc.nrc.ca/youcat or youcat) are accepted.
+                        External TAP services can be referred to by their URL
+                        (https://almascience.nrao.edu/tap). Default is
+                        ivo://cadc.nrc.ca/youcat
+  -u, --user USER       name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
