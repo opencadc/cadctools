@@ -227,7 +227,6 @@ class CadcTapClient(object):
                 self.permissions_support = False
                 logger.debug('Service has no support for permissions')
 
-
     def create_table(self, table_name, table_definition, type='VOSITable'):
         """
         Creates a table in the catalog service.
