@@ -218,6 +218,15 @@ class CadcTapClient(object):
 
         self._tap_client = net.BaseWsClient(resource_id, subject, self.agent,
                                             retry=True, host=self.host)
+        # check for the presence of optional TAP features
+        self.permissions_support = True
+        try:
+            self._tap_client.caps.get_access_url(PERMISSIONS_CAPABILITY_ID)
+        except KeyError as ex:
+            if PERMISSIONS_CAPABILITY_ID in str(ex):
+                self.permissions_support = False
+                logger.debug('Service has no support for permissions')
+
 
     def create_table(self, table_name, table_definition, type='VOSITable'):
         """
@@ -556,6 +565,8 @@ class CadcTapClient(object):
             result.append(fk_info)
 
         # check the table permissions
+        if not self.permissions_support:
+            return result
         response = self._tap_client.get((PERMISSIONS_CAPABILITY_ID, table))
         perm = TabularInfo('Permissions', 'Permissions for table ' + table,
                            ['Owner', 'Others Read',
@@ -589,6 +600,9 @@ class CadcTapClient(object):
         :param read_write: Group URI or empty string (clear existing group)
         :return:
         """
+        if not self.permissions_support:
+            raise AttributeError(
+                'Service does not support permission-based access')
         logger.debug('set_permissions on resource {}: read_anon={}, '
                      'read_only={}, read_write={}'.format(
                         resource, read_anon, read_only, read_write))

@@ -765,8 +765,9 @@ class TestCadcTapClient(unittest.TestCase):
     @patch('cadctap.CadcTapClient.create_table')
     @patch('cadctap.CadcTapClient.query')
     @patch('cadctap.CadcTapClient.schema')
-    def test_main(self, schema_mock, query_mock, create_mock, delete_mock,
-                  index_mock, load_mock, permissions_mock):
+    @patch('cadcutils.net.ws.WsCapabilities.get_access_url', Mock())
+    def test_main(self, schema_mock, query_mock, create_mock,
+                  delete_mock, index_mock, load_mock, permissions_mock):
         sys.argv = ['cadc-tap', 'schema']
         main_app()
         calls = [call(None)]
@@ -842,7 +843,9 @@ class TestCadcTapClient(unittest.TestCase):
         permissions_mock.assert_has_calls(calls)
 
     @patch('cadctap.CadcTapClient.query')
-    def test_keyboard_interrupt(self, query_mock):
+    @patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+    def test_keyboard_interrupt(self, caps_get_mock, query_mock):
+        caps_get_mock.return_value = BASE_URL
         query_mock.reset_mock()
         query_mock.side_effect = KeyboardInterrupt()
         sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice', 'QUERY']
