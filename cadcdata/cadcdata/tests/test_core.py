@@ -568,3 +568,12 @@ def test_main(get_mock, info_mock, put_mock):
     assert \
         'The number of input names does not match the number of sources: ' \
         '1 vs ' in b.getvalue()
+
+    # test that the cutout argument works before archive and filename
+    get_mock.reset_mock()
+    sys.argv = ['cadc-data', 'get', '--cutout', '[11][10:20,10:20]', 'TEST',
+                'fileid1']
+    main_app()
+    calls = [call('TEST', 'fileid1', None, cutout='[11][10:20,10:20]',
+                  decompress=False, fhead=False, wcs=False, md5_check=True)]
+    get_mock.assert_has_calls(calls)
