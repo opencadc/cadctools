@@ -1,0 +1,6 @@
+// See https://aka.ms/vscode-remote/devcontainer.json for format details.
+{
+	"dockerFile": "docker/Dockerfile",
+	"extensions": [],
+	"runArgs": [ "-v", "${env:HOME}${env:USERPROFILE}/Data/cutouts:/usr/src/data:ro" ]
+}

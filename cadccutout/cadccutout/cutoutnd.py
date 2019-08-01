@@ -71,6 +71,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
+import numpy as np
 
 from copy import deepcopy
 from math import ceil
@@ -95,7 +96,7 @@ class CutoutResult(object):
 
 
 class CutoutND(object):
-    def __init__(self, data, wcs=None):
+    def __init__(self, hdu, wcs=None):
         """
         Parameters
         ----------
@@ -112,10 +113,10 @@ class CutoutND(object):
         -------
         CutoutResult instance
         """
-        if data is None:
+        if hdu is None:
             raise NoContentError('Nothing to cutout from.')
 
-        self.data = data
+        self.hdu = hdu
         self.wcs = wcs
 
     def to_slice(self, idx, cutout_region):
@@ -139,23 +140,23 @@ class CutoutND(object):
             low_bound = cutout_region[0]
 
             if low_bound == '*':
-                lower_bound = 0
-                upper_bound = self.data.shape[idx]
+                lower_bound = None
+                upper_bound = self.hdu.get_dims()[idx]
                 step = int(cutout_region[1])
             else:
                 lower_bound = int(low_bound)
-                if lower_bound > 0:
-                    lower_bound -= 1
+                # if lower_bound > 0:
+                #     lower_bound -= 1
                 upper_bound = int(cutout_region[1])
                 if (len_region == 3):
                     step = int(cutout_region[2])
-                    if lower_bound > upper_bound:
-                        upper_bound -= 2
-                        if step > 0:
-                            step *= -1
-                elif lower_bound > upper_bound:
-                    upper_bound -= 2
-                    step = -1
+                    # if lower_bound > upper_bound:
+                    #     upper_bound -= 2
+                        # if step > 0:
+                        #     step *= -1
+                # elif lower_bound > upper_bound:
+                #     upper_bound -= 2
+                    # step = -1
                 else:
                     step = 1
 
@@ -167,10 +168,11 @@ class CutoutND(object):
 
     def _pad_cutout(self, cutout_shape):
         len_shape = len(cutout_shape)
-        data_shape = self.data.shape
-        logger.debug('Data shape is {} with length {}'.format(
-            data_shape, len(self.data)))
+        # data_shape = self.data.shape
+        # data_shape = tuple(reversed(self.hdu.get_dims()))
+        data_shape = self.hdu.get_dims()
         len_data = len(data_shape)
+        logger.debug('Data shape is {}'.format(data_shape))
         if len_data > len_shape:
             missing_shape_bounds = data_shape[:len_data - len_shape]
             logger.debug('Missing shape bounds are {} for length {}'.format(
@@ -256,20 +258,28 @@ class CutoutND(object):
 
         :param cutout_regions:    List of region tuples.
         """
+
+        logger.debug('Inspecting regions {}'.format(cutout_regions))
+
         try:
             cutout_shape = [
-                self.to_slice(idx, cutout_region) for idx, cutout_region in
-                enumerate(cutout_regions)]
+                self.to_slice(idx, cutout_region) for idx, cutout_region in enumerate(cutout_regions)
+            ]
             self._pad_cutout(cutout_shape)
 
             cutout = tuple(reversed(cutout_shape))
             logger.debug('Cutout is {}'.format(cutout))
-            cutout_data = self.data[cutout]
-        except IndexError:
-            raise NoContentError('No content (arrays do not overlap).')
+            cutout_data = self.hdu[cutout]
+
+            logger.debug('Extracted {} of data from {} before trimming zeros.'.format(cutout_data.shape,
+                                                                                      self.hdu.get_dims()))
+
+        except IndexError as ie:
+            raise NoContentError(
+                'No content (arrays do not overlap).\n\n{}'.format(str(ie)))
 
         logger.debug('Extracted {} of data from {}.'.format(cutout_data.shape,
-                                                            self.data.shape))
+                                                            self.hdu.get_dims()))
 
         if self.wcs:
             output_wcs = self.format_wcs(cutout_shape)

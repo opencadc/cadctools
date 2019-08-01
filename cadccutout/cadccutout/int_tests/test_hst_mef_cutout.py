@@ -95,6 +95,7 @@ def random_test_file_name_path(file_extension='fits', dir_name='/tmp'):
         dir=dir_name, prefix=__name__, suffix='.{}'.format(file_extension)).name
 
 
+@pytest.mark.skip
 def test_hst_mef_cutout_missing_one():
     # Should result in a 3-HDU MEF.  Extension 2 is an ERR one with no data.
     cutout_region_string = \

@@ -105,7 +105,7 @@ class BaseFileHelper(object):
 
         self.input_range_parser = input_range_parser
 
-    def do_cutout(self, data, cutout_dimension, wcs):
+    def do_cutout(self, hdu, cutout_dimension, wcs):
         """
         Perform a Cutout of the given data at the given position and size.
         :param data:  The data to cutout from
@@ -116,5 +116,5 @@ class BaseFileHelper(object):
         :return: CutoutND instance
         """
 
-        c = CutoutND(data=data, wcs=wcs)
+        c = CutoutND(hdu=hdu, wcs=wcs)
         return c.extract(cutout_dimension.get_ranges())

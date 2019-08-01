@@ -192,8 +192,7 @@ class OpenCADCCutout(object):
         else:
             output_stream = output_writer
 
-        file_helper = self._get_file_helper(
-            file_type, input_stream, output_stream)
+        file_helper = self._get_file_helper(file_type, input_stream, output_stream)
 
         try:
             file_helper.cutout(cutout_dimensions)
