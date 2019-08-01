@@ -76,6 +76,7 @@ import os.path
 import sys
 import time
 import socket
+import re
 from clint.textui import progress
 import hashlib
 
@@ -582,6 +583,7 @@ def main_app():
         required=False)
     get_parser.add_argument(
         '--cutout',
+        action='append',
         help=('specify one or multiple extension and/or pixel range cutout '
               'operations to be performed. Use cfitsio syntax'),
         required=False)
