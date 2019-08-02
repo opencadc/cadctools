@@ -41,5 +41,8 @@ order to prevent the script from quiting. Method 3, while simple, must rely on
 inter processes communication to determine the result of running the command.
 
 """
-
-from .core import *   # noqa
+import sys
+try:
+    from .core import *   # noqa
+except KeyboardInterrupt:
+    sys.exit(1)
