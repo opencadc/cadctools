@@ -849,7 +849,7 @@ class TestCadcTapClient(unittest.TestCase):
         query_mock.reset_mock()
         query_mock.side_effect = KeyboardInterrupt()
         sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice', 'QUERY']
-        with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
+        with patch('sys.stderr', new_callable=StringIO):
             try:
                 main_app()
             except SystemExit:
