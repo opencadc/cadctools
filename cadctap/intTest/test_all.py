@@ -14,9 +14,9 @@ from six import BytesIO
 from astropy.io.votable import parse_single_table
 
 from cadctap.core import main_app
+
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
-
 
 logger = logging.getLogger('test')
 logging.basicConfig()
@@ -46,16 +46,18 @@ def test_astropytable():
     client = cadctap.CadcTapClient(Subject(),
                                    resource_id='ivo://cadc.nrc.ca/tap')
     buffer = BytesIO()
-    client.query('select top 1000 * from caom2.Observation', output_file=buffer)
+    client.query('select top 1000 * from caom2.Observation',
+                 output_file=buffer)
     tb = parse_single_table(buffer).to_table()
     assert len(tb) == 1000
 
 
 def test_commands(monkeypatch):
     # test cadc TAP service with anonymous access
-    sys.argv = ['cadc-tap', 'query', '-d', '-a', '-s', 'ivo://cadc.nrc.ca/tap', '-f',
+    sys.argv = ['cadc-tap', 'query', '-d', '-a', '-s', 'ivo://cadc.nrc.ca/tap',
+                '-f',
                 'VOTable', 'select observationID FROM caom2.Observation '
-                'where observationID=\'dao_c122_2018_003262\'']
+                           'where observationID=\'dao_c122_2018_003262\'']
     with patch('sys.stdout', new_callable=BytesIO) as stdout_mock:
         main_app()
     assert b'<INFO name="QUERY_STATUS" value="OK" />' in stdout_mock.getvalue()
@@ -117,9 +119,8 @@ def test_commands(monkeypatch):
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         main_app()
     result = stdout_mock.getvalue()
-    assert result == \
-           'count,article\n-----------------------\n1,art1\n2,' \
-           'art2\n3,art3\n\n(3 rows affected)\n'
+    assert result == 'count,article\n-----------------------\n1,art1\n2,' \
+                     'art2\n3,art3\n\n(3 rows affected)\n'
 
     # load data tsv format
     sys.argv = 'cadc-tap load --cert {} {} {}'.format(

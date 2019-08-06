@@ -934,8 +934,9 @@ def main_app(command='cadc-tap query'):
         _add_anon_option(parser)
         _customize_parser(parser)
         parser.description = (
-            'Client for accessing databases using TAP protocol at the Canadian '
-            'Astronomy Data Centre (www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)')
+            'Client for accessing databases using TAP protocol at the '
+            'Canadian Astronomy Data Centre '
+            '(www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)')
 
         subparsers = parser.add_subparsers(
             dest='cmd',
@@ -958,13 +959,14 @@ def main_app(command='cadc-tap query'):
             default=None,
             help='write query results to file (default is to STDOUT)',
             required=False)
-        options_parser = query_parser.add_mutually_exclusive_group(required=True)
+        options_parser = query_parser.add_mutually_exclusive_group(
+            required=True)
         options_parser.add_argument(
             'QUERY',
             default=None,
             nargs='?',
-            help='ADQL query to run, format is a string with quotes around it, '
-                 'for example "SELECT observationURI FROM caom2.Observation"')
+            help='ADQL query to run, format is a string with quotes around it,'
+                 ' for example "SELECT observationURI FROM caom2.Observation"')
         options_parser.add_argument(
             '-i', '--input-file',
             default=None,
@@ -980,13 +982,14 @@ def main_app(command='cadc-tap query'):
             required=False)
         """
         query_parser.add_argument(
-            '--timeout', default=2, help='query timeout in minutes. Default 2min',
-            required=False, type=int)
+            '--timeout', default=2, help='query timeout in minutes. Default '
+            '2min', required=False, type=int)
         query_parser.add_argument(
             '-f', '--format',
             default='tsv',
             choices=['VOTable', 'csv', 'tsv'],
-            help='output format, either tsv(default), csv, fits (TBD), or VOTable',
+            help='output format, either tsv(default), csv, fits (TBD), '
+                 'or VOTable',
             required=False)
         query_parser.add_argument(
             '-t', '--tmptable',
@@ -1019,14 +1022,15 @@ def main_app(command='cadc-tap query'):
         create_parser.add_argument(
             '-f', '--format', choices=sorted(ALLOWED_TB_DEF_TYPES.keys()),
             required=False, default='VOSITable',
-            help='Format of the table definition file. Default VOSITable format')
+            help='Format of the table definition file. Default VOSITable '
+                  'format')
         create_parser.add_argument(
             'TABLENAME',
             help='name of the table (<schema.table>) in the tap service')
         create_parser.add_argument(
             'TABLEDEFINITION',
-            help='file containing the definition of the table or "-" if definition'
-            ' in stdin')
+            help='file containing the definition of the table or "-" if '
+                 'definition in stdin')
 
         delete_parser = subparsers.add_parser(
             'delete',
@@ -1046,7 +1050,8 @@ def main_app(command='cadc-tap query'):
             help='index is unique')
         index_parser.add_argument(
             'TABLENAME',
-            help='name of the table in the tap service to create the index for')
+            help='name of the table in the tap service to create the index '
+                 'for')
         index_parser.add_argument(
             'COLUMN',
             help='name of the column to create the index for')
@@ -1070,7 +1075,8 @@ def main_app(command='cadc-tap query'):
         permission_parser = subparsers.add_parser(
             'permission',
             description='Update access permissions of a table or a schema. '
-                        'Use schema command to display the existing permissions',
+                        'Use schema command to display the existing '
+                        'permissions',
             help='Control table access'
         )
 
@@ -1090,7 +1096,8 @@ def main_app(command='cadc-tap query'):
 
         permission_parser.add_argument(
             'mode', type=check_mode,
-            help='permission setting accepted modes: (og|go|o|g)[+-=](rw|wr|r|w)')
+            help='permission setting accepted modes: '
+            '(og|go|o|g)[+-=](rw|wr|r|w)')
         permission_parser.add_argument('TARGET', help='table or schema name')
         permission_parser.add_argument(
             'groups', nargs='*',
@@ -1188,8 +1195,9 @@ def main_app(command='cadc-tap query'):
                         query = f.read().strip()
                 else:
                     query = args.QUERY
-                client.query(query, args.output_file, args.format, args.tmptable,
-                             timeout=args.timeout, data_only=args.quiet)
+                client.query(query, args.output_file, args.format,
+                             args.tmptable, timeout=args.timeout,
+                             data_only=args.quiet)
             elif args.cmd == 'schema':
                 client.schema(args.tablename)
             elif args.cmd == 'permission':
@@ -1198,7 +1206,8 @@ def main_app(command='cadc-tap query'):
                 except ArgumentError as e:
                     permission_parser.print_usage(file=sys.stderr)
                     raise e
-                client.set_permissions(args.TARGET, read_anon=perms['read_anon'],
+                client.set_permissions(args.TARGET,
+                                       read_anon=perms['read_anon'],
                                        read_only=perms['read_only'],
                                        read_write=perms['read_write'])
         except Exception as ex:
