@@ -1,17 +1,19 @@
-usage: cadc-tap [-h] [-V] {schema,query,create,delete,index,load} ...
+usage: cadc-tap [-h] [-V]
+                {schema,query,create,delete,index,load,permission} ...
 
 Client for accessing databases using TAP protocol at the Canadian Astronomy Data Centre (www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
 
 positional arguments:
-  {schema,query,create,delete,index,load}
+  {schema,query,create,delete,index,load,permission}
                         supported commands. Use the -h|--help argument of a
                         command for more details
     schema              Print the tables available for querying.
     query               Run an adql query
     create              Create a table
-    delete              delete a table
+    delete              Delete a table
     index               Create a table index
     load                Load data to a table
+    permission          Control table access
 
 optional arguments:
   -h, --help            show this help message and exit

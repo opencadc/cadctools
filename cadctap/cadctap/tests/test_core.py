@@ -86,7 +86,7 @@ import tempfile
 
 from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
     ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID,\
-    TABLE_LOAD_CAPABILITY_ID
+    TABLE_LOAD_CAPABILITY_ID, PERMISSIONS_CAPABILITY_ID
 
 # The following is a temporary workaround for Python issue
 # 25532 (https://bugs.python.org/issue25532)
@@ -430,19 +430,122 @@ def test_create_index(caps_get_mock, base_get_mock, base_post_mock):
         client.create_index('sometable', 'col1')
 
 
+@patch('cadcutils.net.ws.BaseWsClient.post')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_set_permissions(caps_get_mock, post_mock):
+    caps_get_mock.return_value = BASE_URL
+    client = CadcTapClient(net.Subject())
+    resource = 'mytable'
+    client.set_permissions(resource=resource, read_anon=True)
+    post_mock.assert_called_with((PERMISSIONS_CAPABILITY_ID, resource),
+                                 data='public=true\n',
+                                 headers={'Content-Type': 'text/plain'})
+
+    post_mock.reset_mock()
+    client.set_permissions(resource=resource, read_anon=False,
+                           read_only='ivo://cadc.nrc.ca/groups?ABC')
+    post_mock.assert_called_with(
+        (PERMISSIONS_CAPABILITY_ID, resource),
+        data='public=false\nr-group=ivo://cadc.nrc.ca/groups?ABC\n',
+        headers={'Content-Type': 'text/plain'})
+
+    post_mock.reset_mock()
+    client.set_permissions(resource=resource,
+                           read_write='ivo://cadc.nrc.ca/groups?DEF',
+                           read_only='ivo://cadc.nrc.ca/groups?ABC')
+    post_mock.assert_called_with(
+        (PERMISSIONS_CAPABILITY_ID, resource),
+        data='r-group=ivo://cadc.nrc.ca/groups?ABC\n'
+             'rw-group=ivo://cadc.nrc.ca/groups?DEF\n',
+        headers={'Content-Type': 'text/plain'})
+
+    post_mock.reset_mock()
+    client.set_permissions(resource=resource,
+                           read_write='',
+                           read_only='')
+    post_mock.assert_called_with(
+        (PERMISSIONS_CAPABILITY_ID, resource),
+        data='r-group=\nrw-group=\n',
+        headers={'Content-Type': 'text/plain'})
+
+    with pytest.raises(AttributeError, match='No resource'):
+        client.set_permissions(None)
+
+    with pytest.raises(
+            AttributeError, match='Expected URI for read group: ABC'):
+        client.set_permissions(resource, read_only='ABC')
+
+    with pytest.raises(
+            AttributeError, match='Expected URI for write group: ABC'):
+        client.set_permissions(resource, read_write='ABC')
+    # test dummy call
+    client.set_permissions(resource=resource)
+
+
 @patch('cadcutils.net.ws.BaseWsClient.get')
 @patch('cadcutils.net.ws.WsCapabilities.get_access_url')
 def test_schema(caps_get_mock, base_get_mock):
     caps_get_mock.return_value = BASE_URL
+    base_get_mock.return_value.text = \
+        open(os.path.join(TESTDATA_DIR, 'db_schema.xml'), 'r').read()
     client = CadcTapClient(net.Subject())
     # default schema
-    client.schema()
+    db_schema = client.get_schema()
+    assert 3 == len(db_schema)
+    for schema in db_schema:
+        assert 'DB schema' == schema.description
+        assert ['Table', 'Description'] == schema.columns
+        if 'ivoa' == schema.name:
+            assert 3 == len(schema.rows)
+        elif 'caom2' in schema.name:
+            assert 14 == len(schema.rows)
+        elif 'tap_schema' == schema.name:
+            assert 5 == len(schema.rows)
+        else:
+            assert False, 'Unexpected schema'
     base_get_mock.assert_called_with((TABLES_CAPABILITY_ID, None),
                                      params={'detail': 'min'})
     # table schema
-    client.schema('mytable')
-    base_get_mock.assert_called_with((TABLES_CAPABILITY_ID, 'mytable'),
-                                     params={'detail': 'min'})
+    table_schema_mock = Mock()
+    base_get_mock.reset_mock()
+    table_schema_mock.text = open(os.path.join(TESTDATA_DIR,
+                                               'table_schema.xml'), 'r').read()
+    permission_mock = Mock()
+    permission_mock.text = 'owner=someone\npublic=true\nr-group=\n' \
+                           'rw-group=ivo://cadc.nrc.ca/gms?CADC'
+    base_get_mock.side_effect = [table_schema_mock, permission_mock]
+    tb_schema = client.get_table_schema('caom2.Observation')
+    assert 3 == len(tb_schema)
+    assert 'caom2.Observation' == tb_schema[0].name
+    assert 'the main CAOM Observation table' == tb_schema[0].description
+    assert ['Name', 'Type', 'Index', 'Description'] == tb_schema[0].columns
+    assert 45 == len(tb_schema[0].rows)
+    assert 'Foreign Keys' == tb_schema[1].name
+    assert 'Foreign Keys for table' == tb_schema[1].description
+    assert ['Target Table', 'Target Col', 'From Column', 'Description'] == \
+        tb_schema[1].columns
+    assert 1 == len(tb_schema[1].rows)
+    assert 'caom2.ObservationMember' == tb_schema[1].rows[0][0]
+    assert 1 == len(tb_schema[2].rows)
+    assert ['Owner', 'Others Read', 'Group Read', 'Group Write'] == \
+        tb_schema[2].columns
+    assert 'Permissions' == tb_schema[2].name
+    assert 'Permissions for table caom2.Observation' == \
+           tb_schema[2].description
+    assert 'someone' == tb_schema[2].rows[0][0]
+    assert 'true' == tb_schema[2].rows[0][1]
+    assert '' == tb_schema[2].rows[0][2]
+    assert 'CADC' == tb_schema[2].rows[0][3]
+    calls = [call(('ivo://ivoa.net/std/VOSI#tables-1.1', 'caom2.Observation'),
+                  params={'detail': 'min'}),
+             call(('ivo://ivoa.net/std/VOSI#table-permissions-1.x',
+                   'caom2.Observation'))]
+    base_get_mock.assert_has_calls(calls)
+    # check displays are also working although the visual part not tested
+    client.get_schema = Mock(return_value=db_schema)
+    client.schema()
+    client.get_schema = Mock(return_value=tb_schema)
+    client.schema('caom2.Observation')
 
 
 @patch('cadcutils.net.ws.BaseWsClient.post')
@@ -497,9 +600,7 @@ def test_query(caps_get_mock, base_post_mock):
 class TestCadcTapClient(unittest.TestCase):
     """Test the CadcTapClient class"""
 
-    @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
-                                         MyExitError, MyExitError, MyExitError,
-                                         MyExitError, MyExitError]))
+    @patch('sys.exit', Mock(side_effect=[MyExitError for x in range(25)]))
     def test_help(self):
         """ Tests the helper displays for commands and subcommands in main"""
         self.maxDiff = None
@@ -514,8 +615,9 @@ class TestCadcTapClient(unittest.TestCase):
                 main_app()
             self.assertEqual(usage, stdout_mock.getvalue())
 
-        usage = ('usage: cadc-tap [-h] [-V] '
-                 '{schema,query,create,delete,index,load} ...'
+        usage = ('usage: cadc-tap [-h] [-V]\n'
+                 '                {schema,query,create,delete,index,'
+                 'load,permission} ...'
                  '\ncadc-tap: error: too few arguments\n')
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
@@ -591,6 +693,17 @@ class TestCadcTapClient(unittest.TestCase):
                 main_app()
             self.assertEqual(usage, stdout_mock.getvalue())
 
+        # permission -h
+        with open(os.path.join(TESTDATA_DIR,
+                               'help_permission.txt'), 'r') as myfile:
+            usage = myfile.read()
+
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            sys.argv = ['cadc-tap', 'permission', '--help']
+            with self.assertRaises(MyExitError):
+                main_app()
+            self.assertEqual(usage, stdout_mock.getvalue())
+
     @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
                                          MyExitError, MyExitError, MyExitError,
                                          MyExitError, MyExitError]))
@@ -645,14 +758,16 @@ class TestCadcTapClient(unittest.TestCase):
                     exit_on_exception(ex)
                 self.assertTrue(expected_message in stderr_mock.getvalue())
 
+    @patch('cadctap.CadcTapClient.set_permissions')
     @patch('cadctap.CadcTapClient.load')
     @patch('cadctap.CadcTapClient.create_index')
     @patch('cadctap.CadcTapClient.delete_table')
     @patch('cadctap.CadcTapClient.create_table')
     @patch('cadctap.CadcTapClient.query')
     @patch('cadctap.CadcTapClient.schema')
-    def test_main(self, schema_mock, query_mock, create_mock, delete_mock,
-                  index_mock, load_mock):
+    @patch('cadcutils.net.ws.WsCapabilities.get_access_url', Mock())
+    def test_main(self, schema_mock, query_mock, create_mock,
+                  delete_mock, index_mock, load_mock, permissions_mock):
         sys.argv = ['cadc-tap', 'schema']
         main_app()
         calls = [call(None)]
@@ -704,3 +819,38 @@ class TestCadcTapClient(unittest.TestCase):
         calls = [call('SELECT TOP 10 target_name FROM caom2.Observation', None,
                       'tsv', None, data_only=False, timeout=2)]
         query_mock.assert_has_calls(calls)
+
+        sys.argv = ['cadc-tap', 'permission', 'o+r', 'table']
+        main_app()
+        calls = [call('table', read_anon=True, read_only=None,
+                      read_write=None)]
+        permissions_mock.assert_has_calls(calls)
+
+        permissions_mock.reset_mock()
+        sys.argv = ['cadc-tap', 'permission', 'g+rw', 'table', 'CADC1',
+                    'CADC2']
+        main_app()
+        calls = [call('table', read_anon=None,
+                      read_only='ivo://cadc.nrc.ca/gms?CADC1',
+                      read_write='ivo://cadc.nrc.ca/gms?CADC2')]
+        permissions_mock.assert_has_calls(calls)
+
+        permissions_mock.reset_mock()
+        sys.argv = ['cadc-tap', 'permission', 'og-r', 'table']
+        main_app()
+        calls = [call('table', read_anon=False, read_only='',
+                      read_write=None)]
+        permissions_mock.assert_has_calls(calls)
+
+    @patch('cadctap.CadcTapClient.query')
+    @patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+    def test_keyboard_interrupt(self, caps_get_mock, query_mock):
+        caps_get_mock.return_value = BASE_URL
+        query_mock.reset_mock()
+        query_mock.side_effect = KeyboardInterrupt()
+        sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice', 'QUERY']
+        with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
+            try:
+                main_app()
+            except SystemExit:
+                assert stderr_mock.getvalue() == 'KeyboardInterrupt\n'
