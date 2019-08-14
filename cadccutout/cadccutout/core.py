@@ -102,45 +102,55 @@ class OpenCADCCutout(object):
 
     Example 1
     --------
+    import tempfile
     from cadccutout import OpenCADCCutout
 
     cutout = OpenCADCCutout()
-    output_file = tempfile.mkstemp(suffix='.fits')
-    input_file = '/path/to/file.fits'
+    output_file = tempfile.mkstemp(suffix='.fits')[1]
+    input_file = '806045o.fits.fz'
 
     # Cutouts are in cfitsio format.
-    cutout_region_string = '[300:800,810:1000]'  # HDU 0 along two axes.
+    cutout_region_string = '[5][300:800,810:1000]'  # HDU 5 along two axes.
 
-    # Needs to have 'append' flag set.  The cutout() method will write out the
-    # data.
-    with open(output_file, 'ab+') as output_writer, open(input_file, 'rb') as
-     input_reader:
-        test_subject.cutout(input_reader, output_writer, cutout_region_string,
-        'FITS')
-
+    # Needs to have 'append' flag set.  The cutout_from_string() method will
+    # write out the data.
+    with open(output_file, 'ab+') as output_writer:
+        cutout.cutout_from_string(cutout_region_string,
+                                  input_reader=input_file,
+                                  output_writer=output_writer,
+                                  file_type='FITS')
 
     Example 2 (CADC)
     --------
+    import io
+    import tempfile
+
     from cadccutout import OpenCADCCutout
     from cadcdata import CadcDataClient
+    from cadcutils import net
 
     cutout = OpenCADCCutout()
     anonSubject = net.Subject()
     data_client = CadcDataClient(anonSubject)
-    output_file = tempfile.mkstemp(suffix='.fits')
-    archive = 'HST'
-    file_name = 'n8i311hiq_raw.fits'
-    input_stream = data_client.get_file(archive, file_name)
+    output_file = tempfile.mkstemp(suffix='.fits')[1]
+    archive = 'MAST'
+    file_name = 'HST/product/n8i311hiq_raw.fits'
+
+    input_stream = io.BytesIO()
+    input_stream.name = 'input stream'
+    data_client.get_file(archive, file_name, destination=input_stream)
+    input_stream.seek(0)
 
     # Cutouts are in cfitsio format.
-    cutout_region_string = '[SCI,10][80:220,100:150]'  # SCI version 10, along
-    two axes.
+    # SCI version 10, along two axes.
+    cutout_region_string = '[SCI,10][80:220,100:150]'
 
-    # Needs to have 'append' flag set.  The cutout() method will write out the
-    # data.
+    # Needs to have 'append' flag set.  The cutout_from_string() method will
+    # write out the data.
     with open(output_file, 'ab+') as output_writer:
-        test_subject.cutout(input_stream, output_writer, cutout_region_string,
-        'FITS')
+        cutout.cutout_from_string(cutout_region_string, input_stream,
+                                  output_writer, 'FITS')
+    input_stream.close()
     """
 
     def __init__(self, helper_factory=FileHelperFactory(),
