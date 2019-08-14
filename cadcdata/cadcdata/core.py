@@ -786,7 +786,7 @@ def main_app():
                 if os.path.isfile(file1):
                     files.append(file1)
                 elif os.path.isdir(file1):
-                    for f in os.listdir(file1):
+                    for f in sorted(os.listdir(file1)):
                         if os.path.isfile(os.path.join(file1, f)):
                             files.append(os.path.join(file1, f))
                         else:
