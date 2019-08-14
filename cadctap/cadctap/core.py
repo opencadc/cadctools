@@ -70,27 +70,30 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-import logging
-import traceback
-import sys
-from clint.textui import progress
+import contextlib
 import datetime
-from cadcutils import net, util, exceptions
-from six.moves import input
+import logging
 import netrc as netrclib
 import os
-from cadctap import version
-from six.moves.urllib.parse import urlparse, urlencode
-import six
-import contextlib
-import cadcutils
-from xml.dom import minidom
 import re
+import signal
+import sys
+import traceback
 from argparse import ArgumentError
+from xml.dom import minidom
 
+import cadcutils
+import six
+from cadctap import version
+from cadcutils import net, util, exceptions
+from clint.textui import progress
 from requests_toolbelt.multipart.encoder import MultipartEncoder
+from six.moves import input
+from six.moves.urllib.parse import urlparse, urlencode
 
 logger = logging.getLogger(__name__)
+
+signal.signal(signal.SIGINT, lambda signal, frame: sys.exit(0))
 
 # Prefix to be prepended to the short name of a service ID
 SERVICE_ID_PREFIX = 'ivo://cadc.nrc.ca/'
@@ -927,291 +930,287 @@ def _get_permission_modes(opt):
 
 
 def main_app(command='cadc-tap query'):
+    parser = util.get_base_parser(version=version.version,
+                                  default_resource_id=DEFAULT_SERVICE_ID)
+
+    _add_anon_option(parser)
+    _customize_parser(parser)
+    parser.description = (
+        'Client for accessing databases using TAP protocol at the '
+        'Canadian Astronomy Data Centre '
+        '(www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)')
+
+    subparsers = parser.add_subparsers(
+        dest='cmd',
+        help='supported commands. Use the -h|--help argument of a command '
+             'for more details')
+    schema_parser = subparsers.add_parser(
+        'schema',
+        description=('Print the tables available for querying.\n') +
+        AUTH_OPTION_EXPLANATION,
+        help='Print the tables available for querying.')
+    schema_parser.add_argument(
+        'tablename', metavar='SCHEMA.TABLENAME',
+        help='Table to get the schema for', nargs='?')
+    query_parser = subparsers.add_parser(
+        'query',
+        description=('Run an adql query\n') + AUTH_OPTION_EXPLANATION,
+        help='Run an adql query')
+    query_parser.add_argument(
+        '-o', '--output-file',
+        default=None,
+        help='write query results to file (default is to STDOUT)',
+        required=False)
+    options_parser = query_parser.add_mutually_exclusive_group(
+        required=True)
+    options_parser.add_argument(
+        'QUERY',
+        default=None,
+        nargs='?',
+        help='ADQL query to run, format is a string with quotes around it,'
+             ' for example "SELECT observationURI FROM caom2.Observation"')
+    options_parser.add_argument(
+        '-i', '--input-file',
+        default=None,
+        help='read query string from file (default is from STDIN),'
+             ' location of file')
+    # Maybe adding async option later
+    """
+    query_parser.add_argument(
+        '-a', '--async-job',
+        action='store_true',
+        help='issue an asynchronous query (default is synchronous'
+             ' which only outputs the top 2000 results)',
+        required=False)
+    """
+    query_parser.add_argument(
+        '--timeout', default=2, help='query timeout in minutes. Default '
+        '2min', required=False, type=int)
+    query_parser.add_argument(
+        '-f', '--format',
+        default='tsv',
+        choices=['VOTable', 'csv', 'tsv'],
+        help='output format, either tsv(default), csv, fits (TBD), '
+             'or VOTable',
+        required=False)
+    query_parser.add_argument(
+        '-t', '--tmptable',
+        default=None,
+        help='Temp table upload, the value is in format: '
+             '"tablename:/path/to/table". In query to reference the table'
+             ' use tap_upload.tablename',
+        required=False)
+    query_parser.epilog = (
+        'Examples:\n'
+        '- Anonymously run a query string:\n'
+        '      {0} -a -s tap "SELECT TOP 10 type FROM caom2.Observation"\n'
+        '- Use certificate to run a query:\n'
+        '      {0} -s tap "SELECT TOP 10 type FROM caom2.Observation"'
+        ' --cert ~/.ssl/cadcproxy.pem\n'
+        '- Use username/password to run a query on the tap service:\n'
+        '      {0} -s ivo://cadc.nrc.ca/tap '
+        '"SELECT TOP 10 type FROM caom2.Observation"'
+        ' -u <username>\n'
+        '- Use netrc file to run a query on the ams/mast service'
+        ' :\n'
+        '      {0} -n -s ivo://cadc.nrc.ca/ams/mast'
+        ' "SELECT TOP 10 target_name FROM caom2.Observation"\n'.
+        format(command))
+
+    create_parser = subparsers.add_parser(
+        'create',
+        description='Create a table\n' + AUTH_OPTION_EXPLANATION,
+        help='Create a table')
+    create_parser.add_argument(
+        '-f', '--format', choices=sorted(ALLOWED_TB_DEF_TYPES.keys()),
+        required=False, default='VOSITable',
+        help='Format of the table definition file. Default VOSITable '
+              'format')
+    create_parser.add_argument(
+        'TABLENAME',
+        help='name of the table (<schema.table>) in the tap service')
+    create_parser.add_argument(
+        'TABLEDEFINITION',
+        help='file containing the definition of the table or "-" if '
+             'definition in stdin')
+
+    delete_parser = subparsers.add_parser(
+        'delete',
+        description='Delete a table\n' + AUTH_OPTION_EXPLANATION,
+        help='Delete a table')
+    delete_parser.add_argument(
+        'TABLENAME',
+        help='name of the table (<schema.table)'
+             'in the tap service to be deleted')
+
+    index_parser = subparsers.add_parser(
+        'index',
+        description='Create a table index\n' + AUTH_OPTION_EXPLANATION,
+        help='Create a table index')
+    index_parser.add_argument(
+        '-U', '--unique', action='store_true',
+        help='index is unique')
+    index_parser.add_argument(
+        'TABLENAME',
+        help='name of the table in the tap service to create the index '
+             'for')
+    index_parser.add_argument(
+        'COLUMN',
+        help='name of the column to create the index for')
+
+    load_parser = subparsers.add_parser(
+        'load',
+        description='Load data to a table\n' + AUTH_OPTION_EXPLANATION,
+        help='Load data to a table')
+    load_parser.add_argument(
+        '-f', '--format', choices=sorted(ALLOWED_CONTENT_TYPES.keys()),
+        required=False, default='tsv',
+        help='Format of the data file')
+    load_parser.add_argument(
+        'TABLENAME',
+        help='name of the table (<schema.table>) to load data to')
+    load_parser.add_argument(
+        'SOURCE', nargs='+',
+        help='source of the data. It can be files or "-" for stdin.'
+    )
+
+    permission_parser = subparsers.add_parser(
+        'permission',
+        description='Update access permissions of a table or a schema. '
+                    'Use schema command to display the existing '
+                    'permissions',
+        help='Control table access'
+    )
+
+    def check_mode(mode):
+        """
+        Checks the validity of a mode attribute
+        :param mode:
+        :return: mode dictionary
+         :rtype: re.groupdict
+        """
+        _mode = re.match(
+            r"(?P<who>og|go|o|g)(?P<op>[+\-=])(?P<what>rw|wr|r|w)",
+            mode)
+        if _mode is None:
+            raise ArgumentError(_mode, 'Invalid mode: {}'.format(mode))
+        return _mode.groupdict()
+
+    permission_parser.add_argument(
+        'mode', type=check_mode,
+        help='permission setting accepted modes: '
+        '(og|go|o|g)[+-=](rw|wr|r|w)')
+    permission_parser.add_argument('TARGET', help='table or schema name')
+    permission_parser.add_argument(
+        'groups', nargs='*',
+        help="name(s) of group(s) to assign read/write permission to. "
+             "One group per r or w permission.")
+    # options_parser = permission_parser.add_mutually_exclusive_group(
+    #     required=False)
+    # options_parser.add_argument(
+    #     '-o-r', action='store_true',
+    #     help='remove anonymous read access')
+    # options_parser.add_argument(
+    #     '-o+r', action='store_true',
+    #     help='add anonymous read access')
+    # options_parser.add_argument(
+    #     '-g+r', metavar='<group name>',
+    #     help='grant group read permission')
+    # options_parser.add_argument(
+    #     '-g-r', action='store_true',
+    #     help='revoke group read permission')
+    # options_parser.add_argument(
+    #     '-g+w', metavar = '<group name>',
+    #     help='grant group write (and implicitly read) permission')
+    # options_parser.add_argument(
+    #     '-g-w', action='store_true',
+    #     help='revoke group write permission')
+
+#    def handle_error(msg, exit_after=True):
+#        """
+#        Prints error message and exit (by default)
+#        :param msg: error message to print
+#        :param exit_after: True if log error message and exit,
+#        False if log error message and return
+#        :return:
+#        """
+#
+#        errors[0] += 1
+#        logger.error(msg)
+#        if exit_after:
+#            sys.exit(-1)  # TODO use different error codes?
+
+    _customize_parser(schema_parser)
+    _customize_parser(query_parser)
+    _customize_parser(create_parser)
+    _customize_parser(delete_parser)
+    _customize_parser(index_parser)
+    _customize_parser(load_parser)
+    _customize_parser(permission_parser)
+    args = parser.parse_args()
+    if len(sys.argv) < 2:
+        parser.print_usage(file=sys.stderr)
+        sys.stderr.write("{}: error: too few arguments\n".format(APP_NAME))
+        sys.exit(-1)
+    if args.verbose:
+        logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    elif args.debug:
+        logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
+    else:
+        logging.basicConfig(level=logging.WARN, stream=sys.stdout)
+
     try:
-        parser = util.get_base_parser(version=version.version,
-                                      default_resource_id=DEFAULT_SERVICE_ID)
+        if (not args.service.startswith('http') and
+                'cadc.nrc.ca' not in args.service):
+            args.service = SERVICE_ID_PREFIX + args.service
 
-        _add_anon_option(parser)
-        _customize_parser(parser)
-        parser.description = (
-            'Client for accessing databases using TAP protocol at the '
-            'Canadian Astronomy Data Centre '
-            '(www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)')
+        subject = _get_subject(args)
 
-        subparsers = parser.add_subparsers(
-            dest='cmd',
-            help='supported commands. Use the -h|--help argument of a command '
-                 'for more details')
-        schema_parser = subparsers.add_parser(
-            'schema',
-            description=('Print the tables available for querying.\n') +
-            AUTH_OPTION_EXPLANATION,
-            help='Print the tables available for querying.')
-        schema_parser.add_argument(
-            'tablename', metavar='SCHEMA.TABLENAME',
-            help='Table to get the schema for', nargs='?')
-        query_parser = subparsers.add_parser(
-            'query',
-            description=('Run an adql query\n') + AUTH_OPTION_EXPLANATION,
-            help='Run an adql query')
-        query_parser.add_argument(
-            '-o', '--output-file',
-            default=None,
-            help='write query results to file (default is to STDOUT)',
-            required=False)
-        options_parser = query_parser.add_mutually_exclusive_group(
-            required=True)
-        options_parser.add_argument(
-            'QUERY',
-            default=None,
-            nargs='?',
-            help='ADQL query to run, format is a string with quotes around it,'
-                 ' for example "SELECT observationURI FROM caom2.Observation"')
-        options_parser.add_argument(
-            '-i', '--input-file',
-            default=None,
-            help='read query string from file (default is from STDIN),'
-                 ' location of file')
-        # Maybe adding async option later
-        """
-        query_parser.add_argument(
-            '-a', '--async-job',
-            action='store_true',
-            help='issue an asynchronous query (default is synchronous'
-                 ' which only outputs the top 2000 results)',
-            required=False)
-        """
-        query_parser.add_argument(
-            '--timeout', default=2, help='query timeout in minutes. Default '
-            '2min', required=False, type=int)
-        query_parser.add_argument(
-            '-f', '--format',
-            default='tsv',
-            choices=['VOTable', 'csv', 'tsv'],
-            help='output format, either tsv(default), csv, fits (TBD), '
-                 'or VOTable',
-            required=False)
-        query_parser.add_argument(
-            '-t', '--tmptable',
-            default=None,
-            help='Temp table upload, the value is in format: '
-                 '"tablename:/path/to/table". In query to reference the table'
-                 ' use tap_upload.tablename',
-            required=False)
-        query_parser.epilog = (
-            'Examples:\n'
-            '- Anonymously run a query string:\n'
-            '      {0} -a -s tap "SELECT TOP 10 type FROM caom2.Observation"\n'
-            '- Use certificate to run a query:\n'
-            '      {0} -s tap "SELECT TOP 10 type FROM caom2.Observation"'
-            ' --cert ~/.ssl/cadcproxy.pem\n'
-            '- Use username/password to run a query on the tap service:\n'
-            '      {0} -s ivo://cadc.nrc.ca/tap '
-            '"SELECT TOP 10 type FROM caom2.Observation"'
-            ' -u <username>\n'
-            '- Use netrc file to run a query on the ams/mast service'
-            ' :\n'
-            '      {0} -n -s ivo://cadc.nrc.ca/ams/mast'
-            ' "SELECT TOP 10 target_name FROM caom2.Observation"\n'.
-            format(command))
+        client = CadcTapClient(subject, resource_id=args.service,
+                               host=args.host)
 
-        create_parser = subparsers.add_parser(
-            'create',
-            description='Create a table\n' + AUTH_OPTION_EXPLANATION,
-            help='Create a table')
-        create_parser.add_argument(
-            '-f', '--format', choices=sorted(ALLOWED_TB_DEF_TYPES.keys()),
-            required=False, default='VOSITable',
-            help='Format of the table definition file. Default VOSITable '
-                  'format')
-        create_parser.add_argument(
-            'TABLENAME',
-            help='name of the table (<schema.table>) in the tap service')
-        create_parser.add_argument(
-            'TABLEDEFINITION',
-            help='file containing the definition of the table or "-" if '
-                 'definition in stdin')
-
-        delete_parser = subparsers.add_parser(
-            'delete',
-            description='Delete a table\n' + AUTH_OPTION_EXPLANATION,
-            help='Delete a table')
-        delete_parser.add_argument(
-            'TABLENAME',
-            help='name of the table (<schema.table)'
-                 'in the tap service to be deleted')
-
-        index_parser = subparsers.add_parser(
-            'index',
-            description='Create a table index\n' + AUTH_OPTION_EXPLANATION,
-            help='Create a table index')
-        index_parser.add_argument(
-            '-U', '--unique', action='store_true',
-            help='index is unique')
-        index_parser.add_argument(
-            'TABLENAME',
-            help='name of the table in the tap service to create the index '
-                 'for')
-        index_parser.add_argument(
-            'COLUMN',
-            help='name of the column to create the index for')
-
-        load_parser = subparsers.add_parser(
-            'load',
-            description='Load data to a table\n' + AUTH_OPTION_EXPLANATION,
-            help='Load data to a table')
-        load_parser.add_argument(
-            '-f', '--format', choices=sorted(ALLOWED_CONTENT_TYPES.keys()),
-            required=False, default='tsv',
-            help='Format of the data file')
-        load_parser.add_argument(
-            'TABLENAME',
-            help='name of the table (<schema.table>) to load data to')
-        load_parser.add_argument(
-            'SOURCE', nargs='+',
-            help='source of the data. It can be files or "-" for stdin.'
-        )
-
-        permission_parser = subparsers.add_parser(
-            'permission',
-            description='Update access permissions of a table or a schema. '
-                        'Use schema command to display the existing '
-                        'permissions',
-            help='Control table access'
-        )
-
-        def check_mode(mode):
-            """
-            Checks the validity of a mode attribute
-            :param mode:
-            :return: mode dictionary
-             :rtype: re.groupdict
-            """
-            _mode = re.match(
-                r"(?P<who>og|go|o|g)(?P<op>[+\-=])(?P<what>rw|wr|r|w)",
-                mode)
-            if _mode is None:
-                raise ArgumentError(_mode, 'Invalid mode: {}'.format(mode))
-            return _mode.groupdict()
-
-        permission_parser.add_argument(
-            'mode', type=check_mode,
-            help='permission setting accepted modes: '
-            '(og|go|o|g)[+-=](rw|wr|r|w)')
-        permission_parser.add_argument('TARGET', help='table or schema name')
-        permission_parser.add_argument(
-            'groups', nargs='*',
-            help="name(s) of group(s) to assign read/write permission to. "
-                 "One group per r or w permission.")
-        # options_parser = permission_parser.add_mutually_exclusive_group(
-        #     required=False)
-        # options_parser.add_argument(
-        #     '-o-r', action='store_true',
-        #     help='remove anonymous read access')
-        # options_parser.add_argument(
-        #     '-o+r', action='store_true',
-        #     help='add anonymous read access')
-        # options_parser.add_argument(
-        #     '-g+r', metavar='<group name>',
-        #     help='grant group read permission')
-        # options_parser.add_argument(
-        #     '-g-r', action='store_true',
-        #     help='revoke group read permission')
-        # options_parser.add_argument(
-        #     '-g+w', metavar = '<group name>',
-        #     help='grant group write (and implicitly read) permission')
-        # options_parser.add_argument(
-        #     '-g-w', action='store_true',
-        #     help='revoke group write permission')
-
-    #    def handle_error(msg, exit_after=True):
-    #        """
-    #        Prints error message and exit (by default)
-    #        :param msg: error message to print
-    #        :param exit_after: True if log error message and exit,
-    #        False if log error message and return
-    #        :return:
-    #        """
-    #
-    #        errors[0] += 1
-    #        logger.error(msg)
-    #        if exit_after:
-    #            sys.exit(-1)  # TODO use different error codes?
-
-        _customize_parser(schema_parser)
-        _customize_parser(query_parser)
-        _customize_parser(create_parser)
-        _customize_parser(delete_parser)
-        _customize_parser(index_parser)
-        _customize_parser(load_parser)
-        _customize_parser(permission_parser)
-        args = parser.parse_args()
-        if len(sys.argv) < 2:
-            parser.print_usage(file=sys.stderr)
-            sys.stderr.write("{}: error: too few arguments\n".format(APP_NAME))
-            sys.exit(-1)
-        if args.verbose:
-            logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-        elif args.debug:
-            logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
-        else:
-            logging.basicConfig(level=logging.WARN, stream=sys.stdout)
-
-        try:
-            if (not args.service.startswith('http') and
-                    'cadc.nrc.ca' not in args.service):
-                args.service = SERVICE_ID_PREFIX + args.service
-
-            subject = _get_subject(args)
-
-            client = CadcTapClient(subject, resource_id=args.service,
-                                   host=args.host)
-
-            if args.cmd == 'create':
-                client.create_table(args.TABLENAME, args.TABLEDEFINITION,
-                                    args.format)
-            elif args.cmd == 'delete':
-                reply = input(
-                    'You are about to delete table {} and its content... '
-                    'Continue? [yes/no] '.format(args.TABLENAME))
-                while True:
-                    if reply == 'yes':
-                        client.delete_table(args.TABLENAME)
-                        break
-                    elif reply == 'no':
-                        logger.warn(
-                            'Table {} not deleted.'.
-                            format(args.TABLENAME))
-                        sys.exit(-1)
-                    else:
-                        reply = input('Please reply with yes or no: ')
-            elif args.cmd == 'index':
-                client.create_index(args.TABLENAME, args.COLUMN, args.unique)
-            elif args.cmd == 'load':
-                client.load(args.TABLENAME, args.SOURCE, args.format)
-            elif args.cmd == 'query':
-                if args.input_file is not None:
-                    with open(args.input_file) as f:
-                        query = f.read().strip()
+        if args.cmd == 'create':
+            client.create_table(args.TABLENAME, args.TABLEDEFINITION,
+                                args.format)
+        elif args.cmd == 'delete':
+            reply = input(
+                'You are about to delete table {} and its content... '
+                'Continue? [yes/no] '.format(args.TABLENAME))
+            while True:
+                if reply == 'yes':
+                    client.delete_table(args.TABLENAME)
+                    break
+                elif reply == 'no':
+                    logger.warn(
+                        'Table {} not deleted.'.
+                        format(args.TABLENAME))
+                    sys.exit(-1)
                 else:
-                    query = args.QUERY
-                client.query(query, args.output_file, args.format,
-                             args.tmptable, timeout=args.timeout,
-                             data_only=args.quiet)
-            elif args.cmd == 'schema':
-                client.schema(args.tablename)
-            elif args.cmd == 'permission':
-                try:
-                    perms = _get_permission_modes(args)
-                except ArgumentError as e:
-                    permission_parser.print_usage(file=sys.stderr)
-                    raise e
-                client.set_permissions(args.TARGET,
-                                       read_anon=perms['read_anon'],
-                                       read_only=perms['read_only'],
-                                       read_write=perms['read_write'])
-        except Exception as ex:
-            exit_on_exception(ex)
-
-    except KeyboardInterrupt:
-        sys.exit(0)
+                    reply = input('Please reply with yes or no: ')
+        elif args.cmd == 'index':
+            client.create_index(args.TABLENAME, args.COLUMN, args.unique)
+        elif args.cmd == 'load':
+            client.load(args.TABLENAME, args.SOURCE, args.format)
+        elif args.cmd == 'query':
+            if args.input_file is not None:
+                with open(args.input_file) as f:
+                    query = f.read().strip()
+            else:
+                query = args.QUERY
+            client.query(query, args.output_file, args.format,
+                         args.tmptable, timeout=args.timeout,
+                         data_only=args.quiet)
+        elif args.cmd == 'schema':
+            client.schema(args.tablename)
+        elif args.cmd == 'permission':
+            try:
+                perms = _get_permission_modes(args)
+            except ArgumentError as e:
+                permission_parser.print_usage(file=sys.stderr)
+                raise e
+            client.set_permissions(args.TARGET,
+                                   read_anon=perms['read_anon'],
+                                   read_only=perms['read_only'],
+                                   read_write=perms['read_write'])
+    except Exception as ex:
+        exit_on_exception(ex)

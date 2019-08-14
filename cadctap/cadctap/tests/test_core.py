@@ -70,23 +70,23 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import os
+import signal
 import sys
+import tempfile
 import unittest
-from cadcutils import net, exceptions
 
-from six import StringIO, BytesIO
 import cadctap
-from cadctap.core import main_app
-from mock import Mock, patch, call
 import pytest
 from cadctap import CadcTapClient
-from cadctap.core import _get_subject_from_netrc,\
-    _get_subject_from_certificate, _get_subject, exit_on_exception
-import tempfile
-
-from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
-    ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID,\
+from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES, \
+    ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID, \
     TABLE_LOAD_CAPABILITY_ID, PERMISSIONS_CAPABILITY_ID
+from cadctap.core import _get_subject_from_netrc, \
+    _get_subject_from_certificate, _get_subject, exit_on_exception
+from cadctap.core import main_app
+from cadcutils import net, exceptions
+from mock import Mock, patch, call
+from six import StringIO, BytesIO
 
 # The following is a temporary workaround for Python issue
 # 25532 (https://bugs.python.org/issue25532)
@@ -845,12 +845,13 @@ class TestCadcTapClient(unittest.TestCase):
     @patch('cadctap.CadcTapClient.query')
     @patch('cadcutils.net.ws.WsCapabilities.get_access_url')
     def test_keyboard_interrupt(self, caps_get_mock, query_mock):
+        def raiseSystemExit(*args, **kwargs):
+            pid = os.getpid()
+            raise os.kill(pid, signal.SIGINT)
+
         caps_get_mock.return_value = BASE_URL
         query_mock.reset_mock()
-        query_mock.side_effect = KeyboardInterrupt()
+        query_mock.side_effect = raiseSystemExit
         sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice', 'QUERY']
-        with patch('sys.stderr', new_callable=StringIO):
-            try:
-                main_app()
-            except SystemExit:
-                assert True
+        with self.assertRaises(SystemExit):
+            main_app()
