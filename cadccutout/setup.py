@@ -120,6 +120,7 @@ setup(name=PACKAGENAME,
       use_2to3=False,
       setup_requires=['pytest-runner'],
       entry_points=entry_points,
+      python_requires='>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4',
       packages=find_packages(),
       package_data={PACKAGENAME: ['data/*']},
       classifiers=[
@@ -127,9 +128,7 @@ setup(name=PACKAGENAME,
           'License :: OSI Approved :: GNU Affero General Public License v3',
           'Programming Language :: Python',
           'Programming Language :: Python :: 2.7',
-          'Programming Language :: Python :: 3.5',
-          'Programming Language :: Python :: 3.6',
-          'Programming Language :: Python :: 3.7'
+          'Programming Language :: Python :: 3',
       ],
       cmdclass={
           'coverage': PyTest, 'int_test': PyIntTest
