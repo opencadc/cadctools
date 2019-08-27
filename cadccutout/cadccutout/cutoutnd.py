@@ -142,7 +142,10 @@ class CutoutND(object):
             if low_bound == '*':
                 lower_bound = None
                 upper_bound = self.hdu.get_dims()[idx]
-                step = int(cutout_region[1])
+                if len_region > 1:
+                    step = int(cutout_region[1])
+                else:
+                    step = None
             else:
                 lower_bound = int(low_bound)
                 # if lower_bound > 0:
@@ -158,7 +161,7 @@ class CutoutND(object):
                 #     upper_bound -= 2
                     # step = -1
                 else:
-                    step = 1
+                    step = None
 
             logger.debug('Bounds are {}:{}:{}'.format(
                 lower_bound, upper_bound, step))

@@ -71,6 +71,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import fitsio
+from fitsio.hdu import ImageHDU
 
 from cadccutout.transform import Transform
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
@@ -167,15 +168,20 @@ class FITSHelper(BaseFileHelper):
                          'Skipping.')
             return result_hdu_list
 
+    def _is_image(self, hdu):
+        return isinstance(hdu, ImageHDU)
+
     def _require_primary_hdu(self, cutout_dimensions):
         # returns True if resulting cutout requires primary HDU from the
         # original hdu list. This is the case when cutouts are done in
         # different extensions of the file
         last_ext = -1
         for c in cutout_dimensions:
-            if last_ext != -1 and last_ext != c._extension:
+            logger.debug('Last Extension is {} and comparing to {}'.format(
+                last_ext, c.get_extension()))
+            if last_ext != -1 and last_ext != c.get_extension():
                 return True
-            last_ext = c._extension
+            last_ext = c.get_extension()
         return False
 
     def _check_hdu_list(self, cutout_dimensions, hdu_list):
@@ -185,27 +191,28 @@ class FITSHelper(BaseFileHelper):
             result_hdu_list = fitsio.FITS(self.output_writer, 'rw')
             primary_hdu = hdu_list[0]
             primary_header = primary_hdu.read_header()
-            if self._require_primary_hdu(cutout_dimensions) and primary_header['NAXIS'] == 0:
-                # add the PrimaryHDU from the original HDU list
-                # result_hdu_list = fits.HDUList([hdu_list[0]])
-                logger.debug('Setting primary HDU.')
-                result_hdu_list.write(None, header=primary_header)
-                # result_hdu_list.write(hdu_list[0])
+            logger.debug('NAXIS is {}'.format(primary_header['NAXIS']))
+            
             # Check for a pixel cutout
             if isinstance(cutout_dimensions[0], PixelCutoutHDU):
+                if self._require_primary_hdu(cutout_dimensions) and primary_header['NAXIS'] == 0:
+                    # add the PrimaryHDU from the original HDU list
+                    # result_hdu_list = fits.HDUList([hdu_list[0]])
+                    logger.debug('Setting primary HDU.')
+                    result_hdu_list.write(None, header=primary_header)
+                    # result_hdu_list.write(hdu_list[0])                
                 for cutout_dimension in cutout_dimensions:
+                    logger.debug(
+                        'Next dimension is {}'.format(cutout_dimension))
                     ext = cutout_dimension.get_extension()
                     # ext_idx = hdu_list.index_of(ext)
                     hdu = hdu_list[ext]
-                    logger.debug('Pulled HDU {} from {}'.format(hdu, ext))
                     # hdu = hdu_list[ext[0], ext[1]]
 
                     # Entire extension was requested.
                     if not cutout_dimension.get_ranges():
-                        logger.debug(
-                            'Appending entire extension {}'.format(ext))
-                        result_hdu_list.write(
-                            hdu.read(), header=hdu.read_header())
+                        logger.debug('Appending entire extension {}'.format(ext))
+                        result_hdu_list.write(hdu.read(), header=hdu.read_header())
                         has_match = True
                     else:
                         try:
@@ -213,36 +220,38 @@ class FITSHelper(BaseFileHelper):
                             #     self._pixel_cutout(hdu, cutout_dimension),
                             #     result_hdu_list)
                             header = hdu.read_header()
-                            cutout_result = self._pixel_cutout(
-                                hdu, cutout_dimension)
+                            cutout_result = self._pixel_cutout(hdu, cutout_dimension)
                             logger.debug('Sanitizing header.')
                             self._post_sanitize_header(header, cutout_result)
                             logger.debug('Writing results for {}'.format(cutout_result.data.shape))
+                            # logger.debug('Writing header with it \n\n{}\n\n'.format(header))
                             result_hdu_list.write(cutout_result.data, header=header)
                             logger.debug('Done writing results.')
                             has_match = True
-                            logger.debug(
-                                'Successfully cutout from {}'.format(ext))
+                            logger.debug('Successfully cutout from {}'.format(ext))
                         except NoContentError:
-                            logger.debug(
-                                'Skipping non-overlapping cutout {}'.format(
-                                    cutout_dimension))
+                            logger.debug('Skipping non-overlapping cutout {}'.format(cutout_dimension))
             else:
                 # Skip the primary as it should be written out already.
-                for hdu in hdu_list:
-                    if hdu.is_image and hdu.read is not None:
+                result_hdu_list.write(None, header=primary_header)
+                # Start at the first index.  Will this wreck the stream?
+                # for ext, hdu in enumerate(hdu_list[1:]):
+                for ext_idx, hdu in enumerate(hdu_list):
+                    if self._is_image(hdu) and hdu.read is not None:
                         transform = Transform()
-                        logger.debug(
-                            'Transforming {}'.format(cutout_dimensions))
-                        transformed_cutout_dimension = \
-                            transform.world_to_pixels(
-                                cutout_dimensions, hdu.header)
-                        logger.debug('Transformed {} into {}'.format(
-                            cutout_dimensions, transformed_cutout_dimension))
+                        header = hdu.read_header()
+                        logger.debug('Next HDU to check {} from {}'.format(hdu, ext_idx))
+                        logger.debug('Transforming {}'.format(cutout_dimensions))                           
                         try:
-                            result_hdu_list = self._add_hdu(self._pixel_cutout(
-                                hdu,
-                                transformed_cutout_dimension), result_hdu_list)
+                            transformed_cutout_dimension = \
+                                transform.world_to_pixels(cutout_dimensions, header)
+                            logger.debug('Transformed {} into {}'.format(
+                                cutout_dimensions, transformed_cutout_dimension))
+
+                            if self._require_primary_hdu([transformed_cutout_dimension]) and header['NAXIS'] == 0:
+                                result_hdu_list.write(None, header=header)
+                            cutout_result = self._pixel_cutout(hdu, transformed_cutout_dimension)
+                            result_hdu_list.write(cutout_result.data, header=header)
                             has_match = True
                         except NoContentError:
                             logger.debug(

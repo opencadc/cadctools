@@ -74,7 +74,7 @@ import logging
 import os
 
 import pytest
-from astropy.io import fits
+from astropy.io.fits import Header
 
 from cadccutout.transform import AxisType, Transform
 from cadccutout.shape import Circle, Polygon, Energy, Time, Polarization, \
@@ -104,7 +104,7 @@ JCMT_3D_CUBE_HEADER = 'jcmt-3d-cube.hdr'
 def test_axis_type():
     # from ..transform import AxisType, Shape, Transform
     header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
-    header = fits.Header.fromtextfile(header_filename)
+    header = Header.fromtextfile(header_filename)
 
     test_subject = AxisType(header)
 
@@ -297,7 +297,7 @@ def test_world_to_shape():
 
 def test_world_to_pixels_no_content():
     header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
-    header = fits.Header.fromtextfile(header_filename)
+    header = Header.fromtextfile(header_filename)
 
     # circle no content
     query = ['CIRCLE -168.34719985367971 -76.18699791158396 0.01',
@@ -348,7 +348,7 @@ def test__append_world_to_circle_pixels():
     cutouts = [(0, 0), (1, 256), (1, 256)]
     pixels = (1, 1089, None, 1089)
     header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
-    header = fits.Header.fromtextfile(header_filename)
+    header = Header.fromtextfile(header_filename)
     test_subject = Transform()
 
     try:
@@ -362,7 +362,7 @@ def test__append_world_to_circle_pixels():
 
 def test_get_circle_cutout_pixels_vlass():
     header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
-    header = fits.Header.fromtextfile(header_filename)
+    header = Header.fromtextfile(header_filename)
 
     circle = Circle(168.34719985367971, 76.18699791158396, 0.010)
 
@@ -379,7 +379,7 @@ def test_get_circle_cutout_pixels_vlass():
 
 def test_get_circle_cutout_pixels_cgps_galactic():
     header_filename = os.path.join(TESTDATA_DIR, CGPS_4D_CUBE_HEADER)
-    header = fits.Header.fromtextfile(header_filename)
+    header = Header.fromtextfile(header_filename)
 
     circle = Circle(25.0, 60.0, 0.5)
 
@@ -396,7 +396,7 @@ def test_get_circle_cutout_pixels_cgps_galactic():
 
 def test_get_circle_cutout_pixels_iris_no_overlap():
     header_filename = os.path.join(TESTDATA_DIR, IRIS_3D_CUBE_HEADER)
-    header = fits.Header.fromtextfile(header_filename)
+    header = Header.fromtextfile(header_filename)
 
     circle = Circle(20.0, 20.0, 0.1)
 
@@ -410,7 +410,7 @@ def test_get_circle_cutout_pixels_iris_no_overlap():
 
 def test_get_circle_cutout_pixels_iris_all_overlap():
     header_filename = os.path.join(TESTDATA_DIR, IRIS_3D_CUBE_HEADER)
-    header = fits.Header.fromtextfile(header_filename)
+    header = Header.fromtextfile(header_filename)
 
     circle = Circle(140.0, 0.0, 10.0)
 
@@ -429,7 +429,7 @@ def test_get_circle_cutout_pixels_iris_all_overlap():
 
 def test_get_polygon_cutout_pixels_vlass():
     header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
-    header = fits.Header.fromtextfile(header_filename)
+    header = Header.fromtextfile(header_filename)
 
     polygon = Polygon([[168.34, 76.18], [168.34, 76.19], [168.35, 76.19]])
 
@@ -451,7 +451,7 @@ def test_get_energy_cutout_pixels_vlass():
     cutout=[1:2]
     """
     header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
-    header = fits.Header.fromtextfile(header_filename)
+    header = Header.fromtextfile(header_filename)
 
     energy = Energy(0.04456576, 0.11662493)
 
@@ -474,7 +474,7 @@ def test_get_energy_cutout_pixels_cgps_raises_error():
 
     """
     header_filename = os.path.join(TESTDATA_DIR, CGPS_4D_CUBE_HEADER)
-    header = fits.Header.fromtextfile(header_filename)
+    header = Header.fromtextfile(header_filename)
 
     energy = Energy(211.0e-3, 211.05e-3)
 
@@ -490,7 +490,7 @@ def test_get_energy_cutout_pixels_cgps_raises_error():
 @pytest.mark.skip
 def test_get_energy_cutout_pixels_jcmt():
     header_filename = os.path.join(TESTDATA_DIR, JCMT_3D_CUBE_HEADER)
-    header = fits.Header.fromtextfile(header_filename)
+    header = Header.fromtextfile(header_filename)
 
     # cdelt3 from caom2: 3.05140426249E-5
     header.append(('CDELT3', 3.05140426249E-5))
@@ -512,7 +512,7 @@ def test_get_polarization_cutout_pixels_vlass():
     Polarization states for header are I, Q, U, V (1, 2, 3, 4)
     """
     header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
-    header = fits.Header.fromtextfile(header_filename)
+    header = Header.fromtextfile(header_filename)
 
     polarization = Polarization([PolarizationState.I])
 
@@ -582,7 +582,7 @@ def test_get_polarization_cutout_pixels_cgps():
     CROTA4  =                 0.00 / ROTATION ANGLE (DEG)
     """
     header_filename = os.path.join(TESTDATA_DIR, CGPS_4D_CUBE_HEADER)
-    header = fits.Header.fromtextfile(header_filename)
+    header = Header.fromtextfile(header_filename)
 
     polarization = Polarization([PolarizationState.I])
 
@@ -604,7 +604,7 @@ def test_world_to_pixels_vlass():
     cutout=[0][2938:3062,4191:4316,1:2,1:1]
     """
     header_filename = os.path.join(TESTDATA_DIR, VLASS_4D_CUBE_HEADER)
-    header = fits.Header.fromtextfile(header_filename)
+    header = Header.fromtextfile(header_filename)
 
     world = ['circle 168.34719985367971 76.18699791158396 0.01',
              'BAND 0.04456576 0.11662493', 'POL I']

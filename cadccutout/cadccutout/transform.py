@@ -75,6 +75,7 @@ import math
 import sys
 
 from astropy import units as u
+from astropy.io.fits import Header
 from astropy.coordinates import SkyCoord, Longitude, Latitude, ICRS
 from astropy.wcs import WCS, NoConvergence
 from regions.shapes.circle import CircleSkyRegion
@@ -91,7 +92,33 @@ __all__ = ['AxisType', 'Transform']
 
 _DEFAULT_ENERGY_CTYPE = 'WAVE-???'
 _DEFAULT_ENERGY_CUNIT = 'm'
+_COMMENT_KEYWORD = 'COMMENT'
+_HISTORY_KEYWORD = 'HISTORY'
 
+
+def _to_astropy_header(header_dict):
+    """
+    Build an AstroPy header instance, filtering out empty header cards or empty values.
+
+    This function will support a fitsio FITSHDR object or a regular dictionary.
+    """
+    astropy_header = Header()
+
+    for key in header_dict:
+        if key:
+            value = header_dict[key]
+
+            if value:
+                if key == _COMMENT_KEYWORD:
+                    str_value = str(value).replace('\n', '  ')
+                    astropy_header.add_comment(str_value)
+                elif key == _HISTORY_KEYWORD:
+                    str_value = str(value).replace('\n', '  ')
+                    astropy_header.add_history(str_value)
+                else:
+                    astropy_header[key] = value
+
+    return astropy_header
 
 class AxisType(object):
     """
@@ -99,11 +126,11 @@ class AxisType(object):
     """
 
     def _get_wcs(self, header):
-        naxis_value = header.get('NAXIS')
+        naxis_value = header['NAXIS']
 
         if naxis_value is not None and int(naxis_value) > 0:
             for nax in range(1, naxis_value + 1):
-                ctype = header.get('CTYPE{0} '.format(nax))
+                ctype = header['CTYPE{0}'.format(nax)]
                 logger.debug('CTYPE value is {}'.format(ctype))
                 if ctype is not None and ctype.endswith('-SIP'):
                     naxis = 2
@@ -114,7 +141,7 @@ class AxisType(object):
             naxis = naxis_value
 
         logger.debug('Final transform calculated NAXIS is {}'.format(naxis))
-        return WCS(header=header, naxis=naxis, fix=False)
+        return WCS(header=_to_astropy_header(header), naxis=naxis, fix=False)
 
     COORDINATE_TYPE = 'coordinate_type'
     SPATIAL_KEYWORDS = ['celestial']
@@ -254,15 +281,21 @@ class Transform(object):
         # raise no content error if an axis has no overlap
         for shape in shapes:
             if isinstance(shape, Circle):
+                
                 try:
                     # length of the two axes
                     naxis1 = axis_types.get_spatial_axes()[0]
                     naxis2 = axis_types.get_spatial_axes()[1]
-                    # get the cutout pixels
-                    pixels = self.get_circle_cutout_pixels(
-                        shape, header, naxis1, naxis2)
-                    self._append_world_to_circle_pixels(header, naxis1, naxis2,
-                                                        pixels, cutouts)
+
+                    if naxis1 is None or naxis2 is None:
+                        raise NoContentError('No overlap with current extension.')
+                    else:
+                        # get the cutout pixels
+                        pixels = self.get_circle_cutout_pixels(
+                            shape, header, naxis1, naxis2)
+                        self._append_world_to_circle_pixels(header, naxis1, naxis2,
+                                                            pixels, cutouts)
+
                 except NoContentError as e:
                     no_content_errors.append(repr(e))
             elif isinstance(shape, Polygon):
@@ -334,6 +367,9 @@ class Transform(object):
 
         # remove the dummy first list item
         cutouts.pop(0)
+
+        if len(cutouts) == 0:
+            raise NoContentError('No overlap with current extension.') 
 
         return PixelCutoutHDU(cutouts)
 
@@ -417,7 +453,7 @@ class Transform(object):
         # spatial data.
         logger.debug('NAXIS values in transform are {}'.format(
             [naxis1, naxis2]))
-        wcs = WCS(header, naxis=[naxis1, naxis2], fix=False)
+        wcs = WCS(header=_to_astropy_header(header), naxis=[naxis1, naxis2], fix=False)
 
         # Circle region with radius
         sky_region = CircleSkyRegion(sky_coords, radius=radius)
