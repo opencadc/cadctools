@@ -95,7 +95,6 @@ def random_test_file_name_path(file_extension='fits', dir_name='/tmp'):
         dir=dir_name, prefix=__name__, suffix='.{}'.format(file_extension)).name
 
 
-@pytest.mark.skip
 def test_hst_mef_cutout_missing_one():
     # Should result in a 3-HDU MEF.  Extension 2 is an ERR one with no data.
     cutout_region_string = \
@@ -106,10 +105,8 @@ def test_hst_mef_cutout_missing_one():
     logger.info('Testing output to {}'.format(result_cutout_file_path))
 
     # Write out a test file with the test result FITS data.
-    with open(result_cutout_file_path, 'ab+') as test_file_handle, \
-            open(target_file_name, 'rb') as input_file_handle:
-        test_subject.cutout_from_string(
-            cutout_region_string, input_file_handle, test_file_handle, 'FITS')
+    test_subject.cutout_from_string(
+        cutout_region_string, target_file_name, result_cutout_file_path, 'FITS')
 
     with fits.open(expected_cutout_file_path, mode='readonly') \
             as expected_hdu_list, \

@@ -74,6 +74,7 @@ import logging
 import math
 import sys
 
+from cadccutout.utils import to_astropy_header
 from astropy import units as u
 from astropy.io.fits import Header
 from astropy.coordinates import SkyCoord, Longitude, Latitude, ICRS
@@ -92,33 +93,7 @@ __all__ = ['AxisType', 'Transform']
 
 _DEFAULT_ENERGY_CTYPE = 'WAVE-???'
 _DEFAULT_ENERGY_CUNIT = 'm'
-_COMMENT_KEYWORD = 'COMMENT'
-_HISTORY_KEYWORD = 'HISTORY'
 
-
-def _to_astropy_header(header_dict):
-    """
-    Build an AstroPy header instance, filtering out empty header cards or empty values.
-
-    This function will support a fitsio FITSHDR object or a regular dictionary.
-    """
-    astropy_header = Header()
-
-    for key in header_dict:
-        if key:
-            value = header_dict[key]
-
-            if value:
-                if key == _COMMENT_KEYWORD:
-                    str_value = str(value).replace('\n', '  ')
-                    astropy_header.add_comment(str_value)
-                elif key == _HISTORY_KEYWORD:
-                    str_value = str(value).replace('\n', '  ')
-                    astropy_header.add_history(str_value)
-                else:
-                    astropy_header[key] = value
-
-    return astropy_header
 
 class AxisType(object):
     """
@@ -141,7 +116,7 @@ class AxisType(object):
             naxis = naxis_value
 
         logger.debug('Final transform calculated NAXIS is {}'.format(naxis))
-        return WCS(header=_to_astropy_header(header), naxis=naxis, fix=False)
+        return WCS(header=to_astropy_header(header), naxis=naxis, fix=False)
 
     COORDINATE_TYPE = 'coordinate_type'
     SPATIAL_KEYWORDS = ['celestial']
@@ -453,7 +428,7 @@ class Transform(object):
         # spatial data.
         logger.debug('NAXIS values in transform are {}'.format(
             [naxis1, naxis2]))
-        wcs = WCS(header=_to_astropy_header(header), naxis=[naxis1, naxis2], fix=False)
+        wcs = WCS(header=to_astropy_header(header), naxis=[naxis1, naxis2], fix=False)
 
         # Circle region with radius
         sky_region = CircleSkyRegion(sky_coords, radius=radius)

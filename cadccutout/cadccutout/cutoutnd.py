@@ -148,18 +148,9 @@ class CutoutND(object):
                     step = None
             else:
                 lower_bound = int(low_bound)
-                # if lower_bound > 0:
-                #     lower_bound -= 1
                 upper_bound = int(cutout_region[1])
                 if (len_region == 3):
                     step = int(cutout_region[2])
-                    # if lower_bound > upper_bound:
-                    #     upper_bound -= 2
-                        # if step > 0:
-                        #     step *= -1
-                # elif lower_bound > upper_bound:
-                #     upper_bound -= 2
-                    # step = -1
                 else:
                     step = None
 
@@ -176,7 +167,11 @@ class CutoutND(object):
         data_shape = self.hdu.get_dims()
         len_data = len(data_shape)
         logger.debug('Data shape is {}'.format(data_shape))
-        if len_data > len_shape:
+        if len_data == 0:
+            raise NoContentError('Empty dataset; nothing to cutout.')
+        elif len_shape > len_data:
+            raise ValueError('Shape of cutout ({}) exceeds shape of data ({})'.format(cutout_shape, data_shape))
+        elif len_data > len_shape:
             missing_shape_bounds = data_shape[:len_data - len_shape]
             logger.debug('Missing shape bounds are {} for length {}'.format(
                 missing_shape_bounds, len_data - len_shape))
@@ -287,7 +282,7 @@ class CutoutND(object):
         if self.wcs:
             output_wcs = self.format_wcs(cutout_shape)
         else:
-            logger.debug('No WCS present.')
+            logger.warn('No WCS present.')
             output_wcs = None
 
         return CutoutResult(data=cutout_data, wcs=output_wcs)
