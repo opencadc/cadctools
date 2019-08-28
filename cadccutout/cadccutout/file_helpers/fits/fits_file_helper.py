@@ -115,11 +115,17 @@ class FITSHelper(BaseFileHelper):
 
                 for idx, val in enumerate(cutout_crpix):
                     header_key = 'CRPIX{}'.format(idx + 1)
-                    curr_val = header.get(header_key)
+
+                    if val != 1:
+                        new_val = val + 1
+                    else:
+                        new_val = val
+
                     logger.debug(
                         'Adjusting {} from {} to {}'.format(
-                            header_key, curr_val, val))
-                    header['CRPIX{}'.format(idx + 1)] = val + 1
+                            header_key, val, new_val))
+
+                    header['CRPIX{}'.format(idx + 1)] = new_val
 
             if wcs.has_pc():
                 pc = wcs.pc

@@ -141,7 +141,7 @@ class CutoutND(object):
 
             if low_bound == '*':
                 lower_bound = None
-                upper_bound = self.hdu.get_dims()[idx]
+                upper_bound = self.get_data_shape()[idx]
                 if len_region > 1:
                     step = int(cutout_region[1])
                 else:
@@ -162,9 +162,7 @@ class CutoutND(object):
 
     def _pad_cutout(self, cutout_shape):
         len_shape = len(cutout_shape)
-        # data_shape = self.data.shape
-        # data_shape = tuple(reversed(self.hdu.get_dims()))
-        data_shape = self.hdu.get_dims()
+        data_shape = self.get_data_shape()
         len_data = len(data_shape)
         logger.debug('Data shape is {}'.format(data_shape))
         if len_data == 0:
@@ -248,6 +246,12 @@ class CutoutND(object):
 
         return output_wcs
 
+    def get_data_shape(self):
+        if hasattr(self.hdu, 'get_dims') and callable(getattr(self.hdu, 'get_dims')):
+            return self.hdu.get_dims()
+        elif isinstance(self.hdu, np.ndarray):
+            return self.hdu.shape
+
     def extract(self, cutout_regions):
         """
         Perform the extraction from the data for the provided region.  If the
@@ -270,14 +274,13 @@ class CutoutND(object):
             cutout_data = self.hdu[cutout]
 
             logger.debug('Extracted {} of data from {} before trimming zeros.'.format(cutout_data.shape,
-                                                                                      self.hdu.get_dims()))
+                                                                                      self.get_data_shape()))
 
         except IndexError as ie:
             raise NoContentError(
                 'No content (arrays do not overlap).\n\n{}'.format(str(ie)))
 
-        logger.debug('Extracted {} of data from {}.'.format(cutout_data.shape,
-                                                            self.hdu.get_dims()))
+        logger.debug('Extracted {} of data from {}.'.format(cutout_data.shape, self.get_data_shape()))
 
         if self.wcs:
             output_wcs = self.format_wcs(cutout_shape)

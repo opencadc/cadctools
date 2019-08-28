@@ -93,10 +93,6 @@ expected_cutout_file_name = os.path.join(
 logger = logging.getLogger()
 
 
-@pytest.mark.skipif(
-    sys.version_info >= (3, 5),
-    reason='Awaiting Astropy bug fix \
-                https://github.com/astropy/astropy/issues/7854')
 def test_simple_cutout():
     test_subject = OpenCADCCutout()
     cutout_file_name_path = test_context.random_test_file_name_path()
@@ -104,10 +100,7 @@ def test_simple_cutout():
     cutout_regions = [PixelCutoutHDU([(300, 800), (810, 1000)])]
 
     # Write out a test file with the test result FITS data.
-    with open(cutout_file_name_path, 'ab+') as output_writer, \
-            open(target_file_name, 'rb') as input_reader:
-        test_subject.cutout(cutout_regions, input_reader, output_writer,
-                            'FITS')
+    test_subject.cutout(cutout_regions, target_file_name, cutout_file_name_path, 'FITS')
 
     with fits.open(expected_cutout_file_name, mode='readonly') \
             as expected_hdu_list, \
