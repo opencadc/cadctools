@@ -76,7 +76,8 @@ import os
 import pytest
 import context as test_context
 
-from astropy.io import fits
+import fitsio
+from astropy.io import fits as astropy_fits
 from astropy.wcs import WCS
 
 # from .context import random_test_file_name_path
@@ -87,23 +88,23 @@ from cadccutout.no_content_error import NoContentError
 pytest.main(args=['-s', os.path.abspath(__file__)])
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
-logger = logging.getLogger()
+logger = logging.getLogger('cadccutout')
 
 
 def _create_mef_file(dir_name='/tmp'):
     mef_file = test_context.random_test_file_name_path(dir_name=dir_name)
-    hdu0 = fits.PrimaryHDU()
+    hdu0 = astropy_fits.PrimaryHDU()
 
-    data1 = np.arange(10000).reshape(100, 100)
-    hdu1 = fits.ImageHDU(data=data1)
+    data1 = np.arange(1000000).reshape(1000, 1000)
+    hdu1 = astropy_fits.ImageHDU(data=data1)
 
-    data2 = np.arange(20000).reshape(200, 100)
-    hdu2 = fits.ImageHDU(data=data2)
+    data2 = np.arange(2000000).reshape(2000, 1000)
+    hdu2 = astropy_fits.ImageHDU(data=data2)
 
-    data3 = np.arange(50000).reshape(500, 100)
-    hdu3 = fits.ImageHDU(data=data3)
+    data3 = np.arange(5000000).reshape(5000, 1000)
+    hdu3 = astropy_fits.ImageHDU(data=data3)
 
-    hdulist = fits.HDUList([hdu0, hdu1, hdu2, hdu3])
+    hdulist = astropy_fits.HDUList([hdu0, hdu1, hdu2, hdu3])
 
     hdulist.writeto(mef_file, overwrite=True)
     return mef_file
@@ -112,16 +113,15 @@ def _create_mef_file(dir_name='/tmp'):
 def test_mef_cutout_no_overlap():
     test_subject = OpenCADCCutout()
     target_file_name = _create_mef_file()
+    logger.debug('Created source file {}'.format(target_file_name))
     cutout_file_name_path = test_context.random_test_file_name_path()
-    logger.info('Testing with {}'.format(cutout_file_name_path))
+    logger.info('Writing cutout to {}'.format(cutout_file_name_path))
     cutout_region_str = '[1][300:800,810:1000]'
 
     try:
         # Write out a test file with the test result FITS data.
-        with open(cutout_file_name_path, 'ab+') as output_writer, \
-                open(target_file_name, 'rb') as input_reader:
-            test_subject.cutout_from_string(cutout_region_str, input_reader,
-                                            output_writer, 'FITS')
+        test_subject.cutout_from_string(cutout_region_str, target_file_name,
+                                        cutout_file_name_path, 'FITS')
     except NoContentError as err:
         assert str(err) == 'No content (arrays do not overlap).', \
             'Wrong message.'
@@ -135,12 +135,10 @@ def test_mef_cutout():
     cutout_region_str = '[2][20:35,40:50][3]'
 
     # Write out a test file with the test result FITS data.
-    with open(cutout_file_name_path, 'ab+') as output_writer, \
-            open(target_file_name, 'rb') as input_reader:
-        test_subject.cutout_from_string(cutout_region_str, input_reader,
-                                        output_writer, 'FITS')
+    test_subject.cutout_from_string(cutout_region_str, target_file_name,
+                                    cutout_file_name_path, 'FITS')
 
-    with fits.open(cutout_file_name_path, mode='readonly') as result_hdu_list:
+    with astropy_fits.open(cutout_file_name_path, mode='readonly') as result_hdu_list:
         assert len(result_hdu_list) == 3, 'Should have 3 HDUs.'
 
         hdu1 = result_hdu_list[1]
@@ -171,10 +169,10 @@ def test_mef_cutout():
             'DATASUM') is None, 'Should not contain DATASUM.'
 
         expected1 = np.zeros((11, 16), dtype=hdu1.data.dtype)
-        expected2 = np.arange(50000, dtype=hdu2.data.dtype).reshape(500, 100)
+        expected2 = np.arange(5000000, dtype=hdu2.data.dtype).reshape(5000, 1000)
 
         for i in range(11):
-            start = 3919 + (i * 100)
+            start = 39019 + (i * 1000)
             expected1[i] = np.arange(start, start + 16, dtype=hdu1.data.dtype)
 
         np.testing.assert_array_equal(

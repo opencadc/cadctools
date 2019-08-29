@@ -67,13 +67,13 @@
 # ***********************************************************************
 #
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
 
 import io
 import logging
 import pytest
-from cadccutout.core import OpenCADCCutout, WriteOnlyStream
+from cadccutout.core import OpenCADCCutout
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 
 # Compatibility with Python 2.7, where there is no FileNotFoundError.
@@ -138,19 +138,6 @@ def test__sanity_check_input():
                              'Input is expected to be a string or list but was \
 (\'bad\', \'tuple\')'), \
             'Wrong error message.'
-
-
-def test_write_stream():
-    output = io.BytesIO()
-    test_subject = WriteOnlyStream(output)
-
-    with pytest.raises(ValueError):
-        test_subject.read()
-
-    assert test_subject.tell() == 0, 'Nothing written yet, should be zero.'
-    test_subject.write(b'You have been recruied by the Star League to defend \
-            the frontier against Xur and the Kodhan Armada.')
-    assert test_subject.tell() == 111, 'Message written.'
 
 
 def test_construct():

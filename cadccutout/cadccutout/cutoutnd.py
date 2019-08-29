@@ -195,11 +195,12 @@ class CutoutND(object):
         -------
         The formatted WCS object.
         """
-        output_wcs = deepcopy(self.wcs)
+        logger.debug('Formatting WCS...')
+
+        # output_wcs = deepcopy(self.wcs)
+        output_wcs = self.wcs
         wcs_crpix = output_wcs.wcs.crpix
         l_wcs_crpix = len(wcs_crpix)
-
-        logger.debug('Adjusting WCS.')
 
         for idx, cutout_region in enumerate(cutout_shape):
             if idx < l_wcs_crpix:
@@ -272,10 +273,6 @@ class CutoutND(object):
             cutout = tuple(reversed(cutout_shape))
             logger.debug('Cutout is {}'.format(cutout))
             cutout_data = self.hdu[cutout]
-
-            logger.debug('Extracted {} of data from {} before trimming zeros.'.format(cutout_data.shape,
-                                                                                      self.get_data_shape()))
-
         except IndexError as ie:
             raise NoContentError(
                 'No content (arrays do not overlap).\n\n{}'.format(str(ie)))
@@ -287,5 +284,7 @@ class CutoutND(object):
         else:
             logger.warn('No WCS present.')
             output_wcs = None
+
+        logger.debug('Returning cutout result.')
 
         return CutoutResult(data=cutout_data, wcs=output_wcs)

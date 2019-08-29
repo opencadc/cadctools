@@ -70,24 +70,41 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
+import os
+import logging
+import tempfile
 import pytest
 import numpy as np
+from cadccutout.utils import to_astropy_header
 from cadccutout.cutoutnd import CutoutND
 from astropy.io.fits import Header
+import fitsio
 from astropy.wcs import WCS
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
+
+logger = logging.getLogger('cadccutout')
+
+THIS_DIR = os.path.dirname(os.path.realpath(__file__))
+TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
+DEFAULT_TEST_FILE_DIR = '/tmp'
+
+
+def random_test_file_name_path(file_extension='fits',
+                               dir_name=DEFAULT_TEST_FILE_DIR):
+    return tempfile.NamedTemporaryFile(
+        dir=dir_name, prefix=__name__, suffix='.{}'.format(file_extension)).name
 
 
 def test_create():
     with pytest.raises(ValueError):
-        CutoutND(data=None)
+        CutoutND(hdu=None)
 
 
 def test_extract():
     data_shape = (9, 4)
     data = np.arange(36).reshape(data_shape)
-    test_subject = CutoutND(data)
-    cutout_region = PixelCutoutHDU([(4, 18)])
+    test_subject = CutoutND(hdu=data)
+    cutout_region = PixelCutoutHDU([(3, 18)])
     cutout = test_subject.extract(cutout_region.get_ranges())
     expected_data = np.array([[3],
                               [7],
@@ -103,73 +120,105 @@ def test_extract():
 
 
 def test_inverse_y():
-    data_shape = (10, 10)
-    data = np.arange(100).reshape(data_shape)
-    test_subject = CutoutND(data)
-    cutout_regions = [(1, 2), (8, 4)]
-    cutout = test_subject.extract(cutout_regions)
-    expected_data = np.array([[70, 71],
-                              [60, 61],
-                              [50, 51],
-                              [40, 41],
-                              [30, 31]])
-    np.testing.assert_array_equal(
-        expected_data, cutout.data, 'Arrays do not match.')
+    fname = random_test_file_name_path()
+    with fitsio.FITS(fname, 'rw', clobber=True) as fits:
+        data_shape = (10, 10)
+        data = np.arange(100).reshape(data_shape)
+
+        fits.create_image_hdu(dims=data.shape, dtype=data.dtype)
+
+        fits[-1].write(data)
+        hdu = fits[-1]
+
+        test_subject = CutoutND(hdu=hdu)
+        cutout_regions = [(1, 2), (8, 4)]
+        cutout = test_subject.extract(cutout_regions)
+        expected_data = np.array([[70, 71],
+                                  [60, 61],
+                                  [50, 51],
+                                  [40, 41],
+                                  [30, 31]])
+        np.testing.assert_array_equal(
+            expected_data, cutout.data, 'Arrays do not match in {}.'.format(fname))
 
 
 def test_inverse_y_striding():
-    data_shape = (10, 10)
-    data = np.arange(100).reshape(data_shape)
-    test_subject = CutoutND(data)
-    cutout_regions = [(1, 2), (10, 2, 2)]
-    cutout = test_subject.extract(cutout_regions)
-    expected_data = np.array([[90, 91],
-                              [70, 71],
-                              [50, 51],
-                              [30, 31],
-                              [10, 11]])
-    np.testing.assert_array_equal(
-        expected_data, cutout.data, 'Arrays do not match.')
+    fname = random_test_file_name_path()
+    with fitsio.FITS(fname, 'rw', clobber=True) as fits:
+        data_shape = (10, 10)
+        data = np.arange(100).reshape(data_shape)
+
+        fits.create_image_hdu(dims=data.shape, dtype=data.dtype)
+
+        fits[-1].write(data)
+        hdu = fits[-1]
+
+        test_subject = CutoutND(hdu=hdu)
+        cutout_regions = [(1, 2), (10, 2, 2)]
+        cutout = test_subject.extract(cutout_regions)
+        expected_data = np.array([[90, 91],
+                                  [70, 71],
+                                  [50, 51],
+                                  [30, 31],
+                                  [10, 11]])
+        np.testing.assert_array_equal(
+            expected_data, cutout.data, 'Arrays do not match in {}.'.format(fname))
 
 
 def test_extract_striding():
-    data_shape = (10, 10)
-    data = np.arange(100).reshape(data_shape)
-    test_subject = CutoutND(data)
-    cutout_regions = [(4, 18, 5)]
-    cutout = test_subject.extract(cutout_regions)
-    expected_data = np.array([[3, 8],
-                              [13, 18],
-                              [23, 28],
-                              [33, 38],
-                              [43, 48],
-                              [53, 58],
-                              [63, 68],
-                              [73, 78],
-                              [83, 88],
-                              [93, 98]])
-    np.testing.assert_array_equal(
-        expected_data, cutout.data, 'Arrays do not match.')
+    fname = random_test_file_name_path()
+    with fitsio.FITS(fname, 'rw', clobber=True) as fits:
+        data_shape = (10, 10)
+        data = np.arange(100).reshape(data_shape)
+
+        fits.create_image_hdu(dims=data.shape, dtype=data.dtype)
+
+        fits[-1].write(data)
+        hdu = fits[-1]
+
+        test_subject = CutoutND(hdu=hdu)
+        cutout_regions = [(4, 18, 5)]
+        cutout = test_subject.extract(cutout_regions)
+        expected_data = np.array([[3, 8],
+                                  [13, 18],
+                                  [23, 28],
+                                  [33, 38],
+                                  [43, 48],
+                                  [53, 58],
+                                  [63, 68],
+                                  [73, 78],
+                                  [83, 88],
+                                  [93, 98]])
+        np.testing.assert_array_equal(
+            expected_data, cutout.data, 'Arrays do not match in {}.'.format(fname))
 
 
 def test_extract_striding_wildcard():
-    data_shape = (10, 10)
-    data = np.arange(100).reshape(data_shape)
-    test_subject = CutoutND(data)
-    cutout_regions = [('*', 7)]
-    cutout = test_subject.extract(cutout_regions)
-    expected_data = np.array([[0, 7],
-                              [10, 17],
-                              [20, 27],
-                              [30, 37],
-                              [40, 47],
-                              [50, 57],
-                              [60, 67],
-                              [70, 77],
-                              [80, 87],
-                              [90, 97]])
-    np.testing.assert_array_equal(
-        expected_data, cutout.data, 'Arrays do not match.')
+    fname = random_test_file_name_path()
+    with fitsio.FITS(fname, 'rw', clobber=True) as fits:
+        data_shape = (10, 10)
+        data = np.arange(100).reshape(data_shape)
+
+        fits.create_image_hdu(dims=data.shape, dtype=data.dtype)
+
+        fits[-1].write(data)
+        hdu = fits[-1]
+
+        test_subject = CutoutND(hdu=hdu)
+        cutout_regions = [('*', 7)]
+        cutout = test_subject.extract(cutout_regions)
+        expected_data = np.array([[0, 7],
+                                  [10, 17],
+                                  [20, 27],
+                                  [30, 37],
+                                  [40, 47],
+                                  [50, 57],
+                                  [60, 67],
+                                  [70, 77],
+                                  [80, 87],
+                                  [90, 97]])
+        np.testing.assert_array_equal(
+            expected_data, cutout.data, 'Arrays do not match for file {}.'.format(fname))
 
 
 def test_extract_invalid():
@@ -185,16 +234,27 @@ def test_extract_invalid():
 
 
 def test_with_wcs():
-    data = np.arange(100).reshape(10, 10)
-    header = Header()
-    wcs = WCS(fix=False)
-    wcs.wcs.cd = [[0.9, 0.8], [0.7, 0.6]]
-    header.set('REMAIN1', 'VALUE1')
-    header.set('DQ1', 'dqvalue1')
-    header.set('NAXIS', 2)
+    fname = random_test_file_name_path()
+    with fitsio.FITS(fname, 'rw', clobber=True) as fits:
+        data_shape = (10, 10)
+        data = np.arange(100).reshape(data_shape)
 
-    test_subject = CutoutND(data, wcs=wcs)
-    cutout_result = test_subject.extract([(1, 6, 2), (4, 10, 2)])
-    result_wcs = cutout_result.wcs
-    np.testing.assert_array_equal([[1.8, 1.6], [1.4, 1.2]],
-                                  result_wcs.wcs.cd, 'Wrong CD output.')
+        fits.create_image_hdu(dims=data.shape, dtype=data.dtype)
+
+        fits[0].write(data)
+        hdu = fits[0]
+
+        logger.debug('Wrote to {}'.format(fname))
+
+        header = hdu.read_header()
+        astropy_header = to_astropy_header(header)
+        astropy_header.set('WCSAXES', 2)
+
+        wcs = WCS(header=astropy_header, fix=False)
+        wcs.wcs.cd = [[0.9, 0.8], [0.7, 0.6]]
+
+        test_subject = CutoutND(hdu=hdu, wcs=wcs)
+        cutout_result = test_subject.extract([(1, 6, 2), (4, 10, 2)])
+        result_wcs = cutout_result.wcs
+        np.testing.assert_array_equal([[1.8, 1.6], [1.4, 1.2]],
+                                      result_wcs.wcs.cd, 'Wrong CD output.')

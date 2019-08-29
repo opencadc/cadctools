@@ -88,15 +88,14 @@ pytest.main(args=['-s', os.path.abspath(__file__)])
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
 target_file_name = os.path.join(TESTDATA_DIR, 'test-simple.fits')
-expected_cutout_file_name = os.path.join(
-    TESTDATA_DIR, 'test-simple-cutout.fits')
-logger = logging.getLogger()
+expected_cutout_file_name = os.path.join(TESTDATA_DIR, 'test-simple-cutout.fits')
+logger = logging.getLogger('cadccutout')
 
 
 def test_simple_cutout():
     test_subject = OpenCADCCutout()
     cutout_file_name_path = test_context.random_test_file_name_path()
-    logger.info('Testing with {}'.format(cutout_file_name_path))
+    logger.info('Testing with {} and writing out to {}.'.format(target_file_name, cutout_file_name_path))
     cutout_regions = [PixelCutoutHDU([(300, 800), (810, 1000)])]
 
     # Write out a test file with the test result FITS data.

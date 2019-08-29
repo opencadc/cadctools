@@ -66,39 +66,28 @@
 #
 # ***********************************************************************
 #
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
 
 import logging
 import sys
 import io
-from io import BufferedRandom
 import argparse
 
+from cadccutout.file_factory import cutout as factory_cutout
 from cadccutout.utils import is_string
 from cadccutout import version
-from cadccutout.file_helper import FileHelperFactory
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['OpenCADCCutout', 'WriteOnlyStream']
+__all__ = ['OpenCADCCutout']
 
 
 class OpenCADCCutout(object):
     """
     Main cutout class.  This is mainly used as a parent class for concrete
     instances, like from a FITS file, but can be called by itself if need be.
-
-    Parameters
-    ----------
-    helper_factory : `.file_helper.FileHelperFactory`
-        The Helper Factory instance to load a file helper appropriate to the
-        file type.  Defaults to file_helper.FileHelperFactory().
-
-    input_range_parser : `.pixel_range_input_parser.PixelRangeInputParser`
-        Parser to parse the input string.  This defaults to the provided
-        pixel_range_input_parser.PixelRangeInputParser() class.
 
     Example 1
     --------
@@ -111,12 +100,7 @@ class OpenCADCCutout(object):
     # Cutouts are in cfitsio format.
     cutout_region_string = '[300:800,810:1000]'  # HDU 0 along two axes.
 
-    # Needs to have 'append' flag set.  The cutout() method will write out the
-    # data.
-    with open(output_file, 'ab+') as output_writer, open(input_file, 'rb') as
-     input_reader:
-        test_subject.cutout(input_reader, output_writer, cutout_region_string,
-        'FITS')
+    test_subject.cutout_from_string(cutout_region_string, input_file, output_file, 'FITS')
 
 
     Example 2 (CADC)
@@ -133,23 +117,16 @@ class OpenCADCCutout(object):
     input_stream = data_client.get_file(archive, file_name)
 
     # Cutouts are in cfitsio format.
-    cutout_region_string = '[SCI,10][80:220,100:150]'  # SCI version 10, along
-    two axes.
+    cutout_region_string = '[SCI,10][80:220,100:150]'  # SCI version 10, along two axes.
 
-    # Needs to have 'append' flag set.  The cutout() method will write out the
-    # data.
-    with open(output_file, 'ab+') as output_writer:
-        test_subject.cutout(input_stream, output_writer, cutout_region_string,
-        'FITS')
+    test_subject.cutout_from_string(cutout_region_string, input_file, output_file, 'FITS')
     """
 
-    def __init__(self, helper_factory=FileHelperFactory(),
-                 input_range_parser=PixelRangeInputParser()):
-        self.helper_factory = helper_factory
-        self.input_range_parser = input_range_parser
+    @property
+    def input_range_parser(self):
+        return PixelRangeInputParser()
 
-    def cutout(self, cutout_dimensions, input_reader=None,
-               output_writer=None, file_type='FITS'):
+    def cutout(self, cutout_dimensions, input_reader=None, output_writer=None, file_type='FITS'):
         """
         Perform a Cutout of the given data at the given position and size.
 
@@ -192,10 +169,8 @@ class OpenCADCCutout(object):
         else:
             output_stream = output_writer
 
-        file_helper = self._get_file_helper(file_type, input_stream, output_stream)
-
         try:
-            file_helper.cutout(cutout_dimensions)
+            factory_cutout(file_type, cutout_dimensions, input_stream, output_stream)
         except OSError as oe:
             raise ValueError(
                 'Output target or input source unusable (Did you specify an '
@@ -224,8 +199,7 @@ class OpenCADCCutout(object):
 
         return input_cutout_dimensions
 
-    def cutout_from_string(self, cutout_dimensions_str, input_reader=None,
-                           output_writer=None, file_type='FITS'):
+    def cutout_from_string(self, cutout_dimensions_str, input_reader=None, output_writer=None, file_type='FITS'):
         """
         Perform a Cutout of the given data at the given position and size.
 
@@ -243,49 +217,14 @@ class OpenCADCCutout(object):
                             expressed as PixelCutoutHDU objects.
 
         file_type: string
-            The file type, in upper case.  Will usually be 'FITS'.
+            The file type, in upper case.  Defaults to 'FITS'.
         """
 
         input_cutout_dimensions = self._sanity_check_input(
             cutout_dimensions_str)
 
-        self.cutout(self._parse_input(input_cutout_dimensions), input_reader,
-                    output_writer, file_type)
-
-    def _get_file_helper(self, file_type, input_reader, output_writer):
-        return self.helper_factory.get_instance(file_type, input_reader,
-                                                output_writer)
-
-
-class WriteOnlyStream(BufferedRandom):
-    """
-    Stream implementation to seem like a seekable stream.  It is meant to wrap
-    the sys.stdout stream so that when Astropy calls the tell() method it
-    will have an accurate place to start writing the stream.
-
-    :param raw: file or file-like object.  The Raw underlying stream.
-    """
-
-    def __init__(self, raw):
-        super(WriteOnlyStream, self).__init__(io.BytesIO())
-        self._raw = raw
-        self.write_offset = 0
-        self.read_offset = 0
-
-    def read(self, size=1):
-        raise ValueError('Unreadable stream.  This is write only.')
-
-    def write(self, data):
-        written = self._raw.write(data)
-        if written:
-            self.write_offset += written
-        return self.write_offset
-
-    def tell(self):
-        return self.write_offset
-
-    def seek(self, offset):
-        raise ValueError('Unseekable stream.  This is write only.')
+        self.cutout(self._parse_input(input_cutout_dimensions),
+                    input_reader, output_writer, file_type)
 
 
 def main_app(argv=None):
@@ -336,8 +275,7 @@ def main_app(argv=None):
 
     logging.info('Start cutout.')
 
-    # Support multiple strings.  This will write out as many cutouts as
-    # it finds.
+    # Support multiple strings.  This will write out as many cutouts as it finds.
     c.cutout_from_string(
         args.cutout, input_reader=args.infile,
         output_writer=args.outfile,
