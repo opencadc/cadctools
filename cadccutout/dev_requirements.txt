@@ -3,6 +3,6 @@ pytest-arraydiff
 pytest-cov>=2.5.1
 flake8>=3.5.0
 coveralls>=1.5.1
-fitsio
+-e git://github.com/at88mph/fitsio.git#fixes
 memory_profiler
 -e .
