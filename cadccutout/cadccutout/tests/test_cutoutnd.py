@@ -276,8 +276,8 @@ def test_extract_invalid():
         cutout_regions = [('')]
 
         with pytest.raises(ValueError,
-                        match=r"Should have at least two values "
-                                r"\(lower, upper\)\."):
+                           match=r"Should have at least two values "
+                           r"\(lower, upper\)\."):
             test_subject.extract(cutout_regions)
 
 
