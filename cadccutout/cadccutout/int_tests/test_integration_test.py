@@ -132,7 +132,7 @@ def _extname_sort_func(hdu):
         #  '/usr/src/data/test-cgps-cube-cutout.fits', True,
         #  DEFAULT_TEST_FILE_DIR, None, False)
         # Data array is incorrect.  Possible SIP involvement?
-        # ('[1000:1200,800:1000,160:200]', 
+        # ('[1000:1200,800:1000,160:200]',
         #  '/usr/src/data/test-sitelle-cube.fits',
         #  '/usr/src/data/test-sitelle-cube-cutout.fits', False,
         #  DEFAULT_TEST_FILE_DIR, 2, False),

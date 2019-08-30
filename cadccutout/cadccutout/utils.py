@@ -36,7 +36,7 @@ def is_integer(s):
 
 def to_astropy_header(header_dict):
     '''
-    Build an AstroPy header instance, filtering out empty header cards or 
+    Build an AstroPy header instance, filtering out empty header cards or
     empty values.
 
     This function will support a fitsio FITSHDR object or a regular dictionary.
