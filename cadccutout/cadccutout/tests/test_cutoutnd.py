@@ -114,22 +114,30 @@ def test_extract():
     '''
     Test extraction.
     '''
-    data_shape = (9, 4)
-    data = np.arange(36).reshape(data_shape)
-    test_subject = CutoutND(hdu=data)
-    cutout_region = PixelCutoutHDU([(3, 18)])
-    cutout = test_subject.extract(cutout_region.get_ranges())
-    expected_data = np.array([[3],
-                              [7],
-                              [11],
-                              [15],
-                              [19],
-                              [23],
-                              [27],
-                              [31],
-                              [35]])
-    np.testing.assert_array_equal(
-        expected_data, cutout.data, 'Arrays do not match.')
+    fname = random_test_file_name_path()
+    with fitsio.FITS(fname, 'rw', clobber=True) as fits:
+        data_shape = (9, 4)
+        data = np.arange(36).reshape(data_shape)
+
+        fits.create_image_hdu(dims=data.shape, dtype=data.dtype)
+
+        fits[-1].write(data)
+        hdu = fits[-1]
+
+        test_subject = CutoutND(hdu=hdu)
+        cutout_region = PixelCutoutHDU([(3, 18)])
+        cutout = test_subject.extract(cutout_region.get_ranges())
+        expected_data = np.array([[2, 3],
+                                  [6, 7],
+                                  [10, 11],
+                                  [14, 15],
+                                  [18, 19],
+                                  [22, 23],
+                                  [26, 27],
+                                  [30, 31],
+                                  [34, 35]])
+        np.testing.assert_array_equal(
+            expected_data, cutout.data, 'Arrays do not match.')
 
 
 def test_inverse_y():
@@ -254,15 +262,23 @@ def test_extract_invalid():
     '''
     Test for an invalid extraction.
     '''
-    data_shape = (10, 10)
-    data = np.arange(100).reshape(data_shape)
-    test_subject = CutoutND(data)
-    cutout_regions = [('')]
+    fname = random_test_file_name_path()
+    with fitsio.FITS(fname, 'rw', clobber=True) as fits:
+        data_shape = (10, 10)
+        data = np.arange(100).reshape(data_shape)
 
-    with pytest.raises(ValueError,
-                       match=r"Should have at least two values "
-                             r"\(lower, upper\)\."):
-        test_subject.extract(cutout_regions)
+        fits.create_image_hdu(dims=data.shape, dtype=data.dtype)
+
+        fits[-1].write(data)
+        hdu = fits[-1]
+
+        test_subject = CutoutND(hdu)
+        cutout_regions = [('')]
+
+        with pytest.raises(ValueError,
+                        match=r"Should have at least two values "
+                                r"\(lower, upper\)\."):
+            test_subject.extract(cutout_regions)
 
 
 def test_with_wcs():

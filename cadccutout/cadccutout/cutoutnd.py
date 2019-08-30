@@ -104,12 +104,8 @@ class CutoutND(object):
         '''
         Parameters
         ----------
-        data : `~numpy.ndarray`
-            The N-dimensional data array from which to extract the cutout
-            array.
-        cutout_region : `PixelCutoutHDU`
-            The Pixel HDU Cutout description.  See
-            cadccutout.pixel_cutout_hdu.py.
+        hdu : fitsio HDU
+            The HDU from fitsio containing the header and data block.
         wcs : `~astropy.wcs.WCS` or `None`
             A WCS object associated with the cutout array.  If it's specified,
             reset the WCS values for the cutout.
