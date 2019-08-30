@@ -4,5 +4,5 @@ pytest-cov>=2.5.1
 flake8>=3.5.0
 coveralls>=1.5.1
 memory_profiler
--e git://github.com/at88mph/fitsio.git#fixes#egg=fitsio
+-e git+https://github.com/at88mph/fitsio.git@fixes#egg=fitsio
 -e .
