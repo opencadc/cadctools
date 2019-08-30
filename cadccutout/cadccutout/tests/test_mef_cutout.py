@@ -71,16 +71,15 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
-import numpy as np
 import os
+import numpy as np
 import pytest
-import context as test_context
 
-import fitsio
 from astropy.io import fits as astropy_fits
 from astropy.wcs import WCS
 
-# from .context import random_test_file_name_path
+import context as test_context
+
 from cadccutout.core import OpenCADCCutout
 from cadccutout.no_content_error import NoContentError
 
@@ -88,7 +87,7 @@ from cadccutout.no_content_error import NoContentError
 pytest.main(args=['-s', os.path.abspath(__file__)])
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
-logger = logging.getLogger('cadccutout')
+LOGGER = logging.getLogger('cadccutout')
 
 
 def _create_mef_file(dir_name='/tmp'):
@@ -113,9 +112,9 @@ def _create_mef_file(dir_name='/tmp'):
 def test_mef_cutout_no_overlap():
     test_subject = OpenCADCCutout()
     target_file_name = _create_mef_file()
-    logger.debug('Created source file {}'.format(target_file_name))
+    LOGGER.debug('Created source file {}'.format(target_file_name))
     cutout_file_name_path = test_context.random_test_file_name_path()
-    logger.info('Writing cutout to {}'.format(cutout_file_name_path))
+    LOGGER.info('Writing cutout to {}'.format(cutout_file_name_path))
     cutout_region_str = '[1][300:800,810:1000]'
 
     try:
@@ -131,7 +130,7 @@ def test_mef_cutout():
     test_subject = OpenCADCCutout()
     target_file_name = _create_mef_file()
     cutout_file_name_path = test_context.random_test_file_name_path()
-    logger.info('Testing with {}'.format(cutout_file_name_path))
+    LOGGER.info('Testing with {}'.format(cutout_file_name_path))
     cutout_region_str = '[2][20:35,40:50][3]'
 
     # Write out a test file with the test result FITS data.

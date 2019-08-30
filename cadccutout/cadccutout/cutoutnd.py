@@ -73,7 +73,6 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import numpy as np
 
-from copy import deepcopy
 from math import ceil
 
 from astropy.wcs import Sip
@@ -168,7 +167,9 @@ class CutoutND(object):
         if len_data == 0:
             raise NoContentError('Empty dataset; nothing to cutout.')
         elif len_shape > len_data:
-            raise ValueError('Shape of cutout ({}) exceeds shape of data ({})'.format(cutout_shape, data_shape))
+            raise ValueError(
+                'Shape of cutout ({}) exceeds shape of data ({})'.format(
+                    cutout_shape, data_shape))
         elif len_data > len_shape:
             missing_shape_bounds = data_shape[:len_data - len_shape]
             logger.debug('Missing shape bounds are {} for length {}'.format(
@@ -248,7 +249,9 @@ class CutoutND(object):
         return output_wcs
 
     def get_data_shape(self):
-        if hasattr(self.hdu, 'get_dims') and callable(getattr(self.hdu, 'get_dims')):
+        if hasattr(
+                self.hdu, 'get_dims') and callable(
+                getattr(self.hdu, 'get_dims')):
             return self.hdu.get_dims()
         elif isinstance(self.hdu, np.ndarray):
             return self.hdu.shape
@@ -266,8 +269,8 @@ class CutoutND(object):
 
         try:
             cutout_shape = [
-                self.to_slice(idx, cutout_region) for idx, cutout_region in enumerate(cutout_regions)
-            ]
+                self.to_slice(idx, cutout_region) for idx,
+                cutout_region in enumerate(cutout_regions)]
             self._pad_cutout(cutout_shape)
 
             cutout = tuple(reversed(cutout_shape))
@@ -277,7 +280,8 @@ class CutoutND(object):
             raise NoContentError(
                 'No content (arrays do not overlap).\n\n{}'.format(str(ie)))
 
-        logger.debug('Extracted {} of data from {}.'.format(cutout_data.shape, self.get_data_shape()))
+        logger.debug('Extracted {} of data from {}.'.format(
+            cutout_data.shape, self.get_data_shape()))
 
         if self.wcs:
             output_wcs = self.format_wcs(cutout_shape)

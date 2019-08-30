@@ -71,7 +71,6 @@ from __future__ import (absolute_import, division,
 
 import logging
 import sys
-import io
 import argparse
 
 from cadccutout.file_factory import cutout as factory_cutout
@@ -79,7 +78,7 @@ from cadccutout.utils import is_string
 from cadccutout import version
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 __all__ = ['OpenCADCCutout']
 
@@ -100,7 +99,7 @@ class OpenCADCCutout(object):
     # Cutouts are in cfitsio format.
     cutout_region_string = '[300:800,810:1000]'  # HDU 0 along two axes.
 
-    test_subject.cutout_from_string(cutout_region_string, input_file, 
+    test_subject.cutout_from_string(cutout_region_string, input_file,
                                     output_file, 'FITS')
 
 
@@ -121,12 +120,15 @@ class OpenCADCCutout(object):
     # SCI version 10, along two axes.
     cutout_region_string = '[SCI,10][80:220,100:150]'
 
-    test_subject.cutout_from_string(cutout_region_string, input_file, 
+    test_subject.cutout_from_string(cutout_region_string, input_file,
                                     output_file, 'FITS')
     """
 
     @property
     def input_range_parser(self):
+        '''
+        Get the input range parser.
+        '''
         return PixelRangeInputParser()
 
     def cutout(self, cutout_dimensions, input_reader=None, output_writer=None,
@@ -150,7 +152,7 @@ class OpenCADCCutout(object):
             The file type, in upper case.  Will usually be 'FITS'.
         """
 
-        if not cutout_dimensions or len(cutout_dimensions) == 0:
+        if not cutout_dimensions or not cutout_dimensions:
             raise ValueError('No Cutout regions specified.')
 
         if input_reader is None:
@@ -183,8 +185,10 @@ class OpenCADCCutout(object):
 
     def parse_input(self, input_cutout_dimensions):
         '''
-        Parse the given input string into PixelCutoutHDU instances, if applicable.
+        Parse the given input string into PixelCutoutHDU instances, if
+        applicable.
         '''
+
         if self.input_range_parser.is_pixel_cutout(input_cutout_dimensions[0]):
             parsed_cutout_dimensions = self.input_range_parser.parse(
                 input_cutout_dimensions[0])
@@ -296,6 +300,6 @@ if __name__ == "__main__":
     try:
         main_app()
         sys.exit(0)
-    except Exception as e:
-        logging.error('{}'.format(str(e)))
+    except Exception as exception:
+        logging.error('{}'.format(str(exception)))
         sys.exit(-1)

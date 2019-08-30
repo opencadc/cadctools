@@ -100,6 +100,9 @@ def random_test_file_name_path(file_extension='fits',
 
 
 def test_create():
+    '''
+    Test the constructor with a None input.
+    '''
     with pytest.raises(ValueError):
         CutoutND(hdu=None)
 
@@ -240,8 +243,8 @@ def test_extract_striding_wildcard():
                                   [80, 87],
                                   [90, 97]])
         np.testing.assert_array_equal(
-            expected_data, cutout.data, 'Arrays do not match for file {}.'.format(
-                fname))
+            expected_data, cutout.data,
+            'Arrays do not match for file {}.'.format(fname))
 
 
 def test_extract_invalid():

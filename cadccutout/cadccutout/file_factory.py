@@ -70,7 +70,6 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-from enum import Enum
 from cadccutout.fits import cutout as fits_cutout
 
 __all__ = ['cutout']
@@ -81,6 +80,13 @@ _HDF5_TYPE = 'HDF5'
 
 
 def cutout(file_type, cutout_dimensions, input_stream, output_writer):
+    '''
+    Generic cutout call.  This will use the requested file_type to establish
+    the correct implementation to use for a cutout.
+
+    2019-08-30
+    - FITS cutouts supported
+    '''
     if file_type == _FITS_TYPE:
         fits_cutout(cutout_dimensions, input_stream, output_writer)
     else:
