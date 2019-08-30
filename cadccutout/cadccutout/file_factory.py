@@ -67,7 +67,8 @@
 # ***********************************************************************
 #
 
-from __future__ import (absolute_import, division, print_function, unicode_literals)
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
 
 from enum import Enum
 from cadccutout.fits import cutout as fits_cutout

@@ -100,7 +100,8 @@ class OpenCADCCutout(object):
     # Cutouts are in cfitsio format.
     cutout_region_string = '[300:800,810:1000]'  # HDU 0 along two axes.
 
-    test_subject.cutout_from_string(cutout_region_string, input_file, output_file, 'FITS')
+    test_subject.cutout_from_string(cutout_region_string, input_file, 
+                                    output_file, 'FITS')
 
 
     Example 2 (CADC)
@@ -117,16 +118,19 @@ class OpenCADCCutout(object):
     input_stream = data_client.get_file(archive, file_name)
 
     # Cutouts are in cfitsio format.
-    cutout_region_string = '[SCI,10][80:220,100:150]'  # SCI version 10, along two axes.
+    # SCI version 10, along two axes.
+    cutout_region_string = '[SCI,10][80:220,100:150]'
 
-    test_subject.cutout_from_string(cutout_region_string, input_file, output_file, 'FITS')
+    test_subject.cutout_from_string(cutout_region_string, input_file, 
+                                    output_file, 'FITS')
     """
 
     @property
     def input_range_parser(self):
         return PixelRangeInputParser()
 
-    def cutout(self, cutout_dimensions, input_reader=None, output_writer=None, file_type='FITS'):
+    def cutout(self, cutout_dimensions, input_reader=None, output_writer=None,
+               file_type='FITS'):
         """
         Perform a Cutout of the given data at the given position and size.
 
@@ -170,13 +174,17 @@ class OpenCADCCutout(object):
             output_stream = output_writer
 
         try:
-            factory_cutout(file_type, cutout_dimensions, input_stream, output_stream)
-        except OSError as oe:
+            factory_cutout(file_type, cutout_dimensions,
+                           input_stream, output_stream)
+        except OSError as o_e:
             raise ValueError(
                 'Output target or input source unusable (Did you specify an '
-                'input and output?).\n{}'.format(str(oe)))
+                'input and output?).\n{}'.format(str(o_e)))
 
-    def _parse_input(self, input_cutout_dimensions):
+    def parse_input(self, input_cutout_dimensions):
+        '''
+        Parse the given input string into PixelCutoutHDU instances, if applicable.
+        '''
         if self.input_range_parser.is_pixel_cutout(input_cutout_dimensions[0]):
             parsed_cutout_dimensions = self.input_range_parser.parse(
                 input_cutout_dimensions[0])
@@ -186,7 +194,7 @@ class OpenCADCCutout(object):
 
         return parsed_cutout_dimensions
 
-    def _sanity_check_input(self, cutout_dimensions_str):
+    def sanity_check_input(self, cutout_dimensions_str):
         if is_string(cutout_dimensions_str):
             input_cutout_dimensions = [cutout_dimensions_str]
         elif not isinstance(cutout_dimensions_str, list) \
@@ -199,7 +207,8 @@ class OpenCADCCutout(object):
 
         return input_cutout_dimensions
 
-    def cutout_from_string(self, cutout_dimensions_str, input_reader=None, output_writer=None, file_type='FITS'):
+    def cutout_from_string(self, cutout_dimensions_str, input_reader=None,
+                           output_writer=None, file_type='FITS'):
         """
         Perform a Cutout of the given data at the given position and size.
 
@@ -220,10 +229,10 @@ class OpenCADCCutout(object):
             The file type, in upper case.  Defaults to 'FITS'.
         """
 
-        input_cutout_dimensions = self._sanity_check_input(
+        input_cutout_dimensions = self.sanity_check_input(
             cutout_dimensions_str)
 
-        self.cutout(self._parse_input(input_cutout_dimensions),
+        self.cutout(self.parse_input(input_cutout_dimensions),
                     input_reader, output_writer, file_type)
 
 
@@ -275,7 +284,8 @@ def main_app(argv=None):
 
     logging.info('Start cutout.')
 
-    # Support multiple strings.  This will write out as many cutouts as it finds.
+    # Support multiple strings.  This will write out as many cutouts as it
+    # finds.
     c.cutout_from_string(
         args.cutout, input_reader=args.infile,
         output_writer=args.outfile,

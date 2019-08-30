@@ -67,7 +67,8 @@
 # ***********************************************************************
 #
 
-from __future__ import (absolute_import, division, print_function, unicode_literals)
+from __future__ import (absolute_import, division,
+                        print_function, unicode_literals)
 
 import io
 import sys
@@ -78,10 +79,6 @@ import numpy as np
 
 import fitsio
 
-# from astropy.io import fits
-# from astropy.io.fits import Header
-from astropy.wcs import WCS
-from cadccutout.cutoutnd import CutoutResult
 from cadccutout.fits import cutout as fits_cutout
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 
@@ -97,8 +94,12 @@ DEFAULT_TEST_FILE_DIR = '/tmp'
 
 def random_test_file_name_path(file_extension='fits',
                                dir_name=DEFAULT_TEST_FILE_DIR):
+    '''
+    Create a new random test file and return the name.
+    '''
     return tempfile.NamedTemporaryFile(
-        dir=dir_name, prefix=__name__, suffix='.{}'.format(file_extension)).name
+        dir=dir_name, prefix=__name__, suffix='.{}'.format(
+            file_extension)).name
 
 
 def _create_hdu_list():
@@ -119,7 +120,10 @@ def _create_hdu_list():
     return fitsio.FITS(fits_file_name)
 
 
-def test__check_hdu_list():
+def test_factory_cutout():
+    '''
+    Bare cutout tests.
+    '''
     fname = random_test_file_name_path()
     with fitsio.FITS(fname, 'rw', clobber=True) as fits:
         fits.write(None)

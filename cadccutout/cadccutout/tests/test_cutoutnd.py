@@ -75,15 +75,15 @@ import logging
 import tempfile
 import pytest
 import numpy as np
+
+from astropy.wcs import WCS
 from cadccutout.utils import to_astropy_header
 from cadccutout.cutoutnd import CutoutND
-from astropy.io.fits import Header
-import fitsio
-from astropy.wcs import WCS
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 
-logger = logging.getLogger('cadccutout')
+import fitsio
 
+LOGGER = logging.getLogger('cadccutout')
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
 DEFAULT_TEST_FILE_DIR = '/tmp'
@@ -91,8 +91,12 @@ DEFAULT_TEST_FILE_DIR = '/tmp'
 
 def random_test_file_name_path(file_extension='fits',
                                dir_name=DEFAULT_TEST_FILE_DIR):
+    '''
+    Create a random file and return the path of it.
+    '''
     return tempfile.NamedTemporaryFile(
-        dir=dir_name, prefix=__name__, suffix='.{}'.format(file_extension)).name
+        dir=dir_name, prefix=__name__, suffix='.{}'.format(
+            file_extension)).name
 
 
 def test_create():
@@ -101,6 +105,9 @@ def test_create():
 
 
 def test_extract():
+    '''
+    Test extraction.
+    '''
     data_shape = (9, 4)
     data = np.arange(36).reshape(data_shape)
     test_subject = CutoutND(hdu=data)
@@ -120,6 +127,9 @@ def test_extract():
 
 
 def test_inverse_y():
+    '''
+    Test reversing the y values (i.e. stop < start).
+    '''
     fname = random_test_file_name_path()
     with fitsio.FITS(fname, 'rw', clobber=True) as fits:
         data_shape = (10, 10)
@@ -139,10 +149,14 @@ def test_inverse_y():
                                   [40, 41],
                                   [30, 31]])
         np.testing.assert_array_equal(
-            expected_data, cutout.data, 'Arrays do not match in {}.'.format(fname))
+            expected_data, cutout.data, 'Arrays do not match in {}.'.format(
+                fname))
 
 
 def test_inverse_y_striding():
+    '''
+    Test reversing the y values (i.e. stop < start) with a step value.
+    '''
     fname = random_test_file_name_path()
     with fitsio.FITS(fname, 'rw', clobber=True) as fits:
         data_shape = (10, 10)
@@ -162,10 +176,14 @@ def test_inverse_y_striding():
                                   [30, 31],
                                   [10, 11]])
         np.testing.assert_array_equal(
-            expected_data, cutout.data, 'Arrays do not match in {}.'.format(fname))
+            expected_data, cutout.data, 'Arrays do not match in {}.'.format(
+                fname))
 
 
 def test_extract_striding():
+    '''
+    Test extraction with a step value.
+    '''
     fname = random_test_file_name_path()
     with fitsio.FITS(fname, 'rw', clobber=True) as fits:
         data_shape = (10, 10)
@@ -190,10 +208,14 @@ def test_extract_striding():
                                   [83, 88],
                                   [93, 98]])
         np.testing.assert_array_equal(
-            expected_data, cutout.data, 'Arrays do not match in {}.'.format(fname))
+            expected_data, cutout.data, 'Arrays do not match in {}.'.format(
+                fname))
 
 
 def test_extract_striding_wildcard():
+    '''
+    Test extraction with a step value using a wildcard.
+    '''
     fname = random_test_file_name_path()
     with fitsio.FITS(fname, 'rw', clobber=True) as fits:
         data_shape = (10, 10)
@@ -218,10 +240,14 @@ def test_extract_striding_wildcard():
                                   [80, 87],
                                   [90, 97]])
         np.testing.assert_array_equal(
-            expected_data, cutout.data, 'Arrays do not match for file {}.'.format(fname))
+            expected_data, cutout.data, 'Arrays do not match for file {}.'.format(
+                fname))
 
 
 def test_extract_invalid():
+    '''
+    Test for an invalid extraction.
+    '''
     data_shape = (10, 10)
     data = np.arange(100).reshape(data_shape)
     test_subject = CutoutND(data)
@@ -234,6 +260,9 @@ def test_extract_invalid():
 
 
 def test_with_wcs():
+    '''
+    Test WCS entries.
+    '''
     fname = random_test_file_name_path()
     with fitsio.FITS(fname, 'rw', clobber=True) as fits:
         data_shape = (10, 10)
@@ -244,7 +273,7 @@ def test_with_wcs():
         fits[0].write(data)
         hdu = fits[0]
 
-        logger.debug('Wrote to {}'.format(fname))
+        LOGGER.debug('Wrote to {}'.format(fname))
 
         header = hdu.read_header()
         astropy_header = to_astropy_header(header)

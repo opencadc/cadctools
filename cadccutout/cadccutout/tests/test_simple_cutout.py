@@ -71,15 +71,14 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
-import numpy as np
 import os
-import sys
+import numpy as np
 import pytest
-import context as test_context
 
 from astropy.io import fits
 from astropy.wcs import WCS
 
+import context as test_context
 from cadccutout.core import OpenCADCCutout
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 
@@ -87,21 +86,27 @@ from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 pytest.main(args=['-s', os.path.abspath(__file__)])
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
-target_file_name = os.path.join(TESTDATA_DIR, 'test-simple.fits')
-expected_cutout_file_name = os.path.join(TESTDATA_DIR, 'test-simple-cutout.fits')
-logger = logging.getLogger('cadccutout')
+TARGET_FILE_NAME = os.path.join(TESTDATA_DIR, 'test-simple.fits')
+EXPECTED_CUTOUT_FILE_NAME = os.path.join(
+    TESTDATA_DIR, 'test-simple-cutout.fits')
+LOGGER = logging.getLogger('cadccutout')
 
 
 def test_simple_cutout():
+    '''
+    Perform a simple cutout from the target file.
+    '''
     test_subject = OpenCADCCutout()
     cutout_file_name_path = test_context.random_test_file_name_path()
-    logger.info('Testing with {} and writing out to {}.'.format(target_file_name, cutout_file_name_path))
+    LOGGER.info('Testing with {} and writing out to {}.'.format(
+        TARGET_FILE_NAME, cutout_file_name_path))
     cutout_regions = [PixelCutoutHDU([(300, 800), (810, 1000)])]
 
     # Write out a test file with the test result FITS data.
-    test_subject.cutout(cutout_regions, target_file_name, cutout_file_name_path, 'FITS')
+    test_subject.cutout(cutout_regions, TARGET_FILE_NAME,
+                        cutout_file_name_path, 'FITS')
 
-    with fits.open(expected_cutout_file_name, mode='readonly') \
+    with fits.open(EXPECTED_CUTOUT_FILE_NAME, mode='readonly') \
             as expected_hdu_list, \
             fits.open(cutout_file_name_path, mode='readonly') \
             as result_hdu_list:

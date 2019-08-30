@@ -138,7 +138,8 @@ def test_mef_cutout():
     test_subject.cutout_from_string(cutout_region_str, target_file_name,
                                     cutout_file_name_path, 'FITS')
 
-    with astropy_fits.open(cutout_file_name_path, mode='readonly') as result_hdu_list:
+    with astropy_fits.open(cutout_file_name_path, mode='readonly') \
+            as result_hdu_list:
         assert len(result_hdu_list) == 3, 'Should have 3 HDUs.'
 
         hdu1 = result_hdu_list[1]
@@ -169,7 +170,8 @@ def test_mef_cutout():
             'DATASUM') is None, 'Should not contain DATASUM.'
 
         expected1 = np.zeros((11, 16), dtype=hdu1.data.dtype)
-        expected2 = np.arange(5000000, dtype=hdu2.data.dtype).reshape(5000, 1000)
+        expected2 = np.arange(
+            5000000, dtype=hdu2.data.dtype).reshape(5000, 1000)
 
         for i in range(11):
             start = 39019 + (i * 1000)

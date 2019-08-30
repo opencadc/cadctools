@@ -70,6 +70,9 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
+import logging
+from astropy.wcs import WCS
+
 import fitsio
 from fitsio.hdu import ImageHDU
 
@@ -79,17 +82,10 @@ from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 from cadccutout.cutoutnd import CutoutND
 from cadccutout.no_content_error import NoContentError
 
-from astropy.wcs import WCS
-from astropy.io import fits
-from astropy.io.fits import PrimaryHDU
-
-
-import logging
-
 
 __all__ = ['cutout']
 
-logger = logging.getLogger(__name__)
+LOGGER = logging.getLogger(__name__)
 
 
 def _post_sanitize_header(header, cutout_result):
@@ -109,20 +105,20 @@ def _post_sanitize_header(header, cutout_result):
                 else:
                     new_val = val
 
-                logger.debug(
+                LOGGER.debug(
                     'Adjusting {} from {} to {}'.format(
                         header_key, val, new_val))
 
                 header['CRPIX{}'.format(idx + 1)] = new_val
 
         if wcs.has_pc():
-            logger.debug('Handling PC values.')
+            LOGGER.debug('Handling PC values.')
             pc = wcs.pc
             for i in range(wcs.naxis):
                 for j in range(wcs.naxis):
                     header['PC{}_{}'.format(i + 1, j + 1)] = pc[i][j]
         elif wcs.has_cd():
-            logger.debug('Handling CD values.')
+            LOGGER.debug('Handling CD values.')
             cd = wcs.cd
             for i in range(wcs.naxis):
                 for j in range(wcs.naxis):
@@ -152,7 +148,7 @@ def _get_wcs(header):
 
 def _pixel_cutout(hdu, cutout_dimension, header):
     extension = cutout_dimension.get_extension()
-    logger.debug('Cutting out from extension {}'.format(extension))
+    LOGGER.debug('Cutting out from extension {}'.format(extension))
 
     c = CutoutND(hdu, wcs=_get_wcs(header))
     return c.extract(cutout_dimension.get_ranges())
@@ -168,7 +164,7 @@ def _require_primary_hdu(cutout_dimensions):
     # different extensions of the file
     last_ext = -1
     for c in cutout_dimensions:
-        logger.debug('Last Extension is {} and comparing to {}'.format(
+        LOGGER.debug('Last Extension is {} and comparing to {}'.format(
             last_ext, c.get_extension()))
         if last_ext != -1 and last_ext != c.get_extension():
             return True
@@ -186,39 +182,45 @@ def _check_hdu_list(cutout_dimensions, hdu_list, output_writer):
 
         # Check for a pixel cutout
         if isinstance(cutout_dimensions[0], PixelCutoutHDU):
-            if _require_primary_hdu(cutout_dimensions) and primary_header['NAXIS'] == 0:
-                # add the PrimaryHDU from the original HDU list
-                logger.debug('Setting primary HDU.')
+            if _require_primary_hdu(cutout_dimensions) \
+                    and primary_header['NAXIS'] == 0:
+                # add the Primary HDU from the original HDU list
+                LOGGER.debug('Setting primary HDU.')
                 result_hdu_list.write(None, header=primary_header)
 
             lcd = len(cutout_dimensions)
             for idx, cutout_dimension in enumerate(cutout_dimensions):
-                logger.debug(
+                LOGGER.debug(
                     'Next cutout dimension is {}'.format(cutout_dimension))
                 ext = cutout_dimension.get_extension()
                 hdu = hdu_list[ext]
 
                 # Entire extension was requested.
                 if not cutout_dimension.get_ranges():
-                    logger.debug('Appending entire extension {}'.format(ext))
+                    LOGGER.debug('Appending entire extension {}'.format(ext))
                     result_hdu_list.write(hdu.read(), header=hdu.read_header())
                     has_match = True
                 else:
                     try:
                         header = hdu.read_header()
-                        cutout_result = _pixel_cutout(hdu, cutout_dimension, header)
-                        logger.debug('Sanitizing header.')
+                        cutout_result = _pixel_cutout(
+                            hdu, cutout_dimension, header)
+                        LOGGER.debug('Sanitizing header.')
                         _post_sanitize_header(header, cutout_result)
-                        logger.debug('Writing results for {}'.format(cutout_result.data.shape))
-                        result_hdu_list.write(cutout_result.data, header=header)
-                        logger.debug('Done writing results.')
+                        LOGGER.debug('Writing results for {}'.format(
+                            cutout_result.data.shape))
+                        result_hdu_list.write(cutout_result.data,
+                                              header=header)
+                        LOGGER.debug('Done writing results.')
                         has_match = True
-                        logger.debug('Successfully cutout from {}'.format(ext))
+                        LOGGER.debug('Successfully cutout from {}'.format(ext))
                     except NoContentError:
-                        logger.debug(
-                            'Skipping non-overlapping cutout {}'.format(cutout_dimension))
+                        LOGGER.debug(
+                            'Skipping non-overlapping cutout {}'.format(
+                                cutout_dimension))
 
-                logger.debug('Finished dimension {} of {}.'.format(idx + 1, lcd))
+                LOGGER.debug(
+                    'Finished dimension {} of {}.'.format(idx + 1, lcd))
         else:
             # Write out the primary header.
             result_hdu_list.write(None, header=primary_header)
@@ -227,24 +229,31 @@ def _check_hdu_list(cutout_dimensions, hdu_list, output_writer):
                 if _is_image(hdu) and hdu.read is not None:
                     transform = Transform()
                     header = hdu.read_header()
-                    logger.debug('Next HDU to check {} from {}'.format(hdu, ext_idx))
-                    logger.debug('Transforming {}'.format(cutout_dimensions))
+                    LOGGER.debug(
+                        'Next HDU to check {} from {}'.format(hdu, ext_idx))
+                    LOGGER.debug('Transforming {}'.format(cutout_dimensions))
                     try:
                         transformed_cutout_dimension = \
-                            transform.world_to_pixels(cutout_dimensions, header)
-                        logger.debug('Transformed {} into {}'.format(
+                            transform.world_to_pixels(cutout_dimensions,
+                                                      header)
+                        LOGGER.debug('Transformed {} into {}'.format(
                             cutout_dimensions, transformed_cutout_dimension))
 
-                        if _require_primary_hdu([transformed_cutout_dimension]) and header['NAXIS'] == 0:
+                        if _require_primary_hdu(
+                                [transformed_cutout_dimension]) \
+                                and header['NAXIS'] == 0:
                             result_hdu_list.write(None, header=header)
 
-                        cutout_result = _pixel_cutout(hdu, transformed_cutout_dimension, header)
-                        result_hdu_list.write(cutout_result.data, header=header)
+                        cutout_result = _pixel_cutout(
+                            hdu, transformed_cutout_dimension, header)
+                        result_hdu_list.write(cutout_result.data,
+                                              header=header)
 
                         has_match = True
                     except NoContentError:
-                        logger.debug(
-                            'Skipping non-overlapping cutout {}'.format(cutout_dimensions))
+                        LOGGER.debug(
+                            'Skipping non-overlapping cutout {}'.format(
+                                cutout_dimensions))
     else:
         raise NoContentError('No overlap found (No cutout specified).')
 
@@ -259,12 +268,13 @@ def cutout(cutout_dimensions, input_stream, output_writer):
     # Start with the first extension
     source_hdu_list = fitsio.FITS(input_stream, 'r')
 
-    logger.debug('Calling check_hdu_list().')
+    LOGGER.debug('Calling check_hdu_list().')
 
     # Keep a tally of whether at least one HDU matched.
-    matches = _check_hdu_list(cutout_dimensions, source_hdu_list, output_writer)
+    matches = _check_hdu_list(cutout_dimensions, source_hdu_list,
+                              output_writer)
 
-    logger.debug('Has match in list? -- {}'.format(matches))
+    LOGGER.debug('Has match in list? -- {}'.format(matches))
 
     if not matches:
         raise NoContentError('No overlap found.')

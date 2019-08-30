@@ -70,7 +70,6 @@
 from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
-import io
 import logging
 import pytest
 from cadccutout.core import OpenCADCCutout
@@ -82,22 +81,25 @@ try:
 except NameError:
     FileNotFoundError = IOError
 
-logger = logging.getLogger('cadccutout')
-logger.setLevel(logging.DEBUG)
+LOGGER = logging.getLogger('cadccutout')
+LOGGER.setLevel(logging.DEBUG)
 
 
-def test__parse_input():
+def test_parse_input():
+    '''
+    Test parsing the given input.
+    '''
     test_subject = OpenCADCCutout()
     inputs = ['[9][100:1000]']
 
-    results = test_subject._parse_input(inputs)
+    results = test_subject.parse_input(inputs)
     pixel_cutout = results[0]
 
     assert pixel_cutout.get_extension() == 9, 'Wrong extension found.'
     assert pixel_cutout.get_ranges() == [(100, 1000)], 'Wrong ranges found.'
 
     inputs = ['[500:700][SCI,8][40:58]']
-    results = test_subject._parse_input(inputs)
+    results = test_subject.parse_input(inputs)
     pixel_cutout1 = results[0]
     pixel_cutout2 = results[1]
 
@@ -111,41 +113,46 @@ def test__parse_input():
         'Wrong ranges found for 1.'
 
     inputs = ['CIRCLE=88.0 115.0 0.5']
-    results = test_subject._parse_input(inputs)
+    results = test_subject.parse_input(inputs)
 
     assert results[0] == 'CIRCLE=88.0 115.0 0.5', 'Wrong WCS input.'
 
     inputs = ['[AMP]']
 
-    results = test_subject._parse_input(inputs)
+    results = test_subject.parse_input(inputs)
     pixel_cutout = results[0]
 
     assert pixel_cutout.get_extension() == ('AMP', 1), 'Wrong extension found.'
 
 
-def test__sanity_check_input():
+def test_sanity_check_input():
+    '''
+    Test the check input.
+    '''
     test_subject = OpenCADCCutout()
-    input = '[9][100:1000]'
 
-    sanity_input = test_subject._sanity_check_input(input)
+    sanity_input = test_subject.sanity_check_input('[9][100:1000]')
     assert isinstance(sanity_input, list), 'Should be list'
 
-    with pytest.raises(ValueError) as ve:
-        test_subject._sanity_check_input(('bad', 'tuple'))
-        assert ('{}'.format(ve) ==
+    with pytest.raises(ValueError) as v_e:
+        test_subject.sanity_check_input(('bad', 'tuple'))
+        assert ('{}'.format(v_e) ==
                 'Input is expected to be a string or list but was \
-(u\'bad\', u\'tuple\')') or ('{}'.format(ve) ==
+(u\'bad\', u\'tuple\')') or ('{}'.format(v_e) ==
                              'Input is expected to be a string or list but was \
 (\'bad\', \'tuple\')'), \
             'Wrong error message.'
 
 
 def test_construct():
+    '''
+    Test the constructor
+    '''
     test_subject = OpenCADCCutout()
 
-    with pytest.raises(ValueError) as ve:
+    with pytest.raises(ValueError) as v_e:
         test_subject.cutout([])
-    assert str(ve.value) == 'No Cutout regions specified.', \
+    assert str(v_e.value) == 'No Cutout regions specified.', \
         'Wrong error message.'
 
     with pytest.raises(FileNotFoundError):
