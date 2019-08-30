@@ -106,6 +106,9 @@ def test_create():
     with pytest.raises(ValueError):
         CutoutND(hdu=None)
 
+    with pytest.raises(ValueError):
+        CutoutND(hdu=[])
+
 
 def test_extract():
     '''
