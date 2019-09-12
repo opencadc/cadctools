@@ -110,9 +110,9 @@ def test_create():
         CutoutND(hdu=[])
 
 
-def test_extract():
+def test_get_parameters():
     '''
-    Test extraction.
+    Test getting parameters.
     '''
     fname = random_test_file_name_path()
     with fitsio.FITS(fname, 'rw', clobber=True) as fits:
@@ -126,18 +126,9 @@ def test_extract():
 
         test_subject = CutoutND(hdu=hdu)
         cutout_region = PixelCutoutHDU([(3, 18)])
-        cutout = test_subject.extract(cutout_region.get_ranges())
-        expected_data = np.array([[2, 3],
-                                  [6, 7],
-                                  [10, 11],
-                                  [14, 15],
-                                  [18, 19],
-                                  [22, 23],
-                                  [26, 27],
-                                  [30, 31],
-                                  [34, 35]])
-        np.testing.assert_array_equal(
-            expected_data, cutout.data, 'Arrays do not match.')
+        cutout = test_subject.get_parameters(cutout_region.get_ranges())
+        expected_cutout = (slice(1, 9, 1), slice(3, 18, 1))
+        assert expected_cutout == cutout.cutout, 'Arrays do not match.'
 
 
 def test_inverse_y():
@@ -156,15 +147,10 @@ def test_inverse_y():
 
         test_subject = CutoutND(hdu=hdu)
         cutout_regions = [(1, 2), (8, 4)]
-        cutout = test_subject.extract(cutout_regions)
-        expected_data = np.array([[70, 71],
-                                  [60, 61],
-                                  [50, 51],
-                                  [40, 41],
-                                  [30, 31]])
-        np.testing.assert_array_equal(
-            expected_data, cutout.data, 'Arrays do not match in {}.'.format(
-                fname))
+        cutout = test_subject.get_parameters(cutout_regions)
+        expected_cutout = (slice(8,4,1), slice(1,2,1))
+        assert expected_cutout == cutout.cutout, \
+                    'Arrays do not match in {}.'.format(fname)
 
 
 def test_inverse_y_striding():
@@ -183,15 +169,10 @@ def test_inverse_y_striding():
 
         test_subject = CutoutND(hdu=hdu)
         cutout_regions = [(1, 2), (10, 2, 2)]
-        cutout = test_subject.extract(cutout_regions)
-        expected_data = np.array([[90, 91],
-                                  [70, 71],
-                                  [50, 51],
-                                  [30, 31],
-                                  [10, 11]])
-        np.testing.assert_array_equal(
-            expected_data, cutout.data, 'Arrays do not match in {}.'.format(
-                fname))
+        cutout = test_subject.get_parameters(cutout_regions)
+        expected_cutout = (slice(10, 2, 2), slice(1, 2, 1))
+        assert expected_cutout == cutout.cutout, \
+                    'Arrays do not match in {}.'.format(fname)
 
 
 def test_extract_striding():
@@ -210,20 +191,10 @@ def test_extract_striding():
 
         test_subject = CutoutND(hdu=hdu)
         cutout_regions = [(4, 18, 5)]
-        cutout = test_subject.extract(cutout_regions)
-        expected_data = np.array([[3, 8],
-                                  [13, 18],
-                                  [23, 28],
-                                  [33, 38],
-                                  [43, 48],
-                                  [53, 58],
-                                  [63, 68],
-                                  [73, 78],
-                                  [83, 88],
-                                  [93, 98]])
-        np.testing.assert_array_equal(
-            expected_data, cutout.data, 'Arrays do not match in {}.'.format(
-                fname))
+        cutout = test_subject.get_parameters(cutout_regions)
+        expected_cutout = (slice(1, 10, 1), slice(4, 18, 5))
+        assert expected_cutout == cutout.cutout, \
+            'Arrays do not match in {}.'.format(fname)
 
 
 def test_extract_striding_wildcard():
@@ -242,20 +213,10 @@ def test_extract_striding_wildcard():
 
         test_subject = CutoutND(hdu=hdu)
         cutout_regions = [('*', 7)]
-        cutout = test_subject.extract(cutout_regions)
-        expected_data = np.array([[0, 7],
-                                  [10, 17],
-                                  [20, 27],
-                                  [30, 37],
-                                  [40, 47],
-                                  [50, 57],
-                                  [60, 67],
-                                  [70, 77],
-                                  [80, 87],
-                                  [90, 97]])
-        np.testing.assert_array_equal(
-            expected_data, cutout.data,
-            'Arrays do not match for file {}.'.format(fname))
+        cutout = test_subject.get_parameters(cutout_regions)
+        expected_cutout = (slice(1, 10, 1), slice(1, 10, 7))
+        assert expected_cutout == cutout.cutout, \
+            'Arrays do not match for file {}.'.format(fname)
 
 
 def test_extract_invalid():
@@ -278,7 +239,7 @@ def test_extract_invalid():
         with pytest.raises(ValueError,
                            match=r"Should have at least two values "
                            r"\(lower, upper\)\."):
-            test_subject.extract(cutout_regions)
+            test_subject.get_parameters(cutout_regions)
 
 
 def test_with_wcs():
@@ -305,7 +266,7 @@ def test_with_wcs():
         wcs.wcs.cd = [[0.9, 0.8], [0.7, 0.6]]
 
         test_subject = CutoutND(hdu=hdu, wcs=wcs)
-        cutout_result = test_subject.extract([(1, 6, 2), (4, 10, 2)])
+        cutout_result = test_subject.get_parameters([(1, 6, 2), (4, 10, 2)])
         result_wcs = cutout_result.wcs
         np.testing.assert_array_equal([[1.8, 1.6], [1.4, 1.2]],
                                       result_wcs.wcs.cd, 'Wrong CD output.')

@@ -18,7 +18,7 @@ before_install:
 install:
     - pip install -U pip
     - pip install twine
-    - for i in $(ls -d */); do cd $i; pip install -r dev_requirements.txt; cd ..; done
+    - for i in $(ls -d cadc*/); do cd $i; pip install -r dev_requirements.txt; cd ..; done
     - pip install coveralls
 
 script:

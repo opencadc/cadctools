@@ -72,9 +72,9 @@ from __future__ import (absolute_import, division, print_function,
 
 import logging
 import os
+import tempfile
 import numpy as np
 import pytest
-import tempfile
 
 from astropy.io import fits
 from astropy.wcs import WCS
@@ -83,30 +83,36 @@ from cadccutout.core import OpenCADCCutout
 
 
 pytest.main(args=['-s', os.path.abspath(__file__)])
-target_file_name = '/usr/src/data/test-hst-mef.fits'
-expected_cutout_file_path = '/usr/src/data/test-hst-mef-cutout.fits'
-cutout_region_string = \
-    '[SCI,10][80:220,100:150][1][10:16,70:90][106][8:32,88:112][126]'
-logger = logging.getLogger()
 
 
 def random_test_file_name_path(file_extension='fits', dir_name='/tmp'):
+    '''
+    Generate a random output file to write to.
+    '''
     return tempfile.NamedTemporaryFile(
-        dir=dir_name, prefix=__name__, suffix='.{}'.format(file_extension)).name
+        dir=dir_name, prefix=__name__, suffix='.{}'.format(
+            file_extension)).name
 
 
+@pytest.mark.skip
 def test_hst_mef_cutout_missing_one():
+    '''
+    MEF cutouts using an HST MEF (126 HDUs) file.
+    '''
     # Should result in a 3-HDU MEF.  Extension 2 is an ERR one with no data.
     cutout_region_string = \
         '[SCI,10][80:220,100:150][2][10:16,70:90][106][8:32,88:112][126]'
+    target_file_name = '/usr/src/data/test-hst-mef.fits'
+    expected_cutout_file_path = '/usr/src/data/test-hst-mef-cutout.fits'
+    logger = logging.getLogger()
     test_subject = OpenCADCCutout()
     result_cutout_file_path = random_test_file_name_path()
 
     logger.info('Testing output to {}'.format(result_cutout_file_path))
 
     # Write out a test file with the test result FITS data.
-    test_subject.cutout_from_string(
-        cutout_region_string, target_file_name, result_cutout_file_path, 'FITS')
+    test_subject.cutout_from_string(cutout_region_string, target_file_name,
+                                    result_cutout_file_path, 'FITS')
 
     with fits.open(expected_cutout_file_path, mode='readonly') \
             as expected_hdu_list, \

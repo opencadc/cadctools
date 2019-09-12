@@ -73,6 +73,7 @@ from __future__ import (absolute_import, division, print_function,
 import sys
 import os
 import logging
+import math
 import tempfile
 import pytest
 import numpy as np
@@ -80,6 +81,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
 
+from cadccutout.utils import to_num
 from cadccutout.core import OpenCADCCutout
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
@@ -91,6 +93,17 @@ TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
 DEFAULT_TEST_FILE_DIR = '/tmp'
 logging.basicConfig(level=logging.DEBUG)
 logging.getLogger('cadccutout').setLevel(logging.DEBUG)
+
+
+def _is_close(a, b, rel_tol=1e-09, abs_tol=0.0):
+    return abs(a-b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
+
+
+def is_close(a, b, rel_tol=1e-09, abs_tol=0.0):
+    try:
+        return math.isclose(a, b, rel_tol=rel_tol, abs_tol=abs_tol)
+    except AttributeError:
+        return is_close(a, b, rel_tol, abs_tol)
 
 
 def random_test_file_name_path(file_extension='fits',
@@ -115,31 +128,30 @@ def _extname_sort_func(hdu):
     return (hdu.header.get('EXTNAME', ''), str(hdu.header.get('EXTVER', '0')))
 
 
-@pytest.mark.skip
 @pytest.mark.parametrize(
     'cutout_region_string, target_file_name, \
                           expected_cutout_file_path, use_fits_diff, \
                           test_dir_name, wcs_naxis_val, use_extension_names',
     [
-        # Bad shape is extracted.  Should be (2148, 2) but is (2148, 21).
+        # Bad CRPIX if 1 added...
         # ('[1][20:40:12]', '/usr/src/data/public_fits.fits.fz',
         #  '/usr/src/data/public_fits.cutout_striding.fits.fz', True,
-        #  DEFAULT_TEST_FILE_DIR, None, True),
+        #  DEFAULT_TEST_FILE_DIR, None, True)
         # Wrong array output
         # (https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/data/pub/CGPS/
         #   CGPS_MX1_CO_line_images.fits)
-        # ('[200:400,500:1000,10:20]', '/usr/src/data/test-cgps-cube.fits',
-        #  '/usr/src/data/test-cgps-cube-cutout.fits', True,
-        #  DEFAULT_TEST_FILE_DIR, None, False)
+        ('[200:400,500:1000,10:20]', '/usr/src/data/test-cgps-cube.fits',
+         '/usr/src/data/test-cgps-cube-cutout.fits', True,
+         DEFAULT_TEST_FILE_DIR, None, False)
         # Data array is incorrect.  Possible SIP involvement?
         # ('[1000:1200,800:1000,160:200]',
         #  '/usr/src/data/test-sitelle-cube.fits',
         #  '/usr/src/data/test-sitelle-cube-cutout.fits', False,
-        #  DEFAULT_TEST_FILE_DIR, 2, False),
+        #  DEFAULT_TEST_FILE_DIR, 2, False)
         # Bad shape is extracted.  Might need to trim zeros, or go direct to
         # numpy array.
         # ('[2][*:20]', '/usr/src/data/test-cfht.fits.fz',
-        #  '/usr/src/data/test-cfht-cutout.fits.fz', True,
+        #  '/usr/src/data/test-cfht-cutout.fits', True,
         #  DEFAULT_TEST_FILE_DIR, None, False),
         # ('[80:220,100:150,100:150]', '/usr/src/data/test-alma-cube.fits',
         #  '/usr/src/data/test-alma-cube-cutout.fits', True,
@@ -151,19 +163,19 @@ def _extname_sort_func(hdu):
         #  '/usr/src/data/public_fits.cutout.fits.fz', True,
         #  DEFAULT_TEST_FILE_DIR, None, True),
         # ***** WORKING LINE *****
-        ('[10][10:85]', '/usr/src/data/test-megaprime.fits.fz',
-         '/usr/src/data/test-megaprime-cutout.fits', True,
-         DEFAULT_TEST_FILE_DIR, None, False)
+        # ('[10][10:85]', '/usr/src/data/test-megaprime.fits.fz',
+        #  '/usr/src/data/test-megaprime-cutout.fits', True,
+        #  DEFAULT_TEST_FILE_DIR, None, False)
         # ('[200:500,100:300,100:140]', '/usr/src/data/test-gmims-cube.fits',
         #  '/usr/src/data/test-gmims-cube-cutout.fits', True,
         #  DEFAULT_TEST_FILE_DIR, None, False),
         # ('[SCI,10][80:220,100:150][1][10:16,70:90][106][8:32,88:112][126]',
         #  '/usr/src/data/test-hst-mef.fits',
         #  '/usr/src/data/test-hst-mef-cutout.fits', True,
-        # DEFAULT_TEST_FILE_DIR, None, True),
+        #  DEFAULT_TEST_FILE_DIR, None, True),
         # ('[7970:8481,14843:14332]', '/usr/src/data/test-megapipe.fits',
         #  '/usr/src/data/test-megapipe-cutout.fits', True,
-        # DEFAULT_TEST_FILE_DIR, None, True),
+        #  DEFAULT_TEST_FILE_DIR, None, True),
         # ('[7970:8481:4,14843:14332:4]', '/usr/src/data/test-megapipe.fits',
         #  '/usr/src/data/test-megapipe-cutout-striding.fits', True,
         #  DEFAULT_TEST_FILE_DIR, None, True)
@@ -174,6 +186,7 @@ def test_integration_test(
     test_subject = OpenCADCCutout()
     result_cutout_file_path = \
         random_test_file_name_path(dir_name=test_dir_name)
+    ignored_header_keys = ['COMMENT', 'HISTORY', 'CHECKSUM', 'DATASUM', 'BLANK']
 
     logging.info('Testing output to {}'.format(result_cutout_file_path))
 
@@ -199,41 +212,39 @@ def test_integration_test(
         for extension, result_hdu in enumerate(result_hdu_list):
             logging.debug('\nChecking extension {}\n'.format(extension))
             expected_hdu = expected_hdu_list[extension]
+            expected_header = expected_hdu.header
+            result_header = result_hdu.header
 
-            expected_wcs = WCS(header=expected_hdu.header,
-                               naxis=wcs_naxis_val, fix=False)
-            result_wcs = WCS(header=result_hdu.header,
-                             naxis=wcs_naxis_val, fix=False)
+            for _h_idx, header_key in enumerate(expected_header):
+                if header_key in ignored_header_keys \
+                        or header_key.strip() == '':
+                    continue
 
-            # np.testing.assert_array_equal(
-            #     expected_wcs.wcs.crpix, result_wcs.wcs.crpix,
-            #     'Wrong CRPIX values.')
-            # np.testing.assert_array_equal(
-            #     expected_wcs.wcs.crval, result_wcs.wcs.crval,
-            #     'Wrong CRVAL values.')
-            np.testing.assert_array_equal(
-                expected_wcs.wcs.naxis, result_wcs.wcs.naxis,
-                'Wrong NAXIS values.')
-            # assert expected_hdu.header.get('CRVAL1') == result_hdu.header.get(
-            #     'CRVAL1'), 'CRVAL1 values don\'t match.'
-            # assert expected_hdu.header.get('CRVAL2') == result_hdu.header.get(
-            #     'CRVAL2'), 'CRVAL2 values don\'t match.'
-            # assert expected_hdu.header.get('CRPIX1') == result_hdu.header.get(
-            #     'CRPIX1'), 'CRPIX1 values don\'t match.'
-            # assert expected_hdu.header.get('CRPIX2') == result_hdu.header.get(
-            #     'CRPIX2'), 'CRPIX2 values don\'t match.'
-            # assert expected_hdu.header.get('BITPIX') == result_hdu.header.get(
-            #     'BITPIX'), 'BITPIX values do not match.'
-            assert expected_hdu.header.get('NAXIS') == result_hdu.header.get(
-                'NAXIS'), 'NAXIS values do not match.'
-            assert expected_hdu.header.get('BZERO') == result_hdu.header.get(
-                'BZERO'), 'BZERO values do not match.'
-            assert expected_hdu.header.get('BSCALE') == result_hdu.header.get(
-                'BSCALE'), 'BSCALE values do not match.'
-            assert expected_hdu.header.get(
-                'CHECKSUM') is None, 'Should not contain CHECKSUM.'
-            assert expected_hdu.header.get(
-                'DATASUM') is None, 'Should not contain DATASUM.'
+                expected_val = expected_header[header_key]
+
+                assert header_key in result_header, \
+                    'Result Header missing {}'.format(header_key)
+                result_val = result_header[header_key]
+
+                if header_key.startswith('CRPIX') or header_key == 'SCALE':
+                    assert is_close(
+                        expected_hdu.header[header_key],
+                        result_hdu.header[header_key], abs_tol=0.0001), \
+                        '{} values aren\'t close enough.'.format(header_key)
+                else:
+                    try:
+                        expected_num = to_num(expected_val)
+                        result_num = to_num(result_val)
+                        assert expected_num == result_num,\
+                            'Wrong number values for {}'.format(header_key)
+                    except ValueError:
+                        assert str(expected_val) == str(result_val), \
+                            'Wrong value for {}'.format(header_key)
+
+            assert 'CHECKSUM' not in result_header, \
+                'Should not contain CHECKSUM.'
+            assert 'DATASUM' not in result_header, \
+                'Should not contain DATASUM.'
 
             expected_data = expected_hdu.data
             result_data = result_hdu.data
@@ -247,7 +258,7 @@ def test_integration_test(
                 assert expected_data == result_data
 
 
-# @pytest.mark.skip
+@pytest.mark.skip
 @pytest.mark.parametrize(
     'cutout_region_string, target_file_name, \
                           expected_cutout_file_path, use_fits_diff, \

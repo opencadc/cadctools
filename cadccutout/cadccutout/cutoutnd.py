@@ -71,26 +71,24 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
-import numpy as np
-
-from math import ceil
+from cadccutout.utils import get_dimension_size
 
 from astropy.wcs import Sip
 from cadccutout.no_content_error import NoContentError
 
-__all__ = ['CutoutResult', 'CutoutND']
+__all__ = ['CutoutParameters', 'CutoutND']
 
 LOGGER = logging.getLogger(__name__)
 
 
-class CutoutResult(object):
+class CutoutParameters(object):
     '''
     Just a DTO to move results of a cutout.  It's more readable than a plain
     tuple.
     '''
 
-    def __init__(self, data, wcs=None):
-        self.data = data
+    def __init__(self, cutout, wcs=None):
+        self.cutout = cutout
         self.wcs = wcs
 
 
@@ -141,19 +139,19 @@ class CutoutND(object):
             low_bound = cutout_region[0]
 
             if low_bound == '*':
-                lower_bound = None
-                upper_bound = self.get_data_shape()[idx]
+                lower_bound = 1
+                upper_bound = self.hdu.get_dims()[idx]
                 if len_region > 1:
                     step = int(cutout_region[1])
                 else:
-                    step = None
+                    step = 1
             else:
                 lower_bound = int(low_bound)
                 upper_bound = int(cutout_region[1])
-                if (len_region == 3):
+                if len_region == 3:
                     step = int(cutout_region[2])
                 else:
-                    step = None
+                    step = 1
 
             LOGGER.debug('Bounds are {}:{}:{}'.format(
                 lower_bound, upper_bound, step))
@@ -167,10 +165,12 @@ class CutoutND(object):
         shape that matches what the numpy array is expecting.
         '''
         len_shape = len(cutout_shape)
-        data_shape = self.get_data_shape()
+        data_shape = self.hdu.get_dims()
         len_data = len(data_shape)
         LOGGER.debug('Data shape is {}'.format(data_shape))
-        if len_shape > len_data:
+        if len_data == 0:
+            raise NoContentError('No data to cutout from.')
+        elif len_shape > len_data:
             raise ValueError(
                 'Shape of cutout ({}) exceeds shape of data ({})'.format(
                     cutout_shape, data_shape))
@@ -180,7 +180,7 @@ class CutoutND(object):
                 missing_shape_bounds, len_data - len_shape))
 
             for val in missing_shape_bounds:
-                cutout_shape.append(slice(val))
+                cutout_shape.append(slice(1, val, 1))
 
     def format_wcs(self, cutout_shape):
         '''
@@ -202,63 +202,94 @@ class CutoutND(object):
         '''
         LOGGER.debug('Formatting WCS...')
 
-        output_wcs = self.wcs
+        output_wcs = self.wcs.deepcopy()
         wcs_crpix = output_wcs.wcs.crpix
+        wcs_cdelt = output_wcs.wcs.cdelt
         l_wcs_crpix = len(wcs_crpix)
 
         for idx, cutout_region in enumerate(cutout_shape):
             if idx < l_wcs_crpix:
                 curr_val = wcs_crpix[idx]
                 start = cutout_region.start
+                stop = cutout_region.stop
                 step = cutout_region.step
 
-                if start:
-                    wcs_crpix[idx] -= float(ceil(start + 0.5))
+                if output_wcs.sip is not None:
+                    sip_crpix = output_wcs.sip.crpix.tolist()
 
-                if step is not None:
-                    LOGGER.debug('Taking step {} into account.'.format(step))
-                    wcs_crpix[idx] /= step
+                if curr_val is None:
+                    curr_val = 0
 
+                # Calculate the new CRPIXn value
+                crpix = wcs_crpix[idx]
+                LOGGER.debug('format_wcs CRPIX{} is {}.'.format(idx + 1,
+                                                                curr_val))
+                cdelt = wcs_cdelt[idx]
                 if start:
-                    wcs_crpix[idx] += 1.0
+                    if start <= stop:
+                        crp = (crpix - start) / step + 1.0
+                    else:
+                        crp = (start - crpix) / step + 1.0
+                else:
+                    crp = None
+
+                if crp:
+                    wcs_crpix[idx] = crp
+                    if output_wcs.sip is not None:
+                        sip_crpix[idx] = crp
+
+                if step:
+                    wcs_cdelt[idx] = cdelt * step
+
+                # if step not in (None, 1):
+                #     crpix = wcs_crpix[idx]
+                #     cdelt = wcs_cdelt[idx]
+                #     # equivalently (keep this comment so you can compare eqns):
+                #     # wcs_new.wcs.crpix[wcs_index] =
+                #     # (crpix - start)/step + 0.5 - iview.step/2.
+                #     crp = \
+                #         ((crpix - start - 1.0) / step + 0.5 + 1.0 / step / 2.0)
+                #     wcs_crpix[idx] = crp
+                #     if output_wcs.sip is not None:
+                #         sip_crpix[idx] = crp
+                #     wcs_cdelt[idx] = cdelt * step
+                # else:
+                #     wcs_crpix[idx] -= start
+                #     if output_wcs.sip is not None:
+                #         sip_crpix[idx] -= start
 
                 LOGGER.debug(
                     'Adjusted wcs_crpix val from {} to {}'.format(
                         curr_val, wcs_crpix[idx]))
 
         if output_wcs.wcs.has_pc():
-            pc = output_wcs.wcs.pc
+            p_c = output_wcs.wcs.pc
             for i in range(output_wcs.wcs.naxis):
                 for j in range(output_wcs.wcs.naxis):
                     step = cutout_shape[j].step
                     if step:
-                        pc[i][j] *= step
+                        p_c[i][j] *= step
         elif output_wcs.wcs.has_cd():
-            cd = output_wcs.wcs.cd
+            c_d = output_wcs.wcs.cd
             for i in range(output_wcs.wcs.naxis):
                 for j in range(output_wcs.wcs.naxis):
                     step = cutout_shape[j].step
                     if step:
-                        cd[i][j] *= step
+                        c_d[i][j] *= step
 
         if self.wcs.sip:
+            LOGGER.debug('Adjusting SIP values.')
             curr_sip = self.wcs.sip
             output_wcs.sip = Sip(curr_sip.a, curr_sip.b,
                                  curr_sip.ap, curr_sip.bp,
                                  wcs_crpix[0:2])
+            LOGGER.debug('SIP Adjusted.')
 
         LOGGER.debug('WCS adjusted.')
 
         return output_wcs
 
-    def get_data_shape(self):
-        if hasattr(self.hdu, 'get_dims') and callable(getattr(self.hdu,
-                                                              'get_dims')):
-            return self.hdu.get_dims()
-        elif isinstance(self.hdu, np.ndarray):
-            return self.hdu.shape
-
-    def extract(self, cutout_regions):
+    def get_parameters(self, cutout_regions):
         '''
         Perform the extraction from the data for the provided region.  If the
         provided region is smaller than the data, it will be padded with the
@@ -269,20 +300,12 @@ class CutoutND(object):
 
         LOGGER.debug('Inspecting regions {}'.format(cutout_regions))
 
-        try:
-            cutout_shape = [
-                self.to_slice(idx, cutout_region) for idx,
-                cutout_region in enumerate(cutout_regions)]
-            self.pad_cutout(cutout_shape)
-            cutout = tuple(reversed(cutout_shape))
-            LOGGER.debug('Cutout is {}'.format(cutout))
-            cutout_data = self.hdu[cutout]
-        except IndexError as i_e:
-            raise NoContentError(
-                'No content (arrays do not overlap).\n\n{}'.format(str(i_e)))
-
-        LOGGER.debug('Extracted {} of data from {}.'.format(
-            cutout_data.shape, self.get_data_shape()))
+        cutout_shape = [
+            self.to_slice(idx, cutout_region) for idx,
+            cutout_region in enumerate(cutout_regions)]
+        self.pad_cutout(cutout_shape)
+        cutout = tuple(reversed(cutout_shape))
+        LOGGER.debug('Cutout is {}'.format(cutout))
 
         if self.wcs:
             output_wcs = self.format_wcs(cutout_shape)
@@ -292,4 +315,4 @@ class CutoutND(object):
 
         LOGGER.debug('Returning cutout result.')
 
-        return CutoutResult(data=cutout_data, wcs=output_wcs)
+        return CutoutParameters(cutout=cutout, wcs=output_wcs)

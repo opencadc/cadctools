@@ -97,6 +97,7 @@ def _create_mef_file(dir_name='/tmp'):
     data1 = np.arange(1000000).reshape(1000, 1000)
     hdu1 = astropy_fits.ImageHDU(data=data1)
 
+
     data2 = np.arange(2000000).reshape(2000, 1000)
     hdu2 = astropy_fits.ImageHDU(data=data2)
 
@@ -147,7 +148,7 @@ def test_mef_cutout():
         wcs2 = WCS(header=hdu2.header, fix=False)
 
         np.testing.assert_array_equal(
-            wcs1.wcs.crpix, [-19.0, -39.0], 'Wrong CRPIX values.')
+            wcs1.wcs.crpix, [0.0, 0.0], 'Wrong CRPIX values.')
         np.testing.assert_array_equal(
             wcs1.wcs.crval, [0.0, 0.0], 'Wrong CRVAL values.')
         np.testing.assert_array_equal(
