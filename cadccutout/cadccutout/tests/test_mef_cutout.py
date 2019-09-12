@@ -97,7 +97,6 @@ def _create_mef_file(dir_name='/tmp'):
     data1 = np.arange(1000000).reshape(1000, 1000)
     hdu1 = astropy_fits.ImageHDU(data=data1)
 
-
     data2 = np.arange(2000000).reshape(2000, 1000)
     hdu2 = astropy_fits.ImageHDU(data=data2)
 

@@ -156,27 +156,18 @@ class OpenCADCCutout(object):
             raise ValueError('No Cutout regions specified.')
 
         if input_reader is None:
-            # Python 3 uses the buffer property to treat stream data as binary.
-            # Python 2 (sometimes) requires the -u command line switch.
-            if hasattr(sys.stdin, 'buffer'):
-                input_stream = sys.stdin.buffer
-            else:
-                input_stream = sys.stdin
+            input_stream = '-'
         else:
             input_stream = input_reader
 
         if output_writer is None:
-            # Python 3 uses the buffer property to treat stream data as binary.
-            # Python 2 (sometimes) requires the -u command line switch.
-            if hasattr(sys.stdout, 'buffer'):
-                output_stream = sys.stdout.buffer
-            else:
-                output_stream = sys.stdout
+            output_stream = '-'
         else:
             output_stream = output_writer
 
         try:
             LOGGER.debug('Source file is {}.'.format(input_stream))
+            LOGGER.debug('Destination file is {}.'.format(output_stream))
             factory_cutout(file_type, cutout_dimensions,
                            input_stream, output_stream)
         except OSError as o_e:
