@@ -176,6 +176,7 @@ class OpenCADCCutout(object):
             output_stream = output_writer
 
         try:
+            LOGGER.debug('Source file is {}.'.format(input_stream))
             factory_cutout(file_type, cutout_dimensions,
                            input_stream, output_stream)
         except OSError as o_e:
@@ -257,11 +258,9 @@ def main_app(argv=None):
 
     parser.add_argument('--type', '-t', choices=['FITS'], default='FITS',
                         help='Optional file type.  Defaults to FITS.')
-    parser.add_argument('--infile', '-i', type=argparse.FileType(mode='rb'),
-                        nargs='?', default=None,
+    parser.add_argument('--infile', '-i', nargs='?', default=None,
                         help='Optional input file.  Defaults to stdin.')
-    parser.add_argument('--outfile', '-o', type=argparse.FileType(mode='ab+'),
-                        nargs='?', default=None,
+    parser.add_argument('--outfile', '-o', nargs='?', default=None,
                         help='Optional output file.  Defaults to stdout.')
 
     parser.add_argument(
