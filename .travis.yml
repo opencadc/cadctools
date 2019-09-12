@@ -22,7 +22,7 @@ install:
     - pip install coveralls
 
 script:
-    - for i in $(ls -d */); do
+    - for i in $(ls -d cadc*/); do
          cd $i;
          pytest --cov $i || exit 1;
          if [[ $TRAVIS_PYTHON_VERSION == '3.7' ]]; then
