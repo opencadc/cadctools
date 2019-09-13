@@ -148,9 +148,9 @@ def test_inverse_y():
         test_subject = CutoutND(hdu=hdu)
         cutout_regions = [(1, 2), (8, 4)]
         cutout = test_subject.get_parameters(cutout_regions)
-        expected_cutout = (slice(8,4,1), slice(1,2,1))
+        expected_cutout = (slice(8, 4, 1), slice(1, 2, 1))
         assert expected_cutout == cutout.cutout, \
-                    'Arrays do not match in {}.'.format(fname)
+            'Arrays do not match in {}.'.format(fname)
 
 
 def test_inverse_y_striding():
@@ -172,7 +172,7 @@ def test_inverse_y_striding():
         cutout = test_subject.get_parameters(cutout_regions)
         expected_cutout = (slice(10, 2, 2), slice(1, 2, 1))
         assert expected_cutout == cutout.cutout, \
-                    'Arrays do not match in {}.'.format(fname)
+            'Arrays do not match in {}.'.format(fname)
 
 
 def test_extract_striding():
@@ -247,25 +247,25 @@ def test_with_wcs():
     Test WCS entries.
     '''
     fname = random_test_file_name_path()
+    LOGGER.debug('test_with_wcs writing to {}'.format(fname))
     with fitsio.FITS(fname, 'rw', clobber=True) as fits:
         data_shape = (10, 10)
-        data = np.arange(100).reshape(data_shape)
+        data = np.arange(100, dtype=np.int16).reshape(data_shape)
+
+        header_dict = {
+            'WCSAXES': 2,
+            'CD1_1': 0.9, 'CD1_2': 0.8, 'CD2_1': 0.7,
+            'CD2_2': 0.6}
 
         fits.create_image_hdu(dims=data.shape, dtype=data.dtype)
-
         fits[0].write(data)
+
         hdu = fits[0]
+        hdu.write_keys(header_dict)
 
-        LOGGER.debug('Wrote to {}'.format(fname))
+        fits.update_hdu_list()
 
-        header = hdu.read_header()
-        astropy_header = to_astropy_header(header)
-        astropy_header.set('WCSAXES', 2)
-
-        wcs = WCS(header=astropy_header, fix=False)
-        wcs.wcs.cd = [[0.9, 0.8], [0.7, 0.6]]
-
-        test_subject = CutoutND(hdu=hdu, wcs=wcs)
+        test_subject = CutoutND(hdu=hdu)
         cutout_result = test_subject.get_parameters([(1, 6, 2), (4, 10, 2)])
         result_wcs = cutout_result.wcs
         np.testing.assert_array_equal([[1.8, 1.6], [1.4, 1.2]],

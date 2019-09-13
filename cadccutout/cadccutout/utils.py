@@ -5,29 +5,6 @@ from astropy.wcs import WCS
 __all__ = ['to_num', 'is_integer', 'is_string', 'to_astropy_header']
 
 
-def get_dimension_size(dim):
-    if isinstance(dim, slice):
-        start = dim.start
-        stop = dim.stop
-        step = dim.step
-    elif isinstance(dim, tuple):
-        start = dim[0]
-        stop = dim[1]
-        step = dim[2]
-    else:
-        raise ValueError('Unknown dimension type {}'.format(dim))
-
-    if stop < start:
-        dimension = float(abs(math.ceil((stop - (start + 1.0))
-                                        / (step * -1.0))))
-    else:
-        if start == 0:
-            start += 1
-        dimension = float(abs(math.floor((stop - start) / step))) + 1.0
-
-    return dimension
-
-
 def to_num(s):
     '''
     Convert the given value to an integer, if applicable, or a float.
@@ -49,9 +26,6 @@ def is_integer(s):
     '''
     Determine if the given argument is an Integer.
     '''
-    if isinstance(s, tuple):
-        return False
-
     try:
         int(s)
         return True
@@ -90,11 +64,13 @@ def to_astropy_header(header_dict):
 
     return astropy_header
 
+
 def get_header_value(hdr, key):
     if key in hdr:
         return hdr[key]
     else:
         return None
+
 
 def to_astropy_wcs(header_dict):
     '''
