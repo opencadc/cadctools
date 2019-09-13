@@ -1,5 +1,6 @@
 import math
 from astropy.io.fits import Header
+from astropy.wcs import WCS
 
 __all__ = ['to_num', 'is_integer', 'is_string', 'to_astropy_header']
 
@@ -88,3 +89,32 @@ def to_astropy_header(header_dict):
                     astropy_header[key] = value
 
     return astropy_header
+
+def get_header_value(hdr, key):
+    if key in hdr:
+        return hdr[key]
+    else:
+        return None
+
+def to_astropy_wcs(header_dict):
+    '''
+    Obtain an AstroPy WCS instance for the given header dictionary.
+    '''
+    naxis_value = header_dict['NAXIS']
+
+    if naxis_value is not None and int(naxis_value) > 0:
+        for nax in range(1, naxis_value + 1):
+            next_ctype_key = 'CTYPE{0}'.format(nax)
+            if next_ctype_key in header_dict:
+                ctype = header_dict['CTYPE{0}'.format(nax)]
+                if ctype is not None and ctype.endswith('-SIP'):
+                    naxis = 2
+                    break
+                else:
+                    naxis = None
+            else:
+                naxis = None
+    else:
+        naxis = naxis_value
+
+    return WCS(header=to_astropy_header(header_dict), naxis=naxis, fix=False)

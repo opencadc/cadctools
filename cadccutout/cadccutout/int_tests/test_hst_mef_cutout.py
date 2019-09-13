@@ -94,7 +94,6 @@ def random_test_file_name_path(file_extension='fits', dir_name='/tmp'):
             file_extension)).name
 
 
-@pytest.mark.skip
 def test_hst_mef_cutout_missing_one():
     '''
     MEF cutouts using an HST MEF (126 HDUs) file.

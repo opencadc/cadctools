@@ -71,9 +71,9 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import logging
-from cadccutout.utils import get_dimension_size
 
 from astropy.wcs import Sip
+from cadccutout.utils import to_astropy_wcs
 from cadccutout.no_content_error import NoContentError
 
 __all__ = ['CutoutParameters', 'CutoutND']
@@ -87,8 +87,9 @@ class CutoutParameters(object):
     tuple.
     '''
 
-    def __init__(self, cutout, wcs=None):
+    def __init__(self, cutout, header, wcs=None):
         self.cutout = cutout
+        self.header = header
         self.wcs = wcs
 
 
@@ -98,25 +99,23 @@ class CutoutND(object):
     convenience methods to prepare the data to be cutout.
     '''
 
-    def __init__(self, hdu, wcs=None):
+    def __init__(self, hdu):
         '''
         Parameters
         ----------
         hdu : fitsio HDU
             The HDU from fitsio containing the header and data block.
-        wcs : `~astropy.wcs.WCS` or `None`
-            A WCS object associated with the cutout array.  If it's specified,
-            reset the WCS values for the cutout.
 
         Returns
         -------
-        CutoutResult instance
+        CutoutParameters instance
         '''
         if not hdu:
             raise NoContentError('Nothing to cutout from.')
 
         self.hdu = hdu
-        self.wcs = wcs
+        self.header = self.hdu.read_header()
+        self.wcs = to_astropy_wcs(self.header)
 
     def to_slice(self, idx, cutout_region):
         '''
@@ -182,7 +181,26 @@ class CutoutND(object):
             for val in missing_shape_bounds:
                 cutout_shape.append(slice(1, val, 1))
 
-    def format_wcs(self, cutout_shape):
+    def _recalculate_crpix(self, slc, crpix):
+        # Calculate the new CRPIXn value
+        start = slc.start
+        step = slc.step
+        if crpix is None:
+            curr_crp = 0
+        else:
+            curr_crp = crpix
+
+        if start:
+            if start <= slc.stop:
+                crp = (curr_crp - start) / step + 1.0
+            else:
+                crp = (start - curr_crp) / step + 1.0
+        else:
+            crp = None
+
+        return crp
+
+    def format_header_wcs(self, cutout_shape):
         '''
         Re-calculate the CRPIX values for the WCS.  The SIP values are also
         re-calculated, if present.
@@ -198,69 +216,42 @@ class CutoutND(object):
 
         Returns
         -------
-        The formatted WCS object.
+        A tuple containing the formatted Header and WCS objects.
         '''
         LOGGER.debug('Formatting WCS...')
 
-        output_wcs = self.wcs.deepcopy()
+        output_wcs = self.wcs
+        header = self.header
         wcs_crpix = output_wcs.wcs.crpix
         wcs_cdelt = output_wcs.wcs.cdelt
         l_wcs_crpix = len(wcs_crpix)
 
         for idx, cutout_region in enumerate(cutout_shape):
+            crpix_key = 'CRPIX{}'.format(idx + 1)
+            step = cutout_region.step
+
             if idx < l_wcs_crpix:
-                curr_val = wcs_crpix[idx]
-                start = cutout_region.start
-                stop = cutout_region.stop
-                step = cutout_region.step
-
-                if output_wcs.sip is not None:
-                    sip_crpix = output_wcs.sip.crpix.tolist()
-
-                if curr_val is None:
-                    curr_val = 0
-
-                # Calculate the new CRPIXn value
                 crpix = wcs_crpix[idx]
-                LOGGER.debug('format_wcs CRPIX{} is {}.'.format(idx + 1,
-                                                                curr_val))
-                cdelt = wcs_cdelt[idx]
-                if start:
-                    if start <= stop:
-                        crp = (crpix - start) / step + 1.0
-                    else:
-                        crp = (start - crpix) / step + 1.0
-                else:
-                    crp = None
+                crp = self._recalculate_crpix(cutout_region, crpix)
 
                 if crp:
                     wcs_crpix[idx] = crp
                     if output_wcs.sip is not None:
+                        sip_crpix = output_wcs.sip.crpix.tolist()
                         sip_crpix[idx] = crp
 
                 if step:
-                    wcs_cdelt[idx] = cdelt * step
+                    wcs_cdelt[idx] *= step
 
-                # if step not in (None, 1):
-                #     crpix = wcs_crpix[idx]
-                #     cdelt = wcs_cdelt[idx]
-                #     # equivalently (keep this comment so you can compare eqns):
-                #     # wcs_new.wcs.crpix[wcs_index] =
-                #     # (crpix - start)/step + 0.5 - iview.step/2.
-                #     crp = \
-                #         ((crpix - start - 1.0) / step + 0.5 + 1.0 / step / 2.0)
-                #     wcs_crpix[idx] = crp
-                #     if output_wcs.sip is not None:
-                #         sip_crpix[idx] = crp
-                #     wcs_cdelt[idx] = cdelt * step
-                # else:
-                #     wcs_crpix[idx] -= start
-                #     if output_wcs.sip is not None:
-                #         sip_crpix[idx] -= start
-
-                LOGGER.debug(
-                    'Adjusted wcs_crpix val from {} to {}'.format(
-                        curr_val, wcs_crpix[idx]))
+                LOGGER.debug('Adjusted {} val from {} to {}'.format(
+                    crpix_key, crpix, wcs_crpix[idx]))
+            else:
+                if crpix_key in header:
+                    curr_crpix = header[crpix_key]
+                    header[crpix_key] = self._recalculate_crpix(cutout_region,
+                                                                curr_crpix)
+                    LOGGER.debug('Adjusted {} val from {} to {}'.format(
+                        crpix_key, curr_crpix, header[crpix_key]))
 
         if output_wcs.wcs.has_pc():
             p_c = output_wcs.wcs.pc
@@ -285,10 +276,6 @@ class CutoutND(object):
                                  wcs_crpix[0:2])
             LOGGER.debug('SIP Adjusted.')
 
-        LOGGER.debug('WCS adjusted.')
-
-        return output_wcs
-
     def get_parameters(self, cutout_regions):
         '''
         Perform the extraction from the data for the provided region.  If the
@@ -308,11 +295,11 @@ class CutoutND(object):
         LOGGER.debug('Cutout is {}'.format(cutout))
 
         if self.wcs:
-            output_wcs = self.format_wcs(cutout_shape)
+            self.format_header_wcs(cutout_shape)
         else:
             LOGGER.warning('No WCS present.')
-            output_wcs = None
 
         LOGGER.debug('Returning cutout result.')
 
-        return CutoutParameters(cutout=cutout, wcs=output_wcs)
+        return CutoutParameters(cutout=cutout, header=self.header,
+                                wcs=self.wcs)

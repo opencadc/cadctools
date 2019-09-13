@@ -71,12 +71,11 @@ from __future__ import (absolute_import, division,
                         print_function, unicode_literals)
 
 import logging
-from astropy.wcs import WCS
 
 import fitsio
 from fitsio.hdu import ImageHDU
 
-from cadccutout.utils import to_astropy_header
+from cadccutout.utils import get_header_value
 from cadccutout.transform import Transform
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 from cadccutout.cutoutnd import CutoutND
@@ -88,10 +87,12 @@ __all__ = ['cutout']
 LOGGER = logging.getLogger(__name__)
 
 
-def _post_sanitize_header(header, cutout_result):
+def _post_sanitize_header(cutout_result):
     '''
     Fix the CRPIX offset
     '''
+    header = cutout_result.header
+
     if cutout_result.wcs is not None:
         wcs = cutout_result.wcs.wcs
         if wcs.crpix is not None:
@@ -123,32 +124,11 @@ def _post_sanitize_header(header, cutout_result):
                         header[c_d_key] = c_d[i][j]
 
 
-def _get_wcs(header):
-    naxis_value = header['NAXIS']
-
-    if naxis_value is not None and int(naxis_value) > 0:
-        for nax in range(1, naxis_value + 1):
-            next_ctype_key = 'CTYPE{0}'.format(nax)
-            if next_ctype_key in header:
-                ctype = header['CTYPE{0}'.format(nax)]
-                if ctype is not None and ctype.endswith('-SIP'):
-                    naxis = 2
-                    break
-                else:
-                    naxis = None
-            else:
-                naxis = None
-    else:
-        naxis = naxis_value
-
-    return WCS(header=to_astropy_header(header), naxis=naxis, fix=False)
-
-
-def _pixel_cutout_params(hdu, cutout_dimension, header):
+def _pixel_cutout_params(hdu, cutout_dimension):
     extension = cutout_dimension.get_extension()
     LOGGER.debug('Cutting out from extension {}'.format(extension))
 
-    cutout_nd = CutoutND(hdu, wcs=_get_wcs(header))
+    cutout_nd = CutoutND(hdu)
     return cutout_nd.get_parameters(cutout_dimension.get_ranges())
 
 
@@ -196,29 +176,36 @@ def _check_hdu_list(cutout_dimensions, hdu_list, output_writer):
                     'Next cutout dimension is {}'.format(cutout_dimension))
                 ext = cutout_dimension.get_extension()
                 hdu = hdu_list[ext]
-                hdu.ignore_scaling = True
 
-                # Entire extension was requested.
-                if not cutout_dimension.get_ranges():
-                    LOGGER.debug('Appending entire extension {}'.format(ext))
-                    result_hdu_list.write(hdu.read(), header=hdu.read_header())
-                    nextend += 1
+                if hdu.get_dims() == ():
+                    # We probably should raise a NoOverlapError, but an empty
+                    # header is what fcat produces now...
+                    LOGGER.warn('Extension {} was requested but has no\
+ data to cutout from.'.format(ext))
                 else:
                     header = hdu.read_header()
-                    cutout_params = _pixel_cutout_params(
-                        hdu, cutout_dimension, header)
-                    if hdu.is_compressed():
-                        LOGGER.debug('Sanitizing header for compressed HDU.')
+                    hdu.ignore_scaling = True
+                    # Entire extension was requested.
+                    if not cutout_dimension.get_ranges():
+                        LOGGER.debug(
+                            'Appending entire extension {}'.format(ext))
+                        result_hdu_list.write(
+                            hdu.read(),
+                            extname=get_header_value(header, 'EXTNAME'),
+                            header=header)
+                        nextend += 1
                     else:
-                        LOGGER.debug('Sanitizing header for uncompressed HDU.')
-
-                    _post_sanitize_header(header, cutout_params)
-                    cut = hdu[cutout_params.cutout]
-                    LOGGER.debug('Cut {} from image.'.format(cut.shape))
-                    result_hdu_list.write(cut, header=header)
-                    LOGGER.debug('Done writing results.')
-                    nextend += 1
-                    LOGGER.debug('Successfully cutout from {}'.format(ext))
+                        cutout_params = _pixel_cutout_params(hdu,
+                                                             cutout_dimension)
+                        _post_sanitize_header(cutout_params)
+                        header = cutout_params.header
+                        cut = hdu[cutout_params.cutout]
+                        LOGGER.debug('Cut {} from image.'.format(cut.shape))
+                        result_hdu_list.write(cut, extname=get_header_value(
+                            header, 'EXTNAME'), header=header)
+                        LOGGER.debug('Done writing results.')
+                        nextend += 1
+                        LOGGER.debug('Successfully cutout from {}'.format(ext))
 
                 LOGGER.debug(
                     'Finished dimension {} of {}.'.format(idx + 1, lcd))
@@ -241,9 +228,9 @@ def _check_hdu_list(cutout_dimensions, hdu_list, output_writer):
                             cutout_dimensions, transformed_cutout_dimension))
 
                         cutout_params = _pixel_cutout_params(
-                            hdu, transformed_cutout_dimension, header)
+                            hdu, transformed_cutout_dimension)
                         result_hdu_list.write(hdu[cutout_params.cutout],
-                                              header=header)
+                                              header=cutout_params.header)
                         nextend += 1
                     except NoContentError:
                         LOGGER.debug(
