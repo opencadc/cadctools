@@ -83,10 +83,11 @@ from cadctap import CadcTapClient
 from cadctap.core import _get_subject_from_netrc,\
     _get_subject_from_certificate, _get_subject, exit_on_exception
 import tempfile
+import argparse
 
 from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
     ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID,\
-    TABLE_LOAD_CAPABILITY_ID, PERMISSIONS_CAPABILITY_ID
+    TABLE_LOAD_CAPABILITY_ID, PERMISSIONS_CAPABILITY_ID, _get_permission_modes
 
 # The following is a temporary workaround for Python issue
 # 25532 (https://bugs.python.org/issue25532)
@@ -481,6 +482,26 @@ def test_set_permissions(caps_get_mock, post_mock):
     # test dummy call
     client.set_permissions(resource=resource)
 
+    # errors in permission modes
+    # extra group
+    with pytest.raises(argparse.ArgumentError):
+        opt = Mock
+        opt.groups = 'A B'
+        opt.mode = {'who': 'g', 'op': '+', 'what': 'r'}
+        _get_permission_modes(opt)
+
+    with pytest.raises(argparse.ArgumentError):
+        opt = Mock
+        opt.groups = 'A'
+        opt.mode = {'who': 'g', 'op': '-', 'what': 'r'}
+        _get_permission_modes(opt)
+
+    with pytest.raises(argparse.ArgumentError):
+        opt = Mock
+        opt.groups = 'A'
+        opt.mode = {'who': 'o', 'op': '+', 'what': 'r'}
+        _get_permission_modes(opt)
+
 
 @patch('cadcutils.net.ws.BaseWsClient.get')
 @patch('cadcutils.net.ws.WsCapabilities.get_access_url')
@@ -546,6 +567,14 @@ def test_schema(caps_get_mock, base_get_mock):
     client.schema('foo')
     client.get_table_schema = Mock(return_value=tb_schema)
     client.schema('caom2.Observation')
+
+    # test get_schema now
+    client = CadcTapClient(net.Subject())
+    client._db_schemas = {'tap': 'Schema goes in here'}
+    client.get_permissions = Mock(return_value='Permissions go in here')
+    assert not client.get_schema('foo')
+    assert ['Schema goes in here', 'Permissions go in here'] == \
+        client.get_schema('tap')
 
 
 @patch('cadcutils.net.ws.BaseWsClient.post')

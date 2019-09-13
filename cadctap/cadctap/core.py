@@ -952,6 +952,8 @@ def _get_permission_modes(opt):
                 props['read_write'] = \
                     '{}?{}'.format(CADC_AC_SERVICE,
                                    wgroups.replace(" ", " " + CADC_AC_SERVICE))
+    elif group_names:
+        raise ArgumentError(None, 'Unexpected group name(s)')
     return props
 
 
