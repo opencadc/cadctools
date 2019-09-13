@@ -433,16 +433,16 @@ class CadcTapClient(object):
         and tables.
         """
         try:
-            # try name as a schema first
-            tab_info = self.get_schema(name)
-            if not tab_info:
-                # try name as a table name
+            if '.' in name:
                 tab_info = self.get_table_schema(name)
+            else:
+                tab_info = self.get_schema(name)
         except cadcutils.exceptions.NotFoundException:
             raise AttributeError('Resource {} not found.'.format(name))
         except cadcutils.exceptions.ForbiddenException:
             raise AttributeError('Resource {} access denied'.format(name))
-
+        if not tab_info:
+            raise AttributeError('{} not found'.format(name))
         for tab in tab_info:
             print('')
             self.display_tab(tab)
@@ -453,6 +453,9 @@ class CadcTapClient(object):
         :param info: Information to display. Expected TabularInfo type
         """
         # determine the maximum length of the table names:
+        if isinstance(info, str):
+            print(info)
+            return
         print('\n{}: {}\n'.format(info.name, info.description))
         for i, f in enumerate(info.columns):
             sys.stdout.write('{field: <{fsize}}  '.
@@ -472,6 +475,43 @@ class CadcTapClient(object):
             print('\n(1 row affected)')
         else:
             print('\n({} rows affected)'.format(len(info.rows)))
+
+    def get_permissions(self, resource):
+        """
+        Returns the permissions associated with a resource
+        :param resource:
+        :return:
+        """
+        if not self.permissions_support:
+            return ''
+        try:
+            response = self._tap_client.get(
+                (PERMISSIONS_CAPABILITY_ID, resource))
+        except cadcutils.exceptions.ForbiddenException:
+            return 'Permissions - Available to owners only'
+        perm = TabularInfo('Permissions',
+                           'Permissions for ' + resource,
+                           ['Owner', 'Others Read',
+                            'Group Read', 'Group Write'])
+        permissions = {}
+        for row in (response.text.split('\n')):
+            p = row.split('=')
+            if len(p) == 2:
+                permissions[p[0]] = p[1]
+            elif len(p) > 2:
+                permissions[p[0]] = row[row.index('=')+1:]
+            else:
+                permissions[p[0]] = '?'
+        # simplify display of local groups by using just their name
+        pro = permissions['r-group'] if permissions['r-group'] else '-'
+        if pro.startswith(CADC_AC_SERVICE):
+            pro = pro[pro.find('?') + 1:]  # use the short group name
+        prw = permissions['rw-group'] if permissions['rw-group'] else '-'
+        if prw.startswith(CADC_AC_SERVICE):
+            prw = prw[prw.find('?') + 1:]  # use the short group name
+        perm.add_row(
+            (permissions['owner'], permissions['public'], pro, prw))
+        return perm
 
     def get_schema(self, schema_name=None):
         """
@@ -500,13 +540,15 @@ class CadcTapClient(object):
                     schema_info.add_row((name, description))
                 self._db_schemas[schema_info.name] = schema_info
 
-        if schema_name:
-            if schema_name in self._db_schemas.keys():
-                return [self._db_schemas[schema_name]]
-            else:
-                return None
-        else:
+        if not schema_name:
             return list(self._db_schemas.values())
+        else:
+            if schema_name not in self._db_schemas.keys():
+                return None
+
+        result = [self._db_schemas[schema_name]]
+        result.append(self.get_permissions(schema_name))
+        return result
 
     def get_table_schema(self, table):
         """
@@ -563,30 +605,7 @@ class CadcTapClient(object):
                 fk_info.add_row((target_table, target_column,
                                  from_column, description))
             result.append(fk_info)
-
-        # check the table permissions
-        if not self.permissions_support:
-            return result
-        response = self._tap_client.get((PERMISSIONS_CAPABILITY_ID, table))
-        perm = TabularInfo('Permissions', 'Permissions for table ' + table,
-                           ['Owner', 'Others Read',
-                            'Group Read', 'Group Write'])
-        permissions = {}
-        for row in (response.text.split('\n')):
-            p = row.split('=')
-            if len(p) == 2:
-                permissions[p[0]] = p[1]
-            else:
-                permissions[p[0]] = ''
-        # simplify display of local groups by using just their name
-        pro = permissions['r-group']
-        if pro.startswith(CADC_AC_SERVICE):
-            pro = pro[pro.find('?')+1:]
-        prw = permissions['rw-group']
-        if prw.startswith(CADC_AC_SERVICE):
-            prw = prw[prw.find('?')+1:]
-        perm.add_row((permissions['owner'], permissions['public'], pro, prw))
-        result.append(perm)
+        result.append(self.get_permissions(table))
         return result
 
     def set_permissions(self, resource, read_anon=None, read_only=None,
@@ -862,11 +881,21 @@ def exit_on_exception(ex):
     message = None
     if isinstance(ex, exceptions.HttpException):
         message = str(ex.orig_exception)
-        if 'Bad Request' in message:
-            message = str(ex)
-        if 'certificate expired' in message:
+        if 'certificate expired' in str(ex.orig_exception):
             message = "Certificate expired."
-
+        else:
+            message = str(ex)
+    if message:
+        # could be VOTable format
+        try:
+            doc = minidom.parseString(message)
+            # in the absence of a VOTable parser, try a simple w
+            for el in doc.getElementsByTagName('INFO'):
+                if el.attributes['name'].value == 'QUERY_STATUS' and \
+                        el.attributes['value'].value == 'ERROR':
+                    message = el.firstChild.nodeValue + '\n'
+        except Exception:
+            pass
     if message:
         sys.stderr.write('ERROR:: {}\n'.format(message))
     else:
@@ -923,6 +952,8 @@ def _get_permission_modes(opt):
                 props['read_write'] = \
                     '{}?{}'.format(CADC_AC_SERVICE,
                                    wgroups.replace(" ", " " + CADC_AC_SERVICE))
+    elif group_names:
+        raise ArgumentError(None, 'Unexpected group name(s)')
     return props
 
 
