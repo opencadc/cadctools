@@ -530,11 +530,11 @@ def test_schema(caps_get_mock, base_get_mock):
     assert ['Owner', 'Others Read', 'Group Read', 'Group Write'] == \
         tb_schema[2].columns
     assert 'Permissions' == tb_schema[2].name
-    assert 'Permissions for table caom2.Observation' == \
+    assert 'Permissions for caom2.Observation' == \
            tb_schema[2].description
     assert 'someone' == tb_schema[2].rows[0][0]
     assert 'true' == tb_schema[2].rows[0][1]
-    assert '' == tb_schema[2].rows[0][2]
+    assert '-' == tb_schema[2].rows[0][2]
     assert 'CADC' == tb_schema[2].rows[0][3]
     calls = [call(('ivo://ivoa.net/std/VOSI#tables-1.1', 'caom2.Observation'),
                   params={'detail': 'min'}),
@@ -543,8 +543,8 @@ def test_schema(caps_get_mock, base_get_mock):
     base_get_mock.assert_has_calls(calls)
     # check displays are also working although the visual part not tested
     client.get_schema = Mock(return_value=db_schema)
-    client.schema()
-    client.get_schema = Mock(return_value=tb_schema)
+    client.schema('foo')
+    client.get_table_schema = Mock(return_value=tb_schema)
     client.schema('caom2.Observation')
 
 
