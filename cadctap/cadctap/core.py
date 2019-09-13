@@ -893,7 +893,7 @@ def exit_on_exception(ex):
             for el in doc.getElementsByTagName('INFO'):
                 if el.attributes['name'].value == 'QUERY_STATUS' and \
                         el.attributes['value'].value == 'ERROR':
-                        message = el.firstChild.nodeValue + '\n'
+                    message = el.firstChild.nodeValue + '\n'
         except Exception:
             pass
     if message:
