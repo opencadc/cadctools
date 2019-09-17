@@ -87,41 +87,66 @@ __all__ = ['cutout']
 LOGGER = logging.getLogger(__name__)
 
 
-def _post_sanitize_header(cutout_result):
-    '''
-    Fix the CRPIX offset
-    '''
-    header = cutout_result.header
+def _recalculate_crpix(slc, crpix):
+    # Calculate the new CRPIXn value
+    start = slc.start
+    step = slc.step
+    if crpix is None:
+        curr_crp = 0
+    else:
+        curr_crp = crpix
 
-    if cutout_result.wcs is not None:
-        wcs = cutout_result.wcs.wcs
-        if wcs.crpix is not None:
-            cutout_crpix = wcs.crpix
-            for idx, val in enumerate(cutout_crpix):
-                header_key = 'CRPIX{}'.format(idx + 1)
-                if header_key in header:
-                    curr_header_val = header[header_key]
-                    LOGGER.debug(
-                        'Adjusting {} from {} to {}'.format(
-                            header_key, curr_header_val, val))
-                    header[header_key] = val
+    if start:
+        if start <= slc.stop:
+            crp = (curr_crp - start) / step + 1.0
+        else:
+            crp = (start - curr_crp) / step + 1.0
+    else:
+        crp = None
 
-        if wcs.has_pc():
-            LOGGER.debug('Handling PC values.')
-            p_c = wcs.pc
-            for i in range(wcs.naxis):
-                for j in range(wcs.naxis):
-                    p_c_key = 'PC{}_{}'.format(i + 1, j + 1)
-                    if p_c_key in header:
-                        header[p_c_key] = p_c[i][j]
-        elif wcs.has_cd():
-            LOGGER.debug('Handling CD values.')
-            c_d = wcs.cd
-            for i in range(wcs.naxis):
-                for j in range(wcs.naxis):
-                    c_d_key = 'CD{}_{}'.format(i + 1, j + 1)
-                    if c_d_key in header:
-                        header[c_d_key] = c_d[i][j]
+    return crp
+
+
+def _post_sanitize_header(cutout_result, header):
+    '''
+    Fix the WCS values in the header.
+    '''
+    cutout_shape = cutout_result.cutout_shape
+    has_c_d = 'CD1_1' in header
+    has_p_c = 'PC1_1' in header
+    naxis = header['NAXIS']
+    axis_count = naxis + 1
+    for idx, cutout_region in enumerate(cutout_shape):
+        crpix_key = 'CRPIX{}'.format(idx + 1)
+        step = cutout_region.step
+
+        if crpix_key in header:
+            crpix = header[crpix_key]
+            crp = _recalculate_crpix(cutout_region, crpix)
+
+            if crp:
+                header[crpix_key] = crp
+
+            if step and not has_c_d:
+                header['CDELT{}'.format(idx + 1)] *= step
+
+            LOGGER.debug('Adjusted {} val from {} to {}'.format(
+                crpix_key, crpix, crp))
+
+    if has_p_c and naxis > 0:
+        for i in range(1, axis_count):
+            for j in range(1, axis_count):
+                step = cutout_shape[j - 1].step
+                p_c_key = 'PC{}_{}'.format(i, j)
+                if step and p_c_key in header:
+                    header[p_c_key] *= step
+    elif has_c_d and naxis > 0:
+        for i in range(1, axis_count):
+            for j in range(1, axis_count):
+                step = cutout_shape[j - 1].step
+                c_d_key = 'CD{}_{}'.format(i, j)
+                if step and c_d_key in header:
+                    header[c_d_key] *= step
 
 
 def _pixel_cutout_params(hdu, cutout_dimension):
@@ -134,6 +159,19 @@ def _pixel_cutout_params(hdu, cutout_dimension):
 
 def _is_image(hdu):
     return isinstance(hdu, ImageHDU)
+
+
+def _write_out(result_hdu_list, hdu, header, cutout_slice=None):
+    if cutout_slice is not None:
+        result_hdu_list.write(
+            hdu[cutout_slice],
+            extname=get_header_value(header, 'EXTNAME'),
+            header=header)
+    else:
+        result_hdu_list.write(
+            hdu.read(),
+            extname=get_header_value(header, 'EXTNAME'),
+            header=header)
 
 
 def _require_primary_hdu(cutout_dimensions):
@@ -150,6 +188,91 @@ def _require_primary_hdu(cutout_dimensions):
     return False
 
 
+def _write_pixel_cutout(primary_header, hdu_list, result_hdu_list,
+                        cutout_dimensions):
+    count = 0
+    if 'NEXTEND' in primary_header:
+        primary_header['NEXTEND'] = len(cutout_dimensions)
+
+    if _require_primary_hdu(cutout_dimensions) \
+            and primary_header['NAXIS'] == 0:
+        # add the Primary HDU from the original HDU list
+        LOGGER.debug('Setting primary HDU.')
+        result_hdu_list.write(None, header=primary_header)
+
+    lcd = len(cutout_dimensions)
+    for idx, cutout_dimension in enumerate(cutout_dimensions):
+        LOGGER.debug('Next cutout dimension is {}'.format(cutout_dimension))
+        ext = cutout_dimension.get_extension()
+        hdu = hdu_list[ext]
+
+        if hdu.get_dims() == ():
+            # We probably should raise a NoOverlapError, but an empty
+            # header is what fcat produces now...
+            LOGGER.warning('Extension {} was requested but has no\
+ data to cutout from.'.format(ext))
+        else:
+            header = hdu.read_header()
+            hdu.ignore_scaling = True
+            # Entire extension was requested.
+            if not cutout_dimension.get_ranges():
+                LOGGER.debug('Appending entire extension {}'.format(ext))
+                _write_out(result_hdu_list, hdu, header)
+                count += 1
+            else:
+                cutout_params = _pixel_cutout_params(hdu, cutout_dimension)
+                _post_sanitize_header(cutout_params, header)
+                _write_out(result_hdu_list, hdu, header, cutout_params.cutout)
+                count += 1
+                LOGGER.debug('Successfully cutout from {}'.format(ext))
+
+        LOGGER.debug(
+            'Finished dimension {} of {}.'.format(idx + 1, lcd))
+
+    return count
+
+
+def _write_wcs_cutout(primary_header, hdu_list, result_hdu_list,
+                      cutout_dimensions):
+    count = 0
+    # Write out the primary header, if needed.
+    requires_primary_hdu = len(hdu_list) > 1 and primary_header['NAXIS'] == 0
+    if requires_primary_hdu:
+        # add the Primary HDU from the original HDU list
+        LOGGER.debug('Setting primary HDU.')
+        result_hdu_list.write(None, header=primary_header)
+
+    for idx, hdu in enumerate(hdu_list):
+        if idx == 0 and requires_primary_hdu:
+            continue
+
+        if hdu.get_dims() != () and _is_image(hdu):
+            LOGGER.debug('\nTrying extension {}...\n'.format(idx))
+            transform = Transform()
+            header = hdu.read_header()
+            LOGGER.debug('Transforming {}'.format(cutout_dimensions))
+            try:
+                transformed_cutout_dimension = \
+                    transform.world_to_pixels(cutout_dimensions,
+                                              header)
+                LOGGER.debug('Transformed {} into {}'.format(
+                    cutout_dimensions, transformed_cutout_dimension))
+
+                cutout_params = _pixel_cutout_params(
+                    hdu, transformed_cutout_dimension)
+                _post_sanitize_header(cutout_params, header)
+                _write_out(result_hdu_list, hdu, header, cutout_params.cutout)
+                count += 1
+            except NoContentError:
+                LOGGER.debug(
+                    'Skipping non-overlapping cutout {}'.format(
+                        cutout_dimensions))
+        else:
+            LOGGER.debug('Skipping extension {}'.format(idx))
+
+    return count
+
+
 def _check_hdu_list(cutout_dimensions, hdu_list, output_writer):
     len_cutout_dimensions = len(cutout_dimensions)
     nextend = 0
@@ -160,82 +283,11 @@ def _check_hdu_list(cutout_dimensions, hdu_list, output_writer):
 
         # Check for a pixel cutout
         if isinstance(cutout_dimensions[0], PixelCutoutHDU):
-            if 'NEXTEND' in primary_header:
-                primary_header['NEXTEND'] = len_cutout_dimensions
-
-            if _require_primary_hdu(cutout_dimensions) \
-                    and primary_header['NAXIS'] == 0:
-                # add the Primary HDU from the original HDU list
-                LOGGER.debug('Setting primary HDU.')
-
-                result_hdu_list.write(None, header=primary_header)
-
-            lcd = len(cutout_dimensions)
-            for idx, cutout_dimension in enumerate(cutout_dimensions):
-                LOGGER.debug(
-                    'Next cutout dimension is {}'.format(cutout_dimension))
-                ext = cutout_dimension.get_extension()
-                hdu = hdu_list[ext]
-
-                if hdu.get_dims() == ():
-                    # We probably should raise a NoOverlapError, but an empty
-                    # header is what fcat produces now...
-                    LOGGER.warn('Extension {} was requested but has no\
- data to cutout from.'.format(ext))
-                else:
-                    header = hdu.read_header()
-                    hdu.ignore_scaling = True
-                    # Entire extension was requested.
-                    if not cutout_dimension.get_ranges():
-                        LOGGER.debug(
-                            'Appending entire extension {}'.format(ext))
-                        result_hdu_list.write(
-                            hdu.read(),
-                            extname=get_header_value(header, 'EXTNAME'),
-                            header=header)
-                        nextend += 1
-                    else:
-                        cutout_params = _pixel_cutout_params(hdu,
-                                                             cutout_dimension)
-                        _post_sanitize_header(cutout_params)
-                        header = cutout_params.header
-                        cut = hdu[cutout_params.cutout]
-                        LOGGER.debug('Cut {} from image.'.format(cut.shape))
-                        result_hdu_list.write(cut, extname=get_header_value(
-                            header, 'EXTNAME'), header=header)
-                        LOGGER.debug('Done writing results.')
-                        nextend += 1
-                        LOGGER.debug('Successfully cutout from {}'.format(ext))
-
-                LOGGER.debug(
-                    'Finished dimension {} of {}.'.format(idx + 1, lcd))
+            nextend += _write_pixel_cutout(primary_header, hdu_list,
+                                           result_hdu_list, cutout_dimensions)
         else:
-            # Write out the primary header.
-            result_hdu_list.write(None, header=primary_header)
-
-            for ext_idx, hdu in enumerate(hdu_list):
-                if _is_image(hdu) and hdu.read is not None:
-                    transform = Transform()
-                    header = hdu.read_header()
-                    LOGGER.debug(
-                        'Next HDU to check {} from {}'.format(hdu, ext_idx))
-                    LOGGER.debug('Transforming {}'.format(cutout_dimensions))
-                    try:
-                        transformed_cutout_dimension = \
-                            transform.world_to_pixels(cutout_dimensions,
-                                                      header)
-                        LOGGER.debug('Transformed {} into {}'.format(
-                            cutout_dimensions, transformed_cutout_dimension))
-
-                        cutout_params = _pixel_cutout_params(
-                            hdu, transformed_cutout_dimension)
-                        result_hdu_list.write(hdu[cutout_params.cutout],
-                                              header=cutout_params.header)
-                        nextend += 1
-                    except NoContentError:
-                        LOGGER.debug(
-                            'Skipping non-overlapping cutout {}'.format(
-                                cutout_dimensions))
+            nextend += _write_wcs_cutout(primary_header, hdu_list,
+                                         result_hdu_list, cutout_dimensions)
     else:
         raise NoContentError('No overlap found (No cutout specified).')
 

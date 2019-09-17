@@ -272,7 +272,6 @@ def main_app(argv=None):
         level = logging.WARN
 
     logging.basicConfig(level=level)
-    logging.getLogger().setLevel(level)
 
     c = OpenCADCCutout()
 

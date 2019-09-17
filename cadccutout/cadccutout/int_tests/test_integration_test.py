@@ -141,51 +141,51 @@ def _extname_sort_func(hdu):
 
 @pytest.mark.parametrize(
     'cutout_region_string, target_file_name, \
-                          expected_cutout_file_path, use_fits_diff, \
-                          test_dir_name, wcs_naxis_val, use_extension_names',
+    expected_cutout_file_path, use_fits_diff, \
+    test_dir_name, use_extension_names',
     [
         ('[1][20:40:12]', '/usr/src/data/public_fits.fits.fz',
          '/usr/src/data/public_fits.cutout_striding.fits', True,
-         DEFAULT_TEST_FILE_DIR, None, True),
+         DEFAULT_TEST_FILE_DIR, True),
         ('[200:400,500:1000,10:20]', '/usr/src/data/test-cgps-cube.fits',
          '/usr/src/data/test-cgps-cube-cutout.fits', True,
-         DEFAULT_TEST_FILE_DIR, None, False),
+         DEFAULT_TEST_FILE_DIR, False),
         ('[1000:1200,800:1000,160:200]',
          '/usr/src/data/test-sitelle-cube.fits',
          '/usr/src/data/test-sitelle-cube-cutout.fits', False,
-         DEFAULT_TEST_FILE_DIR, None, False),
+         DEFAULT_TEST_FILE_DIR, False),
         ('[2][*:20]', '/usr/src/data/test-cfht.fits.fz',
          '/usr/src/data/test-cfht-cutout.fits', True,
-         DEFAULT_TEST_FILE_DIR, None, False),
+         DEFAULT_TEST_FILE_DIR, False),
         ('[80:220,100:150,100:150]', '/usr/src/data/test-alma-cube.fits',
          '/usr/src/data/test-alma-cube-cutout.fits', True,
-         DEFAULT_TEST_FILE_DIR, None, False),
+         DEFAULT_TEST_FILE_DIR, False),
         ('[500:900,300:1000,8:12]', '/usr/src/data/test-vlass-cube.fits',
          '/usr/src/data/test-vlass-cube-cutout.fits', True,
-         DEFAULT_TEST_FILE_DIR, None, False),
+         DEFAULT_TEST_FILE_DIR, False),
         ('[1][20:40][2][20:40]', '/usr/src/data/public_fits.fits.fz',
          '/usr/src/data/public_fits.cutout.fits', True,
-         DEFAULT_TEST_FILE_DIR, None, True),
+         DEFAULT_TEST_FILE_DIR, True),
         ('[10][10:85]', '/usr/src/data/test-megaprime.fits.fz',
          '/usr/src/data/test-megaprime-cutout.fits', True,
-         DEFAULT_TEST_FILE_DIR, None, False),
+         DEFAULT_TEST_FILE_DIR, False),
         ('[200:500,100:300,100:140]', '/usr/src/data/test-gmims-cube.fits',
          '/usr/src/data/test-gmims-cube-cutout.fits', True,
-         DEFAULT_TEST_FILE_DIR, None, False),
+         DEFAULT_TEST_FILE_DIR, False),
         ('[SCI,10][80:220,100:150][1][10:16,70:90][106][8:32,88:112][126]',
          '/usr/src/data/test-hst-mef.fits',
          '/usr/src/data/test-hst-mef-cutout.fits', True,
-         DEFAULT_TEST_FILE_DIR, None, True),
+         DEFAULT_TEST_FILE_DIR, True),
         ('[7970:8481,14843:14332]', '/usr/src/data/test-megapipe.fits',
          '/usr/src/data/test-megapipe-cutout.fits', True,
-         DEFAULT_TEST_FILE_DIR, None, True),
+         DEFAULT_TEST_FILE_DIR, True),
         ('[7970:8481:4,14843:14332:4]', '/usr/src/data/test-megapipe.fits',
          '/usr/src/data/test-megapipe-cutout-striding.fits', True,
-         DEFAULT_TEST_FILE_DIR, None, True)
+         DEFAULT_TEST_FILE_DIR, True)
     ])
 def test_integration_test(
         cutout_region_string, target_file_name, expected_cutout_file_path,
-        use_fits_diff, test_dir_name, wcs_naxis_val, use_extension_names):
+        use_fits_diff, test_dir_name, use_extension_names):
     test_subject = OpenCADCCutout()
     result_cutout_file_path = \
         random_test_file_name_path(dir_name=test_dir_name)
@@ -284,17 +284,14 @@ def test_integration_test(
         #     '/usr/src/data/test-cgps-cube.fits',
         #     '/usr/src/data/test-cgps-cube-cutout-wcs.fits', True,
         #     DEFAULT_TEST_FILE_DIR, 2, False),
-        ('CIRCLE 189.1726880000002 62.17111899999974 0.01',
-            '/usr/src/data/test-hst-mef.fits',
-            '/usr/src/data/test-hst-mef-cutout-wcs.fits', True,
-            DEFAULT_TEST_FILE_DIR, 2, False)
-        # ('CIRCLE 185.7284629 15.82181778 0.016666666666666666',
-        #     '/usr/src/data/test-gemini.fits',
-        #     '/usr/src/data/test-gemini-cutout-wcs.fits', True,
-        #     DEFAULT_TEST_FILE_DIR, None, False)
-        #
-        #   ***** WORKING LINE *****
-        #
+        # ('CIRCLE 189.1726880000002 62.17111899999974 0.01',
+        #     '/usr/src/data/test-hst-mef.fits',
+        #     '/usr/src/data/test-hst-mef-cutout-wcs.fits', True,
+        #     DEFAULT_TEST_FILE_DIR, 2, False),
+        ('CIRCLE 185.7284629 15.82181778 0.016666666666666666',
+            '/usr/src/data/test-gemini.fits',
+            '/usr/src/data/test-gemini-cutout-wcs.fits', True,
+            DEFAULT_TEST_FILE_DIR, None, False)
         # ('CIRCLE 161.52 77.472 0.03',
         #     '/usr/src/data/test-vlass-cube.fits',
         #     '/usr/src/data/test-vlass-cube-cutout-wcs.fits', True,
@@ -306,7 +303,7 @@ def test_integration_test(
         # ('CIRCLE 246.52 -24.33 0.01',
         #     '/usr/src/data/test-alma-cube.fits',
         #     '/usr/src/data/test-alma-cube-cutout-wcs.fits', True,
-        #     DEFAULT_TEST_FILE_DIR, 2, False)
+        #     DEFAULT_TEST_FILE_DIR, None, False)
     ])
 def test_integration_wcs_test(
         cutout_region_string, target_file_name, expected_cutout_file_path,

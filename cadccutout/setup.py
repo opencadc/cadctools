@@ -4,13 +4,12 @@
 import glob
 import os
 import sys
+import distutils.cmd
 
 from setuptools.command.test import test as TestCommand
 from setuptools import find_packages
-
 from setuptools import setup
 
-import distutils.cmd
 
 # read the README.rst file and return as string.
 

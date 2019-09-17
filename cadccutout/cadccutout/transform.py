@@ -79,7 +79,7 @@ from astropy.coordinates import SkyCoord, Longitude, Latitude, ICRS
 from astropy.wcs import WCS, NoConvergence
 from regions.shapes.circle import CircleSkyRegion
 from regions.shapes.polygon import PolygonSkyRegion
-from cadccutout.utils import to_astropy_header
+from cadccutout.utils import to_astropy_header, to_astropy_wcs
 
 from .no_content_error import NoContentError
 from .pixel_cutout_hdu import PixelCutoutHDU
@@ -100,24 +100,6 @@ class AxisType(object):
     Extracts the axis number for each coordinate type.
     """
 
-    def _get_wcs(self, header):
-        naxis_value = header['NAXIS']
-
-        if naxis_value is not None and int(naxis_value) > 0:
-            for nax in range(1, naxis_value + 1):
-                ctype = header['CTYPE{0}'.format(nax)]
-                LOGGER.debug('CTYPE value is {}'.format(ctype))
-                if ctype is not None and ctype.endswith('-SIP'):
-                    naxis = 2
-                    break
-                else:
-                    naxis = None
-        else:
-            naxis = naxis_value
-
-        LOGGER.debug('Final transform calculated NAXIS is {}'.format(naxis))
-        return WCS(header=to_astropy_header(header), naxis=naxis, fix=False)
-
     COORDINATE_TYPE = 'coordinate_type'
     SPATIAL_KEYWORDS = ['celestial']
     SPECTRAL_KEYWORDS = ['spectral']
@@ -132,7 +114,7 @@ class AxisType(object):
         self.polarization = None
 
         # wcs from header
-        wcs = self._get_wcs(header)
+        wcs = to_astropy_wcs(header)
 
         # get list of dict of axis types
         axis_types = wcs.get_axis_types()

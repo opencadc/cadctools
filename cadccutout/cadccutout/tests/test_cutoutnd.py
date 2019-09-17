@@ -240,33 +240,3 @@ def test_extract_invalid():
                            match=r"Should have at least two values "
                            r"\(lower, upper\)\."):
             test_subject.get_parameters(cutout_regions)
-
-
-def test_with_wcs():
-    '''
-    Test WCS entries.
-    '''
-    fname = random_test_file_name_path()
-    LOGGER.debug('test_with_wcs writing to {}'.format(fname))
-    with fitsio.FITS(fname, 'rw', clobber=True) as fits:
-        data_shape = (10, 10)
-        data = np.arange(100, dtype=np.int16).reshape(data_shape)
-
-        header_dict = {
-            'WCSAXES': 2,
-            'CD1_1': 0.9, 'CD1_2': 0.8, 'CD2_1': 0.7,
-            'CD2_2': 0.6}
-
-        fits.create_image_hdu(dims=data.shape, dtype=data.dtype)
-        fits[0].write(data)
-
-        hdu = fits[0]
-        hdu.write_keys(header_dict)
-
-        fits.update_hdu_list()
-
-        test_subject = CutoutND(hdu=hdu)
-        cutout_result = test_subject.get_parameters([(1, 6, 2), (4, 10, 2)])
-        result_wcs = cutout_result.wcs
-        np.testing.assert_array_equal([[1.8, 1.6], [1.4, 1.2]],
-                                      result_wcs.wcs.cd, 'Wrong CD output.')

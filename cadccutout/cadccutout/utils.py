@@ -93,4 +93,5 @@ def to_astropy_wcs(header_dict):
     else:
         naxis = naxis_value
 
-    return WCS(header=to_astropy_header(header_dict), naxis=naxis, fix=False)
+    # return WCS(header=to_astropy_header(header_dict), naxis=naxis, fix=False)
+    return WCS(header=header_dict, naxis=naxis, fix=False)
