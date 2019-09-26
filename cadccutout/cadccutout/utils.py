@@ -1,4 +1,3 @@
-import math
 from astropy.io.fits import Header
 from astropy.wcs import WCS
 
@@ -33,7 +32,7 @@ def is_integer(s):
         return False
 
 
-def to_astropy_header(header_dict):
+def to_astropy_header(header_dict, decompress=True):
     '''
     Build an AstroPy header instance, filtering out empty header cards or
     empty values.
@@ -62,10 +61,25 @@ def to_astropy_header(header_dict):
                 else:
                     astropy_header[key] = value
 
+    # Set the uncompressed NAXIS values to those of the compressed types.
+    if decompress and 'ZNAXIS' in astropy_header:
+        filtered_headers = filter(lambda key: 'ZNAXIS' in key, astropy_header)
+        for znaxis_key in filtered_headers:
+            # Skip the actual ZNAXIS value as the original is good.
+            if znaxis_key == 'ZNAXIS':
+                continue
+
+            n_key = znaxis_key[1:]
+            if n_key in astropy_header:
+                astropy_header.set(n_key, astropy_header[znaxis_key])
+
     return astropy_header
 
 
 def get_header_value(hdr, key):
+    '''
+    Obtain a null safe header value.
+    '''
     if key in hdr:
         return hdr[key]
     else:
@@ -75,6 +89,7 @@ def get_header_value(hdr, key):
 def to_astropy_wcs(header_dict):
     '''
     Obtain an AstroPy WCS instance for the given header dictionary.
+    :param  header_dict: Header dictionary
     '''
     naxis_value = header_dict['NAXIS']
 
@@ -91,7 +106,6 @@ def to_astropy_wcs(header_dict):
             else:
                 naxis = None
     else:
-        naxis = naxis_value
+        naxis = None
 
-    # return WCS(header=to_astropy_header(header_dict), naxis=naxis, fix=False)
     return WCS(header=header_dict, naxis=naxis, fix=False)

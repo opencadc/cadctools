@@ -166,14 +166,16 @@ class OpenCADCCutout(object):
             output_stream = output_writer
 
         try:
-            LOGGER.debug('Source file is {}.'.format(input_stream))
-            LOGGER.debug('Destination file is {}.'.format(output_stream))
             factory_cutout(file_type, cutout_dimensions,
                            input_stream, output_stream)
         except OSError as o_e:
-            raise ValueError(
-                'Output target or input source unusable (Did you specify an '
-                'input and output?).\n{}'.format(str(o_e)))
+            msg = str(o_e)
+            if 'status = 104' in msg:
+                raise FileNotFoundError(
+                    'No such file or unable to open file {}.\n\n'.format(
+                        input_reader))
+            else:
+                raise o_e
 
     def parse_input(self, input_cutout_dimensions):
         '''
@@ -274,8 +276,6 @@ def main_app(argv=None):
     logging.basicConfig(level=level)
 
     c = OpenCADCCutout()
-
-    logging.info('Start cutout.')
 
     # Support multiple strings.  This will write out as many cutouts as it
     # finds.

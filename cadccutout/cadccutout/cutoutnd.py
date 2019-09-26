@@ -72,8 +72,6 @@ from __future__ import (absolute_import, division, print_function,
 
 import logging
 
-from astropy.wcs import Sip
-from cadccutout.utils import to_astropy_wcs
 from cadccutout.no_content_error import NoContentError
 
 __all__ = ['CutoutParameters', 'CutoutND']

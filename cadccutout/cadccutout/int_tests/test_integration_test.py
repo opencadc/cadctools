@@ -274,40 +274,44 @@ def test_integration_test(
                 assert expected_data == result_data
 
 
-@pytest.mark.skip
 @pytest.mark.parametrize(
     'cutout_region_string, target_file_name, \
-                          expected_cutout_file_path, use_fits_diff, \
-                          test_dir_name, wcs_naxis_val, use_extension_names',
+    expected_cutout_file_path, use_fits_diff, \
+    test_dir_name, wcs_naxis_val, use_extension_names, \
+    ignored_result_hdu_indexes',
     [
-        # ('CIRCLE 40.05 58.05 0.7',
-        #     '/usr/src/data/test-cgps-cube.fits',
-        #     '/usr/src/data/test-cgps-cube-cutout-wcs.fits', True,
-        #     DEFAULT_TEST_FILE_DIR, 2, False),
-        # ('CIRCLE 189.1726880000002 62.17111899999974 0.01',
-        #     '/usr/src/data/test-hst-mef.fits',
-        #     '/usr/src/data/test-hst-mef-cutout-wcs.fits', True,
-        #     DEFAULT_TEST_FILE_DIR, 2, False),
-        ('CIRCLE 185.7284629 15.82181778 0.016666666666666666',
-            '/usr/src/data/test-gemini.fits',
-            '/usr/src/data/test-gemini-cutout-wcs.fits', True,
-            DEFAULT_TEST_FILE_DIR, None, False)
-        # ('CIRCLE 161.52 77.472 0.03',
-        #     '/usr/src/data/test-vlass-cube.fits',
-        #     '/usr/src/data/test-vlass-cube-cutout-wcs.fits', True,
-        #     DEFAULT_TEST_FILE_DIR, 2, False),
-        # ('CIRCLE 70.3389 -2.8361 0.016666666666666666',
-        #  '/usr/src/data/test-sitelle-cube.fits',
-        #  '/usr/src/data/test-sitelle-cube-cutout-wcs.fits', True,
-        #  DEFAULT_TEST_FILE_DIR, 2, False),
-        # ('CIRCLE 246.52 -24.33 0.01',
-        #     '/usr/src/data/test-alma-cube.fits',
-        #     '/usr/src/data/test-alma-cube-cutout-wcs.fits', True,
-        #     DEFAULT_TEST_FILE_DIR, None, False)
+        ('CIRCLE 40.05 58.05 0.7',
+            '/usr/src/data/test-cgps-cube.fits',
+            '/usr/src/data/test-cgps-cube-cutout-wcs.fits', True,
+            DEFAULT_TEST_FILE_DIR, 2, False, []),
+        ('CIRCLE 189.1726880000002 62.17111899999974 0.01',
+            '/usr/src/data/test-hst-mef.fits',
+            '/usr/src/data/test-hst-mef-cutout-wcs.fits', True,
+            DEFAULT_TEST_FILE_DIR, 2, False, []),
+        ('CIRCLE 170.97 19.93 0.00666', '/usr/src/data/test-gemini.fits',
+         '/usr/src/data/test-gemini-cutout-wcs.fits', True,
+         DEFAULT_TEST_FILE_DIR, None, False, [0]),
+        ('CIRCLE 150.201 2.2001 0.016666666666666666',
+            '/usr/src/data/test-cfht-739793o.fits.fz',
+            '/usr/src/data/test-cfht-739793o-cutout-wcs.fits', True,
+            DEFAULT_TEST_FILE_DIR, None, False, []),
+        ('CIRCLE 161.52 77.472 0.03',
+            '/usr/src/data/test-vlass-cube.fits',
+            '/usr/src/data/test-vlass-cube-cutout-wcs.fits', True,
+            DEFAULT_TEST_FILE_DIR, 2, False, []),
+        ('CIRCLE 70.3389 -2.8361 0.016666666666666666',
+         '/usr/src/data/test-sitelle-cube.fits',
+         '/usr/src/data/test-sitelle-cube-cutout-wcs.fits', True,
+         DEFAULT_TEST_FILE_DIR, 2, False, []),
+        ('CIRCLE 246.52 -24.33 0.01',
+            '/usr/src/data/test-alma-cube.fits',
+            '/usr/src/data/test-alma-cube-cutout-wcs.fits', True,
+            DEFAULT_TEST_FILE_DIR, None, False, [])
     ])
 def test_integration_wcs_test(
         cutout_region_string, target_file_name, expected_cutout_file_path,
-        use_fits_diff, test_dir_name, wcs_naxis_val, use_extension_names):
+        use_fits_diff, test_dir_name, wcs_naxis_val, use_extension_names,
+        ignored_result_hdu_indexes):
     test_subject = OpenCADCCutout()
     result_cutout_file_path = \
         random_test_file_name_path(dir_name=test_dir_name)
@@ -323,6 +327,15 @@ def test_integration_wcs_test(
             fits.open(result_cutout_file_path, mode='readonly',
                       do_not_scale_image_data=True) \
             as result_hdu_list:
+
+        # Ignore the provided indexes.  This is useful in cases where
+        # cadccutout writes out the Primary Header on output, but the
+        # CADC test case didn't.
+        #
+        # jenkinsd 2019.09.24
+        for i in ignored_result_hdu_indexes:
+            del result_hdu_list[i]
+
         if use_fits_diff:
             fits_diff = fits.FITSDiff(expected_hdu_list, result_hdu_list)
             np.testing.assert_array_equal((), fits_diff.diff_hdu_count,

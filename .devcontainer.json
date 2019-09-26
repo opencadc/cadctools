@@ -2,5 +2,5 @@
 {
 	"dockerFile": "docker/Dockerfile",
 	"extensions": [],
-	"runArgs": [ "-v", "${env:HOME}${env:USERPROFILE}/Data/cutouts:/usr/src/data:ro" ]
+	"runArgs": [ "-v", "${env:HOME}${env:USERPROFILE}/Data/cutouts:/usr/src/data:rw" ]
 }

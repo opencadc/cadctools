@@ -246,16 +246,17 @@ def _write_wcs_cutout(primary_header, hdu_list, result_hdu_list,
         if idx == 0 and requires_primary_hdu:
             continue
 
-        if hdu.get_dims() != () and _is_image(hdu):
+        if hdu.get_dims() != ():
             LOGGER.debug('\nTrying extension {}...\n'.format(idx))
             transform = Transform()
+            hdu.ignore_scaling = True
             header = hdu.read_header()
             LOGGER.debug('Transforming {}'.format(cutout_dimensions))
             try:
                 transformed_cutout_dimension = \
                     transform.world_to_pixels(cutout_dimensions,
                                               header)
-                LOGGER.debug('Transformed {} into {}'.format(
+                LOGGER.debug('Transformed {} into {} pixels.'.format(
                     cutout_dimensions, transformed_cutout_dimension))
 
                 cutout_params = _pixel_cutout_params(

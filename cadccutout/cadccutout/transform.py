@@ -114,13 +114,13 @@ class AxisType(object):
         self.polarization = None
 
         # wcs from header
-        wcs = to_astropy_wcs(header)
+        wcs = to_astropy_wcs(to_astropy_header(header))
 
         # get list of dict of axis types
         axis_types = wcs.get_axis_types()
 
         # for each coordinate dict extract type and axis number
-        for i in range(len(axis_types)):
+        for i, _type in enumerate(axis_types):
             axis_type = axis_types[i]
             coordinate_type = axis_type.get(self.COORDINATE_TYPE)
             if coordinate_type in self.SPATIAL_KEYWORDS:
@@ -215,8 +215,11 @@ class Transform(object):
         """
         LOGGER.info('Shapes: {}'.format(world_coords))
 
+        # Necessary to make the WCS to work properly.
+        astro_header = to_astropy_header(header, decompress=True)
+
         # coordinate axis numbers
-        axis_types = AxisType(header)
+        axis_types = AxisType(astro_header)
 
         # get the Shape object for the world coordinates
         shapes = self.world_to_shape(world_coords)
@@ -225,9 +228,10 @@ class Transform(object):
         # add a dummy object to the start of the list so the axes
         # align with the list index, remove it at the end.
         cutouts = [(0, 0)]
-        axes = header.get('NAXIS')
+        axes = astro_header.get('NAXIS')
+
         for i in range(1, axes + 1):
-            length = header.get('NAXIS{}'.format(i))
+            length = astro_header.get('NAXIS{}'.format(i))
             cutouts.append((1, length))
 
         # accumulated NoContentErrors
@@ -249,9 +253,9 @@ class Transform(object):
                     else:
                         # get the cutout pixels
                         pixels = self.get_circle_cutout_pixels(
-                            shape, header, naxis1, naxis2)
+                            shape, astro_header, naxis1, naxis2)
                         self._append_world_to_circle_pixels(
-                            header, naxis1, naxis2, pixels, cutouts)
+                            astro_header, naxis1, naxis2, pixels, cutouts)
 
                 except NoContentError as n_c_e:
                     no_content_errors.append(repr(n_c_e))
@@ -263,7 +267,7 @@ class Transform(object):
 
                     # get the cutout pixels
                     pixels = self.get_polygon_cutout_pixels(
-                        shape, header, naxis1, naxis2)
+                        shape, astro_header, naxis1, naxis2)
                     LOGGER.info(
                         'POLYGON pixels [{}:{}, {}:{}]'.format(*pixels))
 
@@ -280,8 +284,8 @@ class Transform(object):
                     naxis = axis_types.get_spectral_axis()
 
                     # get the cutout pixels
-                    pixels = self.get_energy_cutout_pixels(shape, header,
-                                                           naxis)
+                    pixels = self.get_energy_cutout_pixels(shape,
+                                                           astro_header, naxis)
                     LOGGER.info('BAND pixels [{}:{}]'.format(*pixels))
 
                     # remove default cutouts and add query cutout
@@ -295,7 +299,8 @@ class Transform(object):
                     naxis = axis_types.get_temporal_axis()
 
                     # get the cutout pixels
-                    pixels = self.get_time_cutout_pixels(shape, header, naxis)
+                    pixels = self.get_time_cutout_pixels(
+                        shape, astro_header, naxis)
                     LOGGER.info('TIME pixels [{}:{}]'.format(*pixels))
 
                     # remove default cutouts and add query cutout
@@ -310,7 +315,7 @@ class Transform(object):
 
                     # get the cutout pixels
                     pixels = self.get_polarization_cutout_pixels(
-                        shape, header, naxis)
+                        shape, astro_header, naxis)
                     LOGGER.info('POL pixels [{}:{}]'.format(*pixels))
 
                     # remove default cutouts and add query cutout
@@ -411,8 +416,8 @@ class Transform(object):
         # spatial data.
         LOGGER.debug('NAXIS values in transform are {}'.format(
             [naxis1, naxis2]))
-        wcs = WCS(header=to_astropy_header(header),
-                  naxis=[naxis1, naxis2], fix=False)
+        wcs = WCS(header=to_astropy_header(header), naxis=[naxis1, naxis2],
+                  fix=False)
 
         # Circle region with radius
         sky_region = CircleSkyRegion(sky_coords, radius=radius)
@@ -608,15 +613,27 @@ class Transform(object):
         :return: List[int] The coordinates pixels within the images bounds
         """
 
+        LOGGER.debug(f'Max X is {w} and Max Y is {h}')
         # bounds check
         if x1 < 1:
+            if x2 < 1:
+                raise NoContentError('Does not overlap')
             x1 = 1
+
         if w and x2 > w:
+            if x1 > w:
+                raise NoContentError('Does not overlap')
             x2 = w
+            if x2 < x1:
+                x1 = 1
         if y1 < 1:
             y1 = 1
         if h and y2 > h:
+            if y1 > h:
+                raise NoContentError('Does not overlap')
             y2 = h
+            if y2 < y1:
+                y1 = 1
 
         # cutout pixels
         LOGGER.info('Position clip check: [{}, {}, {}, {}]'.format(
