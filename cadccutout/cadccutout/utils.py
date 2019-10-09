@@ -1,7 +1,8 @@
 from astropy.io.fits import Header
 from astropy.wcs import WCS
 
-__all__ = ['to_num', 'is_integer', 'is_string', 'to_astropy_header']
+__all__ = ['to_num', 'is_integer', 'is_string', 'to_astropy_header',
+           'to_astropy_wcs']
 
 
 def to_num(s):

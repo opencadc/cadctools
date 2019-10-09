@@ -172,8 +172,8 @@ class OpenCADCCutout(object):
             msg = str(o_e)
             if 'status = 104' in msg:
                 raise FileNotFoundError(
-                    'No such file or unable to open file {}.\n\n'.format(
-                        input_reader))
+                    'No such file or unable to open file:\n{}.\n\n'.format(
+                        msg))
             else:
                 raise o_e
 

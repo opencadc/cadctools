@@ -114,7 +114,7 @@ class AxisType(object):
         self.polarization = None
 
         # wcs from header
-        wcs = to_astropy_wcs(to_astropy_header(header))
+        wcs = to_astropy_wcs(header)
 
         # get list of dict of axis types
         axis_types = wcs.get_axis_types()
@@ -213,7 +213,7 @@ class Transform(object):
         :param header: Header   The FITS header
         :return: PixelCutoutHDU containing the pixel coordinates
         """
-        LOGGER.info('Shapes: {}'.format(world_coords))
+        LOGGER.debug('Shapes: {}'.format(world_coords))
 
         # Necessary to make the WCS to work properly.
         astro_header = to_astropy_header(header, decompress=True)
@@ -416,8 +416,7 @@ class Transform(object):
         # spatial data.
         LOGGER.debug('NAXIS values in transform are {}'.format(
             [naxis1, naxis2]))
-        wcs = WCS(header=to_astropy_header(header), naxis=[naxis1, naxis2],
-                  fix=False)
+        wcs = WCS(header=header, naxis=[naxis1, naxis2], fix=False)
 
         # Circle region with radius
         sky_region = CircleSkyRegion(sky_coords, radius=radius)
