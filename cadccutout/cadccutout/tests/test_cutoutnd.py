@@ -127,7 +127,7 @@ def test_get_parameters():
         test_subject = CutoutND(hdu=hdu)
         cutout_region = PixelCutoutHDU([(3, 18)])
         cutout = test_subject.get_parameters(cutout_region.get_ranges())
-        expected_cutout = (slice(1, 9, 1), slice(3, 18, 1))
+        expected_cutout = (slice(9), slice(2, 18, 1))
         assert expected_cutout == cutout.cutout, 'Arrays do not match.'
 
 
@@ -148,7 +148,7 @@ def test_inverse_y():
         test_subject = CutoutND(hdu=hdu)
         cutout_regions = [(1, 2), (8, 4)]
         cutout = test_subject.get_parameters(cutout_regions)
-        expected_cutout = (slice(8, 4, 1), slice(1, 2, 1))
+        expected_cutout = (slice(7, 4, 1), slice(0, 2, 1))
         assert expected_cutout == cutout.cutout, \
             'Arrays do not match in {}.'.format(fname)
 
@@ -170,7 +170,7 @@ def test_inverse_y_striding():
         test_subject = CutoutND(hdu=hdu)
         cutout_regions = [(1, 2), (10, 2, 2)]
         cutout = test_subject.get_parameters(cutout_regions)
-        expected_cutout = (slice(10, 2, 2), slice(1, 2, 1))
+        expected_cutout = (slice(9, 2, 2), slice(0, 2, 1))
         assert expected_cutout == cutout.cutout, \
             'Arrays do not match in {}.'.format(fname)
 
@@ -192,7 +192,7 @@ def test_extract_striding():
         test_subject = CutoutND(hdu=hdu)
         cutout_regions = [(4, 18, 5)]
         cutout = test_subject.get_parameters(cutout_regions)
-        expected_cutout = (slice(1, 10, 1), slice(4, 18, 5))
+        expected_cutout = (slice(10), slice(3, 18, 5))
         assert expected_cutout == cutout.cutout, \
             'Arrays do not match in {}.'.format(fname)
 
@@ -214,7 +214,7 @@ def test_extract_striding_wildcard():
         test_subject = CutoutND(hdu=hdu)
         cutout_regions = [('*', 7)]
         cutout = test_subject.get_parameters(cutout_regions)
-        expected_cutout = (slice(1, 10, 1), slice(1, 10, 7))
+        expected_cutout = (slice(10), slice(None, 10, 7))
         assert expected_cutout == cutout.cutout, \
             'Arrays do not match for file {}.'.format(fname)
 

@@ -133,14 +133,15 @@ class CutoutND(object):
             low_bound = cutout_region[0]
 
             if low_bound == '*':
-                lower_bound = 1
-                upper_bound = self.hdu.get_dims()[idx]
+                lower_bound = None
+                upper_bound = self.hdu.get_dims()[idx + 1]
                 if len_region > 1:
                     step = int(cutout_region[1])
                 else:
                     step = 1
             else:
-                lower_bound = int(low_bound)
+                # The lower bound is extended by 1 to support CFITSIO indexes.
+                lower_bound = int(low_bound) - 1
                 upper_bound = int(cutout_region[1])
                 if len_region == 3:
                     step = int(cutout_region[2])
@@ -161,7 +162,9 @@ class CutoutND(object):
         len_shape = len(cutout_shape)
         data_shape = self.hdu.get_dims()
         len_data = len(data_shape)
-        LOGGER.debug('Data shape is {}'.format(data_shape))
+        LOGGER.debug(
+            'Data shape is {} and cutout shape is {}.'.format(
+                data_shape, cutout_shape))
         if len_data == 0:
             raise NoContentError('No data to cutout from.')
         elif len_shape > len_data:
@@ -169,12 +172,12 @@ class CutoutND(object):
                 'Shape of cutout ({}) exceeds shape of data ({})'.format(
                     cutout_shape, data_shape))
         else:
-            missing_shape_bounds = data_shape[:len_data - len_shape]
+            missing_shape_bounds = data_shape[:(len_data - len_shape)]
             LOGGER.debug('Missing shape bounds are {} for length {}'.format(
                 missing_shape_bounds, len_data - len_shape))
 
             for val in missing_shape_bounds:
-                cutout_shape.append(slice(1, val, 1))
+                cutout_shape.append(slice(val))
 
     def get_parameters(self, cutout_regions):
         '''

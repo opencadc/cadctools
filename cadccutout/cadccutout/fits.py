@@ -90,19 +90,28 @@ LOGGER = logging.getLogger(__name__)
 def _recalculate_crpix(slc, crpix):
     # Calculate the new CRPIXn value
     start = slc.start
+    stop = slc.stop
     step = slc.step
     if crpix is None:
         curr_crp = 0
     else:
         curr_crp = crpix
 
-    if start:
-        if start <= slc.stop:
-            crp = (curr_crp - start) / step + 1.0
+    # Default start value.
+    if start is None:
+        start = 0
+
+    # Default step value.
+    if step is None:
+        step = 1
+
+    if start <= stop:
+        if start < 0:
+            crp = curr_crp
         else:
-            crp = (start - curr_crp) / step + 1.0
+            crp = (curr_crp - (start + 1)) / step + 1.0
     else:
-        crp = None
+        crp = (start - curr_crp) / step + 1.0
 
     return crp
 
@@ -127,11 +136,13 @@ def _post_sanitize_header(cutout_result, header):
             if crp:
                 header[crpix_key] = crp
 
+                LOGGER.debug('Adjusted {} val from {} to {}'.format(
+                    crpix_key, crpix, crp))
+            else:
+                LOGGER.debug('Not adjusting {}.'.format(crpix_key))
+
             if step and not has_c_d:
                 header['CDELT{}'.format(idx + 1)] *= step
-
-            LOGGER.debug('Adjusted {} val from {} to {}'.format(
-                crpix_key, crpix, crp))
 
     if has_p_c and naxis > 0:
         for i in range(1, axis_count):

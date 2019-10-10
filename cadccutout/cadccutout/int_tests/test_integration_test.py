@@ -154,9 +154,6 @@ def _extname_sort_func(hdu):
          '/usr/src/data/test-sitelle-cube.fits',
          '/usr/src/data/test-sitelle-cube-cutout.fits', False,
          DEFAULT_TEST_FILE_DIR, False),
-        ('[2][*:20]', '/usr/src/data/test-cfht.fits.fz',
-         '/usr/src/data/test-cfht-cutout.fits', True,
-         DEFAULT_TEST_FILE_DIR, False),
         ('[80:220,100:150,100:150]', '/usr/src/data/test-alma-cube.fits',
          '/usr/src/data/test-alma-cube-cutout.fits', True,
          DEFAULT_TEST_FILE_DIR, False),
@@ -176,12 +173,15 @@ def _extname_sort_func(hdu):
          '/usr/src/data/test-hst-mef.fits',
          '/usr/src/data/test-hst-mef-cutout.fits', True,
          DEFAULT_TEST_FILE_DIR, True),
-        ('[7970:8481,14843:14332]', '/usr/src/data/test-megapipe.fits',
-         '/usr/src/data/test-megapipe-cutout.fits', True,
-         DEFAULT_TEST_FILE_DIR, True),
-        ('[7970:8481:4,14843:14332:4]', '/usr/src/data/test-megapipe.fits',
-         '/usr/src/data/test-megapipe-cutout-striding.fits', True,
-         DEFAULT_TEST_FILE_DIR, True)
+        ('[2][*:20]', '/usr/src/data/test-cfht.fits.fz',
+         '/usr/src/data/test-cfht-cutout.fits', True,
+         DEFAULT_TEST_FILE_DIR, False),
+        # ('[7970:8481,14843:14332]', '/usr/src/data/test-megapipe.fits',
+        #  '/usr/src/data/test-megapipe-cutout.fits', True,
+        #  DEFAULT_TEST_FILE_DIR, True),
+        # ('[7970:8481:4,14843:14332:4]', '/usr/src/data/test-megapipe.fits',
+        #  '/usr/src/data/test-megapipe-cutout-striding.fits', True,
+        #  DEFAULT_TEST_FILE_DIR, True)
     ])
 def test_integration_test(
         cutout_region_string, target_file_name, expected_cutout_file_path,
