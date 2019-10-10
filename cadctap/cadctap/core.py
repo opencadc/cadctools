@@ -534,8 +534,12 @@ class CadcTapClient(object):
                 for t in s.getElementsByTagName('table'):
                     name = \
                         t.getElementsByTagName('name')[0].firstChild.nodeValue
-                    description = t.getElementsByTagName('description')[0]. \
+                    try:
+                        description = \
+                        t.getElementsByTagName('description')[0]. \
                         firstChild.nodeValue
+                    except Exception:
+                        description = ''
                     schema_info.add_row((name, description))
                 self._db_schemas[schema_info.name] = schema_info
 
@@ -569,8 +573,11 @@ class CadcTapClient(object):
                                          'Description'])
         for s in doc.getElementsByTagName('column'):
             name = s.getElementsByTagName('name')[0].firstChild.nodeValue
-            description = s.getElementsByTagName('description')[0]. \
-                firstChild.nodeValue
+            try:
+                description = s.getElementsByTagName('description')[0]. \
+                    firstChild.nodeValue
+            except Exception:
+                description = ''
             if s.getElementsByTagName('utype'):
                 col_type = s.getElementsByTagName('utype')[0]. \
                     firstChild.nodeValue
