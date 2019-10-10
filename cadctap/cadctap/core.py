@@ -536,8 +536,8 @@ class CadcTapClient(object):
                         t.getElementsByTagName('name')[0].firstChild.nodeValue
                     try:
                         description = \
-                        t.getElementsByTagName('description')[0]. \
-                        firstChild.nodeValue
+                            t.getElementsByTagName('description')[0]. \
+                            firstChild.nodeValue
                     except Exception:
                         description = ''
                     schema_info.add_row((name, description))
@@ -565,10 +565,13 @@ class CadcTapClient(object):
         response = self._tap_client.get((TABLES_CAPABILITY_ID, table),
                                         params={'detail': 'min'})
         doc = minidom.parseString(response.text)
-
+        try:
+            tab_descr = doc.getElementsByTagName(
+                                'description')[0].firstChild.nodeValue
+        except Exception:
+            tab_descr = ''
         cols_info = TabularInfo(name=table,
-                                description=doc.getElementsByTagName(
-                                     'description')[0].firstChild.nodeValue,
+                                description=tab_descr,
                                 columns=['Name', 'Type', 'Index',
                                          'Description'])
         for s in doc.getElementsByTagName('column'):
