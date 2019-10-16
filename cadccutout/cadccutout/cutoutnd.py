@@ -143,6 +143,15 @@ class CutoutND(object):
                 # The lower bound is extended by 1 to support CFITSIO indexes.
                 lower_bound = int(low_bound) - 1
                 upper_bound = int(cutout_region[1])
+
+                if upper_bound < lower_bound:
+                    # A little black magic here.  The stop is offset by 2 to
+                    # accommodate the 1-offset of CFITSIO, and to move past the
+                    # end pixel to get the complete set after it is flipped
+                    # along the axis.  Maybe there is a clearer way to
+                    # accomplish what this offset is glossing over.
+                    upper_bound -= 2
+
                 if len_region == 3:
                     step = int(cutout_region[2])
                 else:

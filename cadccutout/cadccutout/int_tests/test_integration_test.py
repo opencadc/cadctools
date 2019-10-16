@@ -176,12 +176,12 @@ def _extname_sort_func(hdu):
         ('[2][*:20]', '/usr/src/data/test-cfht.fits.fz',
          '/usr/src/data/test-cfht-cutout.fits', True,
          DEFAULT_TEST_FILE_DIR, False),
-        # ('[7970:8481,14843:14332]', '/usr/src/data/test-megapipe.fits',
-        #  '/usr/src/data/test-megapipe-cutout.fits', True,
-        #  DEFAULT_TEST_FILE_DIR, True),
-        # ('[7970:8481:4,14843:14332:4]', '/usr/src/data/test-megapipe.fits',
-        #  '/usr/src/data/test-megapipe-cutout-striding.fits', True,
-        #  DEFAULT_TEST_FILE_DIR, True)
+        ('[7970:8481,14843:14332]', '/usr/src/data/test-megapipe.fits',
+         '/usr/src/data/test-megapipe-cutout.fits', True,
+         DEFAULT_TEST_FILE_DIR, True),
+        ('[7970:8481:4,14843:14332:4]', '/usr/src/data/test-megapipe.fits',
+         '/usr/src/data/test-megapipe-cutout-striding.fits', True,
+         DEFAULT_TEST_FILE_DIR, True)
     ])
 def test_integration_test(
         cutout_region_string, target_file_name, expected_cutout_file_path,

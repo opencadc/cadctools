@@ -111,7 +111,7 @@ def _recalculate_crpix(slc, crpix):
         else:
             crp = (curr_crp - (start + 1)) / step + 1.0
     else:
-        crp = (start - curr_crp) / step + 1.0
+        crp = ((start + 1) - curr_crp) / step + 1.0
 
     return crp
 
