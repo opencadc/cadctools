@@ -1,0 +1,14 @@
+version: '3.2'
+services:
+  cadccutout_server:
+    image: opencadc/cadccutout-server:3.6-alpine
+    ports:
+      - '8989:8989'
+    networks:
+      - 'cadccutout'
+    volumes:
+      - '/var/local/data/cutouts:/usr/src/data:ro'
+      - './main.py:/app/main.py'
+
+networks:
+  cadccutout:
