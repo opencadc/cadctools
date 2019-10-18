@@ -1,0 +1,2912 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vosi:tableset xmlns:vosi="http://www.ivoa.net/xml/VOSITables/v1.0" xmlns:vod="http://www.ivoa.net/xml/VODataService/v1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <schema>
+    <name>caom2</name>
+    <table type="output">
+      <name>caom2.Observation</name>
+      <description>the main CAOM Observation table</description>
+      <column>
+        <name>observationURI</name>
+        <description>unique URI for this observation</description>
+        <utype>caom2:Observation.uri</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>obsID</name>
+        <description>unique observation identifier</description>
+        <utype>caom2:Observation.id</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="36" extendedType="uuid">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>collection</name>
+        <description>data collection this observation belongs to</description>
+        <utype>caom2:Observation.collection</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>observationID</name>
+        <description>collection-specific unique observation identifier</description>
+        <utype>caom2:Observation.observationID</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>algorithm_name</name>
+        <description>algorithm that defines the observation( exposure for simple, grouping algorithm for composites)</description>
+        <utype>caom2:Observation.algorithm.name</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>type</name>
+        <description>type of data collected (e.g. FITS OBSTYPE header)</description>
+        <utype>caom2:Observation.type</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>intent</name>
+        <description>intended purpose of data (one of: science, calibration)</description>
+        <utype>caom2:Observation.intent</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>sequenceNumber</name>
+        <description>sequence number assigned by the observatory</description>
+        <utype>caom2:Observation.sequenceNumber</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>metaRelease</name>
+        <description>date the metadata for an observation is public (UTC)</description>
+        <utype>caom2:Observation.metaRelease</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+      </column>
+      <column>
+        <name>proposal_id</name>
+        <description>collection-specific unique proposal identifier</description>
+        <utype>caom2:Observation.proposal.id</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>proposal_pi</name>
+        <description>proposal principal investigator</description>
+        <utype>caom2:Observation.proposal.pi</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+      </column>
+      <column>
+        <name>proposal_project</name>
+        <description>project that created/acquired the observation</description>
+        <utype>caom2:Observation.proposal.project</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>proposal_title</name>
+        <description>proposal title</description>
+        <utype>caom2:Observation.proposal.title</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="256*">char</dataType>
+      </column>
+      <column>
+        <name>proposal_keywords</name>
+        <description>proposal keywords (separated by |)</description>
+        <utype>caom2:Observation.proposal.keywords</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*">char</dataType>
+      </column>
+      <column>
+        <name>target_name</name>
+        <description>name of intended target</description>
+        <utype>caom2:Observation.target.name</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>target_type</name>
+        <description>classification of intended target</description>
+        <utype>caom2:Observation.target.type</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>target_standard</name>
+        <description>intended target is a standard (0=false, 1=true)</description>
+        <utype>caom2:Observation.target.standard</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>target_redshift</name>
+        <description>redshift of intended target</description>
+        <utype>caom2:Observation.target.redshift</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>target_moving</name>
+        <description>flag for moving target</description>
+        <utype>caom2:Observation.target.moving</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>target_keywords</name>
+        <description>target keywords (separated by |)</description>
+        <utype>caom2:Observation.target.keywords</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*">char</dataType>
+      </column>
+      <column>
+        <name>targetPosition_coordinates_cval1</name>
+        <description>longitude of target position</description>
+        <unit>deg</unit>
+        <utype>caom2:Observation.targetPosition.coordinates.cval1</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>targetPosition_coordinates_cval2</name>
+        <description>latitude of target position</description>
+        <unit>deg</unit>
+        <utype>caom2:Observation.targetPosition.coordinates.cval2</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>targetPosition_coordsys</name>
+        <description>coordinate system for target position</description>
+        <utype>caom2:Observation.targetPosition.coordsys</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="16*">char</dataType>
+      </column>
+      <column>
+        <name>targetPosition_equinox</name>
+        <description>equinox of target position coordinate system</description>
+        <utype>caom2:Observation.targetPosition.equinox</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>telescope_name</name>
+        <description>name of telescope used to acquire observation</description>
+        <utype>caom2:Observation.telescope.name</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>telescope_geoLocationX</name>
+        <description>x component of geocentric location of telescope</description>
+        <utype>caom2:Observation.telescope.geoLocationX</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>telescope_geoLocationY</name>
+        <description>y component of geocentric location of telescope</description>
+        <utype>caom2:Observation.telescope.geoLocationY</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>telescope_geoLocationZ</name>
+        <description>z component of geocentric location of telescope</description>
+        <utype>caom2:Observation.telescope.geoLocationZ</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>telescope_keywords</name>
+        <description>telescope keywords (separated by |)</description>
+        <utype>caom2:Observation.telescope.keywords</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*">char</dataType>
+      </column>
+      <column>
+        <name>requirements_flag</name>
+        <description>flag describing satisfied proposal requirements (possible values: fail)</description>
+        <utype>caom2:Observation.requirements.flag</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="16">char</dataType>
+      </column>
+      <column>
+        <name>instrument_name</name>
+        <description>name of instrument used to acquire observation</description>
+        <utype>caom2:Observation.instrument.name</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>instrument_keywords</name>
+        <description>instrument keywords (separated by |)</description>
+        <utype>caom2:Observation.instrument.keywords</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*">char</dataType>
+      </column>
+      <column>
+        <name>environment_seeing</name>
+        <description>atmospheric seeing (FWHM)</description>
+        <unit>arcsec</unit>
+        <utype>caom2:Observation.environment.seeing</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>environment_humidity</name>
+        <description>humidity at telescope during observation</description>
+        <utype>caom2:Observation.environment.humidity</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>environment_elevation</name>
+        <description>elevation above horizon (0 to 90)</description>
+        <unit>deg</unit>
+        <utype>caom2:Observation.environment.elevation</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>environment_tau</name>
+        <description>zenith optical depth</description>
+        <utype>caom2:Observation.environment.tau</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>environment_wavelengthTau</name>
+        <description>wavelength at which Tau has been measured</description>
+        <unit>m</unit>
+        <utype>caom2:Observation.environment.wavelengthTau</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>environment_ambientTemp</name>
+        <description>ambient temperature telescope during observation</description>
+        <unit>C</unit>
+        <utype>caom2:Observation.environment.ambientTemp</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>environment_photometric</name>
+        <description>conditions were photometric (0=false, 1=true)</description>
+        <utype>caom2:Observation.environment.photometric</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>members</name>
+        <description>members of a composite observation (space-separated list of Observation URIs)</description>
+        <utype>caom2:Observation.members</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="clob">char</dataType>
+      </column>
+      <column>
+        <name>typeCode</name>
+        <description>single character code to denote type: S(impleObservation) or C(ompositeOvservation)</description>
+        <utype>caom2:Observation.typeCOde</utype>
+        <dataType xsi:type="vod:VOTableType">char</dataType>
+      </column>
+      <column>
+        <name>lastModified</name>
+        <description>timestamp of last modification of this row</description>
+        <utype>caom2:Observation.lastModified</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+      </column>
+      <column>
+        <name>maxLastModified</name>
+        <description>timestamp of last modification of this observation</description>
+        <utype>caom2:Observation.maxLastModified</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+      </column>
+      <column>
+        <name>metaChecksum</name>
+        <description>checksum of the metadata in this entity (URI of the form &lt;algorithm&gt;:&lt;value&gt;)</description>
+        <utype>caom2:Observation.metaChecksum</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+      </column>
+      <column>
+        <name>accMetaChecksum</name>
+        <description>checksum of the metadata in this entity+children (URI of the form &lt;algorithm&gt;:&lt;value&gt;)</description>
+        <utype>caom2:Observation.accMetaChecksum</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+      </column>
+      <foreignKey>
+        <targetTable>caom2.ObservationMember</targetTable>
+        <fkColumn>
+          <fromColumn>obsID</fromColumn>
+          <targetColumn>compositeID</targetColumn>
+        </fkColumn>
+        <description>standard way to join caom2.Observation (CompositeObservation) and caom2.ObservationMember [join table]</description>
+      </foreignKey>
+    </table>
+    <table type="output">
+      <name>caom2.Plane</name>
+      <description>the products of the observation</description>
+      <column>
+        <name>planeURI</name>
+        <description>unique internal URI for this product</description>
+        <utype>caom2:Plane.uri</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>publisherID</name>
+        <description>unique global identifier for this product</description>
+        <utype>caom2:Plane.publisherID</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>obsID</name>
+        <description>foreign key</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="36" extendedType="uuid">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>planeID</name>
+        <description>unique plane identifier</description>
+        <utype>caom2:Plane.id</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="36" extendedType="uuid">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>metaRelease</name>
+        <description>date the metadata for a plane is public (UTC)</description>
+        <utype>caom2:Plane.metaRelease</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>dataRelease</name>
+        <description>date the data for a plane is public (UTC)</description>
+        <utype>caom2:Plane.dataRelease</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>dataProductType</name>
+        <description>IVOA ObsCore data product type</description>
+        <utype>caom2:Plane.dataProductType</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+      </column>
+      <column>
+        <name>calibrationLevel</name>
+        <description>IVOA ObsCore calibration level (0,1,2,3,...)</description>
+        <utype>caom2:Plane.calibrationLevel</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>provenance_name</name>
+        <description>name of the process that created this plane</description>
+        <utype>caom2:Plane.provenance.name</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+      </column>
+      <column>
+        <name>provenance_version</name>
+        <description>version of the process/software</description>
+        <utype>caom2:Plane.provenance.version</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>provenance_reference</name>
+        <description>external reference (URL)</description>
+        <utype>caom2:Plane.provenance.reference</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="256*">char</dataType>
+      </column>
+      <column>
+        <name>provenance_producer</name>
+        <description>responsible entity (e.g. person)</description>
+        <utype>caom2:Plane.provenance.producer</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+      </column>
+      <column>
+        <name>provenance_project</name>
+        <description>responsible entity (e.g. person)</description>
+        <utype>caom2:Plane.provenance.project</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="256*">char</dataType>
+      </column>
+      <column>
+        <name>provenance_runID</name>
+        <description>responsible entity (e.g. person)</description>
+        <utype>caom2:Plane.provenance.runID</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>provenance_lastExecuted</name>
+        <description>date this process was last executed</description>
+        <utype>caom2:Plane.provenance.lastExecuted</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+      </column>
+      <column>
+        <name>provenance_keywords</name>
+        <description>provenance keywords (separated by |)</description>
+        <utype>caom2:Plane.provenance.keywords</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*">char</dataType>
+      </column>
+      <column>
+        <name>provenance_inputs</name>
+        <description>inputs of the process that created this plane (space-separated list of Plane URIs)</description>
+        <utype>caom2:Plane.provenance.inputs</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="clob">char</dataType>
+      </column>
+      <column>
+        <name>metrics_sourceNumberDensity</name>
+        <description>number density of sources</description>
+        <unit>deg-2</unit>
+        <utype>caom2:Plane.metrics.sourceNumberDensity</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>metrics_background</name>
+        <description>background intensity</description>
+        <unit>Jy/pix</unit>
+        <utype>caom2:Plane.metrics.background</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>metrics_backgroundStddev</name>
+        <description>standard deviation in background</description>
+        <unit>Jy/pix</unit>
+        <utype>caom2:Plane.metrics.backgroundStddev</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>metrics_fluxDensityLimit</name>
+        <description>flux density limit where S:N=5 for point source</description>
+        <unit>Jy</unit>
+        <utype>caom2:Plane.metrics.fluxDensityLimit</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>metrics_magLimit</name>
+        <description>AB magnitude limit where S:N=5 for point source</description>
+        <utype>caom2:Plane.metrics.magLimit</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>quality_flag</name>
+        <description>flag describing the data quality (possible values: junk)</description>
+        <utype>caom2:Plane.quality.flag</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="16*">char</dataType>
+      </column>
+      <column>
+        <name>position_bounds</name>
+        <description>positional coverage of the data</description>
+        <unit>deg</unit>
+        <utype>caom2:Plane.position.bounds</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="polygon">double</dataType>
+      </column>
+      <column>
+        <name>position_bounds_points</name>
+        <description>internal polymorphic shape support</description>
+        <unit>deg</unit>
+        <utype>caom2:Plane.position.bounds.points</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*">double</dataType>
+      </column>
+      <column>
+        <name>position_bounds_samples</name>
+        <description>positional coverage of the data</description>
+        <unit>deg</unit>
+        <utype>caom2:Plane.position.bounds.samples</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="caom2:MultiPolygon">double</dataType>
+      </column>
+      <column>
+        <name>position_bounds_size</name>
+        <description>size of the polygon bounds (diameter of minimum spanning circle)</description>
+        <unit>deg</unit>
+        <utype>caom2:Plane.position.bounds.size</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_resolution</name>
+        <description>median spatial resolution (FWHM)</description>
+        <unit>arcsec</unit>
+        <utype>caom2:Plane.position.resolution</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_sampleSize</name>
+        <description>median sample (pixel) size on spatial axes</description>
+        <unit>arcsec</unit>
+        <utype>caom2:Plane.position.sampleSize</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_dimension_naxis1</name>
+        <description>dimensions (number of pixels) along one spatial axis</description>
+        <utype>caom2:Plane.position.dimension.naxis1</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>position_dimension_naxis2</name>
+        <description>dimensions (number of pixels) along other spatial axis</description>
+        <utype>caom2:Plane.position.dimension.naxis2</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>position_timeDependent</name>
+        <description>flag indicating that the position is time-dependent (0=false, 1=true)</description>
+        <utype>caom2:Plane.position.timeDependent</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>energy_emBand</name>
+        <description>generic name for energy band (Radio,Millimeter,Infrared,Optical,UV,EUV,X-ray,Gamma-ray)</description>
+        <utype>caom2:Plane.energy.emBand</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>energy_bounds</name>
+        <description>energy coverage (barycentric wavelength)</description>
+        <unit>m</unit>
+        <utype>caom2:Plane.energy.bounds</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="2" extendedType="interval">double</dataType>
+      </column>
+      <column>
+        <name>energy_bounds_samples</name>
+        <description>detailed energy coverage (barycentric wavelength)</description>
+        <unit>m</unit>
+        <utype>caom2:Plane.energy.bounds.samples</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="2x*" extendedType="interval">double</dataType>
+      </column>
+      <column>
+        <name>time_bounds_samples</name>
+        <description>detailed time coverage (Modified Julian Day)</description>
+        <unit>m</unit>
+        <utype>caom2:Plane.time.bounds.samples</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="2x*" extendedType="interval">double</dataType>
+      </column>
+      <column>
+        <name>energy_bounds_lower</name>
+        <description>lower bound on energy axis (barycentric wavelength)</description>
+        <unit>m</unit>
+        <utype>caom2:Plane.energy.bounds.lower</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_bounds_upper</name>
+        <description>upper bound on energy axis (barycentric wavelength)</description>
+        <unit>m</unit>
+        <utype>caom2:Plane.energy.bounds.upper</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_bounds_integrated</name>
+        <description>sum of width of subsamples</description>
+        <unit>m</unit>
+        <utype>caom2:Plane.energy.bounds.integrated</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_bounds_width</name>
+        <description>width of the energy bounds</description>
+        <unit>m</unit>
+        <utype>caom2:Plane.energy.bounds.width</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_dimension</name>
+        <description>dimension (number of pixels) along energy axis</description>
+        <utype>caom2:Plane.energy.dimension</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>energy_resolvingPower</name>
+        <description>median spectral resolving power (R)</description>
+        <utype>caom2:Plane.energy.resolvingPower</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_sampleSize</name>
+        <description>median sample (pixel) size on energy axis</description>
+        <unit>m</unit>
+        <utype>caom2:Plane.energy.sampleSize</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_bandpassName</name>
+        <description>collection-specific name for energy band (e.g. filter name)</description>
+        <utype>caom2:Plane.energy.bandpassName</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>energy_transition_species</name>
+        <description>atom or molecule</description>
+        <utype>caom2:Plane.energy.transition.species</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>energy_transition_transition</name>
+        <description>specific energy transition of species</description>
+        <utype>caom2:Plane.energy.transition.transition</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>energy_freqWidth</name>
+        <description>width of the energy bounds (convenience: in frequency)</description>
+        <unit>Hz</unit>
+        <utype>caom2:Plane.energy.freqWidth</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_freqSampleSize</name>
+        <description>median sample (pixel) size on energy axis (convenience: in frequency)</description>
+        <unit>Hz</unit>
+        <utype>caom2:Plane.energy.freqSampleSize</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_restwav</name>
+        <description>rest wavelength of target spectral feature (barycentric)</description>
+        <unit>m</unit>
+        <utype>caom2:Plane.energy.restwav</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_bounds</name>
+        <description>time coverage (Modified Julian Day)</description>
+        <unit>d</unit>
+        <utype>caom2:Plane.time.bounds</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="2" extendedType="interval">double</dataType>
+      </column>
+      <column>
+        <name>time_bounds_lower</name>
+        <description>lower bound on time axis (Modified Julian Day)</description>
+        <unit>d</unit>
+        <utype>caom2:Plane.time.bounds.lower</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_bounds_upper</name>
+        <description>upper bound on time axis (Modified Julian Day)</description>
+        <unit>d</unit>
+        <utype>caom2:Plane.time.bounds.upper</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_bounds_width</name>
+        <description>width of the time bounds</description>
+        <unit>d</unit>
+        <utype>caom2:Plane.time.bounds.width</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_bounds_integrated</name>
+        <description>sum of width of subsamples</description>
+        <unit>d</unit>
+        <utype>caom2:Plane.time.bounds.integrated</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_dimension</name>
+        <description>dimension (number of pixels) along time axis</description>
+        <utype>caom2:Plane.time.dimension</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>time_resolution</name>
+        <description>median resolution on the time axis</description>
+        <unit>d</unit>
+        <utype>caom2:Plane.time.resolution</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_sampleSize</name>
+        <description>median sample (pixel) size on time axis</description>
+        <unit>d</unit>
+        <utype>caom2:Plane.time.sampleSize</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_exposure</name>
+        <description>median exposure time per pixel</description>
+        <unit>s</unit>
+        <utype>caom2:Plane.time.exposure</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>polarization_states</name>
+        <description>polarization letter codes in canonical order, separated by /</description>
+        <utype>caom2:Plane.polarization.states</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>polarization_dimension</name>
+        <description>number of samples (pixels) along polarization axis</description>
+        <utype>caom2:Plane.polarization.dimension</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>lastModified</name>
+        <description>timestamp of last modification of this row</description>
+        <utype>caom2:Plane.lastModified</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>metaChecksum</name>
+        <description>checksum of the metadata in this entity (URI of the form &lt;algorithm&gt;:&lt;value&gt;)</description>
+        <utype>caom2:Plane.metaChecksum</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+      </column>
+      <column>
+        <name>accMetaChecksum</name>
+        <description>checksum of the metadata in this entity+children (URI of the form &lt;algorithm&gt;:&lt;value&gt;)</description>
+        <utype>caom2:Plane.accMetaChecksum</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+      </column>
+      <column>
+        <name>productID</name>
+        <description>name of this product</description>
+        <utype>caom2:Plane.productID</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <foreignKey>
+        <targetTable>caom2.ProvenanceInput</targetTable>
+        <fkColumn>
+          <fromColumn>planeID</fromColumn>
+          <targetColumn>outputID</targetColumn>
+        </fkColumn>
+        <description>standard way to join caom2.Plane (product) and caom2.ProvenanceInput [join table]</description>
+      </foreignKey>
+      <foreignKey>
+        <targetTable>caom2.Observation</targetTable>
+        <fkColumn>
+          <fromColumn>obsID</fromColumn>
+          <targetColumn>obsID</targetColumn>
+        </fkColumn>
+        <description>standard way to join the caom2.Observation and caom2.Plane tables</description>
+      </foreignKey>
+    </table>
+    <table type="output">
+      <name>caom2.Artifact</name>
+      <description>physical data artifacts (e.g. files)</description>
+      <column>
+        <name>planeID</name>
+        <description>foreign key</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="36" extendedType="uuid">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>artifactID</name>
+        <description>unique artifact identifier</description>
+        <utype>caom2:Artifact.id</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="36" extendedType="uuid">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>uri</name>
+        <description>external URI for the physical artifact</description>
+        <utype>caom2:Artifact.uri</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>productType</name>
+        <description>product type (science, calibration, auxiliary, preview, info)</description>
+        <utype>caom2:Artifact.productType</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>releaseType</name>
+        <description>release type (data, meta), new: not in use</description>
+        <utype>caom2:Artifact.releaseType</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="16*">char</dataType>
+      </column>
+      <column>
+        <name>contentType</name>
+        <description>content-type of the representation at uri</description>
+        <utype>caom2:Artifact.contentType</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+      </column>
+      <column>
+        <name>contentLength</name>
+        <description>size of the representation at uri</description>
+        <unit>byte</unit>
+        <utype>caom2:Artifact.contentLength</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>contentChecksum</name>
+        <description>checksum of the content (URI of the form &lt;algorithm&gt;:&lt;value&gt;)</description>
+        <utype>caom2:Artifact.contentChecksum</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+      </column>
+      <column>
+        <name>accessURL</name>
+        <description>access URL for the complete file</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="clob">char</dataType>
+      </column>
+      <column>
+        <name>lastModified</name>
+        <description>timestamp of last modification of this row</description>
+        <utype>caom2:Artifact.lastModified</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>metaChecksum</name>
+        <description>checksum of the metadata in this entity (URI of the form &lt;algorithm&gt;:&lt;value&gt;)</description>
+        <utype>caom2:Artifact.metaChecksum</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+      </column>
+      <column>
+        <name>accMetaChecksum</name>
+        <description>checksum of the metadata in this entity+children (URI of the form &lt;algorithm&gt;:&lt;value&gt;)</description>
+        <utype>caom2:Artifact.accMetaChecksum</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+      </column>
+      <foreignKey>
+        <targetTable>caom2.Plane</targetTable>
+        <fkColumn>
+          <fromColumn>planeID</fromColumn>
+          <targetColumn>planeID</targetColumn>
+        </fkColumn>
+        <description>standard way to join the caom2.Plane and caom2.Artifact tables</description>
+      </foreignKey>
+    </table>
+    <table type="output">
+      <name>caom2.Part</name>
+      <description>parts of artifacts (e.g. FITS extensions)</description>
+      <column>
+        <name>artifactID</name>
+        <description>foreign key</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="36" extendedType="uuid">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>partID</name>
+        <description>unique part identifier</description>
+        <utype>caom2:Part.id</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="36" extendedType="uuid">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>name</name>
+        <description>name of this part</description>
+        <utype>caom2:Part.name</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+      </column>
+      <column>
+        <name>productType</name>
+        <description>product type (science, calibration, auxiliary, preview, info)</description>
+        <utype>caom2:Part.productType</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>lastModified</name>
+        <description>timestamp of last modification of this row</description>
+        <utype>caom2:Part.lastModified</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>metaChecksum</name>
+        <description>checksum of the metadata in this entity (URI of the form &lt;algorithm&gt;:&lt;value&gt;)</description>
+        <utype>caom2:Part.metaChecksum</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+      </column>
+      <column>
+        <name>accMetaChecksum</name>
+        <description>checksum of the metadata in this entity+children (URI of the form &lt;algorithm&gt;:&lt;value&gt;)</description>
+        <utype>caom2:Part.accMetaChecksum</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+      </column>
+      <foreignKey>
+        <targetTable>caom2.Artifact</targetTable>
+        <fkColumn>
+          <fromColumn>artifactID</fromColumn>
+          <targetColumn>artifactID</targetColumn>
+        </fkColumn>
+        <description>standard way to join the caom2.Artifact and caom2.Part tables</description>
+      </foreignKey>
+    </table>
+    <table type="output">
+      <name>caom2.Chunk</name>
+      <description>description of the data array in a part</description>
+      <column>
+        <name>partID</name>
+        <description>parent identifier</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="36" extendedType="uuid">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>chunkID</name>
+        <description>unique chunk identifier</description>
+        <utype>caom2:Chunk.id</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="36" extendedType="uuid">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>naxis</name>
+        <description>size of the representation at uri</description>
+        <utype>caom2:Chunk.naxis</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>positionAxis1</name>
+        <description>axis for the first position coordinate</description>
+        <utype>caom2:Chunk.positionAxis1</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>positionAxis2</name>
+        <description>axis for the second position coordinate</description>
+        <utype>caom2:Chunk.positionAxis2</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>energyAxis</name>
+        <description>axis for the energy coordinate</description>
+        <utype>caom2:Chunk.energyAxis</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>timeAxis</name>
+        <description>axis for the time coordinate</description>
+        <utype>caom2:Chunk.timeAxis</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>polarizationAxis</name>
+        <description>axis for the polarization coordinate</description>
+        <utype>caom2:Chunk.polarizationAxis</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>observableAxis</name>
+        <description>axis for the observable quantity</description>
+        <utype>caom2:Chunk.observableAxis</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>position_coordsys</name>
+        <description>coordinate system name</description>
+        <utype>caom2:Chunk.position.coordsys</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>position_resolution</name>
+        <description>median spatial resolution (FWHM)</description>
+        <unit>arcsec</unit>
+        <utype>caom2:Chunk.position.resolution</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_axis1_ctype</name>
+        <description>coordinate type for first position axis</description>
+        <utype>caom2:Chunk.position.axis.axis1.ctype</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>position_axis_axis1_cunit</name>
+        <description>coordinate unit for first position axis</description>
+        <utype>caom2:Chunk.position.axis.axis1.cunit</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>position_axis_error1_syser</name>
+        <description>systematic coordinate error for first position axis</description>
+        <utype>caom2:Chunk.position.axis.error1.syser</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_error1_rnder</name>
+        <description>random coordinate error for first position axis</description>
+        <utype>caom2:Chunk.position.axis.error1.rnder</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_axis2_ctype</name>
+        <description>coordinate type for second position axis</description>
+        <utype>caom2:Chunk.position.axis.axis2.ctype</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>position_axis_axis2_cunit</name>
+        <description>coordinate unit for second position axis</description>
+        <utype>caom2:Chunk.position.axis.axis2.cunit</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>position_axis_error2_syser</name>
+        <description>systematic coordinate error for second position axis</description>
+        <utype>caom2:Chunk.position.axis.error2.syser</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_error2_rnder</name>
+        <description>random coordinate error for second position axis</description>
+        <utype>caom2:Chunk.position.axis.error2.rnder</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_range_start_coord1_pix</name>
+        <description>coordinate range for position axis</description>
+        <utype>caom2:Chunk.position.axis.range.start.coord1.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_range_start_coord1_val</name>
+        <description>coordinate range for position axis</description>
+        <utype>caom2:Chunk.position.axis.range.start.coord1.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_range_start_coord2_pix</name>
+        <description>coordinate range for position axis</description>
+        <utype>caom2:Chunk.position.axis.range.start.coord2.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_range_start_coord2_val</name>
+        <description>coordinate range for position axis</description>
+        <utype>caom2:Chunk.position.axis.range.start.coord2.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_range_end_coord1_pix</name>
+        <description>coordinate range for position axis</description>
+        <utype>caom2:Chunk.position.axis.range.end.coord1.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_range_end_coord1_val</name>
+        <description>coordinate range for position axis</description>
+        <utype>caom2:Chunk.position.axis.range.end.coord1.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_range_end_coord2_pix</name>
+        <description>coordinate range for position axis</description>
+        <utype>caom2:Chunk.position.axis.range.end.coord2.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_range_end_coord2_val</name>
+        <description>coordinate range for position axis</description>
+        <utype>caom2:Chunk.position.axis.range.end.coord2.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_bounds</name>
+        <description>coordinate bounds for position axis (string-encoded)</description>
+        <utype>caom2:Chunk.position.axis.bounds</utype>
+        <dataType xsi:type="vod:VOTableType">char</dataType>
+      </column>
+      <column>
+        <name>position_axis_function_dimension_naxis1</name>
+        <description>coordinate function for position axis</description>
+        <utype>caom2:Chunk.position.axis.function.dimension.naxis1</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>position_axis_function_dimension_naxis2</name>
+        <description>coordinate function for position axis</description>
+        <utype>caom2:Chunk.position.axis.function.dimension.naxis2</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>position_axis_function_refCoord_coord1_pix</name>
+        <description>coordinate function for position axis</description>
+        <utype>caom2:Chunk.position.axis.function.refCoord.coord1.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_function_refCoord_coord1_val</name>
+        <description>coordinate function for position axis</description>
+        <utype>caom2:Chunk.position.axis.function.refCoord.coord1.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_function_refCoord_coord2_pix</name>
+        <description>coordinate function for position axis</description>
+        <utype>caom2:Chunk.position.axis.function.refCoord.coord2.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_function_refCoord_coord2_val</name>
+        <description>coordinate function for position axis</description>
+        <utype>caom2:Chunk.position.axis.function.refCoord.coord2.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_function_cd11</name>
+        <description>coordinate function for position axis</description>
+        <utype>caom2:Chunk.position.axis.function.cd11</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_function_cd12</name>
+        <description>coordinate function for position axis</description>
+        <utype>caom2:Chunk.position.axis.function.cd12</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_function_cd21</name>
+        <description>coordinate function for position axis</description>
+        <utype>caom2:Chunk.position.axis.function.cd21</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>position_axis_function_cd22</name>
+        <description>coordinate function for position axis</description>
+        <utype>caom2:Chunk.position.axis.function.cd22</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_axis_axis_ctype</name>
+        <description>coordinate type for energy axis</description>
+        <utype>caom2:Chunk.energy.axis.axis.ctype</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>energy_axis_axis_cunit</name>
+        <description>coordinate unit for energy axis</description>
+        <utype>caom2:Chunk.energy.axis.axis.cunit</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>energy_axis_error_syser</name>
+        <description>systematic coordinate error for energy axis</description>
+        <utype>caom2:Chunk.energy.axis.error.syser</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_axis_error_rnder</name>
+        <description>random coordinate error for energy axis</description>
+        <utype>caom2:Chunk.energy.axis.error.rnder</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_axis_range_start_pix</name>
+        <description>coordinate range for energy axis</description>
+        <utype>caom2:Chunk.energy.axis.range.start.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_axis_range_start_val</name>
+        <description>coordinate range for energy axis</description>
+        <utype>caom2:Chunk.energy.axis.range.start.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_axis_range_end_pix</name>
+        <description>coordinate range for energy axis</description>
+        <utype>caom2:Chunk.energy.axis.range.end.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_axis_range_end_val</name>
+        <description>coordinate range for energy axis</description>
+        <utype>caom2:Chunk.energy.axis.range.end.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_axis_bounds</name>
+        <description>coordinate bounds for energy axis (string-encoded)</description>
+        <utype>caom2:Chunk.energy.axis.bounds</utype>
+        <dataType xsi:type="vod:VOTableType">char</dataType>
+      </column>
+      <column>
+        <name>energy_axis_function_naxis</name>
+        <description>coordinate function for energy axis</description>
+        <utype>caom2:Chunk.energy.axis.function.naxis</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>energy_axis_function_refCoord_pix</name>
+        <description>coordinate function for energy axis</description>
+        <utype>caom2:Chunk.energy.axis.function.refCoord.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_axis_function_refCoord_val</name>
+        <description>coordinate function for energy axis</description>
+        <utype>caom2:Chunk.energy.axis.function.refCoord.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_axis_function_delta</name>
+        <description>coordinate function for energy axis</description>
+        <utype>caom2:Chunk.energy.axis.function.delta</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_specsys</name>
+        <description>SPECSYS</description>
+        <utype>caom2:Chunk.energy.specsys</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>energy_ssysobs</name>
+        <description>SSYSOBS</description>
+        <utype>caom2:Chunk.energy.ssysobs</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>energy_ssyssrc</name>
+        <description>SSYSSRC</description>
+        <utype>caom2:Chunk.energy.ssyssrc</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>energy_restfrq</name>
+        <description>RESTFRQ</description>
+        <utype>caom2:Chunk.energy.restfrq</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_restwav</name>
+        <description>RESTWAV</description>
+        <utype>caom2:Chunk.energy.restwav</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_velosys</name>
+        <description>VELOSYS</description>
+        <utype>caom2:Chunk.energy.velosys</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_zsource</name>
+        <description>ZSOURCE</description>
+        <utype>caom2:Chunk.energy.zsource</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_velang</name>
+        <description>VELANG</description>
+        <utype>caom2:Chunk.energy.velang</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_bandpassName</name>
+        <description>observatory name for the band (e.g. filter name)</description>
+        <utype>caom2:Chunk.energy.bandpassName</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+      </column>
+      <column>
+        <name>energy_resolvingPower</name>
+        <description>resolving power R</description>
+        <utype>caom2:Chunk.energy.resolvingPower</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>energy_transition_species</name>
+        <description>target element/molecule species</description>
+        <utype>caom2:Chunk.energy.transition.species</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+      </column>
+      <column>
+        <name>energy_transition_transition</name>
+        <description>target energy transition</description>
+        <utype>caom2:Chunk.energy.transition.transition</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+      </column>
+      <column>
+        <name>time_axis_axis_ctype</name>
+        <description>coordinate type for time axis</description>
+        <utype>caom2:Chunk.time.axis.axis.ctype</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>time_axis_error_syser</name>
+        <description>systematic coordinate error for time axis</description>
+        <utype>caom2:Chunk.time.axis.error.syser</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_axis_error_rnder</name>
+        <description>random coordinate error for time axis</description>
+        <utype>caom2:Chunk.time.axis.error.rnder</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_axis_range_start_pix</name>
+        <description>coordinate range for time axis</description>
+        <utype>caom2:Chunk.time.axis.range.start.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_axis_range_start_val</name>
+        <description>coordinate range for time axis</description>
+        <utype>caom2:Chunk.time.axis.range.start.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_axis_range_end_pix</name>
+        <description>coordinate range for time axis</description>
+        <utype>caom2:Chunk.time.axis.range.end.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_axis_range_end_val</name>
+        <description>coordinate range for time axis</description>
+        <utype>caom2:Chunk.time.axis.range.end.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_axis_bounds</name>
+        <description>coordinate bounds for time axis (string-encoded)</description>
+        <utype>caom2:Chunk.time.axis.bounds</utype>
+        <dataType xsi:type="vod:VOTableType">char</dataType>
+      </column>
+      <column>
+        <name>time_axis_function_naxis</name>
+        <description>coordinate function for time axis</description>
+        <utype>caom2:Chunk.time.axis.function.naxis</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>time_axis_function_refCoord_pix</name>
+        <description>coordinate function for time axis</description>
+        <utype>caom2:Chunk.time.axis.function.refCoord.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_axis_function_refCoord_val</name>
+        <description>coordinate function for time axis</description>
+        <utype>caom2:Chunk.time.axis.function.refCoord.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_axis_function_delta</name>
+        <description>coordinate function for time axis</description>
+        <utype>caom2:Chunk.time.axis.function.delta</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_timesys</name>
+        <description>time system</description>
+        <utype>caom2:Chunk.time.timesys</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>time_trefpos</name>
+        <description>time reference position</description>
+        <utype>caom2:Chunk.time.trefpos</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>time_mjdref</name>
+        <description>reference MJD value</description>
+        <unit>d</unit>
+        <utype>caom2:Chunk.time.mjdref</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_exposure</name>
+        <description>median exposure time per pixel</description>
+        <unit>s</unit>
+        <utype>caom2:Chunk.time.exposure</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_resolution</name>
+        <description>resolution on time axis</description>
+        <unit>s</unit>
+        <utype>caom2:Chunk.time.resolution</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>polarization_axis_axis_ctype</name>
+        <description>coordinate type for polarization axis</description>
+        <utype>caom2:Chunk.polarization.axis.axis.ctype</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>polarization_axis_axis_cunit</name>
+        <description>coordinate unit for polarization axis</description>
+        <utype>caom2:Chunk.polarization.axis.axis.cunit</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>polarization_axis_error_syser</name>
+        <description>systematic coordinate error for polarization axis</description>
+        <utype>caom2:Chunk.polarization.axis.error.syser</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>polarization_axis_error_rnder</name>
+        <description>random coordinate error for polarization axis</description>
+        <utype>caom2:Chunk.polarization.axis.error.rnder</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>polarization_axis_range_start_pix</name>
+        <description>coordinate range for time axis</description>
+        <utype>caom2:Chunk.polarization.axis.range.start.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>polarization_axis_range_start_val</name>
+        <description>coordinate range for time axis</description>
+        <utype>caom2:Chunk.polarization.axis.range.start.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>polarization_axis_range_end_pix</name>
+        <description>coordinate range for time axis</description>
+        <utype>caom2:Chunk.polarization.axis.range.end.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>polarization_axis_range_end_val</name>
+        <description>coordinate range for time axis</description>
+        <utype>caom2:Chunk.polarization.axis.range.end.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>polarization_axis_bounds</name>
+        <description>coordinate bounds for polarization axis (string-encoded)</description>
+        <utype>caom2:Chunk.polarization.axis.bounds</utype>
+        <dataType xsi:type="vod:VOTableType">char</dataType>
+      </column>
+      <column>
+        <name>polarization_axis_function_naxis</name>
+        <description>coordinate function for polarization axis</description>
+        <utype>caom2:Chunk.polarization.axis.function.naxis</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>polarization_axis_function_refCoord_pix</name>
+        <description>coordinate function for polarization axis</description>
+        <utype>caom2:Chunk.polarization.axis.function.refCoord.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>polarization_axis_function_refCoord_val</name>
+        <description>coordinate function for polarization axis</description>
+        <utype>caom2:Chunk.polarization.axis.function.refCoord.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>polarization_axis_function_delta</name>
+        <description>coordinate function for polarization axis</description>
+        <utype>caom2:Chunk.polarization.axis.function.delta</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>observable_independent_axis_ctype</name>
+        <description>independent observable axis coordinate type</description>
+        <utype>caom2:Chunk.observable.independent.axis.ctype</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>observable_independent_axis_cunit</name>
+        <description>independent observable axis coordinate unit</description>
+        <utype>caom2:Chunk.observable.independent.axis.cunit</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>observable_independent_bin</name>
+        <description>independent observable pixel value</description>
+        <utype>caom2:Chunk.observable.independent.bin</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>observable_dependent_axis_ctype</name>
+        <description>dependent observable axis coordinate type</description>
+        <utype>caom2:Chunk.observable.dependent.axis.ctype</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>observable_dependent_axis_cunit</name>
+        <description>dependent observable axis coordinate unit</description>
+        <utype>caom2:Chunk.observable.dependent.axis.cunit</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>observable_dependent_bin</name>
+        <description>dependent observable pixel value</description>
+        <utype>caom2:Chunk.observable.dependent.bin</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>lastModified</name>
+        <description>timestamp of last modification of this row</description>
+        <utype>caom2:Chunk.lastModified</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>metaChecksum</name>
+        <description>checksum of the metadata in this entity (URI of the form &lt;algorithm&gt;:&lt;value&gt;)</description>
+        <utype>caom2:Chunk.metaChecksum</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+      </column>
+      <column>
+        <name>accMetaChecksum</name>
+        <description>checksum of the metadata in this entity+children (URI of the form &lt;algorithm&gt;:&lt;value&gt;)</description>
+        <utype>caom2:Chunk.accMetaChecksum</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+      </column>
+      <column>
+        <name>productType</name>
+        <description>deprecated</description>
+        <utype>caom2:Chunk.productType</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>position_equinox</name>
+        <description>coordinate equinox</description>
+        <unit>a</unit>
+        <utype>caom2:Chunk.position.equinox</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>time_axis_axis_cunit</name>
+        <description>coordinate unit for time axis</description>
+        <utype>caom2:Chunk.time.axis.axis.cunit</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <foreignKey>
+        <targetTable>caom2.Part</targetTable>
+        <fkColumn>
+          <fromColumn>partID</fromColumn>
+          <targetColumn>partID</targetColumn>
+        </fkColumn>
+        <description>standard way to join the caom2.Part and caom2. tables</description>
+      </foreignKey>
+    </table>
+    <table type="output">
+      <name>caom2.ObservationMember</name>
+      <description>composite to simple observation join table</description>
+      <column>
+        <name>compositeID</name>
+        <description>composite observation identifier</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="36" extendedType="uuid">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>simpleID</name>
+        <description>simple observation identifier</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <foreignKey>
+        <targetTable>caom2.Observation</targetTable>
+        <fkColumn>
+          <fromColumn>simpleID</fromColumn>
+          <targetColumn>observationURI</targetColumn>
+        </fkColumn>
+        <description>standard way to join caom2.ObservationMember and caom2.Observation (SimpleObservation) [join table]</description>
+      </foreignKey>
+    </table>
+    <table type="output">
+      <name>caom2.ProvenanceInput</name>
+      <description>plane.provenance to input plane join table</description>
+      <column>
+        <name>inputID</name>
+        <description>input plane identifier</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uri">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>outputID</name>
+        <description>output plane identifier</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="36" extendedType="uuid">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <foreignKey>
+        <targetTable>caom2.Plane</targetTable>
+        <fkColumn>
+          <fromColumn>inputID</fromColumn>
+          <targetColumn>planeURI</targetColumn>
+        </fkColumn>
+        <description>standard way to join caom2.ProvenanceInput and caom2.Plane (input) [join table]</description>
+      </foreignKey>
+    </table>
+    <table type="output">
+      <name>caom2.EnumField</name>
+      <description>pre-computed aggregate (group by) table built from enumerated types in CAOM model</description>
+      <column>
+        <name>num_tuples</name>
+        <description>number of occurances of this combination</description>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>max_time_bounds_cval1</name>
+        <description>maximum timestamp of observations with this combination</description>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>collection</name>
+        <description>name of the data collection</description>
+        <utype>caom2:Observation.collection</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>telescope_name</name>
+        <description>name of the telescope</description>
+        <utype>caom2:Observation.telescope.name</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>instrument_name</name>
+        <description>name of the instrument</description>
+        <utype>caom2:Observation.instrument.name</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>type</name>
+        <description>type of observation (from FITS OBSTYPE keyword)</description>
+        <utype>caom2:Observation.type</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>intent</name>
+        <description>intent of the observation (one of: science, calibration)</description>
+        <utype>caom2:Observation.intent</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>dataProductType</name>
+        <description>IVOA ObsCore data product type</description>
+        <utype>caom2:Plane.dataProductType</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>calibrationLevel</name>
+        <description>IVOA ObsCore calibration level (0,1,2,3,...)</description>
+        <utype>caom2:Plane.calibrationLevel</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>energy_emBand</name>
+        <description>IVOA name for energy band (Radio,Millimeter,Infrared,Optical,UV,EUV,X-ray,Gamma-ray)</description>
+        <utype>caom2:Plane.energy.emBand</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>energy_bandpassName</name>
+        <description>collection-specific name for energy band (e.g. filter name)</description>
+        <utype>caom2:Plane.energy.bandpassName</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+    </table>
+    <table type="output">
+      <name>caom2.ObsCoreEnumField</name>
+      <description>pre-computed aggregate (group by) table built from enumerated types in ObsCore-1.1 model</description>
+      <column>
+        <name>obs_collection</name>
+        <description>name of the data collection</description>
+        <utype>obscore:DataID.Collection</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>facility_name</name>
+        <description>name of the telescope</description>
+        <utype>obscore:Provenance.ObsConfig.Facility.name</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>instrument_name</name>
+        <description>name of the instrument</description>
+        <utype>obscore:Provenance.ObsConfig.Instrument.name</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>dataproduct_type</name>
+        <description>IVOA ObsCore data product type</description>
+        <utype>obscore:Obs.dataProductType</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="16*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>calib_level</name>
+        <description>IVOA ObsCore calibration level (0,1,2,3,...)</description>
+        <utype>obscore:Obs.calibLevel</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>num_tuples</name>
+        <description>number of occurances of this combination</description>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>max_t_min</name>
+        <description>maximum timestamp of observations with this combination</description>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+        <flag>indexed</flag>
+      </column>
+    </table>
+    <table type="output">
+      <name>caom2.distinct_proposal_id</name>
+      <description>pre-computed list of distinct caom2.Observation.proposal_id values</description>
+      <column>
+        <name>num_tuples</name>
+        <description>number of occurances of this value</description>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>proposal_id</name>
+        <description>telescope proposal identifier</description>
+        <utype>caom2:Observation.proposal.id</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+    </table>
+    <table type="output">
+      <name>caom2.distinct_proposal_pi</name>
+      <description>pre-computed list of distinct caom2.Observation.proposal_pi values</description>
+      <column>
+        <name>num_tuples</name>
+        <description>number of occurances of this value</description>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>proposal_pi</name>
+        <description>principle investigator on proposal</description>
+        <utype>caom2:Observation.proposal.pi</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+    </table>
+    <table type="output">
+      <name>caom2.distinct_proposal_title</name>
+      <description>pre-computed list of distinct caom2.Observation.proposal_title values</description>
+      <column>
+        <name>num_tuples</name>
+        <description>number of occurances of this value</description>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>proposal_title</name>
+        <description>title of proposal</description>
+        <utype>caom2:Observation.proposal.title</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="256*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+    </table>
+    <table type="output">
+      <name>caom2.HarvestSkipURI</name>
+      <description>list of observations that failed to be harvested</description>
+      <column>
+        <name>cname</name>
+        <description>entity (class name)</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>errorMessage</name>
+        <description>reason for harvest failure</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="*">char</dataType>
+      </column>
+      <column>
+        <name>lastModified</name>
+        <description>last modification of this entry</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+      </column>
+      <column>
+        <name>skipID</name>
+        <description>URI of skipped entity instance</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="uuid">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>source</name>
+        <description>harvesting source</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>tryAfter</name>
+        <description>timestamp for next (re)try</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+        <flag>indexed</flag>
+      </column>
+    </table>
+    <table type="output">
+      <name>caom2.SIAv1</name>
+      <description>SIAv1 view on CAOM-2.0: caom.Observation JOIN caom.Plane JOIN caom2.Artifact, limited to calibrated science images</description>
+      <column>
+        <name>accessURL</name>
+        <description>access URL for the complete image</description>
+        <ucd>VOX:Image_AccessReference</ucd>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="clob">char</dataType>
+      </column>
+      <column>
+        <name>collection</name>
+        <description>data collection this observation belongs to</description>
+        <dataType xsi:type="vod:VOTableType">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>dataRelease</name>
+        <description>UTC timestamp when data is publicly available</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>energy_bandpassName</name>
+        <description>collection-specific name for energy band (e.g. filter name)</description>
+        <ucd>VOX:BandPass_ID</ucd>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>energy_bounds_center</name>
+        <description>medianvalue on  energy axis (barycentric wavelength)</description>
+        <unit>m</unit>
+        <ucd>VOX:BandPass_RefValue</ucd>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>energy_bounds_cval1</name>
+        <description>lower bound on energy axis (barycentric wavelength)</description>
+        <unit>m</unit>
+        <ucd>VOX:BandPass_LoLimit</ucd>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>energy_bounds_cval2</name>
+        <description>upper bound on energy axis (barycentric wavelength)</description>
+        <unit>m</unit>
+        <ucd>VOX:BandPass_HiLimit</ucd>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>energy_units</name>
+        <description>units used for energy values</description>
+        <ucd>VOX:BandPass_Unit</ucd>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>imageFormat</name>
+        <description>mimetype of the data file(s)</description>
+        <ucd>VOX:Image_Format</ucd>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+      </column>
+      <column>
+        <name>instrument_name</name>
+        <description>name of the instrument used to collect the data</description>
+        <ucd>INST_ID</ucd>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>metaRelease</name>
+        <description>UTC timestamp when metadata is publicly visible</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>position_bounds</name>
+        <description>boundary of the image</description>
+        <unit>deg</unit>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="polygon">double</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>position_center_dec</name>
+        <description>DEC of central coordinates</description>
+        <unit>deg</unit>
+        <ucd>POS_EQ_DEC_MAIN</ucd>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>position_center_ra</name>
+        <description>RA of central coordinates</description>
+        <unit>deg</unit>
+        <ucd>POS_EQ_RA_MAIN</ucd>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>position_naxes</name>
+        <description>number of axes</description>
+        <ucd>VOX:Image_Naxes</ucd>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>position_naxis</name>
+        <description>dimensions (number of pixels) along spatial axes</description>
+        <ucd>VOX:Image_Naxis</ucd>
+        <dataType xsi:type="vod:VOTableType" arraysize="2">long</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>position_scale</name>
+        <description>pixel size along spatial axes</description>
+        <ucd>VOX:Image_Scale</ucd>
+        <dataType xsi:type="vod:VOTableType" arraysize="2">double</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>publisherDID</name>
+        <description>unique product identifier</description>
+        <ucd>VOX:Image_Title</ucd>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>time_bounds_center</name>
+        <description>central value on time axis (Modified Julian Day)</description>
+        <unit>d</unit>
+        <ucd>VOX:Image_MJDateObs</ucd>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>time_bounds_cval1</name>
+        <description>lower bound on time axis (Modified Julian Day)</description>
+        <unit>d</unit>
+        <ucd>time.start;obs.exposure</ucd>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>time_bounds_cval2</name>
+        <description>upper bound on time axis (Modified Julian Day)</description>
+        <unit>d</unit>
+        <ucd>time.end;obs.exposure</ucd>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>time_exposure</name>
+        <description>actual exposure time</description>
+        <unit>sec</unit>
+        <ucd>time.duration;obs.exposure</ucd>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+        <flag>indexed</flag>
+      </column>
+    </table>
+  </schema>
+  <schema>
+    <name>ivoa</name>
+    <table type="output">
+      <name>ivoa.ObsCore</name>
+      <description>ObsCore-1.1 observation table</description>
+      <column>
+        <name>obs_publisher_did</name>
+        <description>publisher dataset identifier</description>
+        <ucd>meta.ref.url;meta.curation</ucd>
+        <utype>obscore:Curation.PublisherDID</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="256*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>obs_collection</name>
+        <description>short name for the data colection</description>
+        <ucd>meta.id</ucd>
+        <utype>obscore:DataID.Collection</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+      </column>
+      <column>
+        <name>facility_name</name>
+        <description>telescope name</description>
+        <ucd>meta.id;instr.tel</ucd>
+        <utype>obscore:Provenance.ObsConfig.Facility.name</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+      </column>
+      <column>
+        <name>instrument_name</name>
+        <description>instrument name</description>
+        <ucd>meta.id;instr</ucd>
+        <utype>obscore:Provenance.ObsConfig.Instrument.name</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+      </column>
+      <column>
+        <name>obs_id</name>
+        <description>internal dataset identifier</description>
+        <ucd>meta.id</ucd>
+        <utype>obscore:DataID.observationID</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+      </column>
+      <column>
+        <name>dataproduct_type</name>
+        <description>type of product</description>
+        <ucd>meta.id</ucd>
+        <utype>obscore:ObsDataset.dataProductType</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+      </column>
+      <column>
+        <name>calib_level</name>
+        <description>calibration level (0,1,2,3)</description>
+        <ucd>meta.code;obs.calib</ucd>
+        <utype>obscore:ObsDataset.calibLevel</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>obs_release_date</name>
+        <description>timestamp of date the data becomes publicly available</description>
+        <ucd>time.release</ucd>
+        <utype>obscore:Curation.releaseDate</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+      </column>
+      <column>
+        <name>target_name</name>
+        <description>name of intended target</description>
+        <ucd>meta.id;src</ucd>
+        <utype>obscore:Target.Name</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>s_ra</name>
+        <description>RA of central coordinates</description>
+        <unit>deg</unit>
+        <ucd>pos.eq.ra</ucd>
+        <utype>obscore:Char.SpatialAxis.Coverage.Location.Coord.Position2D.Value2.C1</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>s_dec</name>
+        <description>DEC of central coordinates</description>
+        <unit>deg</unit>
+        <ucd>pos.eq.dec</ucd>
+        <utype>obscore:Char.SpatialAxis.Coverage.Location.Coord.Position2D.Value2.C2</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>s_fov</name>
+        <description>size of the region covered (~diameter of minimum bounding circle)</description>
+        <unit>deg</unit>
+        <ucd>phys.angSize;instr.fov</ucd>
+        <utype>obscore:Char.SpatialAxis.Coverage.Bounds.Extent.diameter</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>s_region</name>
+        <description>region bounded by observation</description>
+        <ucd>pos.outline;obs.field</ucd>
+        <utype>obscore:Char.SpatialAxis.Coverage.Support.Area</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="adql:REGION">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>s_resolution</name>
+        <description>typical spatial resolution</description>
+        <unit>arcsec</unit>
+        <ucd>pos.angResolution</ucd>
+        <utype>obscore:Char.SpatialAxis.Resolution.refval.value</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>s_xel1</name>
+        <description>dimensions (number of pixels) along one spatial axis</description>
+        <ucd>meta.number</ucd>
+        <utype>obscore:Char.SpatialAxis.numBins1</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>s_xel2</name>
+        <description>dimensions (number of pixels) along the other spatial axis</description>
+        <ucd>meta.number</ucd>
+        <utype>obscore:Char.SpatialAxis.numBins2</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>t_min</name>
+        <description>start time of observation (MJD)</description>
+        <unit>d</unit>
+        <ucd>time.start;obs.exposure</ucd>
+        <utype>obscore:Char.TimeAxis.Coverage.Bounds.Limits.StartTime</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>t_max</name>
+        <description>end time of observation (MJD)</description>
+        <unit>d</unit>
+        <ucd>time.end;obs.exposure</ucd>
+        <utype>obscore:Char.TimeAxis.Coverage.Bounds.Limits.StopTime</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>t_exptime</name>
+        <description>exposure time of observation</description>
+        <unit>s</unit>
+        <ucd>time.duration;obs.exposure</ucd>
+        <utype>obscore:Char.TimeAxis.Coverage.Support.Extent</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>t_resolution</name>
+        <description>typical temporal resolution</description>
+        <unit>s</unit>
+        <ucd>time.resolution</ucd>
+        <utype>obscore:Char.TimeAxis.Resolution.refval.value</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>t_xel</name>
+        <description>dimensions (number of pixels) along the time axis</description>
+        <ucd>meta.number</ucd>
+        <utype>obscore:Char.TimeAxis.numBins</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>em_min</name>
+        <description>start spectral coordinate value</description>
+        <unit>m</unit>
+        <ucd>em.wl;stat.min</ucd>
+        <utype>obscore:Char.SpectralAxis.Coverage.Bounds.Limits.LoLimit</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>em_max</name>
+        <description>stop spectral coordinate value</description>
+        <unit>m</unit>
+        <ucd>em.wl;stat.max</ucd>
+        <utype>obscore:Char.SpectralAxis.Coverage.Bounds.Limits.HiLimit</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>em_res_power</name>
+        <description>typical spectral resolution</description>
+        <ucd>spect.resolution</ucd>
+        <utype>obscore:Char.SpectralAxis.Resolution.ResolPower.refval</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>em_xel</name>
+        <description>dimensions (number of pixels) along the energy axis</description>
+        <ucd>meta.number</ucd>
+        <utype>obscore:Char.SpectralAxis.numBins</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>em_ucd</name>
+        <description>UCD describing the spectral axis</description>
+        <ucd>meta.ucd</ucd>
+        <utype>obscore:Char.SpectralAxis.ucd</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>pol_states</name>
+        <description>polarization states present in the data</description>
+        <ucd>meta.code;phys.polarization</ucd>
+        <utype>obscore:Char.PolarizationAxis.stateList</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>pol_xel</name>
+        <description>dimensions (number of pixels) along the polarization axis</description>
+        <ucd>meta.number</ucd>
+        <utype>obscore:Char.PolarizationAxis.numBins</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>o_ucd</name>
+        <description>UCD describing the observable axis (pixel values)</description>
+        <ucd>meta.ucd</ucd>
+        <utype>obscore:Char.ObservableAxis.ucd</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="32*">char</dataType>
+      </column>
+      <column>
+        <name>access_url</name>
+        <description>URL to download the data</description>
+        <ucd>meta.ref.url</ucd>
+        <utype>obscore:Access.Reference</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="*" extendedType="clob">char</dataType>
+      </column>
+      <column>
+        <name>access_format</name>
+        <description>format of the data file(s)</description>
+        <ucd>meta.code.mime</ucd>
+        <utype>obscore:Access.Format</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+      </column>
+      <column>
+        <name>access_estsize</name>
+        <description>estimated size of the download</description>
+        <unit>kbyte</unit>
+        <ucd>phys.size;meta.file</ucd>
+        <utype>obscore:Access.Size</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>core_id</name>
+        <description>primary key</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="36" extendedType="uuid">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>lastModified</name>
+        <description>timestamp of last modification of the metadata</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+        <flag>indexed</flag>
+      </column>
+    </table>
+    <table type="output">
+      <name>ivoa.ObsFile</name>
+      <description>ObsCore-1.x file table</description>
+      <column>
+        <name>uri</name>
+        <description>URI for this file</description>
+        <utype>caom2:Artifact.uri</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>content_type</name>
+        <description>format of the data file</description>
+        <ucd>meta.id;class</ucd>
+        <utype>caom2:Artifact:contentType</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+      </column>
+      <column>
+        <name>content_length</name>
+        <description>size of the download</description>
+        <unit>byte</unit>
+        <ucd>phys.size;meta.file</ucd>
+        <utype>caom2:Artifact:contentLength</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>last_modified</name>
+        <description>timestamp of last modification of the metadata</description>
+        <utype>caom2:Artifact.lastModified</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>core_id</name>
+        <description>foreign key</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="36" extendedType="uuid">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>file_id</name>
+        <description>primary key</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="36" extendedType="uuid">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <foreignKey>
+        <targetTable>ivoa.ObsCore</targetTable>
+        <fkColumn>
+          <fromColumn>core_id</fromColumn>
+          <targetColumn>core_id</targetColumn>
+        </fkColumn>
+        <description>standard way to join the ivoa.ObsCore and ivoa.ObsFile tables</description>
+      </foreignKey>
+    </table>
+    <table type="output">
+      <name>ivoa.ObsPart</name>
+      <description>ObsCore-1.x part table</description>
+      <column>
+        <name>name</name>
+        <description>name of this part (e.g. FITS extension name or number)</description>
+        <utype>caom2:Part.name</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="128*">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>naxis</name>
+        <description>size of the representation at uri</description>
+        <utype>caom2:Chunk.naxis</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>s_axis1</name>
+        <description>axis for the first position coordinate</description>
+        <utype>caom2:Chunk.positionAxis1</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>s_axis2</name>
+        <description>axis for the second position coordinate</description>
+        <utype>caom2:Chunk.positionAxis2</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>em_axis</name>
+        <description>axis for the energy coordinate</description>
+        <utype>caom2:Chunk.energyAxis</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>t_axis</name>
+        <description>axis for the time coordinate</description>
+        <utype>caom2:Chunk.timeAxis</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>p_axis</name>
+        <description>axis for the polarization coordinate</description>
+        <utype>caom2:Chunk.polarizationAxis</utype>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>s_coordsys</name>
+        <description>coordinate system name</description>
+        <utype>caom2:Chunk.position.coordsys</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>s_equinox</name>
+        <description>coordinate equinox</description>
+        <unit>a</unit>
+        <utype>caom2:Chunk.position.equinox</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>s_ctype1</name>
+        <description>coordinate type for first position axis</description>
+        <utype>caom2:Chunk.position.axis.axis1.ctype</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>s_ctype2</name>
+        <description>coordinate type for second position axis</description>
+        <utype>caom2:Chunk.position.axis.axis2.ctype</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>s_cunit1</name>
+        <description>coordinate unit for first position axis</description>
+        <utype>caom2:Chunk.position.axis.axis1.cunit</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>s_cunit2</name>
+        <description>coordinate unit for second position axis</description>
+        <utype>caom2:Chunk.position.axis.axis2.cunit</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>s_syser1</name>
+        <description>systematic coordinate error for first position axis</description>
+        <utype>caom2:Chunk.position.axis.error1.syser</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>s_syser2</name>
+        <description>systematic coordinate error for second position axis</description>
+        <utype>caom2:Chunk.position.axis.error2.syser</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>s_rnder1</name>
+        <description>random coordinate error for first position axis</description>
+        <utype>caom2:Chunk.position.axis.error1.rnder</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>s_rnder2</name>
+        <description>random coordinate error for second position axis</description>
+        <utype>caom2:Chunk.position.axis.error2.rnder</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>s_naxis1</name>
+        <description>number of pixels on first position axis</description>
+        <utype>caom2:Chunk.position.axis.function.dimension.naxis1</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>s_naxis2</name>
+        <description>number of pixels on second for position axis</description>
+        <utype>caom2:Chunk.position.axis.function.dimension.naxis2</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>s_crpix1</name>
+        <description>reference pixel on first position axis</description>
+        <utype>caom2:Chunk.position.axis.function.refCoord.coord1.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>s_crpix2</name>
+        <description>reference pixel on second position axis</description>
+        <utype>caom2:Chunk.position.axis.function.refCoord.coord1.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>s_crval1</name>
+        <description>reference value on first position axis</description>
+        <utype>caom2:Chunk.position.axis.function.refCoord.coord2.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>s_crval2</name>
+        <description>reference value on second position axis</description>
+        <utype>caom2:Chunk.position.axis.function.refCoord.coord2.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>s_cd11</name>
+        <description>CD[1,1] for position axis</description>
+        <utype>caom2:Chunk.position.axis.function.cd11</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>s_cd12</name>
+        <description>CD[1,2] for position axis</description>
+        <utype>caom2:Chunk.position.axis.function.cd12</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>s_cd21</name>
+        <description>CD[2,1] for position axis</description>
+        <utype>caom2:Chunk.position.axis.function.cd21</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>s_cd22</name>
+        <description>CD[2,2] for position axis</description>
+        <utype>caom2:Chunk.position.axis.function.cd22</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>em_ctype</name>
+        <description>coordinate type for energy axis</description>
+        <utype>caom2:Chunk.energy.axis.axis.ctype</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>em_cunit</name>
+        <description>coordinate unit for energy axis</description>
+        <utype>caom2:Chunk.energy.axis.axis.cunit</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>em_syser</name>
+        <description>systematic coordinate error for energy axis</description>
+        <utype>caom2:Chunk.energy.axis.error.syser</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>em_rnder</name>
+        <description>random coordinate error for energy axis</description>
+        <utype>caom2:Chunk.energy.axis.error.rnder</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>em_naxis</name>
+        <description>number of pixels on energy axis</description>
+        <utype>caom2:Chunk.energy.axis.function.naxis</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>em_crpix</name>
+        <description>reference pixel on energy axis</description>
+        <utype>caom2:Chunk.energy.axis.function.refCoord.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>em_crval</name>
+        <description>reference value on energy axis</description>
+        <utype>caom2:Chunk.energy.axis.function.refCoord.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>em_cdelt</name>
+        <description>delta-value on energy axis</description>
+        <utype>caom2:Chunk.energy.axis.function.delta</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>em_specsys</name>
+        <description>SPECSYS</description>
+        <utype>caom2:Chunk.energy.specsys</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>em_ssysobs</name>
+        <description>SSYSOBS</description>
+        <utype>caom2:Chunk.energy.ssysobs</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>em_ssyssrc</name>
+        <description>SSYSSRC</description>
+        <utype>caom2:Chunk.energy.ssyssrc</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>em_restfrq</name>
+        <description>RESTFRQ</description>
+        <utype>caom2:Chunk.energy.restfrq</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>em_restwav</name>
+        <description>RESTWAV</description>
+        <utype>caom2:Chunk.energy.restwav</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>em_velosys</name>
+        <description>VELOSYS</description>
+        <utype>caom2:Chunk.energy.velosys</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>em_zsource</name>
+        <description>ZSOURCE</description>
+        <utype>caom2:Chunk.energy.zsource</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>em_velang</name>
+        <description>VELANG</description>
+        <utype>caom2:Chunk.energy.velang</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>t_ctype</name>
+        <description>coordinate type for time axis</description>
+        <utype>caom2:Chunk.time.axis.axis.ctype</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>t_cunit</name>
+        <description>coordinate unit for time axis</description>
+        <utype>caom2:Chunk.time.axis.axis.cunit</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>t_syser</name>
+        <description>systematic coordinate error for time axis</description>
+        <utype>caom2:Chunk.time.axis.error.syser</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>t_rnder</name>
+        <description>random coordinate error for time axis</description>
+        <utype>caom2:Chunk.time.axis.error.rnder</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>t_naxis</name>
+        <description>number of pixels on time axis</description>
+        <utype>caom2:Chunk.time.axis.function.naxis</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>t_crpix</name>
+        <description>reference pixel on time axis</description>
+        <utype>caom2:Chunk.time.axis.function.refCoord.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>t_crval</name>
+        <description>reference value on time axis</description>
+        <utype>caom2:Chunk.time.axis.function.refCoord.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>t_cdelt</name>
+        <description>delta-value on time axis</description>
+        <utype>caom2:Chunk.time.axis.function.delta</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>t_timesys</name>
+        <description>TIMESYS</description>
+        <utype>caom2:Chunk.time.timesys</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>t_trefpos</name>
+        <description>TREFPOS</description>
+        <utype>caom2:Chunk.time.trefpos</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>t_mjdref</name>
+        <description>MJDREF</description>
+        <unit>d</unit>
+        <utype>caom2:Chunk.time.mjdref</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>p_ctype</name>
+        <description>coordinate type for polarization axis</description>
+        <utype>caom2:Chunk.polarization.axis.axis.ctype</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>p_cunit</name>
+        <description>coordinate unit for polarization axis</description>
+        <utype>caom2:Chunk.polarization.axis.axis.cunit</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>p_syser</name>
+        <description>systematic coordinate error for polarization axis</description>
+        <utype>caom2:Chunk.polarization.axis.error.syser</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>p_rnder</name>
+        <description>random coordinate error for polarization axis</description>
+        <utype>caom2:Chunk.polarization.axis.error.rnder</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>p_naxis</name>
+        <description>number of pixels on polarization axis</description>
+        <utype>caom2:Chunk.polarization.axis.function.naxis</utype>
+        <dataType xsi:type="vod:VOTableType">long</dataType>
+      </column>
+      <column>
+        <name>p_crpix</name>
+        <description>reference pixel on polarization axis</description>
+        <utype>caom2:Chunk.polarization.axis.function.refCoord.pix</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>p_crval</name>
+        <description>reference value on polarization axis</description>
+        <utype>caom2:Chunk.polarization.axis.function.refCoord.val</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>p_cdelt</name>
+        <description>delta-value on polarization axis</description>
+        <utype>caom2:Chunk.polarization.axis.function.delta</utype>
+        <dataType xsi:type="vod:VOTableType">double</dataType>
+      </column>
+      <column>
+        <name>last_modified</name>
+        <description>timestamp of last modification of the metadata</description>
+        <utype>caom2:Part.lastModified</utype>
+        <dataType xsi:type="vod:VOTableType" arraysize="23*" extendedType="timestamp">char</dataType>
+      </column>
+      <column>
+        <name>file_id</name>
+        <description>foreign key</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="36" extendedType="uuid">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <column>
+        <name>part_id</name>
+        <description>primary key</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="36" extendedType="uuid">char</dataType>
+        <flag>indexed</flag>
+      </column>
+      <foreignKey>
+        <targetTable>ivoa.ObsFile</targetTable>
+        <fkColumn>
+          <fromColumn>file_id</fromColumn>
+          <targetColumn>file_id</targetColumn>
+        </fkColumn>
+        <description>standard way to join the ivoa.ObsFile and ivoa.ObsPart tables</description>
+      </foreignKey>
+    </table>
+  </schema>
+  <schema>
+    <name>tap_schema</name>
+    <table type="output">
+      <name>tap_schema.schemas</name>
+      <description>description of schemas in this tableset</description>
+      <column>
+        <name>schema_name</name>
+        <description>schema name for reference to tap_schema.schemas</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+      </column>
+      <column>
+        <name>utype</name>
+        <description>lists the utypes of schemas in the tableset</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="512*">char</dataType>
+      </column>
+      <column>
+        <name>description</name>
+        <description>describes schemas in the tableset</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="512*">char</dataType>
+      </column>
+      <column>
+        <name>schema_index</name>
+        <description>recommended sort order when listing schemas</description>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+    </table>
+    <table type="output">
+      <name>tap_schema.tables</name>
+      <description>description of tables in this tableset</description>
+      <column>
+        <name>schema_name</name>
+        <description>the schema this table belongs to</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="512*">char</dataType>
+      </column>
+      <column>
+        <name>table_name</name>
+        <description>the fully qualified table name</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+      </column>
+      <column>
+        <name>table_type</name>
+        <description>one of: table view</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="8*">char</dataType>
+      </column>
+      <column>
+        <name>utype</name>
+        <description>lists the utype of tables in the tableset</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="512*">char</dataType>
+      </column>
+      <column>
+        <name>description</name>
+        <description>describes tables in the tableset</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="512*">char</dataType>
+      </column>
+      <column>
+        <name>table_index</name>
+        <description>recommended sort order when listing tables</description>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <foreignKey>
+        <targetTable>tap_schema.schemas</targetTable>
+        <fkColumn>
+          <fromColumn>schema_name</fromColumn>
+          <targetColumn>schema_name</targetColumn>
+        </fkColumn>
+      </foreignKey>
+    </table>
+    <table type="output">
+      <name>tap_schema.columns</name>
+      <description>description of columns in this tableset</description>
+      <column>
+        <name>table_name</name>
+        <description>the table this column belongs to</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+      </column>
+      <column>
+        <name>column_name</name>
+        <description>the column name</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+      </column>
+      <column>
+        <name>utype</name>
+        <description>lists the utypes of columns in the tableset</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="512*">char</dataType>
+      </column>
+      <column>
+        <name>ucd</name>
+        <description>lists the UCDs of columns in the tableset</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+      </column>
+      <column>
+        <name>unit</name>
+        <description>lists the unit used for column values in the tableset</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+      </column>
+      <column>
+        <name>description</name>
+        <description>describes the columns in the tableset</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="512*">char</dataType>
+      </column>
+      <column>
+        <name>datatype</name>
+        <description>lists the ADQL datatype of columns in the tableset</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+      </column>
+      <column>
+        <name>xtype</name>
+        <description>a DALI or custom extended type annotation</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+      </column>
+      <column>
+        <name>arraysize</name>
+        <description>lists the size of variable-length columns in the tableset</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="16*">char</dataType>
+      </column>
+      <column>
+        <name>"size"</name>
+        <description>deprecated: use arraysize</description>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>principal</name>
+        <description>a principal column; 1 means 1, 0 means 0</description>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>indexed</name>
+        <description>an indexed column; 1 means 1, 0 means 0</description>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>std</name>
+        <description>a standard column; 1 means 1, 0 means 0</description>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <column>
+        <name>column_index</name>
+        <description>recommended sort order when listing columns of a table</description>
+        <dataType xsi:type="vod:VOTableType">int</dataType>
+      </column>
+      <foreignKey>
+        <targetTable>tap_schema.tables</targetTable>
+        <fkColumn>
+          <fromColumn>table_name</fromColumn>
+          <targetColumn>table_name</targetColumn>
+        </fkColumn>
+      </foreignKey>
+    </table>
+    <table type="output">
+      <name>tap_schema.keys</name>
+      <description>description of foreign keys in this tableset</description>
+      <column>
+        <name>key_id</name>
+        <description>unique key to join to tap_schema.key_columns</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+      </column>
+      <column>
+        <name>from_table</name>
+        <description>the table with the foreign key</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+      </column>
+      <column>
+        <name>target_table</name>
+        <description>the table with the primary key</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+      </column>
+      <column>
+        <name>utype</name>
+        <description>lists the utype of keys in the tableset</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="512*">char</dataType>
+      </column>
+      <column>
+        <name>description</name>
+        <description>describes keys in the tableset</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="512*">char</dataType>
+      </column>
+      <foreignKey>
+        <targetTable>tap_schema.tables</targetTable>
+        <fkColumn>
+          <fromColumn>from_table</fromColumn>
+          <targetColumn>table_name</targetColumn>
+        </fkColumn>
+      </foreignKey>
+      <foreignKey>
+        <targetTable>tap_schema.tables</targetTable>
+        <fkColumn>
+          <fromColumn>target_table</fromColumn>
+          <targetColumn>table_name</targetColumn>
+        </fkColumn>
+      </foreignKey>
+    </table>
+    <table type="output">
+      <name>tap_schema.key_columns</name>
+      <description>description of foreign key columns in this tableset</description>
+      <column>
+        <name>key_id</name>
+        <description>key to join to tap_schema.keys</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+      </column>
+      <column>
+        <name>from_column</name>
+        <description>column in the from_table</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+      </column>
+      <column>
+        <name>target_column</name>
+        <description>column in the target_table</description>
+        <dataType xsi:type="vod:VOTableType" arraysize="64*">char</dataType>
+      </column>
+      <foreignKey>
+        <targetTable>tap_schema.keys</targetTable>
+        <fkColumn>
+          <fromColumn>key_id</fromColumn>
+          <targetColumn>key_id</targetColumn>
+        </fkColumn>
+      </foreignKey>
+      <foreignKey>
+        <targetTable>tap_schema.columns</targetTable>
+        <fkColumn>
+          <fromColumn>from_column</fromColumn>
+          <targetColumn>column_name</targetColumn>
+        </fkColumn>
+      </foreignKey>
+      <foreignKey>
+        <targetTable>tap_schema.columns</targetTable>
+        <fkColumn>
+          <fromColumn>target_column</fromColumn>
+          <targetColumn>column_name</targetColumn>
+        </fkColumn>
+      </foreignKey>
+    </table>
+  </schema>
+</vosi:tableset>
