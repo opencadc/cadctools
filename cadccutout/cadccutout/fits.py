@@ -104,6 +104,8 @@ def _recalculate_crpix(slc, crpix):
     # Default step value.
     if step is None:
         step = 1
+    else:
+        step = abs(step)
 
     if start <= stop:
         if start < 0:

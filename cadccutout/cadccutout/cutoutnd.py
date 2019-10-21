@@ -144,6 +144,11 @@ class CutoutND(object):
                 lower_bound = int(low_bound) - 1
                 upper_bound = int(cutout_region[1])
 
+                if len_region == 3:
+                    step = int(cutout_region[2])
+                else:
+                    step = 1
+
                 if upper_bound < lower_bound:
                     # A little black magic here.  The stop is offset by 2 to
                     # accommodate the 1-offset of CFITSIO, and to move past the
@@ -151,11 +156,9 @@ class CutoutND(object):
                     # along the axis.  Maybe there is a clearer way to
                     # accomplish what this offset is glossing over.
                     upper_bound -= 2
-
-                if len_region == 3:
-                    step = int(cutout_region[2])
-                else:
-                    step = 1
+                    
+                    if step > 0:
+                        step *= -1
 
             LOGGER.debug('Bounds are {}:{}:{}'.format(
                 lower_bound, upper_bound, step))
