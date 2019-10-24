@@ -612,7 +612,7 @@ class Transform(object):
         :return: List[int] The coordinates pixels within the images bounds
         """
 
-        LOGGER.debug(f'Max X is {w} and Max Y is {h}')
+        LOGGER.debug('Max X is {} and Max Y is {}'.format(w, h))
         # bounds check
         if x1 < 1:
             if x2 < 1:
