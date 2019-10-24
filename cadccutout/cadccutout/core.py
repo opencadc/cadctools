@@ -79,6 +79,8 @@ from cadccutout import version
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
 LOGGER = logging.getLogger(__name__)
+DEFAULT_IN = 'stream://'
+DEFAULT_OUT = 'stream://'
 
 __all__ = ['OpenCADCCutout']
 
@@ -156,12 +158,12 @@ class OpenCADCCutout(object):
             raise ValueError('No Cutout regions specified.')
 
         if input_reader is None:
-            input_stream = '-'
+            input_stream = DEFAULT_IN
         else:
             input_stream = input_reader
 
         if output_writer is None:
-            output_stream = '-'
+            output_stream = DEFAULT_OUT
         else:
             output_stream = output_writer
 
@@ -251,9 +253,9 @@ def main_app(argv=None):
 
     parser.add_argument('--type', '-t', choices=['FITS'], default='FITS',
                         help='Optional file type.  Defaults to FITS.')
-    parser.add_argument('--infile', '-i', nargs='?', default=None,
+    parser.add_argument('--infile', '-i', nargs='?', default=DEFAULT_IN,
                         help='Optional input file.  Defaults to stdin.')
-    parser.add_argument('--outfile', '-o', nargs='?', default=None,
+    parser.add_argument('--outfile', '-o', nargs='?', default=DEFAULT_OUT,
                         help='Optional output file.  Defaults to stdout.')
 
     parser.add_argument(
