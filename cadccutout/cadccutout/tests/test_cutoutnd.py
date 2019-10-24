@@ -76,8 +76,6 @@ import tempfile
 import pytest
 import numpy as np
 
-from astropy.wcs import WCS
-from cadccutout.utils import to_astropy_header
 from cadccutout.cutoutnd import CutoutND
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 

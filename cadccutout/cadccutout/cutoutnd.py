@@ -156,7 +156,7 @@ class CutoutND(object):
                     # along the axis.  Maybe there is a clearer way to
                     # accomplish what this offset is glossing over.
                     upper_bound -= 2
-                    
+
                     if step > 0:
                         step *= -1
 
