@@ -155,7 +155,9 @@ required (i.e. file=file.fits).\n\n'
                 cutout_str = ''.join(cutouts)
                 LOGGER.debug('Cutting {} out of {}.'.format(cutout_str,
                                                             infile))
-                                                        
+                opencadc_cutout = OpenCADCCutout()
+                opencadc_cutout.cutout_from_string(
+                    cutout_str, input_reader='{}'.format(infile))
                 start_response(
                     HTTP_200_OK, [('Content-Type', 'application/fits'),
                                   ('Content-Disposition', output_file)])
