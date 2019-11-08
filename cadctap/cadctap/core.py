@@ -400,29 +400,32 @@ class CadcTapClient(object):
                                        'Content-Type': m.content_type},
                                    stream=True, timeout=timeout*60) as result:
             with smart_open(output_file, response_format) as f:
-                if response_format == 'VOTable':
-                    f.write(result.raw.read())
+                if data_only or response_format == 'VOTable':
+                    for chunk in result.iter_content(chunk_size=8192):
+                        if chunk:  # filter out keep-alive new chunks
+                            if response_format != 'VOTable':
+                                chunk = chunk.decode('utf-8')
+                            f.write(chunk)
                     return
                 header = True
-                for row in result.text.split('\n'):
-                    # TODO implement get_query_result and parse result.text
-                    # into TabularInfo object and use display_tab to display it
-                    if row.strip():
-                        if header:
+                for chunk in result.iter_content(chunk_size=8192):
+                    if chunk:  # filter out keep-alive new chunks
+                        chunk = chunk.decode('utf-8')
+                        if header and '\n' in chunk:
+                            index = chunk.index('\n')
+                            f.write(chunk[:index])
+                            f.write('\n-----------------------')
+                            f.write(chunk[index:])
                             header = False
-                            if data_only:
-                                continue
-                            print(row.strip(), file=f)
-                            print('-----------------------', file=f)
+                            rows = chunk.count('\n') - 1
                         else:
-                            rows += 1
-                            print(row.strip(), file=f)
-                if not data_only:
-                    if rows == 1:
-                        footer = '\n(1 row affected)'
-                    else:
-                        footer = '\n({} rows affected)'.format(rows)
-                    print(footer, file=f)
+                            f.write(chunk)
+                            rows += chunk.count('\n')
+                if rows == 1:
+                    footer = '\n(1 row affected)\n'
+                else:
+                    footer = '\n({} rows affected)\n'.format(rows)
+                f.write(footer)
 
     def schema(self, name=None):
         """
@@ -720,7 +723,7 @@ def smart_open(filename=None, content_format=None):
             fh = open(filename, 'w')
         close_file = True
     else:
-        if filename:
+        if filename and filename != '-':
             fh = filename
         else:
             if content_format == 'VOTable' and hasattr(sys.stdout, 'buffer'):

@@ -583,8 +583,8 @@ def test_query(caps_get_mock, base_post_mock):
     caps_get_mock.return_value = BASE_URL
     response = Mock()
     response.status_code = 200
-    response.raw.read.return_value = b'<VOTable format>'
-    response.text = 'Header 1\nVal1\nVal2\n'
+    response.iter_content.return_value = [b'<VOTable format>']
+
     # NOTE: post mock returns a context manager with the responose, hence
     # the __enter__
     base_post_mock.return_value.__enter__.return_value = response
@@ -605,6 +605,7 @@ def test_query(caps_get_mock, base_post_mock):
         '{}/{}'.format(BASE_URL, 'sync')
 
     base_post_mock.reset_mock()
+    response.iter_content.return_value = [b'Val1\n', b'Val2\n']
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         client.query('query', data_only=True, response_format='tsv')
     assert stdout_mock.getvalue() == 'Val1\nVal2\n'
@@ -613,9 +614,10 @@ def test_query(caps_get_mock, base_post_mock):
     tf = tempfile.NamedTemporaryFile()
     base_post_mock.reset_mock()
     base_post_mock.return_value.__enter__.return_value = response
+    response.iter_content.return_value = [b'Header1\nVal1\nVal2\n']
     client.query('query', output_file=tf.name, response_format='tsv')
     actual = open(tf.name).read()
-    assert actual == 'Header 1\n-----------------------\n' \
+    assert actual == 'Header1\n-----------------------\n' \
                      'Val1\nVal2\n\n(2 rows affected)\n'
 
     # different format => result from server not altered
@@ -623,7 +625,7 @@ def test_query(caps_get_mock, base_post_mock):
     base_post_mock.return_value.__enter__.return_value = response
     with patch('sys.stdout', new_callable=BytesIO) as stdout_mock:
         client.query('query')
-    assert stdout_mock.getvalue() == response.raw.read()
+    assert stdout_mock.getvalue() == response.iter_content.return_value[0]
 
 
 class TestCadcTapClient(unittest.TestCase):
