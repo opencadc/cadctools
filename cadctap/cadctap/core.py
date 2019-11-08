@@ -222,7 +222,7 @@ class CadcTapClient(object):
         self.permissions_support = True
         try:
             self._tap_client.caps.get_access_url(PERMISSIONS_CAPABILITY_ID)
-        except KeyError as ex:
+        except Exception as ex:
             if PERMISSIONS_CAPABILITY_ID in str(ex):
                 self.permissions_support = False
                 logger.debug('Service has no support for permissions')
