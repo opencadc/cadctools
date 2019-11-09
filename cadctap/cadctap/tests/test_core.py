@@ -627,6 +627,7 @@ def test_query(caps_get_mock, base_post_mock):
         client.query('query')
     assert stdout_mock.getvalue() == response.iter_content.return_value[0]
 
+
 def test_error_cases():
     def get_my_access_url(service):
         if service == cadctap.core.PERMISSIONS_CAPABILITY_ID:
@@ -637,6 +638,7 @@ def test_error_cases():
         amock.side_effect = get_my_access_url
         client = CadcTapClient(net.Subject())
         assert not client.permissions_support
+
 
 class TestCadcTapClient(unittest.TestCase):
     """Test the CadcTapClient class"""
