@@ -222,7 +222,7 @@ class SingleMetavarHelpFormatter(RawDescriptionHelpFormatter):
         :return:
         """
         if (len(actions) > 0) and \
-            (actions[0].container.title == 'optional arguments'):
+           (actions[0].container.title == 'optional arguments'):
             actions = sorted(actions, key=attrgetter('dest'))
         super(SingleMetavarHelpFormatter, self).add_arguments(actions)
 
