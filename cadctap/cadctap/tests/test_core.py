@@ -486,20 +486,20 @@ def test_set_permissions(caps_get_mock, post_mock):
     # extra group
     with pytest.raises(argparse.ArgumentError):
         opt = Mock
-        opt.groups = 'A B'
-        opt.mode = {'who': 'g', 'op': '+', 'what': 'r'}
+        opt.GROUPS = 'A B'
+        opt.MODE = {'who': 'g', 'op': '+', 'what': 'r'}
         _get_permission_modes(opt)
 
     with pytest.raises(argparse.ArgumentError):
         opt = Mock
-        opt.groups = 'A'
-        opt.mode = {'who': 'g', 'op': '-', 'what': 'r'}
+        opt.GROUPS = 'A'
+        opt.MODE = {'who': 'g', 'op': '-', 'what': 'r'}
         _get_permission_modes(opt)
 
     with pytest.raises(argparse.ArgumentError):
         opt = Mock
-        opt.groups = 'A'
-        opt.mode = {'who': 'o', 'op': '+', 'what': 'r'}
+        opt.GROUPS = 'A'
+        opt.MODE = {'who': 'o', 'op': '+', 'what': 'r'}
         _get_permission_modes(opt)
 
 

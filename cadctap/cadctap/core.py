@@ -924,9 +924,9 @@ def _get_permission_modes(opt):
     :param opt: argparse arguments
     :return: dictionary of permission modes
     """
-    group_names = opt.groups
+    group_names = opt.GROUPS
 
-    mode = opt.mode
+    mode = opt.MODE
 
     props = {'read_anon': None, 'read_only': None, 'read_write': None}
     if 'o' in mode['who']:
@@ -1131,11 +1131,11 @@ def main_app(command='cadc-tap query'):
         return _mode.groupdict()
 
     permission_parser.add_argument(
-        'mode', type=check_mode,
+        'MODE', type=check_mode,
         help='permission setting accepted modes: (og|go|o|g)[+-=](rw|wr|r|w)')
     permission_parser.add_argument('TARGET', help='table or schema name')
     permission_parser.add_argument(
-        'groups', nargs='*',
+        'GROUPS', nargs='*',
         help="name(s) of group(s) to assign read/write permission to. "
              "One group per r or w permission.")
     # options_parser = permission_parser.add_mutually_exclusive_group(
