@@ -1,16 +1,16 @@
 usage: cadc-tap permission [-h]
                            [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a]
                            [--host HOST] [-d | -q | -v] [-s SERVICE]
-                           mode TARGET [groups [groups ...]]
+                           MODE TARGET [GROUPS [GROUPS ...]]
 
 Update access permissions of a table or a schema. Use schema command to display the existing permissions
 
 positional arguments:
-  TARGET                table or schema name
-  groups                name(s) of group(s) to assign read/write permission
-                        to. One group per r or w permission.
-  mode                  permission setting accepted modes:
+  MODE                  permission setting accepted modes:
                         (og|go|o|g)[+-=](rw|wr|r|w)
+  TARGET                table or schema name
+  GROUPS                name(s) of group(s) to assign read/write permission
+                        to. One group per r or w permission.
 
 optional arguments:
   -a, --anon            use the service anonymously
