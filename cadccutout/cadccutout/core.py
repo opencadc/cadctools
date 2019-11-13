@@ -173,11 +173,14 @@ class OpenCADCCutout(object):
         except OSError as o_e:
             msg = str(o_e)
             if 'status = 104' in msg:
+                LOGGER.debug('OSError: {}'.format(msg))
                 raise FileNotFoundError(
-                    'No such file or unable to open file:\n{}.\n\n'.format(
-                        msg))
+                    'No such file or unable to open file: {}.'.format(
+                        input_reader)) from None
             else:
-                raise o_e
+                raise o_e from None
+        except ValueError as v_e:
+            raise v_e from None
 
     def parse_input(self, input_cutout_dimensions):
         '''

@@ -306,6 +306,11 @@ def test_integration_test(
         ('CIRCLE 246.52 -24.33 0.01',
             '/usr/src/data/test-alma-cube.fits',
             '/usr/src/data/test-alma-cube-cutout-wcs.fits', True,
+            DEFAULT_TEST_FILE_DIR, None, False, []),
+        # JCMT file has a mix of TableHDUs and Image HDUs.
+        ('CIRCLE 158.46429880497604 60.8520356195475 0.04',
+            '/usr/src/data/test-jcmt.fits',
+            '/usr/src/data/test-jcmt-cutout-wcs.fits', True,
             DEFAULT_TEST_FILE_DIR, None, False, [])
     ])
 def test_integration_wcs_test(

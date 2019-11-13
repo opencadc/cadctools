@@ -259,7 +259,9 @@ def _write_wcs_cutout(primary_header, hdu_list, result_hdu_list,
         if idx == 0 and requires_primary_hdu:
             continue
 
-        if hdu.get_dims() != ():
+        # The get_dims method is only available to Image HDUs, so this is an
+        # easy test.
+        if hasattr(hdu, 'get_dims') and hdu.get_dims() != ():
             LOGGER.debug('\nTrying extension {}...\n'.format(idx))
             transform = Transform()
             hdu.ignore_scaling = True

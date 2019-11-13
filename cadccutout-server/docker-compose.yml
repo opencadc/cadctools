@@ -1,14 +1,25 @@
 version: '3.2'
 services:
-  cadccutout_server:
-    image: opencadc/cadccutout-server:3.6-alpine
+  proxy:
+    image: nginx:alpine
     ports:
       - '8989:8989'
+    volumes:
+      - './nginx/default.conf:/etc/nginx/conf.d/default.conf'
+    depends_on:
+      - uwsgi
     networks:
       - 'cadccutout'
+
+  uwsgi:
+    image: opencadc/cadccutout-server-uwsgi:3.7-alpine
+    build:
+      context: uwsgi
     volumes:
-      - '/var/local/data/cutouts:/usr/src/data:ro'
-      - './main.py:/app/main.py'
+      - './uwsgi/main.py:/usr/src/uwgi-app/main.py'
+      - '/Users/jenkinsd/Data/cutouts:/usr/src/data:ro'
+    networks:
+      - 'cadccutout'
 
 networks:
   cadccutout:
