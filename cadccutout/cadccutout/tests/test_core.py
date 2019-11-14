@@ -72,7 +72,7 @@ from __future__ import (absolute_import, division,
 
 import logging
 import pytest
-from cadccutout.core import OpenCADCCutout
+from cadccutout.core import OpenCADCCutout, create_argument_parser
 from cadccutout.pixel_cutout_hdu import PixelCutoutHDU
 
 # Compatibility with Python 2.7, where there is no FileNotFoundError.
@@ -112,10 +112,13 @@ def test_parse_input():
     assert pixel_cutout2.get_ranges() == [(40, 58)], \
         'Wrong ranges found for 1.'
 
-    inputs = ['CIRCLE=88.0 115.0 0.5']
+    inputs = ['CIRCLE 88.0 115.0 0.5']
     results = test_subject.parse_input(inputs)
+    assert results[0] == 'CIRCLE 88.0 115.0 0.5', 'Wrong WCS input.'
 
-    assert results[0] == 'CIRCLE=88.0 115.0 0.5', 'Wrong WCS input.'
+    inputs = [' '.join(['CIRCLE', '13.4', '5.75', '0.03'])]
+    results = test_subject.parse_input(inputs)
+    assert results[0] == 'CIRCLE 13.4 5.75 0.03', 'Wrong WCS input.'
 
     inputs = ['[AMP]']
 
@@ -158,3 +161,53 @@ def test_construct():
     with pytest.raises(FileNotFoundError):
         test_subject.cutout([PixelCutoutHDU([(8, 10)])],
                             input_reader=open('/no/such/file'))
+
+
+def test_get_input():
+    '''
+    Test get_input
+    '''
+    test_subject = OpenCADCCutout()
+
+    assert test_subject.get_input(None) == 'stream://'
+    assert test_subject.get_input(
+        '/my/outputfile.fits') == '/my/outputfile.fits'
+
+
+def test_get_output():
+    '''
+    Test get_output
+    '''
+    test_subject = OpenCADCCutout()
+
+    assert test_subject.get_output(None) == 'stream://'
+    assert test_subject.get_output() == 'stream://'
+    assert test_subject.get_output(
+        '/my/outputfile.fits') == '/my/outputfile.fits'
+
+
+def test_create_parser():
+    '''
+    Test argument parsing.
+    '''
+    parser = create_argument_parser()
+
+    argument_array = '-i fitsfile.fits.fz [6]'.split()
+    args = parser.parse_args(args=argument_array)
+
+    assert args.infile == 'fitsfile.fits.fz'
+    assert args.cutout == ['[6]']
+
+    argument_array = '-i anotherfitsfile.fits.fz --outfile /dev/null \
+[6][30:50][SCI,12]'.split()
+    args = parser.parse_args(args=argument_array)
+
+    assert args.infile == 'anotherfitsfile.fits.fz'
+    assert args.outfile == '/dev/null'
+    assert args.cutout == ['[6][30:50][SCI,12]']
+
+    argument_array = '--infile f2.fits CIRCLE 13.4 31.4 0.04'.split()
+    args = parser.parse_args(args=argument_array)
+
+    assert args.infile == 'f2.fits'
+    assert args.cutout == ['CIRCLE', '13.4', '31.4', '0.04']

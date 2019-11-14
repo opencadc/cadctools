@@ -133,6 +133,28 @@ class OpenCADCCutout(object):
         '''
         return PixelRangeInputParser()
 
+    def get_input(self, input_reader=None):
+        '''
+        Obtain the usable value of the input to use.  Defaults to DEFAULT_IN.
+        '''
+        if input_reader is None:
+            input_stream = DEFAULT_IN
+        else:
+            input_stream = input_reader
+
+        return input_stream
+
+    def get_output(self, output_writer=None):
+        '''
+        Obtain the usable value of the output to use.  Defaults to DEFAULT_OUT.
+        '''
+        if output_writer is None:
+            output_stream = DEFAULT_OUT
+        else:
+            output_stream = output_writer
+
+        return output_stream
+
     def cutout(self, cutout_dimensions, input_reader=None, output_writer=None,
                file_type='FITS'):
         """
@@ -147,29 +169,19 @@ class OpenCADCCutout(object):
         output_writer: File-like object, Writer stream
             The writer to push the cutout array to.
 
-        cutout_dimensions: List of PixelCutoutHDU or WCS Shape objects.
+        cutout_dimensions: List of PixelCutoutHDU or WCS (DALI) shape strings.
             The requested dimensions expressed as PixelCutoutHDU objects.
 
         file_type: string
             The file type, in upper case.  Will usually be 'FITS'.
         """
 
-        if not cutout_dimensions or not cutout_dimensions:
+        if not cutout_dimensions:
             raise ValueError('No Cutout regions specified.')
 
-        if input_reader is None:
-            input_stream = DEFAULT_IN
-        else:
-            input_stream = input_reader
-
-        if output_writer is None:
-            output_stream = DEFAULT_OUT
-        else:
-            output_stream = output_writer
-
         try:
-            factory_cutout(file_type, cutout_dimensions,
-                           input_stream, output_stream)
+            factory_cutout(file_type, cutout_dimensions, self.get_input(
+                input_reader), self.get_output(output_writer))
         except OSError as o_e:
             msg = str(o_e)
             if 'status = 104' in msg:
@@ -196,6 +208,10 @@ class OpenCADCCutout(object):
         return parsed_cutout_dimensions
 
     def sanity_check_input(self, cutout_dimensions_str):
+        '''
+        Ensure input is in a reliable format.  Create a list if there is not
+        one already present.
+        '''
         if is_string(cutout_dimensions_str):
             input_cutout_dimensions = [cutout_dimensions_str]
         elif not isinstance(cutout_dimensions_str, list) \
@@ -237,7 +253,10 @@ class OpenCADCCutout(object):
                     input_reader, output_writer, file_type)
 
 
-def main_app(argv=None):
+def create_argument_parser():
+    '''
+    Create a new Argument Parser to be used when running as a script.
+    '''
     # Execute only if run as a script.
     parser = argparse.ArgumentParser()
 
@@ -261,13 +280,18 @@ def main_app(argv=None):
 
     parser.add_argument(
         'cutout', help='The cutout region string.\n[0][200:400] for a cutout \
-        of the 0th extension along the first axis', nargs='+')
+        of the 0th extension along the first axis', nargs='*')
 
+    return parser
+
+
+def main_app(argv=None):
+    parser = create_argument_parser()
     args = parser.parse_args(args=argv)
 
     if not args:
         parser.print_usage(file=sys.stderr)
-        sys.stderr.write("{}: error: too few arguments\n".format(__name__))
+        sys.stderr.write('{}: error: too few arguments\n'.format(__name__))
         sys.exit(-1)
     if args.verbose:
         level = logging.INFO
@@ -283,12 +307,12 @@ def main_app(argv=None):
     # Support multiple strings.  This will write out as many cutouts as it
     # finds.
     c.cutout_from_string(
-        args.cutout, input_reader=args.infile,
+        ' '.join(args.cutout), input_reader=args.infile,
         output_writer=args.outfile,
         file_type=args.type)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     try:
         main_app()
         sys.exit(0)
