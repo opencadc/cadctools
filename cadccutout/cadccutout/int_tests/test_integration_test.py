@@ -181,6 +181,9 @@ def _extname_sort_func(hdu):
          DEFAULT_TEST_FILE_DIR, True),
         ('[7970:8481:4,14843:14332:4]', '/usr/src/data/test-megapipe.fits',
          '/usr/src/data/test-megapipe-cutout-striding.fits', True,
+         DEFAULT_TEST_FILE_DIR, True),
+        ('[3][102:1499,1:2043]', '/usr/src/data/acceptance/2454006o.fits.fz',
+         '/usr/src/data/acceptance/2454006.o.cut.fits', True,
          DEFAULT_TEST_FILE_DIR, True)
     ])
 def test_integration_test(
