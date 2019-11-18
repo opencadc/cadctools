@@ -86,18 +86,18 @@ pytest.main(args=['-s', os.path.abspath(__file__)])
 
 
 def random_test_file_name_path(file_extension='fits', dir_name='/tmp'):
-    '''
+    """
     Generate a random output file to write to.
-    '''
+    """
     return tempfile.NamedTemporaryFile(
         dir=dir_name, prefix=__name__, suffix='.{}'.format(
             file_extension)).name
 
 
 def test_hst_mef_cutout_missing_one():
-    '''
+    """
     MEF cutouts using an HST MEF (126 HDUs) file.
-    '''
+    """
     # Should result in a 3-HDU MEF.  Extension 2 is an ERR one with no data.
     cutout_region_string = \
         '[SCI,10][80:220,100:150][2][10:16,70:90][106][8:32,88:112][126]'

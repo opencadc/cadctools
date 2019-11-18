@@ -86,9 +86,9 @@ LOGGER.setLevel(logging.DEBUG)
 
 
 def test_parse_input():
-    '''
+    """
     Test parsing the given input.
-    '''
+    """
     test_subject = OpenCADCCutout()
     inputs = ['[9][100:1000]']
 
@@ -129,9 +129,9 @@ def test_parse_input():
 
 
 def test_sanity_check_input():
-    '''
+    """
     Test the check input.
-    '''
+    """
     test_subject = OpenCADCCutout()
 
     sanity_input = test_subject.sanity_check_input('[9][100:1000]')
@@ -148,9 +148,9 @@ def test_sanity_check_input():
 
 
 def test_construct():
-    '''
+    """
     Test the constructor
-    '''
+    """
     test_subject = OpenCADCCutout()
 
     with pytest.raises(ValueError) as v_e:
@@ -164,9 +164,9 @@ def test_construct():
 
 
 def test_create_parser():
-    '''
+    """
     Test argument parsing.
-    '''
+    """
     parser = create_argument_parser()
 
     argument_array = '-i fitsfile.fits.fz [6]'.split()

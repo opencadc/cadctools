@@ -80,10 +80,10 @@ LOGGER = logging.getLogger(__name__)
 
 
 class CutoutParameters(object):
-    '''
+    """
     Just a DTO to move results of a cutout.  It's more readable than a plain
     tuple.
-    '''
+    """
 
     def __init__(self, cutout, cutout_shape):
         self.cutout = cutout
@@ -91,13 +91,13 @@ class CutoutParameters(object):
 
 
 class CutoutND(object):
-    '''
+    """
     Class to contain cutting out from the NumPy array and to provide
     convenience methods to prepare the data to be cutout.
-    '''
+    """
 
     def __init__(self, hdu):
-        '''
+        """
         Parameters
         ----------
         hdu : fitsio HDU
@@ -106,14 +106,14 @@ class CutoutND(object):
         Returns
         -------
         CutoutParameters instance
-        '''
+        """
         if not hdu:
             raise NoContentError('Nothing to cutout from.')
 
         self.hdu = hdu
 
     def to_slice(self, idx, cutout_region):
-        '''
+        """
         Convert a region (tuple) into a slice to be used in a data array.  Some
         fenangling is added here to adjust the values based on a striding step,
         or to handle a two-dimensional cutout where y2 < y1.
@@ -126,7 +126,7 @@ class CutoutND(object):
         idx:        Index of the current region requested.  Used to lookup the
                     shape of the data to "pad" the cutout if necessary.
         cutout_region:  The requested region to be cutout.
-        '''
+        """
         len_region = len(cutout_region)
 
         if len_region > 0:
@@ -167,10 +167,10 @@ class CutoutND(object):
             raise ValueError('Should have at least two values (lower, upper).')
 
     def pad_cutout(self, cutout_shape):
-        '''
+        """
         Pad the cutout's shape with that of the data's shape to create a
         shape that matches what the numpy array is expecting.
-        '''
+        """
         len_shape = len(cutout_shape)
         data_shape = self.hdu.get_dims()
         len_data = len(data_shape)
@@ -192,13 +192,13 @@ class CutoutND(object):
                 cutout_shape.append(slice(val))
 
     def get_parameters(self, cutout_regions):
-        '''
+        """
         Perform the extraction from the data for the provided region.  If the
         provided region is smaller than the data, it will be padded with the
         values from the data.
 
         :param cutout_regions:    List of region tuples.
-        '''
+        """
 
         LOGGER.debug('Inspecting regions {}'.format(cutout_regions))
 

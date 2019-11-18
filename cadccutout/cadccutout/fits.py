@@ -119,9 +119,9 @@ def _recalculate_crpix(slc, crpix):
 
 
 def _post_sanitize_header(cutout_result, header):
-    '''
+    """
     Fix the WCS values in the header.
-    '''
+    """
     cutout_shape = cutout_result.cutout_shape
     has_c_d = 'CD1_1' in header
     has_p_c = 'PC1_1' in header
@@ -311,9 +311,9 @@ def _check_hdu_list(cutout_dimensions, hdu_list, output_writer):
 
 
 def cutout(cutout_dimensions, input_stream, output_writer):
-    '''
+    """
     Perform a cutout and write out the results.
-    '''
+    """
 
     # Start with the first extension
     source_hdu_list = fitsio.FITS(input_stream, 'r')

@@ -128,9 +128,9 @@ class OpenCADCCutout(object):
 
     @property
     def input_range_parser(self):
-        '''
+        """
         Get the input range parser.
-        '''
+        """
         return PixelRangeInputParser()
 
     def cutout(self, cutout_dimensions, input_reader=DEFAULT_IN,
@@ -171,10 +171,10 @@ class OpenCADCCutout(object):
                 raise o_e
 
     def parse_input(self, input_cutout_dimensions):
-        '''
+        """
         Parse the given input string into PixelCutoutHDU instances, if
         applicable.
-        '''
+        """
 
         if self.input_range_parser.is_pixel_cutout(input_cutout_dimensions[0]):
             parsed_cutout_dimensions = self.input_range_parser.parse(
@@ -186,10 +186,10 @@ class OpenCADCCutout(object):
         return parsed_cutout_dimensions
 
     def sanity_check_input(self, cutout_dimensions_str):
-        '''
+        """
         Ensure input is in a reliable format.  Create a list if there is not
         one already present.
-        '''
+        """
         if is_string(cutout_dimensions_str):
             input_cutout_dimensions = [cutout_dimensions_str]
         elif not isinstance(cutout_dimensions_str, list) \
@@ -232,9 +232,9 @@ class OpenCADCCutout(object):
 
 
 def create_argument_parser():
-    '''
+    """
     Create a new Argument Parser to be used when running as a script.
-    '''
+    """
     # Execute only if run as a script.
     parser = argparse.ArgumentParser()
 
