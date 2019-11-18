@@ -258,19 +258,23 @@ def create_argument_parser():
 
     parser.add_argument(
         'cutout', help='The cutout region string.\n[0][200:400] for a cutout \
-        of the 0th extension along the first axis', nargs='*')
+        of the 0th extension along the first axis', nargs='+')
 
     return parser
 
 
 def main_app(argv=None):
+    """
+    Main function.  Used on the command line:
+
+    >$ cadccutout --infile /my/file.fits --outfile /tmp/out.fits [0][56:99]
+
+    Stream output to stdout with WCS.  Cutouts with spaces MUST be escaped:
+    >$ cadccutout --infile /my/file.fits CIRCLE\\ 22.4\\ 90.6\\ 0.05
+    """
     parser = create_argument_parser()
     args = parser.parse_args(args=argv)
 
-    if not args:
-        parser.print_usage(file=sys.stderr)
-        sys.stderr.write('{}: error: too few arguments\n'.format(__name__))
-        sys.exit(-1)
     if args.verbose:
         level = logging.INFO
     elif args.debug:
