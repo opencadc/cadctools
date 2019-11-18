@@ -5,12 +5,11 @@ python:
     - 3.4
     - 3.5
     - 3.6
-    - 3.7 
+    - 3.7
 
 # Setting sudo to false opts in to Travis-CI container-based builds.
 sudo: false
 
-# Use the test toolchain repository to get the latest GCC.
 before_install:
     - sudo apt-get update
     - sudo apt-get install -y fitsverify
@@ -18,11 +17,11 @@ before_install:
 install:
     - pip install -U pip
     - pip install twine
-    - for i in cadcutils cadcdata cadctap cadcetrans cadccutout; do cd $i; pip install -r dev_requirements.txt; cd ..; done
+    - for i in $(ls -d */); do cd $i; pip install -r dev_requirements.txt; cd ..; done
     - pip install coveralls
 
 script:
-    - for i in cadcutils cadcdata cadctap cadcetrans cadccutout; do
+    - for i in $(ls -d */); do
          cd $i;
          pytest --cov $i || exit 1;
          if [[ $TRAVIS_PYTHON_VERSION == '3.7' ]]; then
