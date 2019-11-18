@@ -64,8 +64,11 @@ def to_astropy_header(header_dict, decompress=True):
 
     # Set the uncompressed NAXIS values to those of the compressed types.
     if decompress and 'ZNAXIS' in astropy_header:
-        filtered_headers = filter(lambda key: 'ZNAXIS' in key, astropy_header)
-        for znaxis_key in filtered_headers:
+
+        # Extrace all of the ZNAXISi headers to set their NAXISi counterparts.
+        znaxis_headers = filter(lambda key: 'ZNAXIS' in key, astropy_header)
+
+        for znaxis_key in znaxis_headers:
             # Skip the actual ZNAXIS value as the original is good.
             if znaxis_key == 'ZNAXIS':
                 continue
