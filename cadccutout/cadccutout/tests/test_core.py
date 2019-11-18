@@ -163,29 +163,6 @@ def test_construct():
                             input_reader=open('/no/such/file'))
 
 
-def test_get_input():
-    '''
-    Test get_input
-    '''
-    test_subject = OpenCADCCutout()
-
-    assert test_subject.get_input(None) == 'stream://'
-    assert test_subject.get_input(
-        '/my/outputfile.fits') == '/my/outputfile.fits'
-
-
-def test_get_output():
-    '''
-    Test get_output
-    '''
-    test_subject = OpenCADCCutout()
-
-    assert test_subject.get_output(None) == 'stream://'
-    assert test_subject.get_output() == 'stream://'
-    assert test_subject.get_output(
-        '/my/outputfile.fits') == '/my/outputfile.fits'
-
-
 def test_create_parser():
     '''
     Test argument parsing.

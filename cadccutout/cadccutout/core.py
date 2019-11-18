@@ -133,30 +133,8 @@ class OpenCADCCutout(object):
         '''
         return PixelRangeInputParser()
 
-    def get_input(self, input_reader=None):
-        '''
-        Obtain the usable value of the input to use.  Defaults to DEFAULT_IN.
-        '''
-        if input_reader is None:
-            input_stream = DEFAULT_IN
-        else:
-            input_stream = input_reader
-
-        return input_stream
-
-    def get_output(self, output_writer=None):
-        '''
-        Obtain the usable value of the output to use.  Defaults to DEFAULT_OUT.
-        '''
-        if output_writer is None:
-            output_stream = DEFAULT_OUT
-        else:
-            output_stream = output_writer
-
-        return output_stream
-
-    def cutout(self, cutout_dimensions, input_reader=None, output_writer=None,
-               file_type='FITS'):
+    def cutout(self, cutout_dimensions, input_reader=DEFAULT_IN,
+               output_writer=DEFAULT_OUT, file_type='FITS'):
         """
         Perform a Cutout of the given data at the given position and size.
 
@@ -164,10 +142,10 @@ class OpenCADCCutout(object):
         ----------
         input_reader: File-like object, Reader stream
             The file location.  The file extension is important as it's used to
-            determine how to process it.
+            determine how to process it.  Defaults to 'stream://'.
 
         output_writer: File-like object, Writer stream
-            The writer to push the cutout array to.
+            The writer to push the cutout array to.  Defaults to 'stream://'.
 
         cutout_dimensions: List of PixelCutoutHDU or WCS (DALI) shape strings.
             The requested dimensions expressed as PixelCutoutHDU objects.
@@ -180,8 +158,8 @@ class OpenCADCCutout(object):
             raise ValueError('No Cutout regions specified.')
 
         try:
-            factory_cutout(file_type, cutout_dimensions, self.get_input(
-                input_reader), self.get_output(output_writer))
+            factory_cutout(file_type, cutout_dimensions,
+                           input_reader, output_writer)
         except OSError as o_e:
             msg = str(o_e)
             if 'status = 104' in msg:
