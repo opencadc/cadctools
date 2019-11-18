@@ -101,8 +101,8 @@ class OpenCADCCutout(object):
     # Cutouts are in cfitsio format.
     cutout_region_string = '[300:800,810:1000]'  # HDU 0 along two axes.
 
-    test_subject.cutout_from_string(cutout_region_string, input_file,
-                                    output_file, 'FITS')
+    cutout.cutout_from_string(cutout_region_string, input_file,
+                              output_file, 'FITS')
 
 
     Example 2 (CADC)
@@ -122,8 +122,8 @@ class OpenCADCCutout(object):
     # SCI version 10, along two axes.
     cutout_region_string = '[SCI,10][80:220,100:150]'
 
-    test_subject.cutout_from_string(cutout_region_string, input_file,
-                                    output_file, 'FITS')
+    cutout.cutout_from_string(cutout_region_string, input_file,
+                              output_file, 'FITS')
     """
 
     @property
