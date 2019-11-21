@@ -399,7 +399,7 @@ def test_create_index(caps_get_mock, base_get_mock, base_post_mock):
     post_calls = [call((TABLE_UPDATE_CAPABILITY_ID, None),
                   allow_redirects=False,
                   data={'table': 'schema.sometable',
-                        'uniquer': True,
+                        'unique': 'true',
                         'index': 'col1'}),
                   call('{}/phase'.format(job_location),
                   data={'PHASE': 'RUN'})]
