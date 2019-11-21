@@ -277,12 +277,14 @@ class CadcTapClient(object):
                 'table name and column required in index: {}/{}'.
                 format(table_name, column_name))
 
-        logger.debug('Index for column{} in table {}'.format(column_name,
-                                                             table_name))
+        logger.debug('{} for column {} in table {}'.
+                     format('Unique index' if unique else 'Index',
+                            column_name, table_name,))
         result = self._tap_client.post((TABLE_UPDATE_CAPABILITY_ID, None),
                                        data={'table': table_name,
                                              'index': column_name,
-                                             'uniquer': unique},
+                                             'unique': 'true' if unique
+                                             else 'false'},
                                        allow_redirects=False)
         if result.status_code == 303:
             job_url = result.headers['Location']
