@@ -399,7 +399,7 @@ def test_create_index(caps_get_mock, base_get_mock, base_post_mock):
     post_calls = [call((TABLE_UPDATE_CAPABILITY_ID, None),
                   allow_redirects=False,
                   data={'table': 'schema.sometable',
-                        'uniquer': True,
+                        'unique': 'true',
                         'index': 'col1'}),
                   call('{}/phase'.format(job_location),
                   data={'PHASE': 'RUN'})]
@@ -486,20 +486,20 @@ def test_set_permissions(caps_get_mock, post_mock):
     # extra group
     with pytest.raises(argparse.ArgumentError):
         opt = Mock
-        opt.groups = 'A B'
-        opt.mode = {'who': 'g', 'op': '+', 'what': 'r'}
+        opt.GROUPS = 'A B'
+        opt.MODE = {'who': 'g', 'op': '+', 'what': 'r'}
         _get_permission_modes(opt)
 
     with pytest.raises(argparse.ArgumentError):
         opt = Mock
-        opt.groups = 'A'
-        opt.mode = {'who': 'g', 'op': '-', 'what': 'r'}
+        opt.GROUPS = 'A'
+        opt.MODE = {'who': 'g', 'op': '-', 'what': 'r'}
         _get_permission_modes(opt)
 
     with pytest.raises(argparse.ArgumentError):
         opt = Mock
-        opt.groups = 'A'
-        opt.mode = {'who': 'o', 'op': '+', 'what': 'r'}
+        opt.GROUPS = 'A'
+        opt.MODE = {'who': 'o', 'op': '+', 'what': 'r'}
         _get_permission_modes(opt)
 
 
@@ -583,8 +583,8 @@ def test_query(caps_get_mock, base_post_mock):
     caps_get_mock.return_value = BASE_URL
     response = Mock()
     response.status_code = 200
-    response.raw.read.return_value = b'<VOTable format>'
-    response.text = 'Header 1\nVal1\nVal2\n'
+    response.iter_content.return_value = [b'<VOTable format>']
+
     # NOTE: post mock returns a context manager with the responose, hence
     # the __enter__
     base_post_mock.return_value.__enter__.return_value = response
@@ -605,6 +605,7 @@ def test_query(caps_get_mock, base_post_mock):
         '{}/{}'.format(BASE_URL, 'sync')
 
     base_post_mock.reset_mock()
+    response.iter_content.return_value = [b'Val1\n', b'Val2\n']
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         client.query('query', data_only=True, response_format='tsv')
     assert stdout_mock.getvalue() == 'Val1\nVal2\n'
@@ -613,9 +614,10 @@ def test_query(caps_get_mock, base_post_mock):
     tf = tempfile.NamedTemporaryFile()
     base_post_mock.reset_mock()
     base_post_mock.return_value.__enter__.return_value = response
+    response.iter_content.return_value = [b'Header1\nVal1\nVal2\n']
     client.query('query', output_file=tf.name, response_format='tsv')
     actual = open(tf.name).read()
-    assert actual == 'Header 1\n-----------------------\n' \
+    assert actual == 'Header1\n-----------------------\n' \
                      'Val1\nVal2\n\n(2 rows affected)\n'
 
     # different format => result from server not altered
@@ -623,7 +625,19 @@ def test_query(caps_get_mock, base_post_mock):
     base_post_mock.return_value.__enter__.return_value = response
     with patch('sys.stdout', new_callable=BytesIO) as stdout_mock:
         client.query('query')
-    assert stdout_mock.getvalue() == response.raw.read()
+    assert stdout_mock.getvalue() == response.iter_content.return_value[0]
+
+
+def test_error_cases():
+    def get_my_access_url(service):
+        if service == cadctap.core.PERMISSIONS_CAPABILITY_ID:
+            raise Exception(cadctap.core.PERMISSIONS_CAPABILITY_ID)
+        else:
+            return "http://some.org/some/path"
+    with patch('cadcutils.net.ws.WsCapabilities.get_access_url') as amock:
+        amock.side_effect = get_my_access_url
+        client = CadcTapClient(net.Subject())
+        assert not client.permissions_support
 
 
 class TestCadcTapClient(unittest.TestCase):

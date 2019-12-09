@@ -222,7 +222,7 @@ class CadcTapClient(object):
         self.permissions_support = True
         try:
             self._tap_client.caps.get_access_url(PERMISSIONS_CAPABILITY_ID)
-        except KeyError as ex:
+        except Exception as ex:
             if PERMISSIONS_CAPABILITY_ID in str(ex):
                 self.permissions_support = False
                 logger.debug('Service has no support for permissions')
@@ -277,12 +277,14 @@ class CadcTapClient(object):
                 'table name and column required in index: {}/{}'.
                 format(table_name, column_name))
 
-        logger.debug('Index for column{} in table {}'.format(column_name,
-                                                             table_name))
+        logger.debug('{} for column {} in table {}'.
+                     format('Unique index' if unique else 'Index',
+                            column_name, table_name,))
         result = self._tap_client.post((TABLE_UPDATE_CAPABILITY_ID, None),
                                        data={'table': table_name,
                                              'index': column_name,
-                                             'uniquer': unique},
+                                             'unique': 'true' if unique
+                                             else 'false'},
                                        allow_redirects=False)
         if result.status_code == 303:
             job_url = result.headers['Location']
@@ -400,29 +402,32 @@ class CadcTapClient(object):
                                        'Content-Type': m.content_type},
                                    stream=True, timeout=timeout*60) as result:
             with smart_open(output_file, response_format) as f:
-                if response_format == 'VOTable':
-                    f.write(result.raw.read())
+                if data_only or response_format == 'VOTable':
+                    for chunk in result.iter_content(chunk_size=8192):
+                        if chunk:  # filter out keep-alive new chunks
+                            if response_format != 'VOTable':
+                                chunk = chunk.decode('utf-8')
+                            f.write(chunk)
                     return
                 header = True
-                for row in result.text.split('\n'):
-                    # TODO implement get_query_result and parse result.text
-                    # into TabularInfo object and use display_tab to display it
-                    if row.strip():
-                        if header:
+                for chunk in result.iter_content(chunk_size=8192):
+                    if chunk:  # filter out keep-alive new chunks
+                        chunk = chunk.decode('utf-8')
+                        if header and '\n' in chunk:
+                            index = chunk.index('\n')
+                            f.write(chunk[:index])
+                            f.write('\n-----------------------')
+                            f.write(chunk[index:])
                             header = False
-                            if data_only:
-                                continue
-                            print(row.strip(), file=f)
-                            print('-----------------------', file=f)
+                            rows = chunk.count('\n') - 1
                         else:
-                            rows += 1
-                            print(row.strip(), file=f)
-                if not data_only:
-                    if rows == 1:
-                        footer = '\n(1 row affected)'
-                    else:
-                        footer = '\n({} rows affected)'.format(rows)
-                    print(footer, file=f)
+                            f.write(chunk)
+                            rows += chunk.count('\n')
+                if rows == 1:
+                    footer = '\n(1 row affected)\n'
+                else:
+                    footer = '\n({} rows affected)\n'.format(rows)
+                f.write(footer)
 
     def schema(self, name=None):
         """
@@ -534,8 +539,12 @@ class CadcTapClient(object):
                 for t in s.getElementsByTagName('table'):
                     name = \
                         t.getElementsByTagName('name')[0].firstChild.nodeValue
-                    description = t.getElementsByTagName('description')[0]. \
-                        firstChild.nodeValue
+                    try:
+                        description = \
+                            t.getElementsByTagName('description')[0]. \
+                            firstChild.nodeValue
+                    except Exception:
+                        description = ''
                     schema_info.add_row((name, description))
                 self._db_schemas[schema_info.name] = schema_info
 
@@ -561,16 +570,22 @@ class CadcTapClient(object):
         response = self._tap_client.get((TABLES_CAPABILITY_ID, table),
                                         params={'detail': 'min'})
         doc = minidom.parseString(response.text)
-
+        try:
+            tab_descr = doc.getElementsByTagName(
+                                'description')[0].firstChild.nodeValue
+        except Exception:
+            tab_descr = ''
         cols_info = TabularInfo(name=table,
-                                description=doc.getElementsByTagName(
-                                     'description')[0].firstChild.nodeValue,
+                                description=tab_descr,
                                 columns=['Name', 'Type', 'Index',
                                          'Description'])
         for s in doc.getElementsByTagName('column'):
             name = s.getElementsByTagName('name')[0].firstChild.nodeValue
-            description = s.getElementsByTagName('description')[0]. \
-                firstChild.nodeValue
+            try:
+                description = s.getElementsByTagName('description')[0]. \
+                    firstChild.nodeValue
+            except Exception:
+                description = ''
             if s.getElementsByTagName('utype'):
                 col_type = s.getElementsByTagName('utype')[0]. \
                     firstChild.nodeValue
@@ -710,7 +725,7 @@ def smart_open(filename=None, content_format=None):
             fh = open(filename, 'w')
         close_file = True
     else:
-        if filename:
+        if filename and filename != '-':
             fh = filename
         else:
             if content_format == 'VOTable' and hasattr(sys.stdout, 'buffer'):
@@ -911,9 +926,9 @@ def _get_permission_modes(opt):
     :param opt: argparse arguments
     :return: dictionary of permission modes
     """
-    group_names = opt.groups
+    group_names = opt.GROUPS
 
-    mode = opt.mode
+    mode = opt.MODE
 
     props = {'read_anon': None, 'read_only': None, 'read_write': None}
     if 'o' in mode['who']:
@@ -1118,11 +1133,11 @@ def main_app(command='cadc-tap query'):
         return _mode.groupdict()
 
     permission_parser.add_argument(
-        'mode', type=check_mode,
+        'MODE', type=check_mode,
         help='permission setting accepted modes: (og|go|o|g)[+-=](rw|wr|r|w)')
     permission_parser.add_argument('TARGET', help='table or schema name')
     permission_parser.add_argument(
-        'groups', nargs='*',
+        'GROUPS', nargs='*',
         help="name(s) of group(s) to assign read/write permission to. "
              "One group per r or w permission.")
     # options_parser = permission_parser.add_mutually_exclusive_group(
