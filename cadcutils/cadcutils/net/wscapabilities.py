@@ -118,8 +118,8 @@ class Capabilities(object):
             interface = capability.get_interface(sm, interface_type)
             if interface is not None:
                 return interface.access_url
-        if ((capability.get_interface(None) is not None) or \
-                 (len(sec_methods) == 0)):
+        if ((capability.get_interface(None) is not None) or
+                (len(sec_methods) == 0)):
             i = capability.get_interface(None, interface_type)
             if i is not None:
                 return i.access_url
