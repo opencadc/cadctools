@@ -316,7 +316,6 @@ class TestWsCapabilities(unittest.TestCase):
         with pytest.raises(ValueError):
             assert caps.get_access_url('ivo://provider/service', "anymethod")
 
-
         # test only anonymous TAP1.1 style
         caps = cr.parsexml(
             '<capabilities '
