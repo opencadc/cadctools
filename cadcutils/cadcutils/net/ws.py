@@ -556,7 +556,7 @@ class RetrySession(Session):
 
 
 DEFAULT_REGISTRY = \
-    'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-caps'
+    'https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-caps'
 CACHE_REFRESH_INTERVAL = 10 * 60
 CACHE_LOCATION = os.path.join(os.path.expanduser("~"), '.config',
                               'cadc-registry')

@@ -296,3 +296,7 @@ class TestWsCapabilities(unittest.TestCase):
                                    ['ivo://cadc/mymethod2'])
         assert 'http://someurl/somepath' == \
                caps.get_access_url('ivo://provider/service', None)
+        # unlisted security method would be treated as anonymous
+        assert 'http://someurl/somepath' == \
+               caps.get_access_url('ivo://provider/service',
+                                   ['ivo://cadc/mymethod3'])

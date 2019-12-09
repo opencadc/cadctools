@@ -114,8 +114,11 @@ class Capabilities(object):
         # capability interface or
         # the client comes with no security_methods, then return the url
         # corresponding to the anonymous access
-        if (capability.get_interface(None) is not None) and \
-                ((capability.num_interfaces == 1) or
+        for sm in sec_methods:
+            interface = capability.get_interface(sm, interface_type)
+            if interface is not None:
+                return interface.access_url
+        if ((capability.get_interface(None) is not None) or \
                  (len(sec_methods) == 0)):
             i = capability.get_interface(None, interface_type)
             if i is not None:
@@ -125,10 +128,6 @@ class Capabilities(object):
                     'Capability {} does not support annonymous access. '
                     'Please authenticate first'.
                     format(capability_id))
-        for sm in sec_methods:
-            interface = capability.get_interface(sm, interface_type)
-            if interface is not None:
-                return interface.access_url
         raise ValueError('Capability {} does not support security methods {}'.
                          format(capability_id, security_methods))
 
