@@ -1,4 +1,5 @@
 -e .
+numpy>=1.16
 pytest>=3.9.0
 pytest-arraydiff
 pytest-cov>=2.5.1
