@@ -533,10 +533,10 @@ def test_main(get_mock, info_mock, put_mock):
     sys.argv = ['cadc-data', 'put', '-i', 'a.txt b.txt', 'TEST', put_dir]
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         main_app()
-    calls = [call('TEST', '/tmp/put_dir/file2.txt', archive_stream=None,
+    calls = [call('TEST', '/tmp/put_dir/file1.txt', archive_stream=None,
                   mime_type=None, mime_encoding=None, md5_check=True,
                   input_name='a.txt'),
-             call('TEST', '/tmp/put_dir/file1.txt', archive_stream=None,
+             call('TEST', '/tmp/put_dir/file2.txt', archive_stream=None,
                   mime_type=None, mime_encoding=None, md5_check=True,
                   input_name='b.txt')]
     put_mock.assert_has_calls(calls, any_order=True)

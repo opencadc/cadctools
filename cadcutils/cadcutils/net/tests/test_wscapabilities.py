@@ -296,3 +296,38 @@ class TestWsCapabilities(unittest.TestCase):
                                    ['ivo://cadc/mymethod2'])
         assert 'http://someurl/somepath' == \
                caps.get_access_url('ivo://provider/service', None)
+        # unlisted security method would be treated as anonymous
+        assert 'http://someurl/somepath' == \
+               caps.get_access_url('ivo://provider/service',
+                                   ['ivo://cadc/mymethod3'])
+
+        # test only anonymous TAP1.0 style
+        caps = cr.parsexml(
+            '<capabilities '
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+            '<capability standardID="ivo://provider/service">'
+            '<interface xsi:type="vs:ParamHTTP">'
+            '<accessURL>http://someurl/somepath'
+            '</accessURL>'
+            '</interface>'
+            '</capability></capabilities>')
+        assert 'http://someurl/somepath' == \
+               caps.get_access_url('ivo://provider/service', None)
+        with pytest.raises(ValueError):
+            assert caps.get_access_url('ivo://provider/service', "anymethod")
+
+        # test only anonymous TAP1.1 style
+        caps = cr.parsexml(
+            '<capabilities '
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+            '<capability standardID="ivo://provider/service">'
+            '<interface xsi:type="vs:ParamHTTP">'
+            '<accessURL>http://someurl/somepath'
+            '</accessURL>'
+            '<securityMethod />'
+            '</interface>'
+            '</capability></capabilities>')
+        assert 'http://someurl/somepath' == \
+               caps.get_access_url('ivo://provider/service', None)
+        with pytest.raises(ValueError):
+            assert caps.get_access_url('ivo://provider/service', "anymethod")
