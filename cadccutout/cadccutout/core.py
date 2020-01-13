@@ -241,11 +241,9 @@ def create_argument_parser():
     parser.description = ('Cutout library to extract an N-Dimension array.')
     parser.formatter_class = argparse.RawTextHelpFormatter
 
-    parser.add_argument('-d', '--debug', action='store_true',
+    parser.add_argument('--debug', '-d', action='store_true',
                         help='debug messages')
-    parser.add_argument('-q', '--quiet', action='store_true',
-                        help='run quietly')
-    parser.add_argument('-v', '--verbose', action='store_true',
+    parser.add_argument('--verbose', '-v', action='store_true',
                         help='verbose messages')
     parser.add_argument('--version', action='version', version=version.version)
 
