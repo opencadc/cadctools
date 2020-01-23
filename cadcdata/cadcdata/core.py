@@ -108,6 +108,7 @@ DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 DEFAULT_RESOURCE_ID = 'ivo://cadc.nrc.ca/data'
 # resource ID for negotiating the transfer
 TRANSFER_RESOURCE_ID = 'ivo://ivoa.net/std/VOSpace#sync-2.1'
+MINOC_STANDARD_ID = 'http://www.opencadc.org/std/storage#files-1.0'
 ARCHIVE_STREAM_HTTP_HEADER = 'X-CADC-Stream'
 APP_NAME = 'cadc-data'
 
@@ -184,6 +185,69 @@ class CadcDataClient(object):
 
         self._data_client = net.BaseWsClient(resource_id, subject,
                                              agent, retry=True, host=self.host)
+        self._minoc_url = self._get_minoc_url()
+
+    def _get_minoc_url(self):
+        try:
+            return self._data_client.caps.get_access_url(MINOC_STANDARD_ID)
+        except KeyError:
+            return None
+
+    def _get(self, url, file_name, file_info, destination,
+             decompress, process_bytes, md5_check):
+        """
+        Get a file based on the url.
+        :param url: url of the the file
+        :param file_name: the name of the file to retrieve
+        :param destination: file to save data to (file, file_name, stream or
+        anything that supports open/close and write). If None, the file is
+        saved locally with the name provided by the content disposion received
+        from the service.
+        :param decompress: True to decompress the file (if applicable),
+        False otherwise
+        :param process_bytes: function to be applied to the received bytes
+        :param md5_check: if True, do md5sum check for corrupted data
+        :return: the data stream object
+        """
+        response = self._data_client.get(url, stream=True)
+        if destination is not None:
+            if not hasattr(destination, 'read'):
+                # got a destination name?
+                with open(destination, 'wb') as f:
+                    self._save_bytes(response, f, file_info,
+                                     decompress=decompress,
+                                     process_bytes=process_bytes,
+                                     md5_check=md5_check)
+            else:
+                self._save_bytes(response, destination, file_info,
+                                 decompress=decompress,
+                                 process_bytes=process_bytes,
+                                 md5_check=md5_check)
+        else:
+            # get the destination name from the content disposition
+            content_disp = response.headers.get('content-disposition',
+                                                '')
+            destination = file_name
+            for content in content_disp.split():
+                if 'filename=' in content:
+                    destination = content[9:]
+                    self.logger.debug(
+                        'Content disposition destination name: {}'.
+                        format(destination))
+            if destination.endswith('gz') and decompress:
+                destination = os.path.splitext(destination)[0]
+            # remove any path information and save the file in local
+            # directory
+            destination = os.path.basename(destination)
+            self.logger.info(
+                'Saved file in local directory under: {}'.
+                format(destination))
+            with open(destination, 'wb') as f:
+                self._save_bytes(response, f, file_info,
+                                 decompress=decompress,
+                                 process_bytes=process_bytes,
+                                 md5_check=md5_check)
+        return
 
     def get_file(self, archive, file_name, destination=None, decompress=False,
                  cutout=None, fhead=False, wcs=False, process_bytes=None,
@@ -218,78 +282,49 @@ class CadcDataClient(object):
             params['cutout'] = cutout
         file_info = '{}/{}'.format(archive, file_name)
         self.logger.debug('GET {}'.format(file_info))
-        # TODO negotiate transfer even for fhead or wcs?
-        protocols = self._get_transfer_protocols(archive, file_name,
-                                                 params=params)
-        if len(protocols) == 0:
-            raise exceptions.HttpException('No URLs available to access data')
+        if self._minoc_url is not None:
+            # user minoc service
+            self._get(self._minoc_url, file_name, file_info, destination,
+                      decompress, process_bytes, md5_check)
+            return
+        else:
+            # TODO negotiate transfer even for fhead or wcs?
+            protocols = self._get_transfer_protocols(
+                archive, file_name, params=params)
+            if len(protocols) == 0:
+                raise exceptions.HttpException(
+                    'No URLs available to access data')
 
-        # get the list of transfer points
-        for protocol in protocols:
-            url = protocol.endpoint
-            if url is None:
-                self.logger.debug(
-                    'No endpoint for URI, skipping.')
-                continue
-            self.logger.debug('GET from URL {}'.format(url))
-            try:
-                response = self._data_client.get(url, stream=True)
-                if destination is not None:
-                    if not hasattr(destination, 'read'):
-                        # got a destination name?
-                        with open(destination, 'wb') as f:
-                            self._save_bytes(response, f, file_info,
-                                             decompress=decompress,
-                                             process_bytes=process_bytes,
-                                             md5_check=md5_check)
-                    else:
-                        self._save_bytes(response, destination, file_info,
-                                         decompress=decompress,
-                                         process_bytes=process_bytes,
-                                         md5_check=md5_check)
-                else:
-                    # get the destination name from the content disposition
-                    content_disp = response.headers.get('content-disposition',
-                                                        '')
-                    destination = file_name
-                    for content in content_disp.split():
-                        if 'filename=' in content:
-                            destination = content[9:]
-                            self.logger.debug(
-                                'Content disposition destination name: {}'.
-                                format(destination))
-                    if destination.endswith('gz') and decompress:
-                        destination = os.path.splitext(destination)[0]
-                    # remove any path information and save the file in local
-                    # directory
-                    destination = os.path.basename(destination)
+            # get the list of transfer points
+            for protocol in protocols:
+                url = protocol.endpoint
+                if url is None:
+                    self.logger.debug(
+                        'No endpoint for URI, skipping.')
+                    continue
+                self.logger.debug('GET from URL {}'.format(url))
+                try:
+                    self._get(url, file_name, file_info, destination,
+                              decompress, process_bytes, md5_check)
+                    return
+                except (exceptions.HttpException, socket.timeout) as e:
+                    # try a different URL
                     self.logger.info(
-                        'Saved file in local directory under: {}'.
-                        format(destination))
-                    with open(destination, 'wb') as f:
-                        self._save_bytes(response, f, file_info,
-                                         decompress=decompress,
-                                         process_bytes=process_bytes,
-                                         md5_check=md5_check)
-                return
-            except (exceptions.HttpException, socket.timeout) as e:
-                # try a different URL
-                self.logger.info(
-                    'WARN: Cannot retrieve data from {}. Exception: {}'.
-                    format(url, e))
-                self.logger.warn('Try the next URL')
-                continue
-            except DownloadError as e:
-                if not hasattr(destination, 'read'):
-                    # try to cleanup the corrupted file
-                    try:
-                        os.unlink(destination)
-                    except Exception:
-                        # nothing we can do
-                        pass
-                raise exceptions.HttpException(str(e))
-        raise exceptions.HttpException(
-            'Unable to download data from any of the available URLs')
+                        'WARN: Cannot retrieve data from {}. Exception: {}'.
+                        format(url, e))
+                    self.logger.warn('Try the next URL')
+                    continue
+                except DownloadError as e:
+                    if not hasattr(destination, 'read'):
+                        # try to cleanup the corrupted file
+                        try:
+                            os.unlink(destination)
+                        except Exception:
+                            # nothing we can do
+                            pass
+                    raise exceptions.HttpException(str(e))
+            raise exceptions.HttpException(
+                'Unable to download data from any of the available URLs')
 
     def _save_bytes(self, response, dest_file, resource, decompress=False,
                     process_bytes=None, md5_check=True):
@@ -377,6 +412,26 @@ class CadcDataClient(object):
             ''.format(resource, dest_file.name, round(duration, 2),
                       round(total_length / 1024 / 1024 / duration, 2)))
 
+    def _put(self, url, archive, src_file, headers):
+        """
+        Puts a file into the archive storage
+        :param archive: name of the archive, for logging purpose
+        :param src_file: location of the source file
+        :param url: url of the file
+        :param headers: contains file content related info
+        """
+        start = time.time()
+        with open(src_file, 'rb') as f:
+            self._data_client.put(url, headers=headers, data=f)
+        duration = time.time() - start
+        stat_info = os.stat(src_file)
+        self.logger.info(
+            ('Successfully uploaded archive/file {}/{} in {}s '
+             '(avg. speed: {}MB/s)').format(
+                archive, src_file, round(duration, 2),
+                round(stat_info.st_size / 1024 / 1024 / duration, 2)))
+        return
+
     def put_file(self, archive, src_file, archive_stream=None, mime_type=None,
                  mime_encoding=None, md5_check=True, input_name=None):
         """
@@ -441,40 +496,38 @@ class CadcDataClient(object):
         if not fname:
             fname = os.path.basename(src_file)
 
-        protocols = self._get_transfer_protocols(
-            archive, fname, is_get=False, headers=headers)
-        if len(protocols) == 0:
-            raise exceptions.HttpException('No URLs available to put data to')
+        if self._minoc_url is not None:
+            # use minoc service
+            self._put(self._minoc_url, archive, src_file, headers)
+            return
+        else:
+            protocols = self._get_transfer_protocols(
+                archive, fname, is_get=False, headers=headers)
+            if len(protocols) == 0:
+                raise exceptions.HttpException(
+                    'No URLs available to put data to')
 
-        # get the list of transfer points
-        for protocol in protocols:
-            url = protocol.endpoint
-            if url is None:
-                self.logger.debug(
-                    'No endpoint for URI, skipping.')
-                continue
-            self.logger.debug('PUT to URL {}'.format(url))
+            # get the list of transfer points
+            for protocol in protocols:
+                url = protocol.endpoint
+                if url is None:
+                    self.logger.debug(
+                        'No endpoint for URI, skipping.')
+                    continue
+                self.logger.debug('PUT to URL {}'.format(url))
 
-            try:
-                start = time.time()
-                with open(src_file, 'rb') as f:
-                    self._data_client.put(url, headers=headers, data=f)
-                duration = time.time() - start
-                stat_info = os.stat(src_file)
-                self.logger.info(
-                    ('Successfully uploaded archive/file {}/{} in {}s '
-                     '(avg. speed: {}MB/s)').format(
-                        archive, src_file, round(duration, 2),
-                        round(stat_info.st_size / 1024 / 1024 / duration, 2)))
-                return
-            except (exceptions.HttpException, socket.timeout) as e:
-                # try a different URL
-                self.logger.info('WARN: Cannot put data to {}. Exception: {}'.
-                                 format(url, e))
-                self.logger.warn('Try the next URL')
-                continue
-        raise exceptions.HttpException(
-            'Unable to put data from any of the available URLs')
+                try:
+                    self._put(url, archive, src_file, headers)
+                    return
+                except (exceptions.HttpException, socket.timeout) as e:
+                    # try a different URL
+                    self.logger.info(
+                        'WARN: Cannot put data to {}. Exception: {}'.
+                        format(url, e))
+                    self.logger.warn('Try the next URL')
+                    continue
+            raise exceptions.HttpException(
+                'Unable to put data from any of the available URLs')
 
     def get_file_info(self, archive, file_name):
         """

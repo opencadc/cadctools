@@ -115,6 +115,7 @@ def test_get_file(trans_reader_mock, basews_mock):
     response.headers.get.return_value = \
         'filename={}'.format('orig_file_name')
     response.raw.read.side_effect = file_chunks  # returns multiple blocks
+    basews_mock.return_value.caps.get_access_url.return_value = None
     basews_mock.return_value.get.return_value = response
     client = CadcDataClient(auth.Subject())
     with pytest.raises(exceptions.HttpException):
@@ -275,7 +276,6 @@ def test_get_file(trans_reader_mock, basews_mock):
                     reason='libmagic not available')
 @patch('cadcdata.core.net.BaseWsClient')
 def test_put_file(basews_mock):
-    client = CadcDataClient(auth.Subject())
     # test a put
     file_name = '/tmp/putfile.txt'
     file_content = 'ABCDEFGH12345'
@@ -286,7 +286,9 @@ def test_put_file(basews_mock):
     with open(file_name, 'w') as f:
         f.write(file_content)
     put_mock = Mock()
+    basews_mock.return_value.caps.get_access_url.return_value = None
     basews_mock.return_value.put = put_mock
+    client = CadcDataClient(auth.Subject())
     with pytest.raises(exceptions.UnauthorizedException):
         client.put_file('TEST', 'putfile', file_name)
     client._data_client.subject.anon = False  # authenticate the user
