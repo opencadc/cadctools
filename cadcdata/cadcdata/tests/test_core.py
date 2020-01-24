@@ -80,7 +80,7 @@ from cadcutils.net import auth
 from cadcutils import exceptions
 from cadcdata import transfer
 from cadcdata import CadcDataClient
-from cadcdata.core import main_app, TRANSFER_RESOURCE_ID
+from cadcdata.core import main_app, DownloadError, TRANSFER_RESOURCE_ID
 import cadcdata
 from mock import Mock, patch, ANY, call
 import pytest
@@ -207,12 +207,27 @@ def test_get_file(trans_reader_mock, basews_mock):
                     process_bytes=concatenate_chunks)
     assert file_content == mycontent
 
+    # test switching to minoc on a get
+    access_url = 'https://replace.com/minoc/files'
+    response = Mock()
+    response.headers = {'filename': '{}.gz'.format(file_name),
+                        'content-MD5': '33'}
+    response.raw.read.side_effect = file_chunks
+    basews_mock.return_value.get.return_value = response
+    basews_mock.return_value.caps.get_access_url.return_value = access_url
+    client = CadcDataClient(auth.Subject())
+    client.logger.setLevel(logging.INFO)
+    # md5_check does not take place md5_check is disabled
+    client.get_file('TEST', 'afile', destination='/dev/null',
+                    process_bytes=concatenate_chunks, md5_check=False)
+
     # failed md5 checksum
     response = Mock()
     response.headers = {'filename': '{}.gz'.format(file_name),
                         'content-MD5': '33'}
     response.raw.read.side_effect = file_chunks
     basews_mock.return_value.get.return_value = response
+    basews_mock.return_value.caps.get_access_url.return_value = None
     client = CadcDataClient(auth.Subject())
     client.logger.setLevel(logging.INFO)
     # md5_check does not take place because no content-MD5 received
@@ -276,6 +291,23 @@ def test_get_file(trans_reader_mock, basews_mock):
                     reason='libmagic not available')
 @patch('cadcdata.core.net.BaseWsClient')
 def test_put_file(basews_mock):
+    # test switching to minoc on a put
+    access_url = 'https://replace.com/minoc/files'
+    file_name = '/tmp/putfile.txt'
+    file_content = 'ABCDEFGH12345'
+    hash_md5 = hashlib.md5()
+    hash_md5.update(file_content.encode())
+    hash_md5 = hash_md5.hexdigest()
+    # write the file
+    with open(file_name, 'w') as f:
+        f.write(file_content)
+    put_mock = Mock()
+    basews_mock.return_value.caps.get_access_url.return_value = access_url
+    basews_mock.return_value.put = put_mock
+    client = CadcDataClient(auth.Subject())
+    client._data_client.subject.anon = False  # authenticate the user
+    client.put_file('TEST', file_name, md5_check=False)
+
     # test a put
     file_name = '/tmp/putfile.txt'
     file_content = 'ABCDEFGH12345'
@@ -289,6 +321,7 @@ def test_put_file(basews_mock):
     basews_mock.return_value.caps.get_access_url.return_value = None
     basews_mock.return_value.put = put_mock
     client = CadcDataClient(auth.Subject())
+    client._data_client.subject.anon = True  # authenticate the user
     with pytest.raises(exceptions.UnauthorizedException):
         client.put_file('TEST', 'putfile', file_name)
     client._data_client.subject.anon = False  # authenticate the user
