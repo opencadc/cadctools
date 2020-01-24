@@ -80,7 +80,7 @@ from cadcutils.net import auth
 from cadcutils import exceptions
 from cadcdata import transfer
 from cadcdata import CadcDataClient
-from cadcdata.core import main_app, DownloadError, TRANSFER_RESOURCE_ID
+from cadcdata.core import main_app, TRANSFER_RESOURCE_ID
 import cadcdata
 from mock import Mock, patch, ANY, call
 import pytest
