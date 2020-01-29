@@ -88,7 +88,7 @@ DEBUG_LOG_FORMAT = "%(levelname)s: @(%(asctime)s) %(name)s " \
 def is_uri_string(id_str):
     """
     Takes a file identifier string and determines if it specifies a URI.
-    At time of writing, wild card is path is considered invalid.
+    At time of writing, wild card in path is considered invalid.
 
     :param id_str A identifier string
     :return True if we can use the identifier string to create a URI instance,
