@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2016.                            (c) 2016.
+#  (c) 2020.                            (c) 2020.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -75,7 +75,7 @@ from six.moves.urllib.parse import urlparse
 import os
 import sys
 import logging
-from cadcutils.util import date2ivoa, str2ivoa, get_base_parser, \
+from cadcutils.util import is_uri_string, date2ivoa, str2ivoa, get_base_parser, \
     get_log_level, get_logger
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -88,6 +88,48 @@ class MyExitError(Exception):
 
 class UtilTests(unittest.TestCase):
     """ Class for testing cadc utilities """
+
+    def test_is_uri_string(self):
+        """ Test that is_uri_string unction can decipher if an identifier
+            string specifies a uri or a local file.
+        """
+
+        valid_uri_str_1 = 'ivo://cadc.nrc.ca/vault'
+        valid_uri_str_2 = 'ivo://cadc.nrc.ca/vault/'
+        valid_uri_str_list = [valid_uri_str_1, valid_uri_str_2]
+        invalid_uri_str_1 = 'ivo://'                   # valid scheme only
+        invalid_uri_str_2 = 'ivo:/cadc.nrc.ca/vault/'  # no netloc
+        invalid_uri_str_3 = 'ivo://cadc.nrc.ca'        # no path
+        invalid_uri_str_list = [invalid_uri_str_1, invalid_uri_str_2,
+                                invalid_uri_str_3]
+        valid_file_str_1 = 'foo.fits'
+        valid_file_str_2 = 'foo*.fits'
+        valid_file_str_3 = '*.fits'
+        valid_file_str_4 = './foo.fits'
+        valid_file_str_5 = './test/foo.fits'
+        valid_file_str_6 = '/tmp/foo.fits'
+        valid_file_str_list = [valid_file_str_1, valid_file_str_2,
+                               valid_file_str_3, valid_file_str_4,
+                               valid_file_str_5, valid_file_str_6]
+        # valid uri string
+        for uri_str in valid_uri_str_list:
+            is_uri = is_uri_string(uri_str)
+            self.assertTrue(is_uri)
+
+        # valid file string
+        for file_str in valid_file_str_list:
+            is_uri = is_uri_string(file_str)
+            self.assertFalse(is_uri)
+
+        with self.assertRaises(ValueError) as ex:
+            is_uri_string(None)
+        assert('Missing identifier: None' in ex.exception.args[0])
+
+        for uri_str in invalid_uri_str_list:
+            with self.assertRaises(ValueError) as ex:
+                is_uri_string(uri_str)
+            assert('Invalid URL' in ex.exception.args[0])
+
 
     def test_ivoa_dates(self):
         """ Test the ivoa date formats functions date2ivoa and str2ivoa """

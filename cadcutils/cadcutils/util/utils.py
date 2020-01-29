@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2016.                            (c) 2016.
+#  (c) 2020.                            (c) 2020.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -74,7 +74,7 @@ from datetime import datetime
 from six.moves.urllib.parse import urlparse
 from operator import attrgetter
 
-__all__ = ['IVOA_DATE_FORMAT', 'date2ivoa', 'str2ivoa',
+__all__ = ['IVOA_DATE_FORMAT', 'is_uri_string', 'date2ivoa', 'str2ivoa',
            'get_logger', 'get_log_level', 'get_base_parser']
 
 # TODO both these are very bad, implement more sensibly
@@ -83,6 +83,29 @@ IVOA_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 DEFAULT_LOG_FORMAT = "%(levelname)s: %(name)s %(message)s"
 DEBUG_LOG_FORMAT = "%(levelname)s: @(%(asctime)s) %(name)s " \
                    "%(module)s.%(funcName)s:%(lineno)d - %(message)s"
+
+
+def is_uri_string(id_str):
+    """
+    Takes a file identifier string and determines if it specifies a URI.
+
+    :param id_str A identifier string
+    :return True if we can use the identifier string to create a URI instance,
+            False if the identifier string does not start with '<scheme>:'
+    """
+
+    if id_str is None:
+        raise ValueError('Missing identifier: {}'.format(id_str))
+
+    url = urlparse(id_str)
+    if (len(url.scheme) == 0):
+        # missing scheme
+        return False
+    elif (len(url.netloc) == 0) or (len(url.path) == 0):
+        raise ValueError('Invalid URL: {}'.format(id_str))
+    else:
+        # a valid url
+        return True
 
 
 def date2ivoa(d):
