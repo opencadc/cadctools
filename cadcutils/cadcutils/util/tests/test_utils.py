@@ -99,7 +99,7 @@ class UtilTests(unittest.TestCase):
             is_uri_string(None)
         assert('Missing identifier: None' in ex.exception.args[0])
 
-        # handling valid uri strings
+        # handling of valid uri strings
         valid_uri_str_1 = 'ivo://cadc.nrc.ca/file.fits'
         valid_uri_str_2 = 'ivo://cadc.nrc.ca/files/'
         valid_uri_str_list = [valid_uri_str_1, valid_uri_str_2]
@@ -107,7 +107,7 @@ class UtilTests(unittest.TestCase):
             is_uri = is_uri_string(uri_str)
             self.assertTrue(is_uri)
 
-        # handling invalid uri strings
+        # handling of invalid uri strings
         invalid_uri_str_1 = 'ivo://'                   # valid scheme only
         invalid_uri_str_2 = 'ivo:/cadc.nrc.ca/files/'  # no netloc
         invalid_uri_str_3 = 'ivo://cadc.nrc.ca'        # no path
@@ -119,7 +119,7 @@ class UtilTests(unittest.TestCase):
                 is_uri_string(uri_str)
             assert('Invalid URL' in ex.exception.args[0])
 
-        # handling valid file strings
+        # handling of valid file strings
         valid_file_str_1 = 'foo.fits'
         valid_file_str_2 = 'foo*.fits'
         valid_file_str_3 = '*.fits'
