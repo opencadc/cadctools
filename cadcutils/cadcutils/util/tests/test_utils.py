@@ -94,41 +94,46 @@ class UtilTests(unittest.TestCase):
             string specifies a uri or a local file.
         """
 
-        valid_uri_str_1 = 'ivo://cadc.nrc.ca/vault'
-        valid_uri_str_2 = 'ivo://cadc.nrc.ca/vault/'
+        # handling of None argument
+        with self.assertRaises(ValueError) as ex:
+            is_uri_string(None)
+        assert('Missing identifier: None' in ex.exception.args[0])
+
+        # handling valid uri strings
+        valid_uri_str_1 = 'ivo://cadc.nrc.ca/file.fits'
+        valid_uri_str_2 = 'ivo://cadc.nrc.ca/files/'
         valid_uri_str_list = [valid_uri_str_1, valid_uri_str_2]
+        for uri_str in valid_uri_str_list:
+            is_uri = is_uri_string(uri_str)
+            self.assertTrue(is_uri)
+
+        # handling invalid uri strings
         invalid_uri_str_1 = 'ivo://'                   # valid scheme only
-        invalid_uri_str_2 = 'ivo:/cadc.nrc.ca/vault/'  # no netloc
+        invalid_uri_str_2 = 'ivo:/cadc.nrc.ca/files/'  # no netloc
         invalid_uri_str_3 = 'ivo://cadc.nrc.ca'        # no path
+        invalid_uri_str_4 = 'ivo://cadc.nrc.ca/f*/'    # wild card no supported
         invalid_uri_str_list = [invalid_uri_str_1, invalid_uri_str_2,
-                                invalid_uri_str_3]
+                                invalid_uri_str_3, invalid_uri_str_4]
+        for uri_str in invalid_uri_str_list:
+            with self.assertRaises(ValueError) as ex:
+                is_uri_string(uri_str)
+            assert('Invalid URL' in ex.exception.args[0])
+
+        # handling valid file strings
         valid_file_str_1 = 'foo.fits'
         valid_file_str_2 = 'foo*.fits'
         valid_file_str_3 = '*.fits'
         valid_file_str_4 = './foo.fits'
         valid_file_str_5 = './test/foo.fits'
         valid_file_str_6 = '/tmp/foo.fits'
+        valid_file_str_7 = '.'
         valid_file_str_list = [valid_file_str_1, valid_file_str_2,
                                valid_file_str_3, valid_file_str_4,
-                               valid_file_str_5, valid_file_str_6]
-        # valid uri string
-        for uri_str in valid_uri_str_list:
-            is_uri = is_uri_string(uri_str)
-            self.assertTrue(is_uri)
-
-        # valid file string
+                               valid_file_str_5, valid_file_str_6,
+                               valid_file_str_7]
         for file_str in valid_file_str_list:
             is_uri = is_uri_string(file_str)
             self.assertFalse(is_uri)
-
-        with self.assertRaises(ValueError) as ex:
-            is_uri_string(None)
-        assert('Missing identifier: None' in ex.exception.args[0])
-
-        for uri_str in invalid_uri_str_list:
-            with self.assertRaises(ValueError) as ex:
-                is_uri_string(uri_str)
-            assert('Invalid URL' in ex.exception.args[0])
 
 
     def test_ivoa_dates(self):

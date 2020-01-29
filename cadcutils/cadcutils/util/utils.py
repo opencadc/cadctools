@@ -88,6 +88,7 @@ DEBUG_LOG_FORMAT = "%(levelname)s: @(%(asctime)s) %(name)s " \
 def is_uri_string(id_str):
     """
     Takes a file identifier string and determines if it specifies a URI.
+    At time of writing, wild card is path is considered invalid.
 
     :param id_str A identifier string
     :return True if we can use the identifier string to create a URI instance,
@@ -101,7 +102,8 @@ def is_uri_string(id_str):
     if (len(url.scheme) == 0):
         # missing scheme
         return False
-    elif (len(url.netloc) == 0) or (len(url.path) == 0):
+    elif (len(url.netloc) == 0) or (len(url.path) == 0) or \
+        ('*' in url.path):
         raise ValueError('Invalid URL: {}'.format(id_str))
     else:
         # a valid url
