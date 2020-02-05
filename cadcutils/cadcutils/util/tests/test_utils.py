@@ -75,8 +75,8 @@ from six.moves.urllib.parse import urlparse
 import os
 import sys
 import logging
-from cadcutils.util import is_uri_string, date2ivoa, str2ivoa, get_base_parser, \
-    get_log_level, get_logger
+from cadcutils.util import is_uri_string, date2ivoa, str2ivoa, \
+    get_base_parser, get_log_level, get_logger
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
@@ -134,7 +134,6 @@ class UtilTests(unittest.TestCase):
         for file_str in valid_file_str_list:
             is_uri = is_uri_string(file_str)
             self.assertFalse(is_uri)
-
 
     def test_ivoa_dates(self):
         """ Test the ivoa date formats functions date2ivoa and str2ivoa """

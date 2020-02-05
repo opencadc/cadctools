@@ -102,8 +102,7 @@ def is_uri_string(id_str):
     if (len(url.scheme) == 0):
         # missing scheme
         return False
-    elif (len(url.netloc) == 0) or (len(url.path) == 0) or \
-        ('*' in url.path):
+    elif (len(url.netloc) == 0) or (len(url.path) == 0) or ('*' in url.path):
         raise ValueError('Invalid URL: {}'.format(id_str))
     else:
         # a valid url
