@@ -668,7 +668,7 @@ class WsCapabilities(object):
         if content is None:
             # get information from the bootstrap registry
             try:
-                content = requests.get(url).text
+                content = requests.get(url, timeout=120).text
                 with open(resource_file, 'w') as f:
                     f.write(content)
             except exceptions.HttpException:
