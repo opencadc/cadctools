@@ -79,8 +79,8 @@ from cadccutout import version
 from cadccutout.pixel_range_input_parser import PixelRangeInputParser
 
 LOGGER = logging.getLogger(__name__)
-DEFAULT_IN = 'stream://'
-DEFAULT_OUT = 'stream://'
+DEFAULT_IN = '-'
+DEFAULT_OUT = '-'
 
 __all__ = ['OpenCADCCutout']
 
@@ -142,10 +142,10 @@ class OpenCADCCutout(object):
         ----------
         input_reader: File-like object, Reader stream
             The file location.  The file extension is important as it's used to
-            determine how to process it.  Defaults to 'stream://'.
+            determine how to process it.  Defaults to '-'.
 
         output_writer: File-like object, Writer stream
-            The writer to push the cutout array to.  Defaults to 'stream://'.
+            The writer to push the cutout array to.  Defaults to '-'.
 
         cutout_dimensions: List of PixelCutoutHDU or WCS (DALI) shape strings.
             The requested dimensions expressed as PixelCutoutHDU objects.

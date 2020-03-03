@@ -556,7 +556,7 @@ class RetrySession(Session):
 
 
 DEFAULT_REGISTRY = \
-    'http://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-caps'
+    'https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-caps'
 CACHE_REFRESH_INTERVAL = 10 * 60
 CACHE_LOCATION = os.path.join(os.path.expanduser("~"), '.config',
                               'cadc-registry')
@@ -668,7 +668,7 @@ class WsCapabilities(object):
         if content is None:
             # get information from the bootstrap registry
             try:
-                content = requests.get(url).text
+                content = requests.get(url, timeout=120).text
                 with open(resource_file, 'w') as f:
                     f.write(content)
             except exceptions.HttpException:
