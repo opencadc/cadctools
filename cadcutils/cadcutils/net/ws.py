@@ -397,6 +397,7 @@ class BaseWsClient(object):
         user_agent = "{} {} {} {} ({})".format(self.agent, self.package_info,
                                                self.python_info,
                                                self.system_info, self.os_info)
+        self._session.headers.pop("Accept-Encoding", None)
         self._session.headers.update({"User-Agent": user_agent})
         if self.session_headers is not None:
             for header in self.session_headers:
