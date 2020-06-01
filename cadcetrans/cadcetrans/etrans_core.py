@@ -590,8 +590,8 @@ def print_status(dirname):
     last7d = [0, 0]
     now = datetime.utcnow()
     logs = _get_last_week_logs()
-    for l in logs:
-        with open(l) as f:
+    for ll in logs:
+        with open(ll) as f:
             for r in f:
                 if 'put_cadc_file' in r:  # TODO - make it more robust
                     fields = r.split('put_cadc_file -')
