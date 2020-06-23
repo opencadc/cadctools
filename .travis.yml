@@ -41,12 +41,11 @@ after_success:
 jobs:
   include:
     - stage: publish
-      if: tags IS present
       python: 3.7
       deploy:
          provider: script
          script: ./.publish.sh
          on:
-             # tags: true
+            tags: true
             condition: ${PYPI_PASSWORD+x} = x
             branch: master
