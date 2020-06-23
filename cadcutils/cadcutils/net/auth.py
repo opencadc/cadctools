@@ -326,7 +326,7 @@ def get_cert_main():
 
     try:
         subject = Subject.from_cmd_line_args(args)
-        cert = get_cert(subject, days_valid=args.days_valid)
+        cert = get_cert(subject, days_valid=args.days_valid, host=args.host)
         with open(args.cert_filename, 'w') as w:
             w.write(cert)
         print('DONE. {} day certificate saved in {}'.format(
