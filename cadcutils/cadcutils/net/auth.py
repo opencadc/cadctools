@@ -88,7 +88,7 @@ from cadcutils import util
 
 CRED_RESOURCE_ID = 'ivo://cadc.nrc.ca/cred'
 CRED_PROXY_FEATURE_ID = 'ivo://ivoa.net/std/CDP#proxy-1.0'
-GET_CERT_VERSION = '1.0.1'
+GET_CERT_VERSION = '1.0.2'
 
 __all__ = ['get_cert', 'Subject']
 
