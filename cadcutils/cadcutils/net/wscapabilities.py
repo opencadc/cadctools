@@ -239,15 +239,20 @@ class CapabilitiesReader(object):
         :return: corresponding Capabilities
         """
         caps = Capabilities()
+        if not content:
+            raise ValueError(
+                'Cannot access remote service info (capabilities). Likely '
+                'due to network error. Please re-try.')
         try:
             doc = etree.fromstring(content)
         except Exception as e:
-            raise ValueError('Error parsing capabilities document.', e)
+            raise ValueError(
+                'Cannot access service information (capabilities).', e)
         for cap in doc.iterfind('capability'):
             try:
                 capability = Capability(cap.get('standardID'))
             except Exception:
-                raise ValueError('Error parsing capabilities document. '
+                raise ValueError('Cannot read service info (capabilities). '
                                  'Capability standard ID is invalid URL: {}'.
                                  format(cap.get('standardID')))
 
@@ -258,8 +263,8 @@ class CapabilitiesReader(object):
                         and (child.find('accessURL').text is not None):
                     access_url = child.find('accessURL').text.strip()
                 else:
-                    raise ValueError('Error parsing capabilities document. '
-                                     'No accessURL for interface for {}'.
+                    raise ValueError('Cannot read service info (capabilities).'
+                                     ' No accessURL for {}'.
                                      format(capability.standard_id))
                 for sm in child.iterchildren('securityMethod'):
                     if sm.get('standardID') is not None:
@@ -271,15 +276,15 @@ class CapabilitiesReader(object):
                                              security_method,
                                              interface_type)
                 if capability.num_interfaces == 0:
-                    # add default annonymous capability
+                    # add default anonymous capability
                     capability.add_interface(access_url, None, interface_type)
 
             if len(capability._interfaces) == 0:
-                raise ValueError('Error parsing capabilities document. '
+                raise ValueError('BUG reading service info (capabilities). '
                                  'No interfaces found for capability {}'.
                                  format(capability.standard_id))
             caps.add_capability(capability)
         if len(caps._caps) == 0:
-            raise ValueError('Error parsing capabilities document: '
-                             'No capabilities found')
+            raise ValueError('BUG reading remote service info '
+                             '(capabilities) - No actual capabilities found')
         return caps
