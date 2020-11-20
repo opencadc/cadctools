@@ -252,12 +252,12 @@ class CadcDataClient(object):
                     content_disp = response.headers.get('content-disposition',
                                                         '')
                     destination = file_name
-                    for content in content_disp.split():
-                        if 'filename=' in content:
-                            destination = content[9:]
-                            self.logger.debug(
-                                'Content disposition destination name: {}'.
-                                format(destination))
+                    content_disp = net.get_header_filename(response.headers)
+                    if content_disp:
+                        destination = content_disp
+                        self.logger.debug(
+                            'Content disposition destination name: {}'.
+                            format(destination))
                     if destination.endswith('gz') and decompress:
                         destination = os.path.splitext(destination)[0]
                     # remove any path information and save the file in local
