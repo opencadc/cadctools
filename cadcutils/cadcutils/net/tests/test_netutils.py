@@ -78,8 +78,9 @@ def test_get_header_filename():
     assert 'an example.txt' == get_header_filename(
         {'content-disposition': 'INLINE; FILENAME= "an example.txt" '})
 
-    assert '€ rates.txt' == get_header_filename({'content-disposition':
-            "attachment;filename*= UTF-8''%e2%82%ac%20rates.txt"})
+    assert '€ rates.txt' == get_header_filename(
+        {'content-disposition':
+         "attachment;filename*= UTF-8''%e2%82%ac%20rates.txt"})
 
     assert '€ rates.txt' == get_header_filename(
         {'content-disposition': "attachment; filename=\"EURO rates.txt\";"

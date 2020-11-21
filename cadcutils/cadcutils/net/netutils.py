@@ -72,6 +72,7 @@ from __future__ import (absolute_import, division, print_function,
 import re
 from six.moves.urllib.parse import unquote
 
+
 def get_header_filename(headers):
     """
     Extracts the file name from Content-Disposition in the GET response
@@ -83,7 +84,7 @@ def get_header_filename(headers):
     cd = headers.get('content-disposition', None)
     if not cd:
         return None
-    fname = re.findall("filename\*=([^;]+)", cd, flags=re.IGNORECASE)
+    fname = re.findall(r'filename\*=([^;]+)', cd, flags=re.IGNORECASE)
     if not fname:
         fname = re.findall("filename=([^;]+)", cd, flags=re.IGNORECASE)
     if "utf-8''" in fname[0].lower():
