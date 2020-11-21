@@ -19,3 +19,4 @@ net.auth:get_cert_main
 
 from .auth import *  # noqa
 from .ws import *  # noqa
+from .netutils import *  # noqa
