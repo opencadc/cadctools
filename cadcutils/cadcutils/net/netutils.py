@@ -66,6 +66,9 @@
 #
 #
 # ***********************************************************************
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import re
 from six.moves.urllib.parse import unquote
 
@@ -85,9 +88,11 @@ def get_header_filename(headers):
         fname = re.findall("filename=([^;]+)", cd, flags=re.IGNORECASE)
     if "utf-8''" in fname[0].lower():
         fname = re.sub("utf-8''", '', fname[0], flags=re.IGNORECASE)
-        fname = unquote(fname)
         if not isinstance(fname, str):
-            fname = fname.decode('utf8')
+            # TODO remove - this is just for Python2 support
+            fname = unquote(fname.encode('utf-8')).decode('utf-8')
+        else:
+            fname = unquote(fname)
     else:
         fname = fname[0]
     # clean space and double quotes
