@@ -404,8 +404,13 @@ def test_help():
             assert usage == stderr_mock.getvalue()
 
     # get -h
-    with open(os.path.join(TESTDATA_DIR, 'help_get.txt'), 'r') as myfile:
-        usage = myfile.read()
+    # output is different in Python 3.9
+    if sys.version_info >= (3, 9):
+        with open(os.path.join(TESTDATA_DIR, 'help_get_39.txt'), 'r') as myfile:
+            usage = myfile.read()
+    else:
+        with open(os.path.join(TESTDATA_DIR, 'help_get.txt'), 'r') as myfile:
+            usage = myfile.read()
 
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         sys.argv = ['cadc-data', 'get', '--help']

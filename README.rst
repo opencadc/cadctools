@@ -31,7 +31,6 @@ Installing Packages
 
     cd cadcutils && pip install -r ./dev_requirements.txt
     cd cadcdata && pip install -r ./dev_requirements.txt
-    cd cadcetrans && pip install -r ./dev_requirements.txt
     cd cadccutout && pip install -r ./dev_requirements.txt
 
 Testing packages
@@ -71,6 +70,31 @@ not report errors
 
      flake8 cadcutils/cadcutils cadcdata/cadcdata cadcetrans/cadcetrans
      cadccutout/cadccutout
+
+
+Testing with tox
+~~~~~~~~~~~~~~~~
+
+If tox, the generic virtual environment tool, is available it can be used to test with different versions of
+python is isolation. For example, to test on all supported versions of Python in cadcdata (assuming that
+they are available in the system):
+
+::
+
+    cd ./cadcdata && tox
+
+To test a specific version:
+
+::
+
+    cd ./cadcdata && tox -e py37
+
+
+To list all the available environments:
+
+::
+
+    cd ./cadcdata && tox -a
 
 
 Usage Example
