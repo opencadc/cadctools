@@ -497,9 +497,13 @@ class CadcDataClient(object):
                 'lastmod': 'Last-Modified',
                 'usize': 'X-Uncompressed-Length',
                 'umd5sum': 'X-Uncompressed-MD5'}
-        file_info = {'archive': archive}
+        # Add a dictionary elements for archive and keys from file_info that have been renamed for printing.
+        printable_keys = list(hmap.keys())
+        printable_keys.append('archive')
+        file_info = {'archive': archive, '__file_info_keys__': printable_keys}
         for key in hmap:
             file_info[key] = h.get(hmap[key], None)
+            file_info[hmap[key]] = file_info[key]
         if file_info['name'] is not None:
             file_info['name'] = file_info['name'].replace(
                 'inline; filename=', '')
@@ -774,7 +778,7 @@ def main_app():
                         exit_after=False)
                     continue
                 print('File {}:'.format(file_name))
-                for field in sorted(file_info):
+                for field in sorted(file_info.get('__file_info_keys__', file_info.keys())):
                     print('\t {:>10}: {}'.format(field, file_info[field]))
         else:
             logger.info('put')
