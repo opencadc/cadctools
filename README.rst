@@ -4,6 +4,8 @@ cadctools
 .. image:: https://img.shields.io/pypi/pyversions/cadcutils.svg
     :target: https://pypi.python.org/pypi/cadcutils
 
+.. image:: https://github.com/opencadc/cadctools/workflows/CI/badge.svg?branch=master&event=schedule
+
 .. image:: https://img.shields.io/travis/opencadc/cadctools/master.svg
     :target: https://travis-ci.org/opencadc/cadctools?branch=master
 
