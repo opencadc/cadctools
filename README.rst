@@ -33,6 +33,7 @@ Installing Packages
 
     cd cadcutils && pip install -r ./dev_requirements.txt
     cd cadcdata && pip install -r ./dev_requirements.txt
+    cd cadctap && pip install -r ./dev_requirements.txt
     cd cadccutout && pip install -r ./dev_requirements.txt
 
 Testing packages
