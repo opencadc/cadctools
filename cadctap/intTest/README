@@ -4,4 +4,4 @@ own schema. Pass the information to the test script using the following
 environment variables:
 $CADCTAP_SCHEMA
 $CADC_CERT
-To invoke the tests run `python setup.py intTest`
+To invoke the tests run `pytest intTest`

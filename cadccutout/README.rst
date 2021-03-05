@@ -135,19 +135,19 @@ test that way. From inside the dev (working) directory:
 
 Python 3.7:
 
-``docker run --rm -v $(pwd):/usr/src/app opencadc/astroquery:3.7-alpine python setup.py test``
+``docker run --rm -v $(pwd):/usr/src/app opencadc/astroquery:3.7-alpine python pytest cadccutout``
 
 or
 
-``docker run --rm --mount type=bind,source=$(pwd),target=/usr/src/app opencadc/astroquery:3.7-alpine python setup.py test``
+``docker run --rm --mount type=bind,source=$(pwd),target=/usr/src/app opencadc/astroquery:3.7-alpine pytest cadccutout``
 
 Python 2.7:
 
-``docker run --rm -v $(pwd):/usr/src/app opencadc/astroquery:2.7-alpine python setup.py test``
+``docker run --rm -v $(pwd):/usr/src/app opencadc/astroquery:2.7-alpine pytest cadccutout``
 
 or
 
-``docker run --rm --mount type=bind,source=$(pwd),target=/usr/src/app opencadc/astroquery:2.7-alpine python setup.py test``
+``docker run --rm --mount type=bind,source=$(pwd),target=/usr/src/app opencadc/astroquery:2.7-alpine pytest cadccutout``
 
 .. _Astropy GitHub 7856: https://github.com/astropy/astropy/pull/7856
 .. _AstroQuery docker image: https://hub.docker.com/r/opencadc/astroquery/

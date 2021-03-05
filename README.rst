@@ -45,7 +45,7 @@ Testing cadcutils
 ::
 
     cd ./cadcutils
-    python setup.py test
+    pytest cadcutils
 
 Testing cadcdata
 ~~~~~~~~~~~~~~~~
@@ -53,7 +53,15 @@ Testing cadcdata
 ::
 
     cd ./cadcdata
-    python setup.py test
+    python cadcdata
+
+Testing cadctap
+~~~~~~~~~~~~~~~~
+
+::
+
+    cd ./cadcdata
+    python cadctap
 
 Testing cadccutout
 ~~~~~~~~~~~~~~~~
@@ -61,7 +69,7 @@ Testing cadccutout
 ::
 
     cd ./cadccutout
-    python setup.py test
+    pytest cadccutout
 
 
 Checkstyle
@@ -90,7 +98,7 @@ To test a specific version:
 
 ::
 
-    cd ./cadcdata && tox -e py37
+    cd ./cadcdata && tox -e py3.7
 
 
 To list all the available environments:
