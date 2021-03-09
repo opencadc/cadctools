@@ -55,24 +55,6 @@ entry_point_list = conf.items('entry_points')
 for entry_point in entry_point_list:
     entry_points['console_scripts'].append('{0} = {1}'.format(entry_point[0],
                                                               entry_point[1]))
-
-# add the --cov option to the test command
-class PyTest(TestCommand):
-    """class py.test for the testing
-
-    """
-    user_options = []
-
-    def __init__(self, dist, **kw):
-        TestCommand.__init__(self, dist, **kw)
-        self.pytest_args = ['--cov', PACKAGENAME]
-
-    def run_tests(self):
-        # import here, cause outside the eggs aren't loaded
-        import pytest
-        err_no = pytest.main(self.pytest_args)
-        sys.exit(err_no)
-
 # Note that requires and provides should not be included in the call to
 # ``setup``, since these are now deprecated. See this link for more details:
 # https://groups.google.com/forum/#!topic/astropy-dev/urYO8ckB2uM
@@ -100,8 +82,5 @@ setup(name=PACKAGENAME,
         'Programming Language :: Python',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-      ],
-      cmdclass = {
-          'coverage': PyTest,
-      }
+      ]
 )

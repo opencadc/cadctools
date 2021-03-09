@@ -76,6 +76,7 @@ import requests
 from mock import Mock, patch, call, mock_open
 from six import StringIO
 from six.moves.urllib.parse import urlparse
+import tempfile
 
 from cadcutils import exceptions
 from cadcutils import net
@@ -658,6 +659,23 @@ capabilities__content = \
 
 class TestWsCapabilities(unittest.TestCase):
     """Class for testing the webservie client"""
+
+    def test_get_content(self):
+        """
+        Sometimes servers return empty capabilities documents and
+        the client is expected to re-use the cached document
+        :return:
+        """
+        ws_client = Mock(resource_id='SOME_RESOURCE')
+        caps = ws.WsCapabilities(ws_client)
+        now = time.time()
+        resource_file = tempfile.NamedTemporaryFile();
+        open(resource_file.name, 'w').write('OLD CONTENT')
+        with patch('cadcutils.net.ws.requests.get') as mock_get:
+            mock_get.return_value = Mock(text='')
+            assert 'OLD CONTENT' == \
+                   caps._get_content(resource_file.name, 'some/url',
+                                     now-ws.CACHE_REFRESH_INTERVAL-1)
 
     @patch('cadcutils.net.ws.os.path.getmtime')
     @patch('cadcutils.net.ws.open', mock=mock_open())

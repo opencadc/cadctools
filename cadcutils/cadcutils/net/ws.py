@@ -669,6 +669,9 @@ class WsCapabilities(object):
             # get information from the bootstrap registry
             try:
                 content = requests.get(url, timeout=120).text
+                if content is None or len(content.strip(' ')) == 0:
+                    # workaround for a problem with CADC servers
+                    raise exceptions.HttpException('Received empty content')
                 with open(resource_file, 'w') as f:
                     f.write(content)
             except exceptions.HttpException:
