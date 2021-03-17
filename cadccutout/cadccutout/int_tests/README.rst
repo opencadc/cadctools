@@ -58,7 +58,7 @@ Python 2.7
 .. code:: shell
 
    $ cd /path/to/opencadc_cutout/project
-   $ docker run --rm -t -v $(pwd):/usr/src/app -v /path/to/data:/usr/src/data opencadc/astroquery:2.7-alpine python setup.py int_test
+   $ docker run --rm -t -v $(pwd):/usr/src/app -v /path/to/data:/usr/src/data opencadc/astroquery:2.7-alpine pytest cadccutout/int_test
 
 Python 3.7 (Astropy bug prevents 3.x for now. See `Astropy GitHub 7856`_)
 '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
@@ -66,6 +66,6 @@ Python 3.7 (Astropy bug prevents 3.x for now. See `Astropy GitHub 7856`_)
 .. code:: shell
 
    $ cd /path/to/opencadc_cutout/project
-   $ docker run --rm -t -v $(pwd):/usr/src/app -v /path/to/data:/usr/src/data opencadc/astroquery:3.7-alpine python setup.py int_test
+   $ docker run --rm -t -v $(pwd):/usr/src/app -v /path/to/data:/usr/src/data opencadc/astroquery:3.7-alpine pytest cadccutout/int_test
 
 .. _Astropy GitHub 7856: https://github.com/astropy/astropy/pull/7856

@@ -4,8 +4,8 @@ cadctools
 .. image:: https://img.shields.io/pypi/pyversions/cadcutils.svg
     :target: https://pypi.python.org/pypi/cadcutils
 
-.. image:: https://img.shields.io/travis/opencadc/cadctools/master.svg
-    :target: https://travis-ci.org/opencadc/cadctools?branch=master
+.. image:: https://github.com/opencadc/cadctools/workflows/CI/badge.svg?branch=master&event=schedule
+    :target: https://github.com/opencadc/cadctools/workflows
 
 .. image:: https://img.shields.io/coveralls/opencadc/cadctools/master.svg
     :target: https://coveralls.io/github/opencadc/cadctools?branch=master
@@ -31,7 +31,7 @@ Installing Packages
 
     cd cadcutils && pip install -r ./dev_requirements.txt
     cd cadcdata && pip install -r ./dev_requirements.txt
-    cd cadcetrans && pip install -r ./dev_requirements.txt
+    cd cadctap && pip install -r ./dev_requirements.txt
     cd cadccutout && pip install -r ./dev_requirements.txt
 
 Testing packages
@@ -43,7 +43,7 @@ Testing cadcutils
 ::
 
     cd ./cadcutils
-    python setup.py test
+    pytest cadcutils
 
 Testing cadcdata
 ~~~~~~~~~~~~~~~~
@@ -51,7 +51,15 @@ Testing cadcdata
 ::
 
     cd ./cadcdata
-    python setup.py test
+    python cadcdata
+
+Testing cadctap
+~~~~~~~~~~~~~~~~
+
+::
+
+    cd ./cadcdata
+    python cadctap
 
 Testing cadccutout
 ~~~~~~~~~~~~~~~~
@@ -59,7 +67,7 @@ Testing cadccutout
 ::
 
     cd ./cadccutout
-    python setup.py test
+    pytest cadccutout
 
 
 Checkstyle
@@ -71,6 +79,31 @@ not report errors
 
      flake8 cadcutils/cadcutils cadcdata/cadcdata cadcetrans/cadcetrans
      cadccutout/cadccutout
+
+
+Testing with tox
+~~~~~~~~~~~~~~~~
+
+If tox, the generic virtual environment tool, is available it can be used to test with different versions of
+python is isolation. For example, to test on all supported versions of Python in cadcdata (assuming that
+they are available in the system):
+
+::
+
+    cd ./cadcdata && tox
+
+To test a specific version:
+
+::
+
+    cd ./cadcdata && tox -e py3.7
+
+
+To list all the available environments:
+
+::
+
+    cd ./cadcdata && tox -a
 
 
 Usage Example

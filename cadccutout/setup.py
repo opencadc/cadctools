@@ -57,45 +57,6 @@ for entry_point in entry_point_list:
     entry_points['console_scripts'].append('{0} = {1}'.format(entry_point[0],
                                                               entry_point[1]))
 
-# add the --cov option to the test command
-
-
-class PyTest(TestCommand):
-    """
-    Class py.test for the testing
-    """
-    user_options = []
-
-    def __init__(self, dist, **kw):
-        TestCommand.__init__(self, dist, **kw)
-        self.pytest_args = ['--cov', PACKAGENAME, '--disable-warnings']
-
-    def run_tests(self):
-        # import here, cause outside the eggs aren't loaded
-        import pytest
-        err_no = pytest.main(self.pytest_args)
-        sys.exit(err_no)
-
-
-class PyIntTest(TestCommand):
-    """
-    Class py.test for the int testing
-    """
-    user_options = []
-
-    def __init__(self, dist, **kw):
-        THIS_DIR = os.path.dirname(os.path.realpath(__file__))
-        INT_TEST_DIR = os.path.join(THIS_DIR, PACKAGENAME, 'int_tests')
-        TestCommand.__init__(self, dist, **kw)
-        self.pytest_args = [str(INT_TEST_DIR)]
-
-    def run_tests(self):
-        # import here, cause outside the eggs aren't loaded
-        import pytest
-        err_no = pytest.main(self.pytest_args)
-        sys.exit(err_no)
-
-
 install_requires = metadata.get('install_requires', '').strip().split()
 all_install_requires = [install_requires]
 dependency_links = metadata.get('dependency_links', '').strip().split()
@@ -129,8 +90,5 @@ setup(name=PACKAGENAME,
           'Programming Language :: Python',
           'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3',
-      ],
-      cmdclass={
-          'coverage': PyTest, 'int_test': PyIntTest
-      }
+      ]
       )
