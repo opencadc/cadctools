@@ -78,10 +78,10 @@ jobs:
         uses: codecov/codecov-action@v1
         with:
           files: 
-            ./cadcutils/coverage.xml
-            ./cadcdata/coverage.xml
-            ./cadctap/coverage.xml
-            ./cadccutout/coverage.xml
+            cadcutils/coverage.xml
+            cadcdata/coverage.xml
+            cadctap/coverage.xml
+            cadccutout/coverage.xml
        
   build-n-publish:
     name: Build and publish to PyPI
