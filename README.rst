@@ -5,9 +5,7 @@ cadctools
     :target: https://pypi.python.org/pypi/cadcutils
 
 .. image:: https://github.com/opencadc/cadctools/workflows/CI/badge.svg?branch=master&event=schedule
-
-.. image:: https://img.shields.io/travis/opencadc/cadctools/master.svg
-    :target: https://travis-ci.org/opencadc/cadctools?branch=master
+    :target: https://github.com/opencadc/cadctools/workflows
 
 .. image:: https://img.shields.io/coveralls/opencadc/cadctools/master.svg
     :target: https://coveralls.io/github/opencadc/cadctools?branch=master

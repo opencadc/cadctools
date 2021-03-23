@@ -312,17 +312,18 @@ def get_cert_main():
     args = parser.parse_args()
 
     dirname = os.path.dirname(args.cert_filename)
-    try:
-        os.makedirs(dirname)
-    except OSError as oex:
-        if os.path.isdir(dirname):
-            pass
-        elif oex.errno == 20 or oex.errno == 17:
-            sys.stderr.write("%s : %s\n" % (str(oex), dirname))
-            sys.stderr.write("Expected %s to be a directory.\n" % dirname)
-            sys.exit(oex.errno)
-        else:
-            raise oex
+    if dirname:
+        try:
+            os.makedirs(dirname)
+        except OSError as oex:
+            if os.path.isdir(dirname):
+                pass
+            elif oex.errno == 20 or oex.errno == 17:
+                sys.stderr.write("%s : %s\n" % (str(oex), dirname))
+                sys.stderr.write("Expected %s to be a directory.\n" % dirname)
+                sys.exit(oex.errno)
+            else:
+                raise oex
 
     try:
         subject = Subject.from_cmd_line_args(args)

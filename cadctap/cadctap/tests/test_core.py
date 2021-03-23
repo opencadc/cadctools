@@ -605,7 +605,7 @@ def test_query(caps_get_mock, base_post_mock):
         '{}/{}'.format(BASE_URL, 'sync')
 
     base_post_mock.reset_mock()
-    response.iter_content.return_value = [b'Val1\n', b'Val2\n']
+    response.iter_content.return_value = [b'Col1\n', b'Val1\n', b'Val2\n']
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         client.query('query', data_only=True, response_format='tsv')
     assert stdout_mock.getvalue() == 'Val1\nVal2\n'

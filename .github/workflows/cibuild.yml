@@ -77,11 +77,7 @@ jobs:
       - name: Upload coverage to codecov
         uses: codecov/codecov-action@v1
         with:
-          file: 
-            ./cadcutils/coverage.xml
-            ./cadcdata/coverage.xml
-            ./cadctap/coverage.xml
-            ./cadccutout/coverage.xml
+          files: ./cadcutils/coverage.xml,./cadcdata/coverage.xml,./cadctap/coverage.xml,./cadccutout/coverage.xml
        
   build-n-publish:
     name: Build and publish to PyPI

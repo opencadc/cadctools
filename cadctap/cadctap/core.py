@@ -402,11 +402,15 @@ class CadcTapClient(object):
                                        'Content-Type': m.content_type},
                                    stream=True, timeout=timeout*60) as result:
             with smart_open(output_file, response_format) as f:
+                header = True
                 if data_only or response_format == 'VOTable':
                     for chunk in result.iter_content(chunk_size=8192):
                         if chunk:  # filter out keep-alive new chunks
                             if response_format != 'VOTable':
                                 chunk = chunk.decode('utf-8')
+                                if header and '\n' in chunk:
+                                    chunk = chunk[chunk.index('\n')+1:]
+                                    header = False
                             f.write(chunk)
                     return
                 header = True
