@@ -112,5 +112,7 @@ jobs:
         TWINE_PASSWORD: ${{ secrets.PYPI_PUBLISH_PWORD }}
       run: |
         cd ${{ env.repo_name }}
+        ls dist/
         python setup.py sdist bdist_wheel
+        ls dist/
         twine upload dist/*
