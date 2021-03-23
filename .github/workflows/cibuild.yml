@@ -113,5 +113,4 @@ jobs:
       run: |
         cd ${{ env.repo_name }}
         python setup.py sdist bdist_wheel
-        ls dist/
         twine upload --skip-existing dist/*
