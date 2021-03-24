@@ -357,7 +357,8 @@ class CadcTapClient(object):
                 logger.info('Done uploading file {}'.format(fh.name))
 
     def query(self, query, output_file=None, response_format='VOTable',
-              tmptable=None, lang='ADQL', timeout=2, data_only=False):
+              tmptable=None, lang='ADQL', timeout=2, data_only=False,
+              no_column_names=False):
         """
         Send query to database and output or save results
         :param query: the query to send to the database
@@ -368,7 +369,8 @@ class CadcTapClient(object):
         :param lang: the language to use for the query (should be ADQL)
         :param timeout: time in minutes before the query should timeout when no
         response receive from server.
-        :param data_only: print only data - no headers or footers
+        :param data_only: print only data with name of columns
+        :param no_column_name: print just data with no column names
         """
         pass
         if not query:
@@ -403,12 +405,12 @@ class CadcTapClient(object):
                                    stream=True, timeout=timeout*60) as result:
             with smart_open(output_file, response_format) as f:
                 header = True
-                if data_only or response_format == 'VOTable':
+                if data_only or no_column_names or response_format == 'VOTable':
                     for chunk in result.iter_content(chunk_size=8192):
                         if chunk:  # filter out keep-alive new chunks
                             if response_format != 'VOTable':
                                 chunk = chunk.decode('utf-8')
-                                if header and '\n' in chunk:
+                                if header and no_column_names and '\n' in chunk:
                                     chunk = chunk[chunk.index('\n')+1:]
                                     header = False
                             f.write(chunk)
@@ -1237,7 +1239,7 @@ def main_app(command='cadc-tap query'):
             else:
                 query = args.QUERY
             client.query(query, args.output_file, args.format, args.tmptable,
-                         timeout=args.timeout, data_only=args.quiet)
+                         timeout=args.timeout, no_column_names=args.quiet)
         elif args.cmd == 'schema':
             client.schema(args.tablename)
         elif args.cmd == 'permission':
