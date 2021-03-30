@@ -5,10 +5,10 @@ cadctools
     :target: https://pypi.python.org/pypi/cadcutils
 
 .. image:: https://github.com/opencadc/cadctools/workflows/CI/badge.svg?branch=master&event=schedule
-    :target: https://github.com/opencadc/cadctools/workflows
+    :target: https://github.com/opencadc/cadctools/actions?query=event%3Aschedule+
 
-.. image:: https://img.shields.io/coveralls/opencadc/cadctools/master.svg
-    :target: https://coveralls.io/github/opencadc/cadctools?branch=master
+.. image:: https://codecov.io/gh/opencadc/cadctools/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/opencadc/cadctools
 
 .. image:: https://img.shields.io/github/contributors/opencadc/cadctools.svg
     :target: https://github.com/opencadc/cadctools/graphs/contributors
