@@ -430,8 +430,6 @@ class RetrySession(Session):
                     requests.codes.gateway_timeout,
                     requests.codes.request_timeout,
                     requests.codes.timeout,
-                    requests.codes.precondition_failed,
-                    requests.codes.precondition,
                     requests.codes.payment_required,
                     requests.codes.payment]
 
