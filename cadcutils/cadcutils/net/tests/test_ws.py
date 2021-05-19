@@ -741,7 +741,8 @@ class TestWsCapabilities(unittest.TestCase):
         get_mock.side_effect = [exceptions.HttpException()]
         client.get.side_effect = [exceptions.HttpException]
         caps = ws.WsCapabilities(client)
-        self.assertEqual(resource_cap_url2, caps._get_capability_url())
+        with patch('os.path.exists', Mock()):
+            self.assertEqual(resource_cap_url2, caps._get_capability_url())
 
     @patch('cadcutils.net.ws.os.path.getmtime')
     @patch('cadcutils.net.ws.requests.Session.get')
