@@ -380,6 +380,8 @@ class BaseWsClient(object):
         if self._session is None:
             self.logger.debug('Creating session.')
             self._session = RetrySession(self.retry)
+            # prevent requests from using .netrc
+            self._session.trust_env = False
             if self.subject.certificate is not None:
                 self._session.cert = (
                     self.subject.certificate, self.subject.certificate)
@@ -666,21 +668,28 @@ class WsCapabilities(object):
         if content is None:
             # get information from the bootstrap registry
             try:
-                content = requests.get(url, timeout=120).text
+                session = requests.Session()
+                # do not allow requests to use .netrc file
+                session.trust_env = False
+                rsp = session.get(url)
+                rsp.raise_for_status()
+                content = rsp.text
                 if content is None or len(content.strip(' ')) == 0:
                     # workaround for a problem with CADC servers
                     raise exceptions.HttpException('Received empty content')
                 with open(resource_file, 'w') as f:
                     f.write(content)
-            except exceptions.HttpException:
+            except exceptions.HttpException as e:
                 # problems with the bootstrap registry. Try to use the old
                 # local one regardless of how old it is
-                with open(resource_file, 'r') as f:
-                    content = f.read()
+                self.logger.error("ERROR: cannot read registry info from " +
+                                  url + ": " + str(e))
+                if os.path.exists(resource_file):
+                    with open(resource_file, 'r') as f:
+                        content = f.read()
         if content is None:
             raise RuntimeError(
-                "Cannot get the registry info from either"
-                "local or remote source")
+                "Cannot get the registry info for resource " + url)
         return content
 
     def _get_capability_url(self):

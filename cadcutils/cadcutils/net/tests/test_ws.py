@@ -671,7 +671,7 @@ class TestWsCapabilities(unittest.TestCase):
         now = time.time()
         resource_file = tempfile.NamedTemporaryFile();
         open(resource_file.name, 'w').write('OLD CONTENT')
-        with patch('cadcutils.net.ws.requests.get') as mock_get:
+        with patch('cadcutils.net.ws.requests.Session.get') as mock_get:
             mock_get.return_value = Mock(text='')
             assert 'OLD CONTENT' == \
                    caps._get_content(resource_file.name, 'some/url',
@@ -679,7 +679,7 @@ class TestWsCapabilities(unittest.TestCase):
 
     @patch('cadcutils.net.ws.os.path.getmtime')
     @patch('cadcutils.net.ws.open', mock=mock_open())
-    @patch('cadcutils.net.ws.requests.get')
+    @patch('cadcutils.net.ws.requests.Session.get')
     def test_get_reg(self, get_mock, file_mock, file_modtime_mock):
         """
         Tests the registry part of WsCapabilities
@@ -744,7 +744,7 @@ class TestWsCapabilities(unittest.TestCase):
         self.assertEqual(resource_cap_url2, caps._get_capability_url())
 
     @patch('cadcutils.net.ws.os.path.getmtime')
-    @patch('cadcutils.net.ws.requests.get')
+    @patch('cadcutils.net.ws.requests.Session.get')
     def test_get_caps(self, get_mock, file_modtime_mock):
         """
         Tests the capabilities part of WsCapabilities

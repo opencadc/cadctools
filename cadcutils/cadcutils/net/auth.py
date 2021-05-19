@@ -207,7 +207,7 @@ class Subject(object):
         """
         Returns a user/password touple for the given realm. Note that this
         function prompts for the password on stdout when the username of the
-        subject is known but no correponding password can be found
+        subject is known but no corresponding password can be found
 
         :param realm: realm for the authentication
         :return: (username, password) touple or None if subject is anonymous
