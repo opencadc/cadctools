@@ -7,3 +7,4 @@ funcsigs==1.0.2
 mock>=2.0.0
 xml-compare>=1.0.5
 unittest2>=1.1.0
+pytest-runner
