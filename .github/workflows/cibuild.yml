@@ -38,7 +38,7 @@ jobs:
       matrix:
         #TODO 2.7 fails on GH Actions but cannot be reproduced locally. Disabled for now.
         # python-version: [2.7,3.5,3.6,3.7,3.8,3.9]
-        python-version: [3.5,3.6,3.7,3.8,3.9]
+        python-version: [3.6,3.7,3.8,3.9]
         # cadccutout is left out since it does not support all the above python versions
         package: [cadcutils, cadcdata, cadctap]
     steps:
