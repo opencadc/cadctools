@@ -86,7 +86,7 @@ DIRECTION_PROTOCOL_MAP = {'pushToVoSpace': [PROTOCOL_HTTP_PUT,
                                               PROTOCOL_HTTPS_GET]}
 
 # supported transfer schemes
-TRANSFER_SCHEMES = ['vos', 'ad', 'mast']
+TRANSFER_SCHEMES = ['vos', 'ad', 'mast', 'cadc']
 
 # The list of NODE_PROPERTIES is extensive. Any properties listed here are
 # simply special ones that we plan to handle (e.g., length can only be set in
