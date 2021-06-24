@@ -197,7 +197,7 @@ class BaseWsClient(object):
        """
 
     def __init__(self, resource_id, subject, agent, retry=True, host=None,
-                 session_headers=None):
+                 session_headers=None, insecure=False):
         """
         Client constructor
         :param resource_id -- ID of the resource being accessed (URI format)
@@ -213,6 +213,7 @@ class BaseWsClient(object):
         (for testing purposes)
         :param session_headers -- Headers used throughout the session -
         dictionary format expected.
+        :param insecure -- Allow insecure connections over SSL
         """
 
         self.logger = logging.getLogger('BaseWsClient')
@@ -228,6 +229,7 @@ class BaseWsClient(object):
         self.resource_id = resource_id
         self.retry = retry
         self.session_headers = session_headers
+        self.verify = not insecure
 
         # agent is / delimited key value pairs, separated by a space,
         # containing the application name and version,
@@ -291,7 +293,8 @@ class BaseWsClient(object):
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
         """
-        return self._get_session().post(self._get_url(resource), **kwargs)
+        return self._get_session().post(self._get_url(resource),
+                                        verify=self.verify, **kwargs)
 
     def put(self, resource=None, **kwargs):
         """Wrapper for PUT so that we use this client's session
@@ -303,7 +306,8 @@ class BaseWsClient(object):
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
         """
-        return self._get_session().put(self._get_url(resource), **kwargs)
+        return self._get_session().put(self._get_url(resource),
+                                       verify=self.verify, **kwargs)
 
     def get(self, resource, params=None, **kwargs):
         """Wrapper for GET so that we use this client's session
@@ -316,7 +320,7 @@ class BaseWsClient(object):
            :returns response as received from the request library
         """
         return self._get_session().get(self._get_url(resource), params=params,
-                                       **kwargs)
+                                       verify=self.verify, **kwargs)
 
     def delete(self, resource=None, **kwargs):
         """Wrapper for DELETE so that we use this client's session
@@ -327,7 +331,8 @@ class BaseWsClient(object):
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
         """
-        return self._get_session().delete(self._get_url(resource), **kwargs)
+        return self._get_session().delete(self._get_url(resource),
+                                          verify=self.verify, **kwargs)
 
     def head(self, resource=None, **kwargs):
         """Wrapper for HEAD so that we use this client's session
@@ -338,7 +343,8 @@ class BaseWsClient(object):
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
         """
-        return self._get_session().head(self._get_url(resource), **kwargs)
+        return self._get_session().head(self._get_url(resource),
+                                        verify=self.verify, **kwargs)
 
     def is_available(self):
         """
@@ -671,7 +677,7 @@ class WsCapabilities(object):
                 session = requests.Session()
                 # do not allow requests to use .netrc file
                 session.trust_env = False
-                rsp = session.get(url)
+                rsp = session.get(url, verify=self.ws.verify)
                 rsp.raise_for_status()
                 content = rsp.text
                 if content is None or len(content.strip(' ')) == 0:

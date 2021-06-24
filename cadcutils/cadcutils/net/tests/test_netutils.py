@@ -68,7 +68,12 @@
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
-from cadcutils.net import get_header_filename
+import pytest
+from mock import patch, Mock, MagicMock, call
+from requests.utils import CaseInsensitiveDict
+import base64
+
+from cadcutils.net import get_header_filename, extract_md5, Transfer
 
 
 def test_get_header_filename():
@@ -85,3 +90,115 @@ def test_get_header_filename():
     assert '€ rates.txt' == get_header_filename(
         {'content-disposition': "attachment; filename=\"EURO rates.txt\";"
                                 "filename*=utf-8''%e2%82%ac%20rates.txt"})
+
+
+def test_extract_md5():
+    md5checksum = '0x12345'
+    headers = CaseInsensitiveDict()
+    headers['digest'] = 'md5={}'.format(
+        base64.b64encode(md5checksum.encode('ascii')).decode('ascii'))
+    assert md5checksum == extract_md5(headers=headers)
+
+
+# patch sleep to stop the test from sleeping and slowing down execution
+@patch('cadcutils.net.netutils.time.sleep', MagicMock(), create=True)
+def test_transfer_error():
+    session = Mock()
+    testservice_url = 'https://sometestservice.server/testservice'
+
+    session.get.side_effect = [Mock(text='COMPLETED'),
+                               Mock(text='COMPLETED')]
+    test_target = Transfer(session=session)
+
+    # job successfully completed
+    assert not test_target.get_transfer_error(
+        testservice_url + '/results/transferDetails', 'vos://testservice')
+    session.get.assert_called_with(testservice_url + '/phase',
+                                   allow_redirects=True)
+
+    # job suspended
+    session.reset_mock()
+    session.get.side_effect = [Mock(text='COMPLETED'),
+                               Mock(text='ABORTED')]
+    with pytest.raises(OSError):
+        test_target.get_transfer_error(
+            testservice_url + '/results/transferDetails', 'vos://testservice')
+    # check arguments for session.get calls
+
+    session.get.assert_has_calls(
+        [call(testservice_url + '/phase', allow_redirects=True),
+         call(testservice_url + '/phase', allow_redirects=True)])
+
+    # job encountered an internal error
+    session.reset_mock()
+    session.get.side_effect = [Mock(text='COMPLETED'),
+                               Mock(text='ERROR'),
+                               Mock(text='InternalFault')]
+    with pytest.raises(OSError):
+        test_target.get_transfer_error(
+            testservice_url + '/results/transferDetails', 'vos://testservice')
+    session.get.assert_has_calls(
+        [call(testservice_url + '/phase', allow_redirects=True),
+         call(testservice_url + '/phase', allow_redirects=True),
+         call(testservice_url + '/error')])
+
+    # job encountered an unsupported link error
+    session.reset_mock()
+    link_file = 'testlink.fits'
+    session.get.side_effect = [Mock(text='COMPLETED'),
+                               Mock(text='ERROR'),
+                               Mock(
+                                   text="Unsupported link target: " +
+                                        link_file)]
+    assert link_file == test_target.get_transfer_error(
+        testservice_url + '/results/transferDetails', 'vos://testservice')
+    session.get.assert_has_calls(
+        [call(testservice_url + '/phase', allow_redirects=True),
+         call(testservice_url + '/phase', allow_redirects=True),
+         call(testservice_url + '/error')])
+
+
+def test_transfer():
+    session = Mock()
+    redirect_response = Mock()
+    redirect_response.status_code = 303
+    redirect_response.headers = \
+        {'Location': 'https://transfer.host/transfer'}
+    response = Mock()
+    response.status_code = 200
+    response.text = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<vos:transfer xmlns:vos="http://www.ivoa.net/xml/VOSpace/v2.0" '
+        'version="2.1">'
+        '<vos:target>vos://some.host~vault/abc</vos:target>'
+        '<vos:direction>pullFromVoSpace</vos:direction>'
+        '<vos:protocol uri="ivo://ivoa.net/vospace/core#httpsget">'
+        '<vos:endpoint>https://transfer.host/transfer/abc</vos:endpoint>'
+        '<vos:securityMethod '
+        'uri="ivo://ivoa.net/sso#tls-with-certificate" />'
+        '</vos:protocol>'
+        '<vos:keepBytes>true</vos:keepBytes>'
+        '</vos:transfer>')
+    session.post.return_value = redirect_response
+    session.get.return_value = response
+    test_transfer = Transfer(session=session)
+    test_transfer.get_transfer_error = Mock()  # not transfer error
+    protocols = test_transfer.transfer(
+        'https://some.host/service', 'vos://abc', 'pullFromVoSpace')
+    assert protocols == ['https://transfer.host/transfer/abc']
+
+    session.reset_mock()
+    session.post.return_value = Mock(status_code=404)
+    with pytest.raises(OSError) as e:
+        test_transfer.transfer(
+            'https://some.host/service', 'vos://abc',
+            'pullFromVoSpace')
+        assert 'File not found: vos://abc' == str(e)
+
+    session.reset_mock()
+    session.post.return_value = Mock(status_code=500)
+    with pytest.raises(OSError) as e:
+        test_transfer.transfer(
+            'https://some.host/service', 'vos://abc',
+            'pullFromVoSpace')
+        assert 'Failed to get transfer service response.' == str(e)

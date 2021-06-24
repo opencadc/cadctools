@@ -69,7 +69,8 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import sys
 import inspect
-from argparse import ArgumentParser, RawDescriptionHelpFormatter
+from argparse import ArgumentParser, RawDescriptionHelpFormatter, SUPPRESS, \
+    Action
 from datetime import datetime
 from six.moves.urllib.parse import urlparse
 from operator import attrgetter
@@ -281,7 +282,8 @@ class _CustomArgParser(ArgumentParser):
 
 
 def get_base_parser(subparsers=True, version=None, usecert=True,
-                    default_resource_id=None, auth_required=False):
+                    default_resource_id=None, auth_required=False,
+                    service=None):
     """
     An ArgumentParser with some common things most CADC clients will want.
     There are two modes to use this parser: with or without subparsers.
@@ -294,9 +296,11 @@ def get_base_parser(subparsers=True, version=None, usecert=True,
     otherwise False
     :param version: A version number if desired.
     :param usecert: If True add '--cert' argument.
-    :param default_resource_id: default resource identifier to use
+    :param default_resource_id: default resource identifier to use. (deprecated
+    in favour of service argument)
     :param auth_required: At least one of the authentication options is
     required
+    :param service: Alias of resource_id
     :return: An ArgumentParser instance.
     """
     cparser = ArgumentParser(add_help=False,
@@ -316,24 +320,31 @@ def get_base_parser(subparsers=True, version=None, usecert=True,
                             help='name of user to authenticate. ' +
                                  'Note: application prompts for the '
                                  'corresponding password!')
-    cparser.add_argument('--host',
-                         help='base hostname for services - used mainly '
-                              'for testing (default: '
-                              'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)',
-                         default='www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')
-    if default_resource_id is None:
-        cparser.add_argument('--resource-id',
-                             type=urlparse, required=True,
-                             help='resource identifier '
-                                  '(e.g. ivo://cadc.nrc.ca/service)')
+    cparser.add_argument('--host', help=SUPPRESS)
+    cparser.add_argument('-k', '--insecure', action='store_true',
+                         help=SUPPRESS)
+    if service is None:
+        if default_resource_id is None:
+            cparser.add_argument('--resource-id',
+                                 type=urlparse, required=True,
+                                 help='resource identifier '
+                                      '(e.g. ivo://cadc.nrc.ca/service)')
+        else:
+            cparser.add_argument('--resource-id', type=parse_resource_id,
+                                 default=default_resource_id,
+                                 help='resource identifier (default {})'.
+                                 format(default_resource_id))
     else:
-        cparser.add_argument('--resource-id', type=parse_resource_id,
-                             default=default_resource_id,
-                             help='resource identifier (default {})'.format(
-                                 default_resource_id))
+        cparser.add_argument(
+            '-s', '--service', action=_ServiceAction,
+            default=service,
+            help='identifier of service this command accesses. Both short x`'
+                 'form (<service>) or the complete one '
+                 '(ivo://cadc.nrc.ca/<service>) of the unique URI are accepted'
+                 '. Default is: {}'.format(service))
     log_group = cparser.add_mutually_exclusive_group()
     log_group.add_argument('-d', '--debug', action='store_true',
-                           help='debug messages')
+                           help=SUPPRESS)
     log_group.add_argument('-q', '--quiet', action='store_true',
                            help='run quietly')
     log_group.add_argument('-v', '--verbose', action='store_true',
@@ -342,3 +353,15 @@ def get_base_parser(subparsers=True, version=None, usecert=True,
     argparser = _CustomArgParser(subparsers=subparsers, common_parser=cparser,
                                  version=version)
     return argparser
+
+
+class _ServiceAction(Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        super(_ServiceAction, self).__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if not values.startswith('ivo://'):
+            values = 'ivo://cadc.nrc.ca/{}'.format(values)
+        setattr(namespace, self.dest, values)
