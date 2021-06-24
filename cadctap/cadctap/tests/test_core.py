@@ -814,89 +814,81 @@ class TestCadcTapClient(unittest.TestCase):
                     exit_on_exception(ex)
                 self.assertTrue(expected_message in stderr_mock.getvalue())
 
-    @patch('cadctap.CadcTapClient.set_permissions')
-    @patch('cadctap.CadcTapClient.load')
-    @patch('cadctap.CadcTapClient.create_index')
-    @patch('cadctap.CadcTapClient.delete_table')
-    @patch('cadctap.CadcTapClient.create_table')
-    @patch('cadctap.CadcTapClient.query')
-    @patch('cadctap.CadcTapClient.schema')
-    @patch('cadcutils.net.ws.WsCapabilities.get_access_url', Mock())
-    def test_main(self, schema_mock, query_mock, create_mock,
-                  delete_mock, index_mock, load_mock, permissions_mock):
+    @patch('cadctap.core.CadcTapClient')
+    def test_main(self, client_mock):
         sys.argv = ['cadc-tap', 'schema']
         main_app()
         calls = [call(None)]
-        schema_mock.assert_has_calls(calls)
+        client_mock.return_value.schema.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'schema', 'mytable']
         main_app()
         calls = [call('mytable')]
-        schema_mock.assert_has_calls(calls)
+        client_mock.return_value.schema.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'create', '-d', 'tablename', 'path/to/file']
         main_app()
         calls = [call('tablename', 'path/to/file', 'VOSITable')]
-        create_mock.assert_has_calls(calls)
+        client_mock.return_value.create_table.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'index', '-v', 'tablename', 'columnName']
         main_app()
         calls = [call('tablename', 'columnName', False)]
-        index_mock.assert_has_calls(calls)
+        client_mock.return_value.create_index.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'load', 'tablename', 'path/to/file']
         main_app()
         calls = [call('tablename', ['path/to/file'], 'tsv')]
-        load_mock.assert_has_calls(calls)
+        client_mock.return_value.load.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice', 'QUERY']
         main_app()
         calls = [call('QUERY', None, 'tsv', None, no_column_names=False, timeout=2)]
-        query_mock.assert_has_calls(calls)
+        client_mock.return_value.query.assert_has_calls(calls)
 
-        query_mock.reset_mock()
+        client_mock.reset_mock()
         sys.argv = ['cadc-tap', 'query', '-q', '-s', 'http://someservice',
                     'QUERY']
         main_app()
         calls = [call('QUERY', None, 'tsv', None, no_column_names=True, timeout=2)]
-        query_mock.assert_has_calls(calls)
+        client_mock.return_value.query.assert_has_calls(calls)
 
-        query_mock.reset_mock()
+        client_mock.reset_mock()
         sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice',
                     '--timeout', '7', 'QUERY']
         main_app()
         calls = [call('QUERY', None, 'tsv', None, no_column_names=False, timeout=7)]
-        query_mock.assert_has_calls(calls)
+        client_mock.return_value.query.assert_has_calls(calls)
 
-        query_mock.reset_mock()
+        client_mock.reset_mock()
         query_file = os.path.join(TESTDATA_DIR, 'example_query.sql')
         sys.argv = ['cadc-tap', 'query', '-i', query_file, '-s', 'tap']
         main_app()
         calls = [call('SELECT TOP 10 target_name FROM caom2.Observation', None,
                       'tsv', None, no_column_names=False, timeout=2)]
-        query_mock.assert_has_calls(calls)
+        client_mock.return_value.query.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'permission', 'o+r', 'table']
         main_app()
         calls = [call('table', read_anon=True, read_only=None,
                       read_write=None)]
-        permissions_mock.assert_has_calls(calls)
+        client_mock.return_value.set_permissions.assert_has_calls(calls)
 
-        permissions_mock.reset_mock()
+        client_mock.reset_mock()
         sys.argv = ['cadc-tap', 'permission', 'g+rw', 'table', 'CADC1',
                     'CADC2']
         main_app()
         calls = [call('table', read_anon=None,
                       read_only='ivo://cadc.nrc.ca/gms?CADC1',
                       read_write='ivo://cadc.nrc.ca/gms?CADC2')]
-        permissions_mock.assert_has_calls(calls)
+        client_mock.return_value.set_permissions.assert_has_calls(calls)
 
-        permissions_mock.reset_mock()
+        client_mock.reset_mock()
         sys.argv = ['cadc-tap', 'permission', 'og-r', 'table']
         main_app()
         calls = [call('table', read_anon=False, read_only='',
                       read_write=None)]
-        permissions_mock.assert_has_calls(calls)
+        client_mock.return_value.set_permissions.assert_has_calls(calls)
 
     @patch('cadctap.CadcTapClient.query')
     @patch('cadcutils.net.ws.WsCapabilities.get_access_url')
