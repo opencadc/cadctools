@@ -46,4 +46,4 @@ inter processes communication to determine the result of running the command.
 """
 
 from .core import *   # noqa
-from .storageinv import *   # noqa
+#from .storageinv import *   # noqa
