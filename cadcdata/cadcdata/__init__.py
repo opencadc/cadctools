@@ -2,7 +2,7 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 
 """
-This package implements a client for access the CADC Storage Inventory Web
+This package implements a client for accessing the CADC Storage Inventory Web
 services (SI)
 
 The package can be used as a library as well as through the
@@ -10,20 +10,18 @@ cadc[get|put|info|remove] commands it installs.
 
 1. Instantiate StorageInventoryClient and use it to access the SI WS.
 
-The only mandatory argument that the StorageInventoryClient constructor takes
-is a cadcutils.net.Subject that holds the user credentials. The SI WS is
-accessed through the cadcget, cadcput, cadcinfo and cadcremove functions of the
-client.
+The SI WS is accessed through the cadcget, cadcput, cadcinfo and cadcremove
+methods of the client.
 
 Example:
    from cadcdata import StorageInventoryClient
    from cadcutils import net
 
-   client = StorageInventoryClient(net.Subject())
+   client = StorageInventoryClient()
    print(client.cadcinfo('gemini:GEMINI/00AUG02_002.fits'))
 
-2. Invoke the cadc* entry point functions. These are the functions that
-is used to generate the cadc-data application
+2. Invoke the cadc* entry point functions. These are the functions
+corresponding to the command line applications (cadcget, cadcput, etc.).
 
 Example:
    from cadcdata import cadcinfo_cli
@@ -32,7 +30,7 @@ Example:
    sys.argv = ['cadcinfo', 'gemini:GEMINI/00AUG02_002.fits']
    cadcinfo_cli()
 
-3. Invoke cadc* as external OS command
+3. Invoke the installed cadc* command through the OS
 Example:
    import os
    os.system('cadcget gemini:GEMINI/00AUG02_002.fits')
