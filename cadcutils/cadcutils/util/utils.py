@@ -362,6 +362,6 @@ class _ServiceAction(Action):
         super(_ServiceAction, self).__init__(option_strings, dest, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        if not values.startswith('ivo://'):
+        if not (values.startswith('ivo://') or (values.startswith('http'))):
             values = 'ivo://cadc.nrc.ca/{}'.format(values)
         setattr(namespace, self.dest, values)
