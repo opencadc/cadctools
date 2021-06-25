@@ -39,10 +39,11 @@ optional arguments:
                         write query results to file (default is to STDOUT)
   -q, --quiet           run quietly
   -s, --service SERVICE
-                        identifier of service this command accesses. Both
-                        short x`form (<service>) or the complete one
-                        (ivo://cadc.nrc.ca/<service>) of the unique URI are
-                        accepted. Default is: ivo://cadc.nrc.ca/youcat
+                        service this command accesses. Both IDs in short form
+                        (<service>) or the complete one
+                        (ivo://cadc.nrc.ca/<service>) and actual URLs to the
+                        root of the service (https://someurl/service). Default
+                        is: ivo://cadc.nrc.ca/youcat
   --timeout TIMEOUT     query timeout in minutes. Default 2min
   -t, --tmptable TMPTABLE
                         Temp table upload, the value is in format:

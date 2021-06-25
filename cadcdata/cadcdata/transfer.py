@@ -76,8 +76,6 @@ VOSPACE_SCHEMA = {VOSPACE_20: None,
                   VOSPACE_21: None}
 
 # Other constants from the VOSpace standard
-PROTOCOL_HTTP_GET = 'ivo://ivoa.net/vospace/core#httpget'
-PROTOCOL_HTTP_PUT = 'ivo://ivoa.net/vospace/core#httpput'
 PROTOCOL_HTTPS_GET = 'ivo://ivoa.net/vospace/core#httpsget'
 PROTOCOL_HTTPS_PUT = 'ivo://ivoa.net/vospace/core#httpsput'
 DIRECTION_PROTOCOL_MAP = {'pushToVoSpace': [PROTOCOL_HTTPS_PUT],

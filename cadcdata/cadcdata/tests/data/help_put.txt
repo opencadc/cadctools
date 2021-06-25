@@ -37,11 +37,11 @@ optional arguments:
 
 Examples:
 - Use certificate to put a file in an archive stream under a different name :
-        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default 
-                  -t "application/gzip" -i newfilename.fits.gz TEST myfile.fits.gz
+        cadc-data put --cert ~/.ssl/cadcproxy.pem -s default 
+                  -t "application/fits" -i newfilename.fits.gz TEST myfile.fits.gz
 - Use default netrc file ($HOME/.netrc) to put two files:
         cadc-data put -v -n TEST myfile1.fits.gz myfile2.fits.gz
 - Use a different netrc file to put files from a directory:
-        cadc-data put -d --netrc ~/mynetrc TEST dir
+        cadc-data put --netrc ~/mynetrc TEST dir
 - Connect as user to put files from multiple sources (prompt for password if user not in $HOME/.netrc):
         cadc-data put -v -u auser TEST myfile.fits.gz dir1 dir2

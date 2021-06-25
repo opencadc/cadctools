@@ -42,6 +42,6 @@ Examples:
 - Use default netrc file ($HOME/.netrc) to get FITS header of a file:
         cadc-data get -v -n --fhead GEMINI 00aug02_002.fits
 - Use a different netrc file to download wcs information:
-        cadc-data get -d --netrc ~/mynetrc -o /tmp/700000o-wcs.fits --wcs CFHT 700000o
+        cadc-data get --netrc ~/mynetrc -o /tmp/700000o-wcs.fits --wcs CFHT 700000o
 - Connect as user to download two files and uncompress them (prompt for password if user not in $HOME/.netrc):
         cadc-data get -v -u auser -z GEMINI 00aug02_002.fits 00aug02_003.fits

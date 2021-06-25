@@ -348,23 +348,24 @@ class TestWs(unittest.TestCase):
         subject = auth.Subject()
         subject.cookies.append(auth.CookieInfo(resource_uri.netloc,
                                                'MyTestCookie', 'cookievalue'))
-        client = ws.BaseWsClient(resource_id, subject, 'TestApp')
+        client = ws.BaseWsClient(resource_id, subject, 'TestApp',
+                                 insecure=True)
         base_url = 'https://{}{}/observations'.format(resource_uri.netloc,
                                                       resource_uri.path)
         resource_url = '{}/{}'.format(base_url, resource)
         self.assertEqual('TestApp', client.agent)
         self.assertTrue(client.retry)
         client.get(resource_url)
-        get_mock.assert_called_with(resource_url, params=None, verify=True)
+        get_mock.assert_called_with(resource_url, params=None, verify=False)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
         client.post(resource_url, **params)
-        post_mock.assert_called_with(resource_url, verify=True, **params)
+        post_mock.assert_called_with(resource_url, verify=False, **params)
         client.delete(resource_url)
-        delete_mock.assert_called_with(resource_url, verify=True)
+        delete_mock.assert_called_with(resource_url, verify=False)
         client.head(resource_url)
-        head_mock.assert_called_with(resource_url, verify=True)
+        head_mock.assert_called_with(resource_url, verify=False)
         client.put(resource_url, **params)
-        put_mock.assert_called_with(resource_url, verify=True, **params)
+        put_mock.assert_called_with(resource_url, verify=False, **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
         self.assertEqual(1, len(client._session.cookies))
         self.assertEqual('cookievalue',

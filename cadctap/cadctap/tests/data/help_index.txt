@@ -30,10 +30,11 @@ optional arguments:
                         netrc file to use for authentication
   -q, --quiet           run quietly
   -s, --service SERVICE
-                        identifier of service this command accesses. Both
-                        short x`form (<service>) or the complete one
-                        (ivo://cadc.nrc.ca/<service>) of the unique URI are
-                        accepted. Default is: ivo://cadc.nrc.ca/youcat
+                        service this command accesses. Both IDs in short form
+                        (<service>) or the complete one
+                        (ivo://cadc.nrc.ca/<service>) and actual URLs to the
+                        root of the service (https://someurl/service). Default
+                        is: ivo://cadc.nrc.ca/youcat
   -U, --unique          index is unique
   -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
