@@ -2,38 +2,39 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 
 """
-This package implements a client for accessing the CADC Storage Inventory Web
-services (SI)
+This package implements a client for access the CADC data Web service (WS)
 
-The package can be used as a library as well as through the
-cadc[get|put|info|remove] commands it installs.
+The package can be used as a library as well as through the cadc-data
+command it installs.
 
-1. Instantiate StorageInventoryClient and use it to access the SI WS.
+1. Instantiate CadcDataClient and use it to access the data WS.
 
-The SI WS is accessed through the cadcget, cadcput, cadcinfo and cadcremove
-methods of the client.
+The only mandatory argument that the CadcDataClient constructor takes is
+a cadcutils.net.Subject that holds the user credentials. The data WS is
+accessed through the get_file, put_file and get_file_info functions of the
+client.
 
 Example:
-   from cadcdata import StorageInventoryClient
+   from cadcdata import CadcDataClient
    from cadcutils import net
 
-   client = StorageInventoryClient()
-   print(client.cadcinfo('gemini:GEMINI/00AUG02_002.fits'))
+   client = CadcDataClient(net.Subject())
+   print(client.get_file_info('GEMINI', '00AUG02_002'))
 
-2. Invoke the cadc* entry point functions. These are the functions
-corresponding to the command line applications (cadcget, cadcput, etc.).
+2. Invoke the cadc-data entry point function. This is the function that
+is used to generate the cadc-data application
 
 Example:
-   from cadcdata import cadcinfo_cli
+   from cadcdata import main_app
    import sys
 
-   sys.argv = ['cadcinfo', 'gemini:GEMINI/00AUG02_002.fits']
-   cadcinfo_cli()
+   sys.argv = ['cadc-data', 'info', '-a', 'GEMINI', '00AUG02_002']
+   main_app()
 
-3. Invoke the installed cadc* command through the OS
+3. Invoke the cadc-data as an external command
 Example:
    import os
-   os.system('cadcget gemini:GEMINI/00AUG02_002.fits')
+   os.system('cadc-data info -a GEMINI 00AUG02_002')
 
 Method 1. is the recommended method as it does not required forking external
 processes and also allows trapping the exceptions and reacting according to the
@@ -44,4 +45,3 @@ inter processes communication to determine the result of running the command.
 """
 
 from .core import *   # noqa
-#from .storageinv import *   # noqa
