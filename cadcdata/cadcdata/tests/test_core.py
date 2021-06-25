@@ -239,8 +239,7 @@ def test_get_file(trans_reader_mock, basews_mock):
          'vos="http://www.ivoa.net/xml/VOSpace/v2.0">\n  '
          '<vos:target>ad:TEST/getfile</vos:target>\n  '
          '<vos:direction>pullFromVoSpace</vos:direction>\n  '
-         '<vos:protocol uri="ivo://ivoa.net/vospace/core#httpget"/>\n'
-         '  <vos:protocol uri="ivo://ivoa.net/vospace/core#httpsget"/>\n'
+         '<vos:protocol uri="ivo://ivoa.net/vospace/core#httpsget"/>\n'
          '</vos:transfer>\n').encode()
     post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None),
                                  params={'wcs': True}, data=trans_doc,
