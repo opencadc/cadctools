@@ -1,8 +1,7 @@
 usage: cadc-tap query [-h]
                       [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a]
-                      [--host HOST] [-d | -q | -v] [-o OUTPUT_FILE]
-                      [-i INPUT_FILE] [--timeout TIMEOUT]
-                      [-f {VOTable,csv,tsv}] [-t TMPTABLE] [-s SERVICE]
+                      [-s SERVICE] [-q | -v] [-o OUTPUT_FILE] [-i INPUT_FILE]
+                      [--timeout TIMEOUT] [-f {VOTable,csv,tsv}] [-t TMPTABLE]
                       [QUERY]
 
 Run an adql query
@@ -26,13 +25,10 @@ optional arguments:
   -a, --anon            use the service anonymously
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
-  -d, --debug           debug messages
   -f, --format {VOTable,csv,tsv}
                         output format, either tsv(default), csv, fits (TBD),
                         or VOTable
   -h, --help            show this help message and exit
-  --host HOST           base hostname for services - used mainly for testing
-                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
   -i, --input-file INPUT_FILE
                         read query string from file (default is from STDIN),
                         location of file
@@ -43,12 +39,11 @@ optional arguments:
                         write query results to file (default is to STDOUT)
   -q, --quiet           run quietly
   -s, --service SERVICE
-                        set the TAP service. For the CADC TAP services both
-                        the ivo and the short formats
-                        (ivo://cadc.nrc.ca/youcat or youcat) are accepted.
-                        External TAP services can be referred to by their URL
-                        (https://almascience.nrao.edu/tap). Default is
-                        ivo://cadc.nrc.ca/youcat
+                        service this command accesses. Both IDs in short form
+                        (<service>) or the complete one
+                        (ivo://cadc.nrc.ca/<service>) and actual URLs to the
+                        root of the service (https://someurl/service). Default
+                        is: ivo://cadc.nrc.ca/youcat
   --timeout TIMEOUT     query timeout in minutes. Default 2min
   -t, --tmptable TMPTABLE
                         Temp table upload, the value is in format:

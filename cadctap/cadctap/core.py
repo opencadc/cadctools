@@ -796,33 +796,6 @@ def _add_anon_option(parser):
     raise RuntimeError("Missing authentication option")
 
 
-def _customize_parser(parser):
-    # cadc-tap customizes some of the options inherited from the CADC parser
-    # TODO make it work or process list of subparsers
-    found = False
-    for i, op in enumerate(parser._actions):
-        if op.dest == 'resource_id':
-            # Remove --resource-id option for now
-            parser._remove_action(parser._actions[i])
-            for action in parser._action_groups:
-                vars_action = vars(action)
-                var_group_actions = vars_action['_group_actions']
-                for x in var_group_actions:
-                    if x.dest == 'resource_id':
-                        var_group_actions.remove(x)
-                        found = True
-    if not found:
-        return
-    parser.add_argument(
-        '-s', '--service',
-        default=DEFAULT_SERVICE_ID,
-        help='set the TAP service. For the CADC TAP services both the ivo '
-             'and the short formats (ivo://cadc.nrc.ca/youcat or youcat) are '
-             'accepted. External TAP services can be referred to by their URL '
-             '(https://almascience.nrao.edu/tap). Default is {}'.
-             format(DEFAULT_SERVICE_ID))
-
-
 def _get_subject_from_netrc(args):
     # Checks to see if user has the required user/passwd in the .netrc file
     # for the service host in order to use it.
@@ -979,10 +952,9 @@ def _get_permission_modes(opt):
 
 def main_app(command='cadc-tap query'):
     parser = util.get_base_parser(version=version.version,
-                                  default_resource_id=DEFAULT_SERVICE_ID)
+                                  service=DEFAULT_SERVICE_ID)
 
     _add_anon_option(parser)
-    _customize_parser(parser)
     parser.description = (
         'Client for accessing databases using TAP protocol at the Canadian '
         'Astronomy Data Centre (www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)')
@@ -1146,48 +1118,7 @@ def main_app(command='cadc-tap query'):
         'GROUPS', nargs='*',
         help="name(s) of group(s) to assign read/write permission to. "
              "One group per r or w permission.")
-    # options_parser = permission_parser.add_mutually_exclusive_group(
-    #     required=False)
-    # options_parser.add_argument(
-    #     '-o-r', action='store_true',
-    #     help='remove anonymous read access')
-    # options_parser.add_argument(
-    #     '-o+r', action='store_true',
-    #     help='add anonymous read access')
-    # options_parser.add_argument(
-    #     '-g+r', metavar='<group name>',
-    #     help='grant group read permission')
-    # options_parser.add_argument(
-    #     '-g-r', action='store_true',
-    #     help='revoke group read permission')
-    # options_parser.add_argument(
-    #     '-g+w', metavar = '<group name>',
-    #     help='grant group write (and implicitly read) permission')
-    # options_parser.add_argument(
-    #     '-g-w', action='store_true',
-    #     help='revoke group write permission')
 
-#    def handle_error(msg, exit_after=True):
-#        """
-#        Prints error message and exit (by default)
-#        :param msg: error message to print
-#        :param exit_after: True if log error message and exit,
-#        False if log error message and return
-#        :return:
-#        """
-#
-#        errors[0] += 1
-#        logger.error(msg)
-#        if exit_after:
-#            sys.exit(-1)  # TODO use different error codes?
-
-    _customize_parser(schema_parser)
-    _customize_parser(query_parser)
-    _customize_parser(create_parser)
-    _customize_parser(delete_parser)
-    _customize_parser(index_parser)
-    _customize_parser(load_parser)
-    _customize_parser(permission_parser)
     args = parser.parse_args()
     if len(sys.argv) < 2:
         parser.print_usage(file=sys.stderr)

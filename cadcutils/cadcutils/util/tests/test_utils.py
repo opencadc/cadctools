@@ -205,6 +205,17 @@ class UtilTests(unittest.TestCase):
                                          ArgumentError(None, None)]))
     def test_base_parser(self):
 
+        parser = get_base_parser(subparsers=False, service=True)
+        # new service arg replacement for resourceid
+        service_id = 'ivo://some.domain/resourceid'
+        args = parser.parse_args(["--service", service_id])
+        self.assertEqual(service_id, args.service)
+
+        short_service_id = 'resourceid'
+        args = parser.parse_args(["--service", short_service_id])
+        self.assertEqual('ivo://cadc.nrc.ca/{}'.format(
+            short_service_id), args.service)
+
         parser = get_base_parser(subparsers=False)
         resource_id = "ivo://www.some.resource/resourceid"
         args = parser.parse_args(["--resource-id", resource_id])

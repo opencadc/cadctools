@@ -239,8 +239,7 @@ def test_get_file(trans_reader_mock, basews_mock):
          'vos="http://www.ivoa.net/xml/VOSpace/v2.0">\n  '
          '<vos:target>ad:TEST/getfile</vos:target>\n  '
          '<vos:direction>pullFromVoSpace</vos:direction>\n  '
-         '<vos:protocol uri="ivo://ivoa.net/vospace/core#httpget"/>\n'
-         '  <vos:protocol uri="ivo://ivoa.net/vospace/core#httpsget"/>\n'
+         '<vos:protocol uri="ivo://ivoa.net/vospace/core#httpsget"/>\n'
          '</vos:transfer>\n').encode()
     post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None),
                                  params={'wcs': True}, data=trans_doc,
@@ -406,11 +405,11 @@ def test_help():
     # get -h
     # output is different in Python 3.9
     if sys.version_info >= (3, 9):
-        with open(os.path.join(TESTDATA_DIR, 'help_get_39.txt'), 'r') as myfile:
-            usage = myfile.read()
+        with open(os.path.join(TESTDATA_DIR, 'help_get_39.txt'), 'r') as afile:
+            usage = afile.read()
     else:
-        with open(os.path.join(TESTDATA_DIR, 'help_get.txt'), 'r') as myfile:
-            usage = myfile.read()
+        with open(os.path.join(TESTDATA_DIR, 'help_get.txt'), 'r') as afile:
+            usage = afile.read()
 
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         sys.argv = ['cadc-data', 'get', '--help']
