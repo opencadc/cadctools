@@ -107,11 +107,11 @@ def test_client_public():
 
     # TODO cutouts
 
+
 @pytest.mark.intTest
 @pytest.mark.auth
 def test_client_authenticated():
     """ uses $HOME/.ssl/cadcproxy.pem certificates"""
     # TODO
     pass
-
 

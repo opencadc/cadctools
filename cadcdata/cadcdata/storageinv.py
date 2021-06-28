@@ -143,6 +143,12 @@ class FileInfo:
         self.file_type = file_type
         self.encoding = encoding
 
+    def __str__(self):
+        return ('id={}, name={}, size={}, type={}, encoding={}, '
+                'last modified={}, md5sum={}'.format(
+                self.id, self.name, self.size, self.file_type, self.encoding,
+                date2ivoa(self.lastmod), self.md5sum))
+
 
 class StorageInventoryClient(object):
     """Class to access CADC storage inventory.
