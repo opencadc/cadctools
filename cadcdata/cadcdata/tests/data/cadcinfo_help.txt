@@ -1,9 +1,8 @@
-usage: cadcget [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-               [-s SERVICE] [-q | -v] [-V] [-o OUTPUT]
-               identifier
+usage: cadcinfo [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                [-s SERVICE] [-q | -v] [-V]
+                identifier [identifier ...]
 
-Download files from the CADC Storage Inventory into the current
-directory unless overriden with the -o option.
+Displays information about a file from the CADC Storage Inventory
 
 positional arguments:
   identifier            unique identifier (URI) given to the file in the CADC
@@ -16,8 +15,6 @@ optional arguments:
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
-  -o, --output OUTPUT   write to file or other directory instead of the
-                        current one.
   -q, --quiet           run quietly
   -s, --service SERVICE
                         service this command accesses. Both IDs in short form
@@ -32,8 +29,5 @@ optional arguments:
   -V, --version         show program's version number and exit
 
 Examples:
-- Anonymously download a file to current directory:
-      cadcget gemini:GEMINI/00aug02_002.fits
-- Use certificate to get a cutout and save it to a file:
-      cadcget --cert ~/.ssl/cadcproxy.pem -o /tmp/700000o-cutout.fits
-        cadc:CFHT/700000o[1]
+- Anonymously getting a public file:
+        cadcinfo gemini:GEMINI/00aug02_002.fits

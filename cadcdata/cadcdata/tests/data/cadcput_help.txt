@@ -1,0 +1,54 @@
+usage: cadcput [-h] (--cert CERT | -n | --netrc-file NETRC_FILE | -u USER)
+               [-s SERVICE] [-q | -v] [-V] [-t TYPE] [-e ENCODING]
+               [-r REPLACE]
+               identifier src [src ...]
+
+Upload files into the CADC Storage Inventory
+
+positional arguments:
+  identifier            unique identifier (URI) given to the file in the CADC
+                        Storage Inventory or a root identifier when multiple
+                        filesare uploaded at the same time
+  src                   files or directories containing the files to be put.
+                        Multiple sources require a root identifier (terminated
+                        in "/"). URIs corresponding to each of the source file
+                        will be created as root URI + filename.
+
+optional arguments:
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -e, --encoding ENCODING
+                        MIME encoding to set in archive. If missing, the
+                        application will try to deduce it
+  -h, --help            show this help message and exit
+  -n                    use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -q, --quiet           run quietly
+  -r, --replace REPLACE
+                        replace existing files or fail if identifier is new
+  -s, --service SERVICE
+                        service this command accesses. Both IDs in short form
+                        (<service>) or the complete one
+                        (ivo://cadc.nrc.ca/<service>) as well as actual URLs
+                        to the root of the service (https://someurl/service)
+                        are accepted. Default is:
+                        ivo://cadc.nrc.ca/global/raven
+  -t, --type TYPE       MIME type to set in archive. If missing, the
+                        application will try to deduce it
+  -u, --user USER       name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+  -V, --version         show program's version number and exit
+
+Examples:
+- Use user certificate to replace a file specify the type
+      cadcput --cert ~/.ssl/cadcproxy.pem -t "application/fits" 
+              -r cadc:TEST/myfile.fits myfile.fits
+- Use default netrc file ($HOME/.netrc) to put two files files:
+      cadcput -v -n cadc:TEST/ myfile1.fits.gz myfile2.fits.gz
+- Use a different netrc file to put files from a directory to directory dir:
+      cadcput -d --netrc ~/mynetrc -s ivo:cadc.nrc.ca/cadc/minoc cadc:TEST/ dir
+- Connect as user to put files from multiple sources (prompt for
+  password if user not in $HOME/.netrc):
+      cadcput -v -u auser cadc:TEST/ myfile.fits.gz dir1 dir2
