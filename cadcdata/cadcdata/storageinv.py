@@ -144,10 +144,11 @@ class FileInfo:
         self.encoding = encoding
 
     def __str__(self):
-        return ('id={}, name={}, size={}, type={}, encoding={}, '
-                'last modified={}, md5sum={}'.format(
-                self.id, self.name, self.size, self.file_type, self.encoding,
-                date2ivoa(self.lastmod), self.md5sum))
+        return (
+            'id={}, name={}, size={}, type={}, encoding={}, last modified={}, '
+            'md5sum={}'.format(self.id, self.name, self.size, self.file_type,
+                               self.encoding, date2ivoa(self.lastmod),
+                               self.md5sum))
 
 
 class StorageInventoryClient(object):
@@ -675,8 +676,8 @@ def cadcput_cli():
             id = args.identifier
         execute_cmd(args, client.cadcput, {'id': id,
                                            'src': file,
-                                           'mime_type': args.type,
-                                           'mime_encoding': args.encoding})
+                                           'file_type': args.type,
+                                           'file_encoding': args.encoding})
 
 
 def cadcget_cli():

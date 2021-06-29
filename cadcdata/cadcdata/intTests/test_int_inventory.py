@@ -85,7 +85,7 @@ def test_client_public():
     timestamp = str2ivoa('2012-06-20T00:31:00.000')
     assert timestamp == file_info.lastmod
     assert 'application/fits' == file_info.file_type
-    assert None == file_info.encoding
+    assert file_info.encoding is None
 
     # download file
     dest = '/tmp/inttest_I429B4H0.fits'
@@ -114,4 +114,3 @@ def test_client_authenticated():
     """ uses $HOME/.ssl/cadcproxy.pem certificates"""
     # TODO
     pass
-

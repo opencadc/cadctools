@@ -510,7 +510,7 @@ def test_cadcput_cli(cadcput_mock):
     with patch('sys.stdout', new_callable=StringIO):
         cadcput_cli()
     calls = [call(id='cadc:TEST/file1', src=file1_path,
-                  mime_type=None, mime_encoding=None)]
+                  file_type=None, file_encoding=None)]
     cadcput_mock.assert_has_calls(calls, any_order=True)
 
     # multiple files in directory
@@ -521,9 +521,9 @@ def test_cadcput_cli(cadcput_mock):
         cadcput_cli()
     # file3 is in subdirectory and not part of the list
     calls = [call(id='cadc:TEST/file2.txt', src=file2_path,
-                  mime_type='application/text', mime_encoding='encoded'),
+                  file_type='application/text', file_encoding='encoded'),
              call(id='cadc:TEST/file1.txt', src=file1_path,
-                  mime_type='application/text', mime_encoding='encoded')]
+                  file_type='application/text', file_encoding='encoded')]
     cadcput_mock.assert_has_calls(calls, any_order=True)
 
     # multiple files in directory and explicitly
@@ -533,11 +533,11 @@ def test_cadcput_cli(cadcput_mock):
     with patch('sys.stdout', new_callable=StringIO):
         cadcput_cli()
     calls = [call(id='cadc:TEST/file2.txt', src=file2_path,
-                  mime_type=None, mime_encoding=None),
+                  file_type=None, file_encoding=None),
              call(id='cadc:TEST/file3.txt', src=file3_path,
-                  mime_type=None, mime_encoding=None),
+                  file_type=None, file_encoding=None),
              call(id='cadc:TEST/file1.txt', src=file1_path,
-                  mime_type=None, mime_encoding=None)]
+                  file_type=None, file_encoding=None)]
     cadcput_mock.assert_has_calls(calls, any_order=True)
     # cleanup
     shutil.rmtree(put_dir)
