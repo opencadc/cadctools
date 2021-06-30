@@ -11,7 +11,8 @@ positional arguments:
   src                   files or directories containing the files to be put.
                         Multiple sources require a root identifier (terminated
                         in "/"). URIs corresponding to each of the source file
-                        will be created as root URI + filename.
+                        will be created as root URI + filename. A specified
+                        "type" or "encoding" applies to all the files.
 
 optional arguments:
   --cert CERT           location of your X509 certificate to use for
@@ -24,7 +25,8 @@ optional arguments:
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
-  -r, --replace         replace existing files or fail if identifier is new
+  -r, --replace         replace existing files or fail if identifier is new.
+                        This is a safeguard for accidental file replacements
   -s, --service SERVICE
                         service this command accesses. Both IDs in short form
                         (<service>) or the complete one

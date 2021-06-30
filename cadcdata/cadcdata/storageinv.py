@@ -111,10 +111,10 @@ LOCATE_STANDARD_ID = 'http://www.opencadc.org/std/storage#locate-1.0'
 
 # size of the read blocks in data transfers
 READ_BLOCK_SIZE = 8 * 1024
-
 logger = logging.getLogger(__name__)
 
 
+# TODO This is a dataclass for when Py3.7 becomes the minimum supported version
 class FileInfo:
     """
     Container for the metadata of a file:
@@ -399,7 +399,8 @@ class StorageInventoryClient(object):
         :param src: location of the source file
         :param replace: boolean indicated whether this is expected to be
         a replacement of an existing file in the inventory system or not (file
-        is new). Wrong assumption results in an error.
+        is new). Wrong assumption results in an error. This is a safeguard
+        for accidental file replacements.
         :param file_type: file MIME type
         :param file_encoding: file MIME encoding
         :param md5_checksum: md5 sum of the content. For replacements,
@@ -622,7 +623,8 @@ def cadcput_cli():
                         required=False)
     parser.add_argument('-r', '--replace', action='store_true',
                         help='replace existing files or fail if identifier '
-                             'is new')
+                             'is new. This is a safeguard for accidental '
+                             'file replacements')
     parser.add_argument(
         'identifier',
         help='unique identifier (URI) given to the file in the CADC '
@@ -633,7 +635,8 @@ def cadcput_cli():
         help='files or directories containing the files to be put. Multiple '
              'sources require a root identifier (terminated in "/"). URIs '
              'corresponding to each of the source file will be created as '
-             'root URI + filename.', nargs='+')
+             'root URI + filename. A specified "type" or "encoding" applies '
+             'to all the files.', nargs='+')
     parser.epilog = (
         'Examples:\n'
         '- Use user certificate to replace a file specify the type\n'
@@ -650,6 +653,7 @@ def cadcput_cli():
         '      cadcput -v -u auser cadc:TEST/ myfile.fits.gz dir1 dir2')
 
     args = parser.parse_args()
+    _set_logging_level(args)
     subject = net.Subject.from_cmd_line_args(args)
 
     client = StorageInventoryClient(subject, args.service, host=args.host,
@@ -665,7 +669,7 @@ def cadcput_cli():
             files.append(file)
     if (len(files) > 1) and not args.identifier.endswith('/'):
         raise RuntimeError(
-            'A root identifier (ends in "/") is required to put multiple '
+            'A root identifier (ending in "/") is required to put multiple '
             'files: {}'.format(args.identifier))
 
     for file in files:
@@ -674,11 +678,12 @@ def cadcput_cli():
                                      os.path.basename(file))
         else:
             file_id = args.identifier
-        execute_cmd(args, client.cadcput, {'id': file_id,
-                                           'src': file,
-                                           'file_type': args.type,
-                                           'file_encoding': args.encoding,
-                                           'replace': args.replace})
+        logger.info('PUT {} -> {}'.format(file, file_id))
+        execute_cmd(client.cadcput, {'id': file_id,
+                                     'src': file,
+                                     'file_type': args.type,
+                                     'file_encoding': args.encoding,
+                                     'replace': args.replace})
 
 
 def cadcget_cli():
@@ -708,12 +713,13 @@ def cadcget_cli():
         '        cadc:CFHT/700000o[1]\n')
 
     args = parser.parse_args()
+    _set_logging_level(args)
     subject = net.Subject.from_cmd_line_args(args)
     client = StorageInventoryClient(subject, args.service, host=args.host,
                                     insecure=args.insecure)
-
-    execute_cmd(args, client.cadcget,
-                {'id': args.identifier, 'dest': args.output})
+    logger.info('GET id {} -> {}'.format(
+        args.identifier, args.output if args.output else 'stdout'))
+    execute_cmd(client.cadcget, {'id': args.identifier, 'dest': args.output})
 
 
 def cadcinfo_cli():
@@ -734,12 +740,14 @@ def cadcinfo_cli():
         '        cadcinfo gemini:GEMINI/00aug02_002.fits\n')
 
     args = parser.parse_args()
+    _set_logging_level(args)
     subject = net.Subject.from_cmd_line_args(args)
     client = StorageInventoryClient(subject, args.service, host=args.host,
                                     insecure=args.insecure)
     for id in args.identifier:
+        logger.info('INFO for id {}'.format(id))
         try:
-            file_info = execute_cmd(args, client.cadcinfo, {'id': id})
+            file_info = execute_cmd(client.cadcinfo, {'id': id})
             print('CADC Storage Inventory identifier {}:'.format(id))
             print('\t {:>15}: {}'.format('name', file_info.name))
             print('\t {:>15}: {}'.format('size', file_info.size))
@@ -752,6 +760,7 @@ def cadcinfo_cli():
             logger.error('Identifier {} not found in the CADC Storage '
                          'Inventory'.format(id), exit_after=False)
             continue
+    logger.info('DONE')
 
 
 def cadcremove_cli():
@@ -772,17 +781,27 @@ def cadcremove_cli():
         '       cadcremove --cert ~/.ssl/cadcproxy.pem cadc:CFHT/700000o.fz\n')
 
     args = parser.parse_args()
+    _set_logging_level(args)
     subject = net.Subject.from_cmd_line_args(args)
     client = StorageInventoryClient(subject, args.service, host=args.host,
                                     insecure=args.insecure)
     for id in args.identifier:
-        execute_cmd(args, client.cadcremove, {'id': id})
+        logger.info('REMOVE id {}'.format(id))
+        execute_cmd(client.cadcremove, {'id': id})
 
 
-def execute_cmd(args, cmd, cmd_args):
-    # handle errors
-    errors = [0]
+def _set_logging_level(args):
+    if args.verbose:
+        logger.setLevel(logging.INFO)
+        logging.basicConfig(level=logging.INFO, stream=sys.stdout,
+                            format='%(message)s')
+    elif args.debug:
+        logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
+    else:
+        logging.basicConfig(level=logging.WARN, stream=sys.stdout)
 
+
+def execute_cmd(cmd, cmd_args):
     def handle_error(msg, exit_after=True):
         """
         Prints error message and exit (by default)
@@ -792,17 +811,9 @@ def execute_cmd(args, cmd, cmd_args):
         :return:
         """
 
-        errors[0] += 1
-        logger.error(msg)
+        print('ERROR: {}'.format(msg))
         if exit_after:
             sys.exit(-1)  # TODO use different error codes?
-    if args.verbose:
-        logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-    elif args.debug:
-        logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
-    else:
-        logging.basicConfig(level=logging.WARN, stream=sys.stdout)
-
     try:
         return cmd(**cmd_args)
     except exceptions.UnauthorizedException:
@@ -820,9 +831,3 @@ def execute_cmd(args, cmd, cmd_args):
         handle_error('Unexpected server error: {}'.format(str(e)))
     except Exception as e:
         handle_error(str(e))
-
-    if errors[0] > 0:
-        logger.error('Finished with {} error(s)'.format(errors[0]))
-        sys.exit(-1)
-    else:
-        logger.info('DONE')
