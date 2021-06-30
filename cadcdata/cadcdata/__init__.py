@@ -3,7 +3,7 @@
 
 """
 This package implements a client for accessing the CADC Storage Inventory Web
-services (SI)
+services (SI WS)
 
 The package can be used as a library as well as through the
 cadc[get|put|info|remove] commands it installs.
@@ -35,7 +35,7 @@ Example:
    import os
    os.system('cadcget gemini:GEMINI/00AUG02_002.fits')
 
-Method 1. is the recommended method as it does not required forking external
+Method 1. is the recommended method as it does not require forking external
 processes and also allows trapping the exceptions and reacting according to the
 type of the error. Method 2 also works but the sys.exit needs to be trapped in
 order to prevent the script from quiting. Method 3, while simple, must rely on

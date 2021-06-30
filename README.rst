@@ -51,7 +51,7 @@ Testing cadcdata
 ::
 
     cd ./cadcdata
-    python cadcdata
+    pytest cadcdata
 
 Testing cadctap
 ~~~~~~~~~~~~~~~~
@@ -59,7 +59,7 @@ Testing cadctap
 ::
 
     cd ./cadcdata
-    python cadctap
+    pytest cadctap
 
 Testing cadccutout
 ~~~~~~~~~~~~~~~~

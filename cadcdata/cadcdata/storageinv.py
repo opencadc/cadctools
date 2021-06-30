@@ -66,11 +66,6 @@
 #
 # ***********************************************************************
 #
-
-# TODO Python 3 only?
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import logging
 import os
 import os.path
@@ -167,7 +162,7 @@ class StorageInventoryClient(object):
     authSubject = net.Subject(netrc=os.path.join(os.environ['HOME'], ".netrc"))
 
     client = StorageInventoryClient(anonSubject)
-    # save fhead of file
+    # save file
     client.cadcget('cadc:CFHT/700000o.fits.fz', '/tmp/700000o.fits.fz')
 
     client = StorageInventoryClient(certSubject)
@@ -178,11 +173,9 @@ class StorageInventoryClient(object):
 
     client = StorageInventoryClient(authSubject)
     # get the file in an internal buffer.
-    # The file is too large to load into memory. Therefore, for this example,
-    # we are retrieving just the wcs info in a buffer.
     buffer = os.BytesIO()
     client.cadcget('cadc:TEST/myfile.txt', dest=buffer)
-    print(f.getvalue())
+    print(client.getvalue())
 
     # process the bytes as they are received - count_bytes proc.
     # Note - the bytes are then thrown to /dev/null
@@ -315,7 +308,7 @@ class StorageInventoryClient(object):
                         pass
                 raise exceptions.HttpException(str(e))
         raise exceptions.HttpException(
-            'Unable to download data from any of the available URLs')
+            'Unable to download data to any of the available URLs')
 
     def _save_bytes(self, response, dest_file, resource, process_bytes=None):
         # requests automatically decompresses the data.
@@ -337,6 +330,10 @@ class StorageInventoryClient(object):
                 self._decode = rsp.raw._decode
                 self.block_size = 0
                 self._md5sum = net.extract_md5(rsp.headers)
+
+            @property
+            def md5sum(self):
+                return self._md5sum
 
             def __iter__(self):
                 return self
@@ -380,14 +377,13 @@ class StorageInventoryClient(object):
             if process_bytes is not None:
                 process_bytes(chunk)
             dest_file.write(chunk)
-        src_md5sum = net.extract_md5(response.headers)
-        if src_md5sum:
-            dest_md5sum = hash_md5.hexdigest()
-            if src_md5sum != dest_md5sum:
-                raise DownloadError(
-                    'Downloaded file is corrupted: '
-                    'expected md5({}) != actual md5({})'.
-                    format(src_md5sum, dest_md5sum))
+        src_md5sum = rr.md5sum
+        dest_md5sum = hash_md5.hexdigest()
+        if src_md5sum != dest_md5sum:
+            raise DownloadError(
+                'Downloaded file is corrupted: '
+                'expected md5({}) != actual md5({})'.
+                format(src_md5sum, dest_md5sum))
         duration = time.time() - start
         logger.info(
             'Successfully downloaded file {} as {} in {}s (avg. speed: {}MB/s)'
@@ -406,7 +402,7 @@ class StorageInventoryClient(object):
         is new). Wrong assumption results in an error.
         :param file_type: file MIME type
         :param file_encoding: file MIME encoding
-        :param md5_checksum: md5 sum of the content. For replacements, if
+        :param md5_checksum: md5 sum of the content. For replacements,
         the content will not be sent over if the md5_checksum of a replaced
         file matches the source one. Bytes are transferred when this argument
         is not provided.
@@ -481,9 +477,12 @@ class StorageInventoryClient(object):
         for url in urls:
             if operation == 'post':
                 logger.debug('POST to URL {}'.format(url))
+                start = time.time()
                 result = self._cadc_client.post(url, headers=headers)
                 result.raise_for_status()
-                logger.debug('Updated metadata for identifier {}'.format(id))
+                duration = time.time() - start
+                logger.debug('Updated metadata for identifier {} in {} ms'.
+                             format(id, duration))
                 return
             logger.debug('PUT to URL {}'.format(url))
             try:
@@ -510,9 +509,10 @@ class StorageInventoryClient(object):
 
     def cadcremove(self, id):
         """
-        Puts a file into the inventory system
+        Removes a file into the inventory system. `NotFoundException` is raised
+        if the `id` is not found.
         :param id: unique identifier (URI) for the file in the CADC inventory
-        system
+        system.
         """
 
         # We actually raise an exception here since the web
@@ -569,17 +569,17 @@ class StorageInventoryClient(object):
         if h.get('Last-Modified', None):
             file_info.lastmod = \
                 datetime.datetime.strptime(h.get('Last-Modified'),
-                                           '%a, %d %b %Y %I:%M:%S %Z')
+                                           '%a, %d %b %Y %H:%M:%S %Z')
         file_info.file_type = h.get('Content-Type', None)
         file_info.encoding = h.get('Content-Encoding', None)
         logger.debug('File info: {}'.format(file_info))
         return file_info
 
-    def _get_transfer_urls(self, id, is_get=True, headers=None, params=None):
+    def _get_transfer_urls(self, id, is_get=True):
         if not self.transfer:
             # this is site location
             return ['{}/{}'.format(self.files, id)]
-        trans = net.Transfer(self._cadc_client._get_session())
+        trans = net.Transfer(self._cadc_client._get_session(), )
         return trans.transfer(
             endpoint_url=self.transfer, uri=id,
             direction='pullFromVoSpace' if is_get else 'pushToVoSpace',
@@ -620,7 +620,7 @@ def cadcput_cli():
                         help='MIME encoding to set in archive. If missing,'
                              ' the application will try to deduce it',
                         required=False)
-    parser.add_argument('-r', '--replace',
+    parser.add_argument('-r', '--replace', action='store_true',
                         help='replace existing files or fail if identifier '
                              'is new')
     parser.add_argument(
@@ -670,14 +670,15 @@ def cadcput_cli():
 
     for file in files:
         if len(files) > 1:
-            id = '{}/{}'.format(args.identifier.strip('/'),
-                                os.path.basename(file))
+            file_id = '{}/{}'.format(args.identifier.strip('/'),
+                                     os.path.basename(file))
         else:
-            id = args.identifier
-        execute_cmd(args, client.cadcput, {'id': id,
+            file_id = args.identifier
+        execute_cmd(args, client.cadcput, {'id': file_id,
                                            'src': file,
                                            'file_type': args.type,
-                                           'file_encoding': args.encoding})
+                                           'file_encoding': args.encoding,
+                                           'replace': args.replace})
 
 
 def cadcget_cli():
@@ -708,7 +709,8 @@ def cadcget_cli():
 
     args = parser.parse_args()
     subject = net.Subject.from_cmd_line_args(args)
-    client = StorageInventoryClient(subject, args.service, host=args.host)
+    client = StorageInventoryClient(subject, args.service, host=args.host,
+                                    insecure=args.insecure)
 
     execute_cmd(args, client.cadcget,
                 {'id': args.identifier, 'dest': args.output})

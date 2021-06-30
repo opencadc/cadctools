@@ -66,14 +66,11 @@
 #
 # ***********************************************************************
 #
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import os
 import sys
 import shutil
 
-from six import StringIO
+from io import StringIO
 from six.moves import xrange
 from mock import Mock, patch, ANY, call
 import pytest
@@ -172,10 +169,16 @@ def test_get(trans_mock, basews_mock):
     file_content = 'ABCDEFGH12345'
     file_chunks = [file_content[i:i + 5].encode()
                    for i in xrange(0, len(file_content), 5)]
+    hash_md5 = hashlib.md5()
+    for i in file_chunks:
+        hash_md5.update(i)
+    b64encoded = base64.b64encode(
+        hash_md5.hexdigest().encode('ascii')).decode('ascii')
     file_chunks.append('')  # last chunk is empty
     response = Mock()
     response.headers = {
-        'content-disposition': 'inline; filename={}.gz'.format(file_name)}
+        'content-disposition': 'inline; filename={}.gz'.format(file_name),
+        'digest': 'md5={}'.format(b64encoded)}
     response.raw.read.side_effect = file_chunks
     basews_mock.return_value.get.return_value = response
     client = StorageInventoryClient(auth.Subject())
@@ -197,6 +200,13 @@ def test_get(trans_mock, basews_mock):
     with pytest.raises(exceptions.HttpException):
         client.cadcget('cadc:TEST/afile', dest='/dev/null',
                        process_bytes=concatenate_chunks)
+
+    # file not found on any of the transfer URLs
+    basews_mock.reset_mock()
+    basews_mock.return_value.get.side_effect = \
+        [exceptions.NotFoundException(), exceptions.NotFoundException()]
+    with pytest.raises(exceptions.HttpException):
+        client.cadcget(id)
 
     # TODO test get fhead
     # response = Mock()
@@ -360,6 +370,12 @@ def test_remove(basews_mock):
     client.cadcremove('cadc:TEST/removefile')
     remove_mock.assert_called_with('url1')
 
+    # file not found at the location
+    basews_mock.return_value.delete.side_effect = \
+        [exceptions.NotFoundException()]
+    with pytest.raises(exceptions.HttpException):
+        client.cadcremove(id)
+
 
 @patch('cadcdata.storageinv.net.BaseWsClient')
 def test_info(basews_mock):
@@ -393,6 +409,12 @@ def test_info(basews_mock):
     assert file_encoding == info.encoding
     assert datetime.datetime.strptime(
         lastmod, '%a, %d %b %Y %I:%M:%S %Z') == info.lastmod
+
+    # file not found
+    basews_mock.return_value.head.side_effect = \
+        [exceptions.NotFoundException()]
+    with pytest.raises(exceptions.NotFoundException):
+        client.cadcinfo(id)
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
@@ -504,25 +526,25 @@ def test_cadcput_cli(cadcput_mock):
     open(file2_path, 'w').write('TEST FILE2')
     open(file3_path, 'w').write('TEST FILE3')
 
-    # put one file
-    sys.argv = ['cadcput', '--netrc-file', netrc, 'cadc:TEST/{}'.format(file1),
-                file1_path]
+    # replace one file
+    sys.argv = ['cadcput', '-r', '--netrc-file', netrc,
+                'cadc:TEST/{}'.format(file1), file1_path]
     with patch('sys.stdout', new_callable=StringIO):
         cadcput_cli()
     calls = [call(id='cadc:TEST/file1', src=file1_path,
-                  file_type=None, file_encoding=None)]
+                  file_type=None, file_encoding=None, replace=True)]
     cadcput_mock.assert_has_calls(calls, any_order=True)
 
-    # multiple files in directory
+    # put multiple files in directory
     cadcput_mock.reset_mock()
     sys.argv = ['cadcput', '--netrc-file', netrc, '--type', 'application/text',
                 '--encoding', 'encoded', 'cadc:TEST/', put_dir]
     with patch('sys.stdout', new_callable=StringIO):
         cadcput_cli()
     # file3 is in subdirectory and not part of the list
-    calls = [call(id='cadc:TEST/file2.txt', src=file2_path,
+    calls = [call(id='cadc:TEST/file2.txt', src=file2_path, replace=False,
                   file_type='application/text', file_encoding='encoded'),
-             call(id='cadc:TEST/file1.txt', src=file1_path,
+             call(id='cadc:TEST/file1.txt', src=file1_path, replace=False,
                   file_type='application/text', file_encoding='encoded')]
     cadcput_mock.assert_has_calls(calls, any_order=True)
 
@@ -532,11 +554,11 @@ def test_cadcput_cli(cadcput_mock):
                 put_dir, file3_path]
     with patch('sys.stdout', new_callable=StringIO):
         cadcput_cli()
-    calls = [call(id='cadc:TEST/file2.txt', src=file2_path,
+    calls = [call(id='cadc:TEST/file2.txt', src=file2_path, replace=False,
                   file_type=None, file_encoding=None),
-             call(id='cadc:TEST/file3.txt', src=file3_path,
+             call(id='cadc:TEST/file3.txt', src=file3_path,  replace=False,
                   file_type=None, file_encoding=None),
-             call(id='cadc:TEST/file1.txt', src=file1_path,
+             call(id='cadc:TEST/file1.txt', src=file1_path,  replace=False,
                   file_type=None, file_encoding=None)]
     cadcput_mock.assert_has_calls(calls, any_order=True)
     # cleanup

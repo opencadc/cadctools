@@ -1,6 +1,5 @@
 usage: cadcput [-h] (--cert CERT | -n | --netrc-file NETRC_FILE | -u USER)
-               [-s SERVICE] [-q | -v] [-V] [-t TYPE] [-e ENCODING]
-               [-r REPLACE]
+               [-s SERVICE] [-q | -v] [-V] [-t TYPE] [-e ENCODING] [-r]
                identifier src [src ...]
 
 Upload files into the CADC Storage Inventory
@@ -25,8 +24,7 @@ optional arguments:
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
-  -r, --replace REPLACE
-                        replace existing files or fail if identifier is new
+  -r, --replace         replace existing files or fail if identifier is new
   -s, --service SERVICE
                         service this command accesses. Both IDs in short form
                         (<service>) or the complete one
