@@ -488,6 +488,9 @@ class RetrySession(Session):
                                                               **kwargs)
                     self.check_status(response)
                     return response
+                except requests.exceptions.Timeout as te:
+                    # retry on timeouts
+                    self.logger.debug(te)
                 except requests.HTTPError as e:
                     if e.response.status_code not in self.retry_errors:
                         raise exceptions.HttpException(e)
@@ -518,7 +521,7 @@ class RetrySession(Session):
                     if ce.errno != 104:
                         # Only continue trying on a reset by peer error.
                         raise exceptions.HttpException(orig_exception=ce)
-                self.logger.warning(
+                self.logger.debug(
                     "Resending request in {}s ...".format(current_delay))
                 time.sleep(current_delay)
                 num_retries += 1
