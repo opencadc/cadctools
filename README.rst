@@ -51,7 +51,7 @@ Testing cadcdata
 ::
 
     cd ./cadcdata
-    python cadcdata
+    pytest cadcdata
 
 Testing cadctap
 ~~~~~~~~~~~~~~~~
@@ -59,7 +59,7 @@ Testing cadctap
 ::
 
     cd ./cadcdata
-    python cadctap
+    pytest cadctap
 
 Testing cadccutout
 ~~~~~~~~~~~~~~~~
@@ -96,7 +96,7 @@ To test a specific version:
 
 ::
 
-    cd ./cadcdata && tox -e py3.7
+    cd ./cadcdata && tox -e py3.9
 
 
 To list all the available environments:
@@ -116,11 +116,8 @@ Write the following into a file named ``test.py``
 
 ::
 
-    from cadcdata import CadcDataClient
-    from cadcutils import net
-
-    client = CadcDataClient(net.Subject())
-    print(client.get_file_info('GEMINI', '00AUG02_002'))
+    from cadcdata import StorageInventoryClient
+    print(StorageInventoryClient().cadcinfo('cadc:IRIS/I429B4H0.fits'))
 
 Then Run
 
@@ -135,7 +132,7 @@ After installing the cadcdata package, run
 
 ::
 
-    cadc-data get GEMINI 00AUG02_002
+    cadcget cadc:IRIS/I429B4H0.fits
 
 This will download the fits file to your current directory.
 
@@ -143,9 +140,10 @@ To see more information do
 
 ::
 
-    cadc-data put --help
-    cadc-data get --help
-    cadc-data info --help
+    cadcput --help
+    cadcget --help
+    cadcinfo --help
+    cadcremove --help
 
 Docker image
 ------------

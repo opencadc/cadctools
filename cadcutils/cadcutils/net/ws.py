@@ -409,7 +409,7 @@ class BaseWsClient(object):
         if self.session_headers is not None:
             for header in self.session_headers:
                 self._session.headers.update(self.session_headers)
-        assert isinstance(self._session, requests.Session)
+        self._session.verify = self.verify
         return self._session
 
 

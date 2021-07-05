@@ -340,9 +340,9 @@ def get_base_parser(subparsers=True, version=None, usecert=True,
             default=service,
             help='service this command accesses. Both IDs in short '
                  'form (<service>) or the complete one '
-                 '(ivo://cadc.nrc.ca/<service>) and actual URLs to the '
-                 ' root of the service (https://someurl/service). '
-                 'Default is: {}'.format(service))
+                 '(ivo://cadc.nrc.ca/<service>) as well as actual URLs to the '
+                 'root of the service (https://someurl/service) are accepted.'
+                 ' Default is: {}'.format(service))
     log_group = cparser.add_mutually_exclusive_group()
     log_group.add_argument('-d', '--debug', action='store_true',
                            help=SUPPRESS)

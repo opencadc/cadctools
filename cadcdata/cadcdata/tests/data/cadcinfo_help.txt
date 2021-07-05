@@ -1,25 +1,14 @@
-usage: cadc-tap schema [-h]
-                       [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a]
-                       [-s SERVICE] [-q | -v]
-                       [SCHEMA.TABLENAME]
+usage: cadcinfo [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+                [-s SERVICE] [-q | -v] [-V]
+                identifier [identifier ...]
 
-Print the tables available for querying.
-
-To obtain the host associated with a service, execute a subcommand
-with the service in verbose mode without specifying any authentication
-option
-
-If no authentication option is specified, cadc-tap will determine the
-host associated with the service and look in the ~/.netrc file for the
-host, and if found, will use the -n option. If not, cadc-tap will look
-for ~/.ssl/cadcproxy.pem file, and if found, will use the --cert
-option. If not, cadc-tap will use the --anon option.
+Displays information about a file from the CADC Storage Inventory
 
 positional arguments:
-  SCHEMA.TABLENAME      Table to get the schema for
+  identifier            unique identifier (URI) given to the file in the CADC
+                        Storage Inventory
 
 optional arguments:
-  -a, --anon            use the service anonymously
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -h, --help            show this help message and exit
@@ -32,7 +21,13 @@ optional arguments:
                         (<service>) or the complete one
                         (ivo://cadc.nrc.ca/<service>) as well as actual URLs
                         to the root of the service (https://someurl/service)
-                        are accepted. Default is: ivo://cadc.nrc.ca/youcat
+                        are accepted. Default is:
+                        ivo://cadc.nrc.ca/global/raven
   -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
+  -V, --version         show program's version number and exit
+
+Examples:
+- Anonymously getting a public file:
+        cadcinfo gemini:GEMINI/00aug02_002.fits

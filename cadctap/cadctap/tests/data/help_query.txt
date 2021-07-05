@@ -41,9 +41,9 @@ optional arguments:
   -s, --service SERVICE
                         service this command accesses. Both IDs in short form
                         (<service>) or the complete one
-                        (ivo://cadc.nrc.ca/<service>) and actual URLs to the
-                        root of the service (https://someurl/service). Default
-                        is: ivo://cadc.nrc.ca/youcat
+                        (ivo://cadc.nrc.ca/<service>) as well as actual URLs
+                        to the root of the service (https://someurl/service)
+                        are accepted. Default is: ivo://cadc.nrc.ca/youcat
   --timeout TIMEOUT     query timeout in minutes. Default 2min
   -t, --tmptable TMPTABLE
                         Temp table upload, the value is in format:

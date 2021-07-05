@@ -1,0 +1,39 @@
+usage: cadcget [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+               [-s SERVICE] [-q | -v] [-V] [-o OUTPUT]
+               identifier
+
+Download files from the CADC Storage Inventory into the current
+directory unless overriden with the -o option.
+
+positional arguments:
+  identifier            unique identifier (URI) given to the file in the CADC
+                        Storage Inventory
+
+optional arguments:
+  --cert CERT           location of your X509 certificate to use for
+                        authentication (unencrypted, in PEM format)
+  -h, --help            show this help message and exit
+  -n                    use .netrc in $HOME for authentication
+  --netrc-file NETRC_FILE
+                        netrc file to use for authentication
+  -o, --output OUTPUT   write to file or other directory instead of the
+                        current one.
+  -q, --quiet           run quietly
+  -s, --service SERVICE
+                        service this command accesses. Both IDs in short form
+                        (<service>) or the complete one
+                        (ivo://cadc.nrc.ca/<service>) as well as actual URLs
+                        to the root of the service (https://someurl/service)
+                        are accepted. Default is:
+                        ivo://cadc.nrc.ca/global/raven
+  -u, --user USER       name of user to authenticate. Note: application
+                        prompts for the corresponding password!
+  -v, --verbose         verbose messages
+  -V, --version         show program's version number and exit
+
+Examples:
+- Anonymously download a file to current directory:
+      cadcget gemini:GEMINI/00aug02_002.fits
+- Use certificate to get a cutout and save it to a file:
+      cadcget --cert ~/.ssl/cadcproxy.pem -o /tmp/700000o-cutout.fits
+        cadc:CFHT/700000o[1]
