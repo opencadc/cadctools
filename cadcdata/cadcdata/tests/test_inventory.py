@@ -503,9 +503,15 @@ def test_cadcinfo_cli(cadcinfo_mock):
     assert expected == stdout_mock.getvalue()
 
 
-@patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError]))
-@patch('cadcdata.StorageInventoryClient.cadcput')
-def test_cadcput_cli(cadcput_mock):
+@patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError, MyExitError, MyExitError]))
+@patch('cadcdata.storageinv._create_client')
+def test_cadcput_cli(putclient_mock):
+    # mock client to escape authentication
+    mock_client = StorageInventoryClient()
+    cadcput_mock = Mock()
+    mock_client.cadcput = cadcput_mock
+    putclient_mock.return_value = mock_client
+
     # create a file structure of files to put
     put_dir = '/tmp/put_dir'
     put_subdir = '{}/somedir'.format(put_dir)
@@ -574,8 +580,13 @@ def test_cadcput_cli(cadcput_mock):
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))
-@patch('cadcdata.StorageInventoryClient.cadcremove')
-def test_cadcremove_cli(cadcremove_mock):
+@patch('cadcdata.storageinv._create_client')
+def test_cadcremove_cli(removeclient_mock):
+    # mock client to escape authentication
+    mock_client = StorageInventoryClient()
+    cadcremove_mock = Mock()
+    mock_client.cadcremove = cadcremove_mock
+    removeclient_mock.return_value = mock_client
     netrc = '/tmp/.cadcput_netrc'
     if not os.path.isfile(netrc):
         open(netrc, 'w').write('')

@@ -84,7 +84,7 @@ import sys
 import html2text
 
 from cadcutils.net import ws
-from cadcutils import util
+from cadcutils import util, exceptions
 
 CRED_RESOURCE_ID = 'ivo://cadc.nrc.ca/cred'
 CRED_PROXY_FEATURE_ID = 'ivo://ivoa.net/std/CDP#proxy-1.0'
@@ -332,14 +332,9 @@ def get_cert_main():
             w.write(cert)
         print('DONE. {} day certificate saved in {}'.format(
             args.days_valid, args.cert_filename))
-    except OSError as ose:
-        sys.stderr.write("FAILED to retrieved {} day certificate\n".format(
-            args.days_valid))
-        if ose.errno != 401:
-            sys.stderr.write(html2text.html2text(str(ose)))
-            return getattr(ose, 'errno', 1)
-        else:
-            sys.stderr.write("Access denied\n")
+    except exceptions.UnauthorizedException:
+        # unauthorized
+        sys.stderr.write('FAILED: invalid username/password combination')
     except Exception as ex:
         sys.stderr.write("FAILED to retrieved {} day certificate\n".format(
             args.days_valid))

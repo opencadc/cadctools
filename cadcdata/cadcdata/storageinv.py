@@ -75,11 +75,19 @@ import socket
 from clint.textui import progress
 import hashlib
 import datetime
+import traceback
+from urllib.parse import urlparse, urlencode
 
 from cadcutils import net, util, exceptions
 from cadcutils.util import date2ivoa
 
 from cadcdata import version
+
+CADC_AC_SERVICE = 'ivo://cadc.nrc.ca/gms'
+CADC_LOGIN_CAPABILITY = 'ivo://ivoa.net/std/UMS#login-0.1'
+CADC_SSO_COOKIE_NAME = 'CADC_SSO'
+CADC_REALMS = ['.canfar.net', '.cadc-ccda.hia-iha.nrc-cnrc.gc.ca',
+               '.cadc.dao.nrc.ca', '.canfar.phys.uvic.ca']
 
 MAGIC_WARN = None
 try:
@@ -146,6 +154,38 @@ class FileInfo:
                                self.md5sum))
 
 
+def handle_error(exception, exit_after=True):
+    """
+    Prints error message and exit (by default)
+    :param msg: error message to print
+    :param exit_after: True if log error message and exit,
+    False if log error message and return
+    :return:
+    """
+
+    if isinstance(exception, exceptions.UnauthorizedException):
+        # TODO - magic authentication
+        # if subject.anon:
+        #     handle_error('Operation cannot be performed anonymously. '
+        #                  'Use one of the available methods to authenticate')
+        # else:
+        print('ERROR: Unexpected authentication problem')
+    elif isinstance(exception, exceptions.NotFoundException):
+        print('ERROR: Not found: {}'.format(str(exception)))
+    elif isinstance(exception, exceptions.ForbiddenException):
+        print('ERROR: Unauthorized to perform operation')
+    elif isinstance(exception, exceptions.UnexpectedException):
+        print('ERROR: Unexpected server error: {}'.format(str(exception)))
+    else:
+        print('ERROR: {}'.format(exception))
+
+    if logger.isEnabledFor(logging.DEBUG):
+        traceback.print_stack()
+
+    if exit_after:
+        sys.exit(-1)  # TODO use different error codes?
+
+
 class StorageInventoryClient(object):
     """Class to access CADC storage inventory.
 
@@ -204,6 +244,34 @@ class StorageInventoryClient(object):
         self.resource_id = resource_id
         self.host = host
         agent = '{}/{}'.format('SIClient', version.version)
+        # Storage Inventory does not support Basic Auth. The following block
+        # retrieves a cookie instead. It is temporary until the token spec
+        # is finalized
+        if resource_id.startswith('ivo://cadc.nrc.ca') and\
+           net.auth.SECURITY_METHODS_IDS['basic'] in \
+           subject.get_security_methods():
+            login = net.BaseWsClient(CADC_AC_SERVICE, net.Subject(),
+                                     agent,
+                                     retry=True, host=self.host)
+            login_url = login._get_url((CADC_LOGIN_CAPABILITY, None))
+            realm = urlparse(login_url).hostname
+            auth = subject.get_auth(realm)
+            if not auth:
+                raise RuntimeError(
+                    'No user/password for realm {} in .netrc'.format(realm))
+            data = urlencode([('username', auth[0]), ('password', auth[1])])
+            headers = {
+                "Content-type": "application/x-www-form-urlencoded",
+                "Accept": "text/plain"
+            }
+            cookie_response = \
+                login.post((CADC_LOGIN_CAPABILITY, None), data=data,
+                           headers=headers)
+            cookie_response.raise_for_status()
+            for cadc_realm in CADC_REALMS:
+                subject.cookies.append(
+                    net.auth.CookieInfo(cadc_realm, CADC_SSO_COOKIE_NAME,
+                                        '"{}"'.format(cookie_response.text)))
         self._cadc_client = net.BaseWsClient(resource_id, subject,
                                              agent, retry=True, host=self.host,
                                              insecure=insecure)
@@ -285,28 +353,28 @@ class StorageInventoryClient(object):
                     # remove any path information and save the file in local
                     # directory
                     dest = os.path.basename(dest)
-                    logger.info('Saved file in local directory under: {}'.
+                    logger.debug('Saved file in local directory under: {}'.
                                 format(dest))
                     with open(dest, 'wb') as f:
                         self._save_bytes(response, f, id,
                                          process_bytes=process_bytes)
                 return
-            except (exceptions.HttpException, socket.timeout) as e:
+            except (exceptions.TransferException) as e:
                 # try a different URL
-                logger.info(
+                logger.debug(
                     'WARN: Cannot retrieve data from {}. Exception: {}'.
                     format(url, e))
-                logger.warn('Try the next URL')
-                continue
-            except DownloadError as e:
+                logger.debug('Try the next URL')
                 if not hasattr(dest, 'read'):
                     # try to cleanup the corrupted file
+                    # TODO should save in a temporary file and do a mv
+                    # at the end
                     try:
                         os.unlink(dest)
                     except Exception:
                         # nothing we can do
                         pass
-                raise exceptions.HttpException(str(e))
+                continue
         raise exceptions.HttpException(
             'Unable to download data to any of the available URLs')
 
@@ -380,12 +448,12 @@ class StorageInventoryClient(object):
         src_md5sum = rr.md5sum
         dest_md5sum = hash_md5.hexdigest()
         if src_md5sum != dest_md5sum:
-            raise DownloadError(
+            raise exceptions.TransferException(
                 'Downloaded file is corrupted: '
                 'expected md5({}) != actual md5({})'.
                 format(src_md5sum, dest_md5sum))
         duration = time.time() - start
-        logger.info(
+        logger.debug(
             'Successfully downloaded file {} as {} in {}s (avg. speed: {}MB/s)'
             ''.format(resource, dest_file.name, round(duration, 2),
                       round(total_length / 1024 / 1024 / duration, 2)))
@@ -466,7 +534,7 @@ class StorageInventoryClient(object):
                (file_info.encoding != headers['Content-Encoding']):
                 operation = 'post'
             else:
-                logger.info(
+                logger.debug(
                     'Source {} already in the storage inventory'.format(src))
                 return
 
@@ -492,17 +560,17 @@ class StorageInventoryClient(object):
                     self._cadc_client.put(url, headers=headers, data=f)
                 duration = time.time() - start
                 stat_info = os.stat(src)
-                logger.info(
+                logger.debug(
                     ('Successfully uploaded file {} in {}s '
                      '(avg. speed: {}MB/s)').format(
                         id, round(duration, 2),
                         round(stat_info.st_size / 1024 / 1024 / duration, 2)))
                 return
-            except (exceptions.HttpException, socket.timeout) as e:
+            except exceptions.TransferException as e:
                 # try a different URL
-                logger.info('WARN: Cannot {} data to {}. Exception: {}'.
+                logger.debug('WARN: Cannot {} data to {}. Exception: {}'.
                             format(operation, url, e))
-                logger.warn('Try the next URL')
+                logger.debug('Try the next URL')
                 continue
         raise exceptions.HttpException(
             'Unable to {} data from any of the available '
@@ -538,11 +606,11 @@ class StorageInventoryClient(object):
                 duration = time.time() - start
                 logger.debug('{} removed in {} ms'.format(id, duration))
                 return
-            except (exceptions.HttpException, socket.timeout) as e:
+            except exceptions.TransferException as e:
                 # try a different URL
-                logger.info('WARN: Cannot remove data from {}. Exception: {}'.
+                logger.debug('WARN: Cannot remove data from {}. Exception: {}'.
                             format(url, e))
-                logger.warn('Try the next URL')
+                logger.debug('Try the next URL')
                 continue
         raise exceptions.HttpException(
             'Unable to remove data from any of the available URLs')
@@ -595,15 +663,6 @@ class StorageInventoryClient(object):
         return hash_md5.hexdigest()
 
 
-class DownloadError(Exception):
-    """Download error (file corrupted)
-    Attributes:
-        msg
-    """
-    def __init__(self, msg=None):
-        Exception.__init__(self, msg)
-
-
 def cadcput_cli():
     parser = util.get_base_parser(subparsers=False,
                                   version=version.version,
@@ -653,11 +712,8 @@ def cadcput_cli():
         '      cadcput -v -u auser cadc:TEST/ myfile.fits.gz dir1 dir2')
 
     args = parser.parse_args()
-    _set_logging_level(args)
-    subject = net.Subject.from_cmd_line_args(args)
+    client = _create_client(args)
 
-    client = StorageInventoryClient(subject, args.service, host=args.host,
-                                    insecure=args.insecure)
     files = []
     for file in args.src:
         if os.path.isdir(file):
@@ -713,10 +769,7 @@ def cadcget_cli():
         '        cadc:CFHT/700000o[1]\n')
 
     args = parser.parse_args()
-    _set_logging_level(args)
-    subject = net.Subject.from_cmd_line_args(args)
-    client = StorageInventoryClient(subject, args.service, host=args.host,
-                                    insecure=args.insecure)
+    client = _create_client(args)
     logger.info('GET id {} -> {}'.format(
         args.identifier, args.output if args.output else 'stdout'))
     execute_cmd(client.cadcget, {'id': args.identifier, 'dest': args.output})
@@ -740,10 +793,7 @@ def cadcinfo_cli():
         '        cadcinfo gemini:GEMINI/00aug02_002.fits\n')
 
     args = parser.parse_args()
-    _set_logging_level(args)
-    subject = net.Subject.from_cmd_line_args(args)
-    client = StorageInventoryClient(subject, args.service, host=args.host,
-                                    insecure=args.insecure)
+    client = _create_client(args)
     for id in args.identifier:
         logger.info('INFO for id {}'.format(id))
         try:
@@ -781,10 +831,7 @@ def cadcremove_cli():
         '       cadcremove --cert ~/.ssl/cadcproxy.pem cadc:CFHT/700000o.fz\n')
 
     args = parser.parse_args()
-    _set_logging_level(args)
-    subject = net.Subject.from_cmd_line_args(args)
-    client = StorageInventoryClient(subject, args.service, host=args.host,
-                                    insecure=args.insecure)
+    client = _create_client(args)
     for id in args.identifier:
         logger.info('REMOVE id {}'.format(id))
         execute_cmd(client.cadcremove, {'id': id})
@@ -801,33 +848,19 @@ def _set_logging_level(args):
         logging.basicConfig(level=logging.WARN, stream=sys.stdout)
 
 
-def execute_cmd(cmd, cmd_args):
-    def handle_error(msg, exit_after=True):
-        """
-        Prints error message and exit (by default)
-        :param msg: error message to print
-        :param exit_after: True if log error message and exit,
-        False if log error message and return
-        :return:
-        """
+def _create_client(args):
+    # creates a StorageInventory client based on the cmd line args
+    try:
+        _set_logging_level(args)
+        subject = net.Subject.from_cmd_line_args(args)
+        return StorageInventoryClient(subject, args.service, host=args.host,
+                                      insecure=args.insecure)
+    except Exception as ex:
+        handle_error(str(ex))
 
-        print('ERROR: {}'.format(msg))
-        if exit_after:
-            sys.exit(-1)  # TODO use different error codes?
+
+def execute_cmd(cmd, cmd_args):
     try:
         return cmd(**cmd_args)
-    except exceptions.UnauthorizedException:
-        # TODO - magic authentication
-        # if subject.anon:
-        #     handle_error('Operation cannot be performed anonymously. '
-        #                  'Use one of the available methods to authenticate')
-        # else:
-        handle_error('Unexpected authentication problem')
-    except exceptions.NotFoundException as not_found:
-        handle_error('Not found: {}'.format(str(not_found)))
-    except exceptions.ForbiddenException:
-        handle_error('Unauthorized to perform operation')
-    except exceptions.UnexpectedException as e:
-        handle_error('Unexpected server error: {}'.format(str(e)))
     except Exception as e:
-        handle_error(str(e))
+        handle_error(e)

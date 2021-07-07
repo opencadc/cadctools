@@ -272,14 +272,12 @@ class CadcDataClient(object):
                                          process_bytes=process_bytes,
                                          md5_check=md5_check)
                 return
-            except (exceptions.HttpException, socket.timeout) as e:
+            except (exceptions.TransferException, DownloadError) as e:
                 # try a different URL
                 self.logger.info(
                     'WARN: Cannot retrieve data from {}. Exception: {}'.
                     format(url, e))
-                self.logger.warn('Try the next URL')
-                continue
-            except DownloadError as e:
+                self.logger.warning('Try the next URL')
                 if not hasattr(destination, 'read'):
                     # try to cleanup the corrupted file
                     try:
@@ -287,7 +285,7 @@ class CadcDataClient(object):
                     except Exception:
                         # nothing we can do
                         pass
-                raise exceptions.HttpException(str(e))
+                continue
         raise exceptions.HttpException(
             'Unable to download data from any of the available URLs')
 
@@ -467,11 +465,11 @@ class CadcDataClient(object):
                         archive, src_file, round(duration, 2),
                         round(stat_info.st_size / 1024 / 1024 / duration, 2)))
                 return
-            except (exceptions.HttpException, socket.timeout) as e:
+            except exceptions.TransferException as e:
                 # try a different URL
                 self.logger.info('WARN: Cannot put data to {}. Exception: {}'.
                                  format(url, e))
-                self.logger.warn('Try the next URL')
+                self.logger.warning('Try the next URL')
                 continue
         raise exceptions.HttpException(
             'Unable to put data from any of the available URLs')

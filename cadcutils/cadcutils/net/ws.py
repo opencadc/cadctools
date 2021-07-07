@@ -418,6 +418,8 @@ class RetrySession(Session):
         transient errors. The time between retries double every time until a
         maximum of 30sec is reached
 
+        This does not work with POST method
+
         The following network errors are considered transient:
             requests.codes.unavailable,
             requests.codes.service_unavailable,
@@ -475,22 +477,28 @@ class RetrySession(Session):
         if 'timeout' not in kwargs or kwargs['timeout'] is None:
             kwargs['timeout'] = 120
 
-        if self.retry:
+        if request.method.upper() != 'POST' and self.retry:
             current_delay = max(self.start_delay, DEFAULT_RETRY_DELAY)
             current_delay = min(current_delay, MAX_RETRY_DELAY)
             num_retries = 0
             self.logger.debug(
                 "Sending request {0}  to server.".format(request))
             current_error = None
-            while num_retries < MAX_NUM_RETRIES:
+            while True:
                 try:
                     response = super(RetrySession, self).send(request,
                                                               **kwargs)
                     self.check_status(response)
                     return response
-                except requests.exceptions.Timeout as te:
+                except requests.exceptions.ConnectTimeout as ct:
                     # retry on timeouts
-                    self.logger.debug(te)
+                    current_error = ct
+                    self.logger.debug(ct)
+                except requests.exceptions.ReadTimeout as rt:
+                    # this could happen after the request has made it to
+                    # the server so it should be re-done
+                    raise exceptions.TransferException(
+                        'Read timeout on {}'.format(request.url), rt)
                 except requests.HTTPError as e:
                     if e.response.status_code not in self.retry_errors:
                         raise exceptions.HttpException(e)
@@ -504,23 +512,16 @@ class RetrySession(Session):
                             current_delay = min(current_delay, MAX_RETRY_DELAY)
                         except Exception:
                             pass
-
                 except requests.ConnectionError as ce:
-                    current_error = ce
-                    # TODO not sure this appropriate for all the
-                    # 'Connection reset by peer' errors.
-                    # A post/put to vospace returns a document. If operation
-                    # succeeded but the error occurs during the response the
-                    # code below will send the request again. Since the
-                    # resource has been created/updated, a new error (bad
-                    # request maybe) might be issued by the server and that
-                    # can confuse the caller.
-                    # This code should probably deal with HTTP errors only
-                    # as the 503s above.
-                    self.logger.debug("Caught exception: {0}".format(ce))
-                    if ce.errno != 104:
-                        # Only continue trying on a reset by peer error.
-                        raise exceptions.HttpException(orig_exception=ce)
+                    if 'Connection reset by peer' in str(ce):
+                        # Likely a network error that the caller can re-try
+                        raise exceptions.TransferException(
+                            'Transfer error on URL: {}'.format(request.url))
+                    else:
+                        # Can't recover (bad url, etc)
+                        raise exceptions.HttpException(ce)
+                if num_retries == MAX_NUM_RETRIES:
+                    break
                 self.logger.debug(
                     "Resending request in {}s ...".format(current_delay))
                 time.sleep(current_delay)
