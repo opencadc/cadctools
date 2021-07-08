@@ -95,6 +95,8 @@ except ImportError as e:
     else:
         raise e
 
+# maximum number of times to try an URL with transient error
+MAX_TRANSIENT_TRIES = 3
 
 # make the stream bar show up on stdout
 progress.STREAM = sys.stdout
@@ -272,7 +274,7 @@ class CadcDataClient(object):
                                          process_bytes=process_bytes,
                                          md5_check=md5_check)
                 return
-            except exceptions.TransferException as e:
+            except Exception as e:
                 # try a different URL
                 self.logger.info(
                     'WARN: Cannot retrieve data from {}. Exception: {}'.
@@ -285,6 +287,10 @@ class CadcDataClient(object):
                     except Exception:
                         # nothing we can do
                         pass
+                if isinstance(e, exceptions.TransferException) and \
+                        protocols.count(protocol) < MAX_TRANSIENT_TRIES:
+                    # this is a transient exception - append url to try later
+                    protocols.append(protocol)
                 continue
         raise exceptions.HttpException(
             'Unable to download data from any of the available URLs')
@@ -465,7 +471,11 @@ class CadcDataClient(object):
                         archive, src_file, round(duration, 2),
                         round(stat_info.st_size / 1024 / 1024 / duration, 2)))
                 return
-            except exceptions.TransferException as e:
+            except Exception as e:
+                if isinstance(e, exceptions.TransferException) and \
+                        protocols.count(protocol) < MAX_TRANSIENT_TRIES:
+                    # this is a transient exception - append url to try later
+                    protocols.append(protocol)
                 # try a different URL
                 self.logger.info('WARN: Cannot put data to {}. Exception: {}'.
                                  format(url, e))

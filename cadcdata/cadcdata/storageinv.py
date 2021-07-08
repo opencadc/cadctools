@@ -121,6 +121,9 @@ LOCATE_STANDARD_ID = 'http://www.opencadc.org/std/storage#locate-1.0'
 READ_BLOCK_SIZE = 8 * 1024
 logger = logging.getLogger(__name__)
 
+# maximum number of times to try an URL with transient error
+MAX_TRANSIENT_TRIES = 3
+
 
 # TODO This is a dataclass for when Py3.7 becomes the minimum supported version
 class FileInfo:
@@ -360,7 +363,7 @@ class StorageInventoryClient(object):
                         self._save_bytes(response, f, id,
                                          process_bytes=process_bytes)
                 return
-            except (exceptions.TransferException) as e:
+            except Exception as e:
                 # try a different URL
                 logger.debug(
                     'WARN: Cannot retrieve data from {}. Exception: {}'.
@@ -375,7 +378,11 @@ class StorageInventoryClient(object):
                     except Exception:
                         # nothing we can do
                         pass
-                continue
+                if isinstance(e, exceptions.TransferException) and \
+                        urls.count(url) < MAX_TRANSIENT_TRIES:
+                    # this is a transient exception - append url to try later
+                    urls.append(url)
+
         raise exceptions.HttpException(
             'Unable to download data to any of the available URLs')
 
@@ -567,7 +574,11 @@ class StorageInventoryClient(object):
                         id, round(duration, 2),
                         round(stat_info.st_size / 1024 / 1024 / duration, 2)))
                 return
-            except exceptions.TransferException as e:
+            except Exception as e:
+                if isinstance(e, exceptions.TransferException) and \
+                        urls.count(url) < MAX_TRANSIENT_TRIES:
+                    # this is a transient exception - append url to try later
+                    urls.append(url)
                 # try a different URL
                 logger.debug('WARN: Cannot {} data to {}. Exception: {}'.
                             format(operation, url, e))
