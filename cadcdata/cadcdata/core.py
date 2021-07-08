@@ -272,7 +272,7 @@ class CadcDataClient(object):
                                          process_bytes=process_bytes,
                                          md5_check=md5_check)
                 return
-            except (exceptions.TransferException, DownloadError) as e:
+            except exceptions.TransferException as e:
                 # try a different URL
                 self.logger.info(
                     'WARN: Cannot retrieve data from {}. Exception: {}'.
@@ -365,7 +365,7 @@ class CadcDataClient(object):
         if md5_check and (response.headers.get('content-MD5', 0) != 0):
             md5sum = hash_md5.hexdigest()
             if md5sum and response.headers.get('content-MD5', 0) != md5sum:
-                raise DownloadError(
+                raise exceptions.TransferException(
                     'Downloaded file is corrupted: '
                     'expected md5({}) != actual md5({})'.
                     format(response.headers.get('content-MD5', 0), md5sum))
@@ -546,15 +546,6 @@ class CadcDataClient(object):
             for chunk in iter(lambda: f.read(4096), b""):
                 hash_md5.update(chunk)
         return hash_md5.hexdigest()
-
-
-class DownloadError(Exception):
-    """Download error (file corrupted)
-    Attributes:
-        msg
-    """
-    def __init__(self, msg=None):
-        Exception.__init__(self, msg)
 
 
 def main_app():

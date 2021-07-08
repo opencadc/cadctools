@@ -244,6 +244,7 @@ class StorageInventoryClient(object):
         self.resource_id = resource_id
         self.host = host
         agent = '{}/{}'.format('SIClient', version.version)
+        # TODO
         # Storage Inventory does not support Basic Auth. The following block
         # retrieves a cookie instead. It is temporary until the token spec
         # is finalized
