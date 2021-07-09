@@ -166,7 +166,7 @@ def test_get(trans_mock, basews_mock):
     url_list = ['url1', 'url2']
     trans_mock.return_value.transfer.return_value = list(url_list)  # copy
     get_mock.side_effect = [exceptions.TransferException()] * len(url_list) * \
-                           cadcdata.storageinv.MAX_TRANSIENT_TRIES
+                            cadcdata.storageinv.MAX_TRANSIENT_TRIES
     with pytest.raises(exceptions.HttpException):
         client.cadcget('cadc:TEST:bfile.txt', file_name)
     assert get_mock.call_count == \
@@ -219,7 +219,7 @@ def test_get(trans_mock, basews_mock):
     response.raw.read.side_effect = file_chunks
     get_mock.reset_mock()
     get_mock.side_effect = [response]
-    trans_mock.return_value.transfer.return_value = ['url1', 'url2']
+    trans_mock.return_value.transfer.return_value = list(url_list)
     client = StorageInventoryClient(auth.Subject())
     # md5_check does not take place because no content-MD5 received
     # from server
@@ -234,15 +234,39 @@ def test_get(trans_mock, basews_mock):
         'digest': 'md5={}'.format(
             base64.b64encode('f00'.encode('ascii')).decode('ascii'))}
     response.raw.read.side_effect = file_chunks
-    basews_mock.return_value.get.return_value = response
+    trans_mock.return_value.transfer.return_value = list(url_list)
     client = StorageInventoryClient(auth.Subject())
+    # this is considered a TransferException so the client is going to
+    # try MAX_TRANSIENT_TRIES for each url in the list
+    get_mock.side_effect = [response] * len(url_list) * \
+                            cadcdata.storageinv.MAX_TRANSIENT_TRIES
     with pytest.raises(exceptions.HttpException):
         client.cadcget('cadc:TEST/afile', dest='/dev/null',
                        process_bytes=concatenate_chunks)
 
+    # failed md5 checksum on the first URL, the good one on the second
+    good_response = Mock()
+    good_response.headers = {
+        'content-disposition': 'inline; filename={}.gz'.format(file_name),
+        'digest': 'md5={}'.format(b64encoded)}
+    bad_response = Mock()
+    bad_response.headers = {
+        'content-disposition': 'inline; filename={}.gz'.format(file_name),
+        'digest': 'md5={}'.format(
+            base64.b64encode('f00'.encode('ascii')).decode('ascii'))}
+    good_response.raw.read.side_effect = file_chunks
+    trans_mock.return_value.transfer.return_value = list(url_list)
+    client = StorageInventoryClient(auth.Subject())
+    get_mock.side_effect = [bad_response, good_response]
+    get_mock.reset_mock()
+    client.cadcget('cadc:TEST/afile', dest='/dev/null',
+                   process_bytes=concatenate_chunks)
+    assert 2 == get_mock.call_count
+
     # file not found on any of the transfer URLs
     basews_mock.reset_mock()
-    basews_mock.return_value.get.side_effect = \
+    trans_mock.return_value.transfer.return_value = list(url_list)
+    get_mock.side_effect = \
         [exceptions.NotFoundException(), exceptions.NotFoundException()]
     with pytest.raises(exceptions.HttpException):
         client.cadcget(id)
@@ -400,7 +424,7 @@ def test_put(basews_mock):
     url_list = ['url1', 'url2']
     client._get_transfer_urls = Mock(return_value=list(url_list))  # copy list
     put_mock.side_effect = [exceptions.TransferException()] * 2 * \
-                           cadcdata.storageinv.MAX_TRANSIENT_TRIES
+                            cadcdata.storageinv.MAX_TRANSIENT_TRIES
     client.cadcinfo = Mock(side_effect=exceptions.NotFoundException())
     with pytest.raises(exceptions.HttpException):
         client.cadcput('cadc:TEST/putfile', file_name,
@@ -588,7 +612,8 @@ def test_cadcinfo_cli(cadcinfo_mock):
     assert expected == stdout_mock.getvalue()
 
 
-@patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError, MyExitError, MyExitError]))
+@patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
+                                     MyExitError, MyExitError, MyExitError]))
 @patch('cadcdata.storageinv._create_client')
 def test_cadcput_cli(putclient_mock):
     # mock client to escape authentication

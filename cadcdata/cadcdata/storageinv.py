@@ -71,7 +71,6 @@ import os
 import os.path
 import sys
 import time
-import socket
 from clint.textui import progress
 import hashlib
 import datetime
@@ -87,7 +86,7 @@ CADC_AC_SERVICE = 'ivo://cadc.nrc.ca/gms'
 CADC_LOGIN_CAPABILITY = 'ivo://ivoa.net/std/UMS#login-0.1'
 CADC_SSO_COOKIE_NAME = 'CADC_SSO'
 CADC_REALMS = ['.canfar.net', '.cadc-ccda.hia-iha.nrc-cnrc.gc.ca',
-               '.cadc.dao.nrc.ca', '.canfar.phys.uvic.ca']
+               '.cadc.dao.nrc.ca']
 
 MAGIC_WARN = None
 try:
@@ -322,7 +321,7 @@ class StorageInventoryClient(object):
         urls = self._get_transfer_urls(id)
         if len(urls) == 0:
             raise exceptions.HttpException('No URLs available to access data')
-
+        last_exception = None
         for url in urls:
             logger.debug('GET from URL {}'.format(url))
             try:
@@ -358,7 +357,7 @@ class StorageInventoryClient(object):
                     # directory
                     dest = os.path.basename(dest)
                     logger.debug('Saved file in local directory under: {}'.
-                                format(dest))
+                                 format(dest))
                     with open(dest, 'wb') as f:
                         self._save_bytes(response, f, id,
                                          process_bytes=process_bytes)
@@ -369,6 +368,7 @@ class StorageInventoryClient(object):
                     'WARN: Cannot retrieve data from {}. Exception: {}'.
                     format(url, e))
                 logger.debug('Try the next URL')
+                last_exception = e
                 if not hasattr(dest, 'read'):
                     # try to cleanup the corrupted file
                     # TODO should save in a temporary file and do a mv
@@ -382,9 +382,11 @@ class StorageInventoryClient(object):
                         urls.count(url) < MAX_TRANSIENT_TRIES:
                     # this is a transient exception - append url to try later
                     urls.append(url)
-
-        raise exceptions.HttpException(
-            'Unable to download data to any of the available URLs')
+        if last_exception:
+            raise last_exception
+        else:
+            raise exceptions.HttpException(
+                'BUG: Unable to download data to any of the available URLs')
 
     def _save_bytes(self, response, dest_file, resource, process_bytes=None):
         # requests automatically decompresses the data.
@@ -581,7 +583,7 @@ class StorageInventoryClient(object):
                     urls.append(url)
                 # try a different URL
                 logger.debug('WARN: Cannot {} data to {}. Exception: {}'.
-                            format(operation, url, e))
+                             format(operation, url, e))
                 logger.debug('Try the next URL')
                 continue
         raise exceptions.HttpException(
@@ -618,10 +620,10 @@ class StorageInventoryClient(object):
                 duration = time.time() - start
                 logger.debug('{} removed in {} ms'.format(id, duration))
                 return
-            except exceptions.TransferException as e:
+            except Exception as e:
                 # try a different URL
                 logger.debug('WARN: Cannot remove data from {}. Exception: {}'.
-                            format(url, e))
+                             format(url, e))
                 logger.debug('Try the next URL')
                 continue
         raise exceptions.HttpException(

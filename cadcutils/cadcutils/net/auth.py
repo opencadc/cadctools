@@ -336,7 +336,7 @@ def get_cert_main():
         # unauthorized
         sys.stderr.write('FAILED: invalid username/password combination')
     except Exception as ex:
-        sys.stderr.write("FAILED to retrieved {} day certificate\n".format(
+        sys.stderr.write("FAILED to retrieve {} day certificate\n".format(
             args.days_valid))
         sys.stderr.write('{}'.format(html2text.html2text(str(ex))))
         return getattr(ex, 'errno', 1)
