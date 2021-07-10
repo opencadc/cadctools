@@ -166,7 +166,7 @@ def test_get(trans_mock, basews_mock):
     url_list = ['url1', 'url2']
     trans_mock.return_value.transfer.return_value = list(url_list)  # copy
     get_mock.side_effect = [exceptions.TransferException()] * len(url_list) * \
-                            cadcdata.storageinv.MAX_TRANSIENT_TRIES
+        cadcdata.storageinv.MAX_TRANSIENT_TRIES
     with pytest.raises(exceptions.HttpException):
         client.cadcget('cadc:TEST:bfile.txt', file_name)
     assert get_mock.call_count == \
@@ -239,7 +239,7 @@ def test_get(trans_mock, basews_mock):
     # this is considered a TransferException so the client is going to
     # try MAX_TRANSIENT_TRIES for each url in the list
     get_mock.side_effect = [response] * len(url_list) * \
-                            cadcdata.storageinv.MAX_TRANSIENT_TRIES
+        cadcdata.storageinv.MAX_TRANSIENT_TRIES
     with pytest.raises(exceptions.HttpException):
         client.cadcget('cadc:TEST/afile', dest='/dev/null',
                        process_bytes=concatenate_chunks)
@@ -424,7 +424,7 @@ def test_put(basews_mock):
     url_list = ['url1', 'url2']
     client._get_transfer_urls = Mock(return_value=list(url_list))  # copy list
     put_mock.side_effect = [exceptions.TransferException()] * 2 * \
-                            cadcdata.storageinv.MAX_TRANSIENT_TRIES
+        cadcdata.storageinv.MAX_TRANSIENT_TRIES
     client.cadcinfo = Mock(side_effect=exceptions.NotFoundException())
     with pytest.raises(exceptions.HttpException):
         client.cadcput('cadc:TEST/putfile', file_name,
@@ -612,8 +612,7 @@ def test_cadcinfo_cli(cadcinfo_mock):
     assert expected == stdout_mock.getvalue()
 
 
-@patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
-                                     MyExitError, MyExitError, MyExitError]))
+@patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError]))
 @patch('cadcdata.storageinv._create_client')
 def test_cadcput_cli(putclient_mock):
     # mock client to escape authentication

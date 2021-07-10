@@ -75,7 +75,6 @@ import os
 import os.path
 import sys
 import time
-import socket
 from clint.textui import progress
 import hashlib
 

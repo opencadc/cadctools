@@ -170,8 +170,8 @@ def test_client_authenticated():
         file_info = None
         for resource_id in location_resource_ids:
             try:
-                location_client = StorageInventoryClient(subject=subject,
-                                                         resource_id=resource_id)
+                location_client = StorageInventoryClient(
+                    subject=subject, resource_id=resource_id)
                 file_info = location_client.cadcinfo(global_id)
                 break
             except exceptions.NotFoundException:
