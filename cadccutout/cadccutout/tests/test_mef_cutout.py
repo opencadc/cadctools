@@ -74,7 +74,7 @@ import logging
 import numpy as np
 import os
 import pytest
-import context as test_context
+from . import context as test_context
 
 from astropy.io import fits
 from astropy.wcs import WCS

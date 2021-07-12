@@ -73,7 +73,7 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import numpy as np
 import os
-import context as test_context
+from . import context as test_context
 from astropy.io import fits
 
 from cadccutout.core import OpenCADCCutout

@@ -392,26 +392,51 @@ class TestRetrySession(unittest.TestCase):
         rs.send(request, timeout=77)
         send_mock.assert_called_with(request, timeout=77)
 
-        # mock delays for the 'Connection reset by peer error'
-        # one connection error delay = DEFAULT_RETRY_DELAY
+        # mock delays for connect timeout
         send_mock.reset_mock()
         rs = ws.RetrySession()
         # connection error that triggers retries
-        ce = requests.exceptions.ConnectionError()
-        ce.errno = 104
+        cte = requests.exceptions.ConnectTimeout()
         response = requests.Response()
         response.status_code = requests.codes.ok
-        send_mock.side_effect = [ce, response]
+        send_mock.side_effect = [cte, response]
         rs.send(request)
         time_mock.assert_called_with(DEFAULT_RETRY_DELAY)
+
+        # mock delays for read timeout
+        send_mock.reset_mock()
+        rs = ws.RetrySession()
+        # connection error that triggers retries
+        rte = requests.exceptions.ReadTimeout()
+        send_mock.side_effect = [rte]
+        with self.assertRaises(exceptions.TransferException):
+            rs.send(request)
+
+        # mock Connection errors
+        send_mock.reset_mock()
+        rs = ws.RetrySession()
+        # connection error that triggers retries
+        ce = requests.exceptions.ConnectionError('Some error')
+        send_mock.side_effect = [ce]
+        with self.assertRaises(exceptions.HttpException):
+            rs.send(request)
+
+        # mock reset by peer error
+        # mock Connection errors
+        send_mock.reset_mock()
+        rs = ws.RetrySession()
+        # connection error that triggers retries
+        ce = requests.exceptions.ConnectionError('Connection reset by peer')
+        send_mock.side_effect = [ce]
+        with self.assertRaises(exceptions.TransferException):
+            rs.send(request)
 
         # two connection error delay = DEFAULT_RETRY_DELAY
         send_mock.reset_mock()
         time_mock.reset_mock()
         rs = ws.RetrySession()
         # connection error that triggers retries
-        ce = requests.exceptions.ConnectionError()
-        ce.errno = 104
+        ce = requests.exceptions.ConnectTimeout()
         response = requests.Response()
         response.status_code = requests.codes.ok
         send_mock.side_effect = [ce, ce, response]  # two connection errors
@@ -425,8 +450,7 @@ class TestRetrySession(unittest.TestCase):
         time_mock.reset_mock()
         rs = ws.RetrySession(start_delay=MAX_RETRY_DELAY / 2 + 1)
         # connection error that triggers retries
-        ce = requests.exceptions.ConnectionError()
-        ce.errno = 104
+        ce = requests.exceptions.ConnectTimeout()
         response = requests.Response()
         response.status_code = requests.codes.ok
         send_mock.side_effect = [ce, ce, response]  # two connection errors
@@ -439,8 +463,7 @@ class TestRetrySession(unittest.TestCase):
         time_mock.reset_mock()
         rs = ws.RetrySession(start_delay=MAX_RETRY_DELAY / 2 + 1)
         # connection error that triggers retries
-        ce = requests.exceptions.ConnectionError()
-        ce.errno = 104
+        ce = requests.exceptions.ConnectTimeout()
         # make sure the mock returns more errors than the maximum number
         # of retries allowed
         http_errors = []
@@ -449,17 +472,6 @@ class TestRetrySession(unittest.TestCase):
             http_errors.append(ce)
             i += 1
         send_mock.side_effect = http_errors
-        with self.assertRaises(exceptions.HttpException):
-            rs.send(request)
-
-        # return the connection error other than 104 - connection reset by peer
-        send_mock.reset_mock()
-        time_mock.reset_mock()
-        rs = ws.RetrySession(start_delay=MAX_RETRY_DELAY / 2 + 1)
-        # connection error that triggers retries
-        ce = requests.exceptions.ConnectionError()
-        ce.errno = 105
-        send_mock.side_effect = ce
         with self.assertRaises(exceptions.HttpException):
             rs.send(request)
 

@@ -116,7 +116,8 @@ def test_get(trans_mock, basews_mock):
         hash_md5.hexdigest().encode('ascii')).decode('ascii')
     response.headers = {'digest': 'md5={}'.format(b64encoded)}
     response.raw.read.side_effect = file_chunks  # returns multiple blocks
-    basews_mock.return_value.get.return_value = response
+    get_mock = Mock(return_value=response)
+    basews_mock.return_value.get = get_mock
     client = StorageInventoryClient(auth.Subject())
     trans_mock.return_value.transfer.return_value = []
     with pytest.raises(exceptions.HttpException):
@@ -160,6 +161,42 @@ def test_get(trans_mock, basews_mock):
     with pytest.raises(exceptions.HttpException):
         client.cadcget('cadc:TEST:bfile.txt', file_name)
 
+    # transfer exceptions on all the URLs in the list
+    get_mock.reset_mock()
+    url_list = ['url1', 'url2']
+    trans_mock.return_value.transfer.return_value = list(url_list)  # copy
+    get_mock.side_effect = [exceptions.TransferException()] * len(url_list) * \
+        cadcdata.storageinv.MAX_TRANSIENT_TRIES
+    with pytest.raises(exceptions.HttpException):
+        client.cadcget('cadc:TEST:bfile.txt', file_name)
+    assert get_mock.call_count == \
+           len(url_list) * cadcdata.storageinv.MAX_TRANSIENT_TRIES
+
+    # transfer exception on one of the urls only (the second url is tried once
+    # only
+    get_mock.reset_mock()
+    trans_mock.return_value.transfer.return_value = list(url_list)  # copy
+    get_mock.side_effect = [exceptions.TransferException(),
+                            exceptions.NotFoundException(),
+                            exceptions.TransferException(),
+                            exceptions.TransferException()]
+    with pytest.raises(exceptions.HttpException):
+        client.cadcget('cadc:TEST:bfile.txt', file_name)
+    # 1 NotFoundError + 3 max number of retries on the remaining URL
+    assert get_mock.call_count == 1 + cadcdata.storageinv.MAX_TRANSIENT_TRIES
+
+    # 1 transfer + 2 non intermittent - transfer URL is retried, the other
+    # two are not
+    get_mock.reset_mock()
+    trans_mock.return_value.transfer.return_value = list(url_list)  # copy
+    get_mock.side_effect = [exceptions.TransferException(),
+                            exceptions.NotFoundException(),
+                            exceptions.NotFoundException()]
+    with pytest.raises(exceptions.HttpException):
+        client.cadcget('cadc:TEST:bfile.txt', file_name)
+    # 1 Transfer + 2 NotFoundError
+    assert get_mock.call_count == 3
+
     # test process_bytes and send the content to /dev/null after.
     def concatenate_chunks(chunk):
         global mycontent
@@ -180,7 +217,9 @@ def test_get(trans_mock, basews_mock):
         'content-disposition': 'inline; filename={}.gz'.format(file_name),
         'digest': 'md5={}'.format(b64encoded)}
     response.raw.read.side_effect = file_chunks
-    basews_mock.return_value.get.return_value = response
+    get_mock.reset_mock()
+    get_mock.side_effect = [response]
+    trans_mock.return_value.transfer.return_value = list(url_list)
     client = StorageInventoryClient(auth.Subject())
     # md5_check does not take place because no content-MD5 received
     # from server
@@ -195,15 +234,39 @@ def test_get(trans_mock, basews_mock):
         'digest': 'md5={}'.format(
             base64.b64encode('f00'.encode('ascii')).decode('ascii'))}
     response.raw.read.side_effect = file_chunks
-    basews_mock.return_value.get.return_value = response
+    trans_mock.return_value.transfer.return_value = list(url_list)
     client = StorageInventoryClient(auth.Subject())
+    # this is considered a TransferException so the client is going to
+    # try MAX_TRANSIENT_TRIES for each url in the list
+    get_mock.side_effect = [response] * len(url_list) * \
+        cadcdata.storageinv.MAX_TRANSIENT_TRIES
     with pytest.raises(exceptions.HttpException):
         client.cadcget('cadc:TEST/afile', dest='/dev/null',
                        process_bytes=concatenate_chunks)
 
+    # failed md5 checksum on the first URL, the good one on the second
+    good_response = Mock()
+    good_response.headers = {
+        'content-disposition': 'inline; filename={}.gz'.format(file_name),
+        'digest': 'md5={}'.format(b64encoded)}
+    bad_response = Mock()
+    bad_response.headers = {
+        'content-disposition': 'inline; filename={}.gz'.format(file_name),
+        'digest': 'md5={}'.format(
+            base64.b64encode('f00'.encode('ascii')).decode('ascii'))}
+    good_response.raw.read.side_effect = file_chunks
+    trans_mock.return_value.transfer.return_value = list(url_list)
+    client = StorageInventoryClient(auth.Subject())
+    get_mock.side_effect = [bad_response, good_response]
+    get_mock.reset_mock()
+    client.cadcget('cadc:TEST/afile', dest='/dev/null',
+                   process_bytes=concatenate_chunks)
+    assert 2 == get_mock.call_count
+
     # file not found on any of the transfer URLs
     basews_mock.reset_mock()
-    basews_mock.return_value.get.side_effect = \
+    trans_mock.return_value.transfer.return_value = list(url_list)
+    get_mock.side_effect = \
         [exceptions.NotFoundException(), exceptions.NotFoundException()]
     with pytest.raises(exceptions.HttpException):
         client.cadcget(id)
@@ -355,6 +418,52 @@ def test_put(basews_mock):
     with pytest.raises(AttributeError):
         client.cadcput('cadc:TEST/putfile', file_name, replace=False)
 
+    # Transfer error on all urls
+    put_mock.reset_mock()
+    basews_mock.return_value.post = post_mock
+    url_list = ['url1', 'url2']
+    client._get_transfer_urls = Mock(return_value=list(url_list))  # copy list
+    put_mock.side_effect = [exceptions.TransferException()] * 2 * \
+        cadcdata.storageinv.MAX_TRANSIENT_TRIES
+    client.cadcinfo = Mock(side_effect=exceptions.NotFoundException())
+    with pytest.raises(exceptions.HttpException):
+        client.cadcput('cadc:TEST/putfile', file_name,
+                       file_type='text/plain', file_encoding='us-ascii',
+                       md5_checksum='0x1234567890')
+    assert put_mock.call_count == \
+           len(url_list) * cadcdata.storageinv.MAX_TRANSIENT_TRIES
+
+    # Transfer error on one url, NotFound on the other
+    put_mock.reset_mock()
+    basews_mock.return_value.post = post_mock
+    url_list = ['url1', 'url2']
+    client._get_transfer_urls = Mock(return_value=list(url_list))  # copy list
+    put_mock.side_effect = [exceptions.TransferException(),
+                            exceptions.NotFoundException(),
+                            exceptions.TransferException(),
+                            exceptions.TransferException]
+    client.cadcinfo = Mock(side_effect=exceptions.NotFoundException())
+    with pytest.raises(exceptions.HttpException):
+        client.cadcput('cadc:TEST/putfile', file_name,
+                       file_type='text/plain', file_encoding='us-ascii',
+                       md5_checksum='0x1234567890')
+    assert put_mock.call_count == 1 + cadcdata.storageinv.MAX_TRANSIENT_TRIES
+
+    # Transfer error on one url followed by 2 NotFound
+    put_mock.reset_mock()
+    basews_mock.return_value.post = post_mock
+    url_list = ['url1', 'url2']
+    client._get_transfer_urls = Mock(return_value=list(url_list))  # copy list
+    put_mock.side_effect = [exceptions.TransferException(),
+                            exceptions.NotFoundException(),
+                            exceptions.NotFoundException()]
+    client.cadcinfo = Mock(side_effect=exceptions.NotFoundException())
+    with pytest.raises(exceptions.HttpException):
+        client.cadcput('cadc:TEST/putfile', file_name,
+                       file_type='text/plain', file_encoding='us-ascii',
+                       md5_checksum='0x1234567890')
+    assert put_mock.call_count == 3
+
 
 @patch('cadcdata.core.net.BaseWsClient')
 def test_remove(basews_mock):
@@ -504,8 +613,14 @@ def test_cadcinfo_cli(cadcinfo_mock):
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError]))
-@patch('cadcdata.StorageInventoryClient.cadcput')
-def test_cadcput_cli(cadcput_mock):
+@patch('cadcdata.storageinv._create_client')
+def test_cadcput_cli(putclient_mock):
+    # mock client to escape authentication
+    mock_client = StorageInventoryClient()
+    cadcput_mock = Mock()
+    mock_client.cadcput = cadcput_mock
+    putclient_mock.return_value = mock_client
+
     # create a file structure of files to put
     put_dir = '/tmp/put_dir'
     put_subdir = '{}/somedir'.format(put_dir)
@@ -574,8 +689,13 @@ def test_cadcput_cli(cadcput_mock):
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))
-@patch('cadcdata.StorageInventoryClient.cadcremove')
-def test_cadcremove_cli(cadcremove_mock):
+@patch('cadcdata.storageinv._create_client')
+def test_cadcremove_cli(removeclient_mock):
+    # mock client to escape authentication
+    mock_client = StorageInventoryClient()
+    cadcremove_mock = Mock()
+    mock_client.cadcremove = cadcremove_mock
+    removeclient_mock.return_value = mock_client
     netrc = '/tmp/.cadcput_netrc'
     if not os.path.isfile(netrc):
         open(netrc, 'w').write('')

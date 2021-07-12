@@ -180,3 +180,14 @@ class UnexpectedException(HttpException):
     """
     def __init__(self, msg=None, orig_exception=None):
         HttpException.__init__(self, msg, orig_exception)
+
+
+class TransferException(HttpException):
+    """A transfer exception was encountered. Client should either try another
+    mirror URL or re-try this if possible (data is still accessible - not
+    streamed)
+    Attributes:
+        msg
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        HttpException.__init__(self, msg, orig_exception)
