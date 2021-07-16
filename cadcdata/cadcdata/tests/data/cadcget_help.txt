@@ -1,5 +1,5 @@
 usage: cadcget [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-               [-s SERVICE] [-q | -v] [-V] [-o OUTPUT]
+               [-s SERVICE] [-q | -v] [-V] [-o OUTPUT] [--fhead]
                identifier
 
 Download files from the CADC Storage Inventory into the current
@@ -12,6 +12,7 @@ positional arguments:
 optional arguments:
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
+  --fhead               return the FITS header information (for all extensions
   -h, --help            show this help message and exit
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE

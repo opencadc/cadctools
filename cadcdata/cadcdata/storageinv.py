@@ -76,6 +76,7 @@ import hashlib
 import datetime
 import traceback
 from urllib.parse import urlparse, urlencode
+import argparse
 
 from cadcutils import net, util, exceptions
 from cadcutils.util import date2ivoa
@@ -186,6 +187,33 @@ def handle_error(exception, exit_after=True):
 
     if exit_after:
         sys.exit(-1)  # TODO use different error codes?
+
+
+def validate_uri(uri):
+    """
+    Validate URI format for ID
+    :param uri:
+    :return: None if uri valid or raises AttributeError otherwise
+    """
+    if not id:
+        raise AttributeError('URI required')
+    res = urlparse(uri)
+    if not res.scheme:
+        raise AttributeError(
+            '{} not a valid id (missing URI scheme)'.format(uri))
+
+
+def argparse_validate_uri(uri):
+    """
+    Same as `validate_uri` but customized to be used with argparse
+    :param uri:
+    :return:
+    """
+    try:
+        validate_uri(uri)
+    except AttributeError as e:
+        raise argparse.ArgumentTypeError(str(e))
+    return uri
 
 
 class StorageInventoryClient(object):
@@ -303,7 +331,7 @@ class StorageInventoryClient(object):
         except KeyError:
             return None
 
-    def cadcget(self, id, dest=None, process_bytes=None):
+    def cadcget(self, id, dest=None, fhead=False, process_bytes=None):
         """
         Get a file from an archive. The entire file is delivered unless the
          cutout argument is present specifying a cutout to extract from file.
@@ -311,10 +339,10 @@ class StorageInventoryClient(object):
         retrieve
         :param dest: file to save data to (file, file_name, stream or
         anything that supports open/close and write).
+        :param fhead: return the FITS header information (for all extensions)
         :param process_bytes: function to be applied to the received bytes
         """
-        if not id:
-            raise AttributeError('File URI required')
+        validate_uri(id)
         logger.debug('cadcget GET {} -> {}'.format(id, dest))
         # TODO cutouts
         # TODO transfer optimizations (skip download when destination exists)
@@ -323,6 +351,9 @@ class StorageInventoryClient(object):
             raise exceptions.HttpException('No URLs available to access data')
         last_exception = None
         for url in urls:
+            if fhead:
+                # TODO this should not be allowed with cutouts
+                url = '{}?META=true'.format(url)
             logger.debug('GET from URL {}'.format(url))
             try:
                 response = self._cadc_client.get(url, stream=True)
@@ -356,18 +387,18 @@ class StorageInventoryClient(object):
                     # remove any path information and save the file in local
                     # directory
                     dest = os.path.basename(dest)
-                    logger.debug('Saved file in local directory under: {}'.
-                                 format(dest))
+                    logger.info('Saved file in local directory under: {}'.
+                                format(dest))
                     with open(dest, 'wb') as f:
                         self._save_bytes(response, f, id,
                                          process_bytes=process_bytes)
                 return
             except Exception as e:
+                last_exception = e
                 # try a different URL
                 logger.debug(
                     'WARN: Cannot retrieve data from {}. Exception: {}'.
                     format(url, e))
-                logger.debug('Try the next URL')
                 last_exception = e
                 if not hasattr(dest, 'read'):
                     # try to cleanup the corrupted file
@@ -382,6 +413,8 @@ class StorageInventoryClient(object):
                         urls.count(url) < MAX_TRANSIENT_TRIES:
                     # this is a transient exception - append url to try later
                     urls.append(url)
+                if urls:
+                    logger.debug('Try the next URL')
         if last_exception:
             raise last_exception
         else:
@@ -440,33 +473,31 @@ class StorageInventoryClient(object):
 
         rr = RawRange(response)
         reader = rr.get_instance
-        if logger.isEnabledFor(logging.INFO):
-            if total_length != 0:
-                chunks = progress.bar(reader(
-                    READ_BLOCK_SIZE),
-                    expected_size=((total_length / READ_BLOCK_SIZE) + 1))
-            else:
-                chunks = progress.mill(reader(READ_BLOCK_SIZE),
-                                       expected_size=0)
+        if logger.isEnabledFor(logging.INFO) and total_length:
+            chunks = progress.bar(reader(
+                READ_BLOCK_SIZE),
+                expected_size=((total_length / READ_BLOCK_SIZE) + 1))
         else:
             chunks = reader(READ_BLOCK_SIZE)
         start = time.time()
+        received_size = 0
         for chunk in chunks:
             if process_bytes is not None:
                 process_bytes(chunk)
             dest_file.write(chunk)
+            received_size += len(chunk)
         src_md5sum = rr.md5sum
         dest_md5sum = hash_md5.hexdigest()
-        if src_md5sum != dest_md5sum:
+        if (src_md5sum is not None) and (src_md5sum != dest_md5sum):
             raise exceptions.TransferException(
                 'Downloaded file is corrupted: '
                 'expected md5({}) != actual md5({})'.
                 format(src_md5sum, dest_md5sum))
         duration = time.time() - start
-        logger.debug(
+        logger.info(
             'Successfully downloaded file {} as {} in {}s (avg. speed: {}MB/s)'
             ''.format(resource, dest_file.name, round(duration, 2),
-                      round(total_length / 1024 / 1024 / duration, 2)))
+                      round(received_size / 1024 / 1024 / duration, 2)))
 
     def cadcput(self, id, src, replace=False, file_type=None,
                 file_encoding=None, md5_checksum=None):
@@ -483,10 +514,10 @@ class StorageInventoryClient(object):
         :param file_encoding: file MIME encoding
         :param md5_checksum: md5 sum of the content. For replacements,
         the content will not be sent over if the md5_checksum of a replaced
-        file matches the source one. Bytes are transferred when this argument
-        is not provided.
+        file matches the source one. Bytes are always transferred when this
+        argument is not provided.
         """
-
+        validate_uri(id)
         # We actually raise an exception here since the web
         # service will normally respond with a 200 for an
         # anonymous put, though not provide any endpoints.
@@ -544,7 +575,7 @@ class StorageInventoryClient(object):
                (file_info.encoding != headers['Content-Encoding']):
                 operation = 'post'
             else:
-                logger.debug(
+                logger.info(
                     'Source {} already in the storage inventory'.format(src))
                 return
 
@@ -552,6 +583,7 @@ class StorageInventoryClient(object):
         if len(urls) == 0:
             raise exceptions.HttpException('No URLs available to put data to')
 
+        last_exception = None
         # get the list of transfer points
         for url in urls:
             if operation == 'post':
@@ -560,23 +592,45 @@ class StorageInventoryClient(object):
                 result = self._cadc_client.post(url, headers=headers)
                 result.raise_for_status()
                 duration = time.time() - start
-                logger.debug('Updated metadata for identifier {} in {} ms'.
-                             format(id, duration))
+                logger.info('Updated metadata for identifier {} in {} ms'.
+                            format(id, duration))
                 return
             logger.debug('PUT to URL {}'.format(url))
             try:
                 start = time.time()
-                with open(src, 'rb') as f:
-                    self._cadc_client.put(url, headers=headers, data=f)
+                with util.Md5File(src, 'rb') as reader:
+                    self._cadc_client.put(url, headers=headers, data=reader)
                 duration = time.time() - start
                 stat_info = os.stat(src)
-                logger.debug(
+                if md5_checksum and (md5_checksum != reader.md5_checksum):
+                    raise RuntimeError(
+                        'BUG: Provided checksum for {} does not match checksum'
+                        'of bytes read: {} != {}'.format(src, md5_checksum,
+                                                         reader.md5_checksum))
+                # do a head on the URL to check the md5 checksum
+                # TODO - hack warning: in order to create the correct URL,
+                # need to find the "files" endpoint of the location that
+                # the file was successfully put to. Not sure this is the
+                # correct way
+                location_url = url[:url.index('/files')] + '/files/'
+                head_url = location_url + id
+                logger.debug('Getting info file successfully put: HEAD '
+                             'at {}'.format(head_url))
+                response = self._cadc_client.head(head_url)
+                dest_md5 = net.extract_md5(response.headers)
+                if reader.md5_checksum != dest_md5:
+                    # corrupt file - TODO rollback tran
+                    raise exceptions.TransferException(
+                        'Downloaded file is corrupted: expected md5({}) != '
+                        'actual md5({})'.format(reader.md5_checksum, dest_md5))
+                logger.info(
                     ('Successfully uploaded file {} in {}s '
                      '(avg. speed: {}MB/s)').format(
                         id, round(duration, 2),
                         round(stat_info.st_size / 1024 / 1024 / duration, 2)))
                 return
             except Exception as e:
+                last_exception = e
                 if isinstance(e, exceptions.TransferException) and \
                         urls.count(url) < MAX_TRANSIENT_TRIES:
                     # this is a transient exception - append url to try later
@@ -584,11 +638,15 @@ class StorageInventoryClient(object):
                 # try a different URL
                 logger.debug('WARN: Cannot {} data to {}. Exception: {}'.
                              format(operation, url, e))
-                logger.debug('Try the next URL')
+                if urls:
+                    logger.debug('Try the next URL')
                 continue
-        raise exceptions.HttpException(
-            'Unable to {} data from any of the available '
-            'URLs'.format(operation))
+        if last_exception:
+            raise last_exception
+        else:
+            raise exceptions.HttpException(
+                'Unable to {} data from any of the available '
+                'URLs'.format(operation))
 
     def cadcremove(self, id):
         """
@@ -601,6 +659,7 @@ class StorageInventoryClient(object):
         # We actually raise an exception here since the web
         # service will normally respond with a 200 for an
         # anonymous put, though not provide any endpoints.
+        validate_uri(id)
         if self._cadc_client.subject.anon:
             raise exceptions.UnauthorizedException(
                 'Must be authenticated to remove data')
@@ -618,13 +677,14 @@ class StorageInventoryClient(object):
                 start = time.time()
                 self._cadc_client.delete(url)
                 duration = time.time() - start
-                logger.debug('{} removed in {} ms'.format(id, duration))
+                logger.info('{} removed in {} ms'.format(id, duration))
                 return
             except Exception as e:
                 # try a different URL
                 logger.debug('WARN: Cannot remove data from {}. Exception: {}'.
                              format(url, e))
-                logger.debug('Try the next URL')
+                if urls:
+                    logger.debug('Try the next URL')
                 continue
         raise exceptions.HttpException(
             'Unable to remove data from any of the available URLs')
@@ -636,6 +696,7 @@ class StorageInventoryClient(object):
         :param file_name: name of the file
         :returns dictionary of attributes/values
         """
+        validate_uri(id)
         resource = (FILES_STANDARD_ID, id)
         logger.debug('HEAD {}'.format(resource))
         try:
@@ -699,7 +760,7 @@ def cadcput_cli():
                              'is new. This is a safeguard for accidental '
                              'file replacements')
     parser.add_argument(
-        'identifier',
+        'identifier', type=argparse_validate_uri,
         help='unique identifier (URI) given to the file in the CADC '
              'Storage Inventory or a root identifier when multiple files'
              'are uploaded at the same time')
@@ -748,7 +809,7 @@ def cadcput_cli():
                                      os.path.basename(file))
         else:
             file_id = args.identifier
-        logger.info('PUT {} -> {}'.format(file, file_id))
+        logger.debug('PUT {} -> {}'.format(file, file_id))
         execute_cmd(client.cadcput, {'id': file_id,
                                      'src': file,
                                      'file_type': args.type,
@@ -770,9 +831,12 @@ def cadcget_cli():
         help='write to file or other directory instead of the current one.',
         required=False)
     parser.add_argument(
-        'identifier',
+        'identifier', type=argparse_validate_uri,
         help='unique identifier (URI) given to the file in the CADC '
              'Storage Inventory')
+    parser.add_argument(
+        '--fhead', action='store_true',
+        help='return the FITS header information (for all extensions')
     parser.epilog = (
         'Examples:\n'
         '- Anonymously download a file to current directory:\n'
@@ -786,7 +850,8 @@ def cadcget_cli():
     client = _create_client(args)
     logger.info('GET id {} -> {}'.format(
         args.identifier, args.output if args.output else 'stdout'))
-    execute_cmd(client.cadcget, {'id': args.identifier, 'dest': args.output})
+    execute_cmd(client.cadcget, {'id': args.identifier, 'dest': args.output,
+                                 'fhead': args.fhead})
 
 
 def cadcinfo_cli():
@@ -798,7 +863,7 @@ def cadcinfo_cli():
         'Displays information about a file from the CADC Storage Inventory')
 
     parser.add_argument(
-        'identifier',
+        'identifier', type=argparse_validate_uri,
         help='unique identifier (URI) given to the file in the CADC '
              'Storage Inventory', nargs='+')
     parser.epilog = (
@@ -836,7 +901,7 @@ def cadcremove_cli():
         'Remove files from the CADC Storage Inventory')
 
     parser.add_argument(
-        'identifier',
+        'identifier', type=argparse_validate_uri,
         help='unique identifier (URI) given to the file in the CADC '
              'Storage Inventory', nargs='+')
     parser.epilog = (

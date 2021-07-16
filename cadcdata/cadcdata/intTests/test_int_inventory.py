@@ -68,10 +68,10 @@ import pytest
 import os
 from urllib.parse import urlparse
 import hashlib
-import filecmp
 from os.path import expanduser
 import random
 import requests
+import filecmp
 
 from cadcdata import StorageInventoryClient
 from cadcutils.net import Subject
@@ -79,6 +79,9 @@ from cadcutils.util import str2ivoa
 from cadcutils import exceptions
 
 REG_HOST = 'https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca'
+
+THIS_DIR = os.path.dirname(os.path.realpath(__file__))
+TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
 
 HOME = expanduser("~")
 CERT = os.path.join(HOME, '.ssl/cadcproxy.pem')
@@ -116,7 +119,20 @@ def test_client_public():
         if os.path.isfile(dest):
             os.remove(dest)
 
-    # TODO cutouts
+    # download just the headers
+    fhead_dest = '/tmp/inttest_I429B4H0.fits.txt'
+    if os.path.isfile(fhead_dest):
+        os.remove(fhead_dest)
+    try:
+        client.cadcget('cadc:IRIS/I429B4H0.fits', dest=fhead_dest, fhead=True)
+        assert os.path.isfile(fhead_dest)
+        assert filecmp.cmp(fhead_dest,
+                           os.path.join(TESTDATA_DIR, 'I429B4H0.fits.txt'),
+                           shallow=False)
+    finally:
+        # clean up
+        if os.path.isfile(fhead_dest):
+            os.remove(fhead_dest)
 
 
 @pytest.mark.intTests
@@ -126,8 +142,9 @@ def test_client_public():
 def test_client_authenticated():
     """ uses $HOME/.ssl/cadcproxy.pem certificates"""
     # create a random root for file IDs
-    test_file = '/tmp/cadcdata-inttest.txt'
-    id_root = 'cadc:TEST/cadcdata-intttest-{}'.format(random.randrange(100000))
+    # Note: "+" in the file name is testing the special character in URI
+    test_file = '/tmp/cadcdata+inttest.txt'
+    id_root = 'cadc:TEST/cadcdata+intttest-{}'.format(random.randrange(100000))
     global_id = id_root + '/global'
     file_name = global_id.split('/')[-1]
     dest_file = os.path.join('/tmp', file_name)

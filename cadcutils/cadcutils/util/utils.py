@@ -74,9 +74,10 @@ from argparse import ArgumentParser, RawDescriptionHelpFormatter, SUPPRESS, \
 from datetime import datetime
 from six.moves.urllib.parse import urlparse
 from operator import attrgetter
+import hashlib
 
 __all__ = ['IVOA_DATE_FORMAT', 'date2ivoa', 'str2ivoa',
-           'get_logger', 'get_log_level', 'get_base_parser']
+           'get_logger', 'get_log_level', 'get_base_parser', 'Md5File']
 
 # TODO both these are very bad, implement more sensibly
 IVOA_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
@@ -366,3 +367,50 @@ class _ServiceAction(Action):
         if not (values.startswith('ivo://') or (values.startswith('http'))):
             values = 'ivo://cadc.nrc.ca/{}'.format(values)
         setattr(namespace, self.dest, values)
+
+
+class Md5File(object):
+    """
+    A wrapper to a file object that calculates the MD5 sum of the bytes
+    that are being read or written.
+    """
+
+    def __init__(self, f, mode):
+        self.file = open(f, mode)
+        self._md5_checksum = hashlib.md5()
+
+    def __enter__(self):
+        return self
+
+    def read(self, size):
+        buffer = self.file.read(size)
+        self._md5_checksum.update(buffer)
+        return buffer
+
+    def write(self, buffer):
+        self._md5_checksum.update(buffer)
+        self.file.write(buffer)
+        self.file.flush()
+
+    def __exit__(self, *args, **kwargs):
+        if not self.file.closed:
+            self.file.close()
+        # clean up
+        exit = getattr(self.file, '__exit__', None)
+        if exit is not None:
+            return exit(*args, **kwargs)
+        else:
+            exit = getattr(self.file, 'close',
+                           None)
+            if exit is not None:
+                exit()
+
+    def __getattr__(self, attr):
+        return getattr(self.file, attr)
+
+    def __iter__(self):
+        return iter(self.file)
+
+    @property
+    def md5_checksum(self):
+        return self._md5_checksum.hexdigest()

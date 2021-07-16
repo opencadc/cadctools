@@ -71,12 +71,13 @@ from argparse import ArgumentError
 from mock import Mock, patch
 from six import StringIO
 from six.moves.urllib.parse import urlparse
-
+import tempfile
 import os
 import sys
 import logging
+import hashlib
 from cadcutils.util import date2ivoa, str2ivoa, get_base_parser, \
-    get_log_level, get_logger
+    get_log_level, get_logger, Md5File
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
@@ -340,3 +341,21 @@ class UtilTests(unittest.TestCase):
                 sys.argv = ['cadc-client', 'cmd2', '-h']
                 parser.parse_args()
             self.assertEqual(expected_stdout, stdout_mock.getvalue())
+
+
+class TestMd5File(unittest.TestCase):
+    """Test the vos Md5File class.
+    """
+    def test_operations(self):
+        tmpfile = tempfile.NamedTemporaryFile()
+        txt = 'This is a test of the Md5File class'
+        with open(tmpfile.name, 'w') as f:
+            f.write(txt)
+
+        binary_content = open(tmpfile.name, 'rb').read()
+        with Md5File(tmpfile.name, 'rb') as f:
+            assert binary_content == f.read(10000)
+        assert f.file.closed
+        hash = hashlib.md5()
+        hash.update(binary_content)
+        assert f.md5_checksum == hash.hexdigest()
