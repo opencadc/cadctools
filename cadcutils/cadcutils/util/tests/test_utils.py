@@ -359,3 +359,13 @@ class TestMd5File(unittest.TestCase):
         hash = hashlib.md5()
         hash.update(binary_content)
         assert f.md5_checksum == hash.hexdigest()
+
+        # read small chunks
+        hash = hashlib.md5()
+        with Md5File(tmpfile.name, 'rb') as f:
+            content = f.read(5)
+            while content:
+                hash.update(content)
+                content = f.read(5)
+        assert f.md5_checksum == hash.hexdigest()
+
