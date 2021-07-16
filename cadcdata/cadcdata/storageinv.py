@@ -195,7 +195,7 @@ def validate_uri(uri):
     :param uri:
     :return: None if uri valid or raises AttributeError otherwise
     """
-    if not id:
+    if not uri:
         raise AttributeError('URI required')
     res = urlparse(uri)
     if not res.scheme:
@@ -394,7 +394,6 @@ class StorageInventoryClient(object):
                                          process_bytes=process_bytes)
                 return
             except Exception as e:
-                last_exception = e
                 # try a different URL
                 logger.debug(
                     'WARN: Cannot retrieve data from {}. Exception: {}'.
@@ -412,6 +411,8 @@ class StorageInventoryClient(object):
                 if isinstance(e, exceptions.TransferException) and \
                         urls.count(url) < MAX_TRANSIENT_TRIES:
                     # this is a transient exception - append url to try later
+                    logger.debug('Transient error, retry later: {} - {}'.
+                                 format(url, str(e)))
                     urls.append(url)
                 if urls:
                     logger.debug('Try the next URL')
@@ -569,6 +570,9 @@ class StorageInventoryClient(object):
             headers['Content-Encoding'] = mencoding
             logger.debug('Set MIME encoding: {}'.format(mencoding))
 
+        if md5_checksum:
+            net.add_md5_header(headers, md5_checksum=md5_checksum)
+
         operation = 'put'
         if replace and md5_checksum and (file_info.md5sum == md5_checksum):
             if (file_info.file_type != headers['Content-Type']) or \
@@ -621,7 +625,7 @@ class StorageInventoryClient(object):
                 if reader.md5_checksum != dest_md5:
                     # corrupt file - TODO rollback tran
                     raise exceptions.TransferException(
-                        'Downloaded file is corrupted: expected md5({}) != '
+                        'Uploaded file is corrupted: expected md5({}) != '
                         'actual md5({})'.format(reader.md5_checksum, dest_md5))
                 logger.info(
                     ('Successfully uploaded file {} in {}s '
@@ -809,7 +813,7 @@ def cadcput_cli():
                                      os.path.basename(file))
         else:
             file_id = args.identifier
-        logger.debug('PUT {} -> {}'.format(file, file_id))
+        logger.info('PUT {} -> {}'.format(file, file_id))
         execute_cmd(client.cadcput, {'id': file_id,
                                      'src': file,
                                      'file_type': args.type,

@@ -80,7 +80,7 @@ import base64
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['get_header_filename', 'extract_md5', 'Transfer']
+__all__ = ['get_header_filename', 'extract_md5', 'add_md5_header', 'Transfer']
 
 
 VO_VIEW_DEFAULT = 'ivo://ivoa.net/vospace/core#defaultview'
@@ -129,6 +129,12 @@ def extract_md5(headers):
     if ('digest' in headers) and (headers['digest'].startswith('md5')):
         return base64.b64decode(headers['digest'][4:]).decode('ascii')
     return None
+
+
+def add_md5_header(headers, md5_checksum):
+    # adds the digest header with md5 information to the request headers
+    headers['digest'] = 'md5={}'.format(
+        base64.b64encode(md5_checksum.encode('ascii')).decode('ascii'))
 
 
 class Transfer(object):

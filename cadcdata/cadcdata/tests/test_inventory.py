@@ -399,7 +399,8 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
     put_mock.assert_not_called()
     post_mock.assert_called_with('https://url1/minoc/files',
                                  headers={'Content-Type': 'text/plain',
-                                          'Content-Encoding': 'us-ascii'})
+                                          'Content-Encoding': 'us-ascii',
+                                          'digest': 'md5=MHgxMjM0NTY3ODk='})
 
     # no update required - data and metadata identical
     put_mock.reset_mock()
