@@ -71,9 +71,9 @@ from __future__ import (absolute_import, division, print_function,
 import pytest
 from mock import patch, Mock, MagicMock, call
 from requests.utils import CaseInsensitiveDict
-import base64
 
-from cadcutils.net import get_header_filename, extract_md5, Transfer
+from cadcutils.net import get_header_filename, extract_md5, Transfer, \
+    add_md5_header
 
 
 def test_get_header_filename():
@@ -92,12 +92,12 @@ def test_get_header_filename():
                                 "filename*=utf-8''%e2%82%ac%20rates.txt"})
 
 
-def test_extract_md5():
-    md5checksum = '0x12345'
+def test_md5_headers():
+
+    md5_checksum = '0x12345'
     headers = CaseInsensitiveDict()
-    headers['digest'] = 'md5={}'.format(
-        base64.b64encode(md5checksum.encode('ascii')).decode('ascii'))
-    assert md5checksum == extract_md5(headers=headers)
+    add_md5_header(headers=headers, md5_checksum=md5_checksum)
+    assert md5_checksum == extract_md5(headers=headers)
 
 
 # patch sleep to stop the test from sleeping and slowing down execution
