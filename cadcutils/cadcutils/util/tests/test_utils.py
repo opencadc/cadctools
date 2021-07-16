@@ -368,4 +368,3 @@ class TestMd5File(unittest.TestCase):
                 hash.update(content)
                 content = f.read(5)
         assert f.md5_checksum == hash.hexdigest()
-
