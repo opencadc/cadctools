@@ -167,7 +167,7 @@ class CadcTapClient(object):
     """
 
     def __init__(self, subject, resource_id=DEFAULT_SERVICE_ID,
-                 host=None, agent=None):
+                 host=None, agent=None, insecure=False):
         """
         Instance of a CadcTapClient
         :param subject: the subject performing the action
@@ -175,6 +175,7 @@ class CadcTapClient(object):
         :param resource_id: the resource ID of the service
         :param host: Host for the caom2repo service
         :param agent: The name of the agent (to be used in server logging)
+        :param insecure Allow insecure server connections over SSL
         """
         self.resource_id = resource_id
         self.host = host
@@ -194,7 +195,7 @@ class CadcTapClient(object):
            net.auth.SECURITY_METHODS_IDS['basic'] in \
            subject.get_security_methods():
             login = net.BaseWsClient(CADC_AC_SERVICE, net.Subject(),
-                                     self.agent,
+                                     self.agent, insecure=insecure,
                                      retry=True, host=self.host)
             login_url = login._get_url((CADC_LOGIN_CAPABILITY, None))
             realm = urlparse(login_url).hostname
@@ -217,7 +218,8 @@ class CadcTapClient(object):
                                         '"{}"'.format(cookie_response.text)))
 
         self._tap_client = net.BaseWsClient(resource_id, subject, self.agent,
-                                            retry=True, host=self.host)
+                                            retry=True, host=self.host,
+                                            insecure=insecure)
         # check for the presence of optional TAP features
         self.permissions_support = True
         try:
@@ -1139,7 +1141,7 @@ def main_app(command='cadc-tap query'):
         subject = _get_subject(args)
 
         client = CadcTapClient(subject, resource_id=args.service,
-                               host=args.host)
+                               host=args.host, insecure=args.insecure)
 
         if args.cmd == 'create':
             client.create_table(args.TABLENAME, args.TABLEDEFINITION,
