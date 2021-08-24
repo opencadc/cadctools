@@ -488,7 +488,7 @@ class RetrySession(Session):
                 try:
                     response = super(RetrySession, self).send(request,
                                                               **kwargs)
-                    self.check_status(response)
+                    self.check_status(response, request.method)
                     return response
                 except requests.exceptions.ConnectTimeout as ct:
                     # retry on timeouts
@@ -530,10 +530,10 @@ class RetrySession(Session):
             raise exceptions.HttpException(current_error)
         else:
             response = super(RetrySession, self).send(request, **kwargs)
-            self.check_status(response)
+            self.check_status(response, request.method)
             return response
 
-    def check_status(self, response):
+    def check_status(self, response, method):
         """
         Check the response status. Maps the application related requests
         error status into Exceptions and raises the others
@@ -559,7 +559,10 @@ class RetrySession(Session):
             elif e.response.status_code == \
                     requests.codes.request_entity_too_large:
                 raise exceptions.ByteLimitException(orig_exception=e)
-            elif self.retry and e.response.status_code in self.retry_errors:
+            elif ( self.retry and
+                   e.response.status_code in self.retry_errors and
+                   method.upper() != 'POST'
+            ):
                 raise e
             else:
                 raise exceptions.UnexpectedException(orig_exception=e)
