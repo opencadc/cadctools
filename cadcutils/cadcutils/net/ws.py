@@ -456,10 +456,10 @@ class RetrySession(Session):
         ::param start_delay: start delay interval between retries (default=1s).
                 Note that for HTTP 503, this code follows the retry timeout
                 set by the server in Retry-After
-        ::param idempotent_posts: POST requests in general are not idempotent so
-        they are not automatically re-tried on failures. This can be overriden
-        with setting this flag to True in case when a specific client-server
-        implementation deals with duplicate requests at a higher level.
+        ::param idempotent_posts: POST requests in general are not idempotent
+        and they are not automatically re-tried on failures. Setting this flag
+        to true can override that, in case when a specific client-server
+        implementation can handle duplicate POST requests at a higher level.
         """
         self.logger = logging.getLogger('RetrySession')
         self.retry = retry

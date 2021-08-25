@@ -635,7 +635,7 @@ class TestRetrySession(unittest.TestCase):
         cte = requests.exceptions.ConnectTimeout()
         response = requests.Response()
         response.status_code = requests.codes.ok
-        #GET
+        # GET
         send_mock.side_effect = [cte, response]
         rs.get('https://someurl')
         time_mock.assert_called_with(DEFAULT_RETRY_DELAY)
@@ -665,7 +665,7 @@ class TestRetrySession(unittest.TestCase):
         with pytest.raises(requests.exceptions.ConnectTimeout):
             rs.post('https://someurl')
 
-        #Create session with idempotent POSTs to enable retries
+        # Create session with idempotent POSTs to enable retries
         send_mock.reset_mock()
         time_mock.reset_mock()
         send_mock.side_effect = [cte, response]
