@@ -493,8 +493,8 @@ class RetrySession(Session):
             self.logger.debug(
                 'POST requests considered idempotent. re-tries enabled')
 
-        if (request.method.upper() != 'POST' or self.idempotent_posts) and \
-                self.retry:
+        if (request.method.upper() != 'POST' or self.idempotent_posts) \
+           and self.retry:
             current_delay = max(self.start_delay, DEFAULT_RETRY_DELAY)
             current_delay = min(current_delay, MAX_RETRY_DELAY)
             num_retries = 0
@@ -547,14 +547,15 @@ class RetrySession(Session):
             raise exceptions.HttpException(current_error)
         else:
             response = super(RetrySession, self).send(request, **kwargs)
-            self.check_status(response)
+            self.check_status(response, False)
             return response
 
-    def check_status(self, response):
+    def check_status(self, response, retry=True):
         """
         Check the response status. Maps the application related requests
         error status into Exceptions and raises the others
         :param response: response
+        :param retry: request can be re-tried. Let the re-tried errors through
         :return:
         """
         try:
@@ -576,7 +577,7 @@ class RetrySession(Session):
             elif e.response.status_code == \
                     requests.codes.request_entity_too_large:
                 raise exceptions.ByteLimitException(orig_exception=e)
-            elif self.retry and e.response.status_code in self.retry_errors:
+            elif retry and e.response.status_code in self.retry_errors:
                 raise e
             else:
                 raise exceptions.UnexpectedException(orig_exception=e)

@@ -665,6 +665,14 @@ class TestRetrySession(unittest.TestCase):
         with pytest.raises(requests.exceptions.ConnectTimeout):
             rs.post('https://someurl')
 
+        # POST with service unavailable response. Note the different exception
+        # when exception is generated from response
+        unavailable = requests.Response()
+        unavailable.status_code = requests.codes.unavailable
+        send_mock.side_effect = [unavailable]
+        with pytest.raises(exceptions.UnexpectedException):
+            rs.post('https://someurl')
+
         # Create session with idempotent POSTs to enable retries
         send_mock.reset_mock()
         time_mock.reset_mock()
