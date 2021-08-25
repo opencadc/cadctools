@@ -77,6 +77,7 @@ from mock import Mock, patch, call, mock_open
 from six import StringIO
 from six.moves.urllib.parse import urlparse
 import tempfile
+import pytest
 
 from cadcutils import exceptions
 from cadcutils import net
@@ -622,6 +623,55 @@ class TestRetrySession(unittest.TestCase):
             response.status_code = requests.codes.not_extended
             with self.assertRaises(exceptions.UnexpectedException):
                 session.check_status(response)
+
+    @patch('time.sleep')
+    @patch('cadcutils.net.ws.requests.Session.send')
+    def test_idempotent(self, send_mock, time_mock):
+        # mock delays for connect timeout
+        send_mock.reset_mock()
+        rs = ws.RetrySession()
+        # GET, PUT, DELETE, HEAD are idempotent operations so re-tries on
+        # connection timeouts happen automatically
+        cte = requests.exceptions.ConnectTimeout()
+        response = requests.Response()
+        response.status_code = requests.codes.ok
+        #GET
+        send_mock.side_effect = [cte, response]
+        rs.get('https://someurl')
+        time_mock.assert_called_with(DEFAULT_RETRY_DELAY)
+        # PUT
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        send_mock.side_effect = [cte, response]
+        rs.put('https://someurl')
+        time_mock.assert_called_with(DEFAULT_RETRY_DELAY)
+        # DELETE
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        send_mock.side_effect = [cte, response]
+        rs.delete('https://someurl')
+        time_mock.assert_called_with(DEFAULT_RETRY_DELAY)
+        # HEAD
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        send_mock.side_effect = [cte, response]
+        rs.head('https://someurl')
+        time_mock.assert_called_with(DEFAULT_RETRY_DELAY)
+
+        # POST is not idempotent by default so re-try does not happen
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        send_mock.side_effect = [cte, response]
+        with pytest.raises(requests.exceptions.ConnectTimeout):
+            rs.post('https://someurl')
+
+        #Create session with idempotent POSTs to enable retries
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        send_mock.side_effect = [cte, response]
+        rs = ws.RetrySession(idempotent_posts=True)
+        rs.post('https://someurl')
+        time_mock.assert_called_with(DEFAULT_RETRY_DELAY)
 
 
 capabilities__content = \
