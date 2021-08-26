@@ -84,12 +84,14 @@ TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
 
 
 @patch('cadcutils.old_get_cert.get_cert', Mock(return_value='CERTVALUE'))
-@patch('cadcutils.old_get_cert.BaseWsClient._get_url',
-       Mock(return_value='http://the.cadc.domain/service'))
+@patch('cadcutils.old_get_cert.BaseWsClient')
 @patch('cadcutils.old_get_cert.os.access', Mock())
 @patch('cadcutils.old_get_cert.os.getenv', Mock(return_value='/tmp'))
-def test_get_cert_main():
+def test_get_cert_main(mock_client):
     """ Test the getCert function """
+    mc = Mock()
+    mc._get_url.return_value = 'http://the.cadc.domain/service'
+    mock_client.return_value = mc
 
     value = "CERTVALUE"
 
@@ -171,10 +173,13 @@ def test_get_cert_main_help():
 
     usage = open(os.path.join(TESTDATA_DIR, 'getCert_help.txt'), 'r').read()
 
-    with patch('cadcutils.old_get_cert.BaseWsClient._get_url', Mock(
-            return_value='https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')):
+    with patch('cadcutils.old_get_cert.BaseWsClient') as mock_client:
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             with pytest.raises(NoExit):
+                mc = Mock()
+                mock_client.return_value = mc
+                mc._get_url.return_value = \
+                    'https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca'
                 sys.argv = ['getCert', '-h']
                 old_get_cert._main()
     assert usage == stdout_mock.getvalue()
