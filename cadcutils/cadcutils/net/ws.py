@@ -197,7 +197,7 @@ class BaseWsClient(object):
        """
 
     def __init__(self, resource_id, subject, agent, retry=True, host=None,
-                 session_headers=None, insecure=False):
+                 session_headers=None, insecure=False, idempotent_posts=False):
         """
         Client constructor
         :param resource_id -- ID of the resource being accessed (URI format)
@@ -214,6 +214,10 @@ class BaseWsClient(object):
         :param session_headers -- Headers used throughout the session -
         dictionary format expected.
         :param insecure -- Allow insecure connections over SSL
+        :param idempotent_post -- True if all HTTP POSTs can be considered
+        idempotent, either because the server can deal with duplicate POSTs or
+        because there's a higher level mechanism to deal with this. Idempotent
+        POSTs can be automatically re-tried making them more fault tolerant.
         """
 
         self.logger = logging.getLogger('BaseWsClient')
@@ -230,6 +234,7 @@ class BaseWsClient(object):
         self.retry = retry
         self.session_headers = session_headers
         self.verify = not insecure
+        self.idempotent_posts = idempotent_posts
 
         # agent is / delimited key value pairs, separated by a space,
         # containing the application name and version,
@@ -385,7 +390,8 @@ class BaseWsClient(object):
         # are provided.
         if self._session is None:
             self.logger.debug('Creating session.')
-            self._session = RetrySession(self.retry)
+            self._session = RetrySession(
+                self.retry, idempotent_posts=self.idempotent_posts)
             # prevent requests from using .netrc
             self._session.trust_env = False
             if self.subject.certificate is not None:
@@ -443,16 +449,22 @@ class RetrySession(Session):
                     requests.codes.payment_required,
                     requests.codes.payment]
 
-    def __init__(self, retry=True, start_delay=1, *args, **kwargs):
+    def __init__(self, retry=True, start_delay=1, idempotent_posts=False,
+                 *args, **kwargs):
         """
         ::param retry: set to False if retries not required
         ::param start_delay: start delay interval between retries (default=1s).
                 Note that for HTTP 503, this code follows the retry timeout
                 set by the server in Retry-After
+        ::param idempotent_posts: POST requests in general are not idempotent
+        and they are not automatically re-tried on failures. Setting this flag
+        to true can override that, in case when a specific client-server
+        implementation can handle duplicate POST requests at a higher level.
         """
         self.logger = logging.getLogger('RetrySession')
         self.retry = retry
         self.start_delay = start_delay
+        self.idempotent_posts = idempotent_posts
         super(RetrySession, self).__init__(*args, **kwargs)
 
     def send(self, request, **kwargs):
@@ -477,7 +489,12 @@ class RetrySession(Session):
         if 'timeout' not in kwargs or kwargs['timeout'] is None:
             kwargs['timeout'] = 120
 
-        if request.method.upper() != 'POST' and self.retry:
+        if (request.method.upper() == 'POST') and self.idempotent_posts:
+            self.logger.debug(
+                'POST requests considered idempotent. re-tries enabled')
+
+        if (request.method.upper() != 'POST' or self.idempotent_posts) \
+           and self.retry:
             current_delay = max(self.start_delay, DEFAULT_RETRY_DELAY)
             current_delay = min(current_delay, MAX_RETRY_DELAY)
             num_retries = 0
@@ -530,14 +547,15 @@ class RetrySession(Session):
             raise exceptions.HttpException(current_error)
         else:
             response = super(RetrySession, self).send(request, **kwargs)
-            self.check_status(response)
+            self.check_status(response, False)
             return response
 
-    def check_status(self, response):
+    def check_status(self, response, retry=True):
         """
         Check the response status. Maps the application related requests
         error status into Exceptions and raises the others
         :param response: response
+        :param retry: request can be re-tried. Let the re-tried errors through
         :return:
         """
         try:
@@ -559,7 +577,7 @@ class RetrySession(Session):
             elif e.response.status_code == \
                     requests.codes.request_entity_too_large:
                 raise exceptions.ByteLimitException(orig_exception=e)
-            elif self.retry and e.response.status_code in self.retry_errors:
+            elif retry and e.response.status_code in self.retry_errors:
                 raise e
             else:
                 raise exceptions.UnexpectedException(orig_exception=e)
