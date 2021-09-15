@@ -285,7 +285,7 @@ def test_put_transactions():
                 host=REG_HOST,
                 insecure=True)
             # file should not be on the storage to start with
-            with pytest.raises(exceptions.NotFoundException) as nfe:
+            with pytest.raises(exceptions.NotFoundException):
                 client.cadcinfo(id=id_root)
 
             orig_put = client._cadc_client._get_session().put
@@ -307,7 +307,7 @@ def test_put_transactions():
 
             # transaction should be rolled back at this point so the file
             # should not be there
-            with pytest.raises(exceptions.NotFoundException) as nfe:
+            with pytest.raises(exceptions.NotFoundException):
                 client.cadcinfo(id=id_root)
 
         finally:
@@ -320,6 +320,7 @@ def test_put_transactions():
     finally:
         ws.MAX_MD5_COMPUTE_SIZE = orig_max_md5_size
         REG_HOST = orig_reg_host
+
 
 def location_operations(subject, resource_id, file, id_root, md5sum, size):
     # tests cadcput, cadcinfo, cadcget and cadcremove on a specific location
@@ -364,5 +365,3 @@ def location_operations(subject, resource_id, file, id_root, md5sum, size):
         # cleanup
         if os.path.isfile(dest_file):
             os.remove(dest_file)
-
-

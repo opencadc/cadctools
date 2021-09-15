@@ -390,14 +390,19 @@ class TestWs(unittest.TestCase):
         client = ws.BaseWsClient(resource_id='ivo://cadc.nrc.ca/resourceid',
                                  subject=anon_subject, agent='TestApp')
         client._get_session = Mock(return_value=session)
-        # upload empty file
-        client.upload_file(url=target_url, src=src.name)
+        # upload empty file. Make sure that the headers values are preserved
+        file_info = {'Content-Type': 'text/plain',
+                     'Content-Encoding': 'us-ascii'}
+        client.upload_file(
+            url=target_url, src=src.name,
+            headers=file_info)
         session.put.assert_called_once()
         put_headers = {}
         empty_md5 = 'd41d8cd98f00b204e9800998ecf8427e'
-        net.add_md5_header(headers=put_headers, md5_checksum=empty_md5)
-        session.put.assert_called_with(target_url, headers=put_headers,
-                                       data=ANY, verify=True)
+        net.add_md5_header(headers=file_info, md5_checksum=empty_md5)
+        session.put.assert_called_with(target_url,
+                                       data=ANY, verify=True,
+                                       headers=file_info)
 
         # pass the md5 checksum with empty file
         session.put.reset_mock()
@@ -407,6 +412,8 @@ class TestWs(unittest.TestCase):
         client.upload_file(url=target_url, src=src.name,
                            md5_checksum=empty_md5)
         session.put.assert_called_once()
+        put_headers = {}
+        net.add_md5_header(headers=put_headers, md5_checksum=empty_md5)
         session.put.assert_called_with(target_url, headers=put_headers,
                                        data=ANY, verify=True)
 

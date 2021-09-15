@@ -77,7 +77,6 @@ import datetime
 import traceback
 from urllib.parse import urlparse, urlencode
 import argparse
-import requests
 
 from cadcutils import net, util, exceptions
 from cadcutils.util import date2ivoa
@@ -607,7 +606,8 @@ class StorageInventoryClient(object):
                 self._cadc_client.upload_file(
                     url=url,
                     src=src,
-                    md5_checksum=md5_checksum)
+                    md5_checksum=md5_checksum,
+                    headers=headers)
                 duration = time.time() - start
                 logger.info(
                     ('Successfully uploaded file {} in {}s '

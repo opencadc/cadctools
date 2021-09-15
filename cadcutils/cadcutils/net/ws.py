@@ -379,7 +379,9 @@ class BaseWsClient(object):
         """
         stat_info = os.stat(src)
         with_transactions = False
-        headers = {}
+        headers = kwargs.get('headers') or {}
+        if not headers:
+            kwargs['headers'] = headers
         if md5_checksum:
             net.add_md5_header(headers=headers, md5_checksum=md5_checksum)
         else:
@@ -399,7 +401,6 @@ class BaseWsClient(object):
         with util.Md5File(src, 'rb') as reader:
             response = self._get_session().put(
                 url,
-                headers=headers,
                 data=reader,
                 verify=self.verify, **kwargs)
         if md5_checksum and (md5_checksum != reader.md5_checksum):
@@ -420,7 +421,7 @@ class BaseWsClient(object):
                     response = self._get_session().put(
                         url,
                         headers=commit_headers,
-                        verify=self.verify, **kwargs)
+                        verify=self.verify)
                     if response.status_code != requests.codes.created:  # 201
                         # might need to try to roll it back at this point
                         # but unsure how common this case is
@@ -437,7 +438,7 @@ class BaseWsClient(object):
                     response = self._get_session().delete(
                         url,
                         headers=rollback_headers,
-                        verify=self.verify, **kwargs)
+                        verify=self.verify)
                     if response.status_code == requests.codes.no_content:
                         raise exceptions.TransferException(
                             'MD5 checksum mismatch. Transaction rolled back')
