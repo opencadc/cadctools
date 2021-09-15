@@ -4,7 +4,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2016.                            (c) 2016.
+#  (c) 2021.                            (c) 2021.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -81,13 +81,14 @@ import sys
 import time
 import platform
 import os
+import hashlib
 
 import requests
 from requests import Session
 from six.moves.urllib.parse import urlparse
 import distro
 
-from cadcutils import exceptions
+from cadcutils import exceptions, util, net
 from cadcutils import version as cadctools_version
 from . import wscapabilities
 
@@ -116,6 +117,18 @@ MAX_NUM_RETRIES = 6
 
 SERVICE_RETRY = 'Retry-After'
 SERVICE_AVAILABILITY_ID = 'ivo://ivoa.net/std/VOSI#availability'
+
+# Files up to this size might have their md5 checksum pre-computed before
+# transferring. For larger files, the added overhead does not justify it.
+# Can be overriden
+MAX_MD5_COMPUTE_SIZE = 1024*1024*10
+# can be overriden by environment
+if os.getenv('CADC_MAX_MD5_COMPUTE_SIZE', None):
+    MAX_MD5_COMPUTE_SIZE = int(os.getenv('CADC_MAX_MD5_COMPUTE_SIZE'))
+
+# HTTP attribute names
+HTTP_TRANS = 'X-Put-Txn'
+HTTP_LENGTH = 'Content-Length'
 
 # try to disable the unverified HTTPS call warnings
 try:
@@ -350,6 +363,98 @@ class BaseWsClient(object):
         """
         return self._get_session().head(self._get_url(resource),
                                         verify=self.verify, **kwargs)
+
+    def upload_file(self, url, src, md5_checksum=None, **kwargs):
+        """Method to upload a file to CADC storage (archive or vospace). This
+           method takes advantage features in CADC services that optimize and
+           make the transfer more robust.
+           :param url: URL to upload the file to
+           :param src: name of the file to upload
+           :param md5_checksum: optional md5 checksum of the file content. If
+           available, the caller should set the attribute, otherwise the method
+           might compute it (for small files) and introduce overhead.
+           :param kwargs: other http attributes
+           :return: requests.Response object
+           :throws: HttpExceptions
+        """
+        stat_info = os.stat(src)
+        with_transactions = False
+        headers = {}
+        if md5_checksum:
+            net.add_md5_header(headers=headers, md5_checksum=md5_checksum)
+        else:
+            if stat_info.st_size >= MAX_MD5_COMPUTE_SIZE:
+                # pre-computing the MD5 is too costly.
+                # use PUT with transactions instead
+                headers[HTTP_TRANS] = 'true'
+                headers[HTTP_LENGTH] = str(stat_info.st_size)
+                with_transactions = True
+            else:
+                hash_md5 = hashlib.md5()
+                with open(src, "rb") as f:
+                    for chunk in iter(lambda: f.read(4096), b""):
+                        hash_md5.update(chunk)
+                md5 = hash_md5.hexdigest()
+                net.add_md5_header(headers=headers, md5_checksum=md5)
+        with util.Md5File(src, 'rb') as reader:
+            response = self._get_session().put(
+                url,
+                headers=headers,
+                data=reader,
+                verify=self.verify, **kwargs)
+        if md5_checksum and (md5_checksum != reader.md5_checksum):
+            raise IOError(
+                'BUG: Provided checksum for {} does not match checksum'
+                'of bytes read: {} != {}'.format(src, md5_checksum,
+                                                 reader.md5_checksum))
+        if with_transactions:
+            if response.status_code == requests.codes.accepted:  # 202
+                if HTTP_TRANS not in response.headers:
+                    raise IOError('BUG: server expected to return {} '
+                                  'attribute'.format(HTTP_TRANS))
+                transaction_id = response.headers[HTTP_TRANS]
+                dest_md5 = net.extract_md5(response.headers)
+                if reader.md5_checksum == dest_md5:
+                    commit_headers = {HTTP_TRANS: transaction_id,
+                                      HTTP_LENGTH: '0'}
+                    response = self._get_session().put(
+                        url,
+                        headers=commit_headers,
+                        verify=self.verify, **kwargs)
+                    if response.status_code != requests.codes.created:  # 201
+                        # might need to try to roll it back at this point
+                        # but unsure how common this case is
+                        raise IOError(
+                            'BUG: Could not commit PUT transaction {} for {}'.
+                            format(transaction_id, url))
+                    else:
+                        return
+                else:
+                    self.logger.debug(
+                        'Mismatched md5 checksum on PUT for URL {}. Rollback '
+                        'and re-try'.format(url))
+                    rollback_headers = {HTTP_TRANS: transaction_id}
+                    response = self._get_session().delete(
+                        url,
+                        headers=rollback_headers,
+                        verify=self.verify, **kwargs)
+                    if response.status_code == requests.codes.no_content:
+                        raise exceptions.TransferException(
+                            'MD5 checksum mismatch. Transaction rolled back')
+                    else:
+                        raise IOError('BUG: Could not rollback PUT transaction'
+                                      ' {} for {}'.format(transaction_id, url))
+            else:
+                raise IOError(
+                    'BUG: Expected HTTP 202 with PUT with transactions. '
+                    'Got {}'.format(response.status_code))
+        else:
+            if response.status_code == requests.codes.ok:
+                return
+            else:
+                raise exceptions.TransferException(
+                    'File {} not properly uploaded: HTTPStatus {}'.format(
+                        src, response.status_code))
 
     def is_available(self):
         """
