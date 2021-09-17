@@ -536,7 +536,7 @@ class RetrySession(Session):
                             'Transfer error on URL: {}'.format(request.url))
                     else:
                         # Can't recover (bad url, etc)
-                        raise exceptions.HttpException(ce)
+                        raise exceptions.HttpException(orig_exception=ce)
                 if num_retries == MAX_NUM_RETRIES:
                     break
                 self.logger.debug(
