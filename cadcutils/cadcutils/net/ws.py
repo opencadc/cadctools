@@ -106,7 +106,7 @@ except ImportError:
     # it's an earlier version of requests that doesn't use pyOpenSSL
     pass
 
-__all__ = ['BaseWsClient', 'get_resources', 'list_resources',
+__all__ = ['BaseWsClient', 'BaseDataClient', 'get_resources', 'list_resources',
            'DEFAULT_REGISTRY']
 
 BUFSIZE = 8388608  # Size of read/write buffer
@@ -364,10 +364,84 @@ class BaseWsClient(object):
         return self._get_session().head(self._get_url(resource),
                                         verify=self.verify, **kwargs)
 
+    def is_available(self):
+        """
+        Checks whether the service is currently available or not
+        :return: True if service is available, False otherwise
+        """
+        try:
+            self.get((SERVICE_AVAILABILITY_ID, None))
+        except exceptions.HttpException:
+            return False
+        return True
+
+    def _get_url(self, resource):
+        if type(resource) is tuple:
+            # this is WS feature / path request
+            path = ''
+            if (resource[1] is not None) and (len(resource[1]) > 0):
+                path = '/{}'.format(resource[1].strip('/'))
+            if (len(resource) > 2):
+                interface_type = resource[2]
+                base_url = self.caps.get_access_url(resource[0],
+                                                    interface_type)
+            else:
+                base_url = self.caps.get_access_url(resource[0])
+            access_url = '{}{}'.format(base_url, path)
+            return access_url
+        else:
+            # assume this is url.
+            resource_url = urlparse(resource)
+            if resource_url.scheme not in ['http', 'https']:
+                raise ValueError('Incorrect resource URL: {}'.format(resource))
+            return resource
+
+    def _get_session(self):
+        # Note that the cert goes into the adapter, but we can also
+        # use name/password for the auth. We may want to enforce the
+        # usage of only the cert in case both name/password and cert
+        # are provided.
+        if self._session is None:
+            self.logger.debug('Creating session.')
+            self._session = RetrySession(
+                self.retry, idempotent_posts=self.idempotent_posts)
+            # prevent requests from using .netrc
+            self._session.trust_env = False
+            if self.subject.certificate is not None:
+                self._session.cert = (
+                    self.subject.certificate, self.subject.certificate)
+            elif self.subject.cookies:
+                for cookie in self.subject.cookies:
+                    cookie_obj = requests.cookies.create_cookie(
+                        domain=cookie.domain, name=cookie.name,
+                        value=cookie.value)
+                    self._session.cookies.set_cookie(cookie_obj)
+            else:
+                if (not self.subject.anon) and (self.host is not None) and \
+                        (self.subject.get_auth(self.host) is not None):
+                    self._session.auth = self.subject.get_auth(self.host)
+
+        user_agent = "{} {} {} {} ({})".format(self.agent, self.package_info,
+                                               self.python_info,
+                                               self.system_info, self.os_info)
+        self._session.headers.update({"User-Agent": user_agent})
+        if self.session_headers is not None:
+            for header in self.session_headers:
+                self._session.headers.update(self.session_headers)
+        self._session.verify = self.verify
+        return self._session
+
+
+class BaseDataClient(BaseWsClient):
+    """
+    Base class for clients that interact with the CADC storage system (cadcdata
+    and vos). Provides utilities for uploading and downloading files
+    """
+
     def upload_file(self, url, src, md5_checksum=None, **kwargs):
         """Method to upload a file to CADC storage (archive or vospace). This
-           method takes advantage features in CADC services that optimize and
-           make the transfer more robust.
+           method takes advantage of features in CADC services that optimize
+           and make the transfer more robust.
            :param url: URL to upload the file to
            :param src: name of the file to upload
            :param md5_checksum: optional md5 checksum of the file content. If
@@ -456,73 +530,6 @@ class BaseWsClient(object):
                 raise exceptions.TransferException(
                     'File {} not properly uploaded: HTTPStatus {}'.format(
                         src, response.status_code))
-
-    def is_available(self):
-        """
-        Checks whether the service is currently available or not
-        :return: True if service is available, False otherwise
-        """
-        try:
-            self.get((SERVICE_AVAILABILITY_ID, None))
-        except exceptions.HttpException:
-            return False
-        return True
-
-    def _get_url(self, resource):
-        if type(resource) is tuple:
-            # this is WS feature / path request
-            path = ''
-            if (resource[1] is not None) and (len(resource[1]) > 0):
-                path = '/{}'.format(resource[1].strip('/'))
-            if (len(resource) > 2):
-                interface_type = resource[2]
-                base_url = self.caps.get_access_url(resource[0],
-                                                    interface_type)
-            else:
-                base_url = self.caps.get_access_url(resource[0])
-            access_url = '{}{}'.format(base_url, path)
-            return access_url
-        else:
-            # assume this is url.
-            resource_url = urlparse(resource)
-            if resource_url.scheme not in ['http', 'https']:
-                raise ValueError('Incorrect resource URL: {}'.format(resource))
-            return resource
-
-    def _get_session(self):
-        # Note that the cert goes into the adapter, but we can also
-        # use name/password for the auth. We may want to enforce the
-        # usage of only the cert in case both name/password and cert
-        # are provided.
-        if self._session is None:
-            self.logger.debug('Creating session.')
-            self._session = RetrySession(
-                self.retry, idempotent_posts=self.idempotent_posts)
-            # prevent requests from using .netrc
-            self._session.trust_env = False
-            if self.subject.certificate is not None:
-                self._session.cert = (
-                    self.subject.certificate, self.subject.certificate)
-            elif self.subject.cookies:
-                for cookie in self.subject.cookies:
-                    cookie_obj = requests.cookies.create_cookie(
-                        domain=cookie.domain, name=cookie.name,
-                        value=cookie.value)
-                    self._session.cookies.set_cookie(cookie_obj)
-            else:
-                if (not self.subject.anon) and (self.host is not None) and \
-                        (self.subject.get_auth(self.host) is not None):
-                    self._session.auth = self.subject.get_auth(self.host)
-
-        user_agent = "{} {} {} {} ({})".format(self.agent, self.package_info,
-                                               self.python_info,
-                                               self.system_info, self.os_info)
-        self._session.headers.update({"User-Agent": user_agent})
-        if self.session_headers is not None:
-            for header in self.session_headers:
-                self._session.headers.update(self.session_headers)
-        self._session.verify = self.verify
-        return self._session
 
 
 class RetrySession(Session):

@@ -387,8 +387,8 @@ class TestWs(unittest.TestCase):
         response.headers = {}
         session = Mock()
         session.put.return_value = response
-        client = ws.BaseWsClient(resource_id='ivo://cadc.nrc.ca/resourceid',
-                                 subject=anon_subject, agent='TestApp')
+        client = ws.BaseDataClient(resource_id='ivo://cadc.nrc.ca/resourceid',
+                                   subject=anon_subject, agent='TestApp')
         client._get_session = Mock(return_value=session)
         # upload empty file. Make sure that the headers values are preserved
         file_info = {'Content-Type': 'text/plain',

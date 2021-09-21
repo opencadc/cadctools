@@ -303,9 +303,10 @@ class StorageInventoryClient(object):
                 subject.cookies.append(
                     net.auth.CookieInfo(cadc_realm, CADC_SSO_COOKIE_NAME,
                                         '"{}"'.format(cookie_response.text)))
-        self._cadc_client = net.BaseWsClient(resource_id, subject,
-                                             agent, retry=True, host=self.host,
-                                             insecure=insecure)
+        self._cadc_client = net.BaseDataClient(
+            resource_id, subject,
+            agent, retry=True, host=self.host,
+            insecure=insecure)
 
     @property
     def transfer(self):
