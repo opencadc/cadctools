@@ -303,9 +303,10 @@ class StorageInventoryClient(object):
                 subject.cookies.append(
                     net.auth.CookieInfo(cadc_realm, CADC_SSO_COOKIE_NAME,
                                         '"{}"'.format(cookie_response.text)))
-        self._cadc_client = net.BaseWsClient(resource_id, subject,
-                                             agent, retry=True, host=self.host,
-                                             insecure=insecure)
+        self._cadc_client = net.BaseDataClient(
+            resource_id, subject,
+            agent, retry=True, host=self.host,
+            insecure=insecure)
 
     @property
     def transfer(self):
@@ -601,37 +602,19 @@ class StorageInventoryClient(object):
                 return
             logger.debug('PUT to URL {}'.format(url))
             try:
+                file_info = os.stat(src)
                 start = time.time()
-                with util.Md5File(src, 'rb') as reader:
-                    self._cadc_client.put(url, headers=headers, data=reader)
+                self._cadc_client.upload_file(
+                    url=url,
+                    src=src,
+                    md5_checksum=md5_checksum,
+                    headers=headers)
                 duration = time.time() - start
-                stat_info = os.stat(src)
-                if md5_checksum and (md5_checksum != reader.md5_checksum):
-                    raise RuntimeError(
-                        'BUG: Provided checksum for {} does not match checksum'
-                        'of bytes read: {} != {}'.format(src, md5_checksum,
-                                                         reader.md5_checksum))
-                # do a head on the URL to check the md5 checksum
-                # TODO - hack warning: in order to create the correct URL,
-                # need to find the "files" endpoint of the location that
-                # the file was successfully put to. Not sure this is the
-                # correct way
-                location_url = url[:url.index('/files')] + '/files/'
-                head_url = location_url + id
-                logger.debug('Getting info file successfully put: HEAD '
-                             'at {}'.format(head_url))
-                response = self._cadc_client.head(head_url)
-                dest_md5 = net.extract_md5(response.headers)
-                if reader.md5_checksum != dest_md5:
-                    # corrupt file - TODO rollback tran
-                    raise exceptions.TransferException(
-                        'Uploaded file is corrupted: expected md5({}) != '
-                        'actual md5({})'.format(reader.md5_checksum, dest_md5))
                 logger.info(
                     ('Successfully uploaded file {} in {}s '
                      '(avg. speed: {}MB/s)').format(
                         id, round(duration, 2),
-                        round(stat_info.st_size / 1024 / 1024 / duration, 2)))
+                        round(file_info.st_size / 1024 / 1024 / duration, 2)))
                 return
             except Exception as e:
                 last_exception = e
