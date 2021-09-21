@@ -72,7 +72,7 @@ import shutil
 
 from io import StringIO
 from six.moves import xrange
-from mock import Mock, patch, ANY, call
+from mock import Mock, patch, call
 import pytest
 import hashlib
 import base64
@@ -104,7 +104,7 @@ class MyExitError(Exception):
 mycontent = ''
 
 
-@patch('cadcdata.storageinv.net.BaseWsClient')
+@patch('cadcdata.storageinv.net.BaseDataClient')
 @patch('cadcdata.storageinv.net.Transfer')
 def test_get(trans_mock, basews_mock):
     # test a simple get
@@ -324,7 +324,7 @@ def test_get(trans_mock, basews_mock):
 
 @pytest.mark.skipif(cadcdata.storageinv.MAGIC_WARN is not None,
                     reason='libmagic not available')
-@patch('cadcdata.core.net.BaseWsClient')
+@patch('cadcdata.core.net.BaseDataClient')
 @patch('cadcdata.storageinv.net.extract_md5')
 @patch('cadcdata.storageinv.util.Md5File')
 def test_put(md5file_mock, extract_md5_mock, basews_mock):
@@ -338,37 +338,33 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
     # write the file
     with open(file_name, 'w') as f:
         f.write(file_content)
-    put_mock = Mock()
-    basews_mock.return_value.put = put_mock
+    upload_mock = Mock()
+    basews_mock.return_value.upload_file = upload_mock
     with pytest.raises(exceptions.UnauthorizedException):
         client.cadcput('cadc:TEST/putfile', file_name)
     client._cadc_client.subject.anon = False  # authenticate the user
 
     # new file
-    client._get_transfer_urls = Mock(return_value=['https://url1/minoc/files'])
+    location1 = 'https://url1/minoc/files'
+    client._get_transfer_urls = Mock(return_value=[location1])
     client.cadcinfo = Mock(side_effect=exceptions.NotFoundException())
     extract_md5_mock.return_value = hash_md5
     md5file_mock.return_value.__enter__.return_value.md5_checksum = hash_md5
     client.cadcput('cadc:TEST/putfile', file_name)
     # Note Content* headers automatically created by cadcput except when
     # MAGIC_WANT -- libmagic not present
-    put_mock.assert_called_with('https://url1/minoc/files', data=ANY,
-                                headers={'Content-Type': 'text/plain',
-                                         'Content-Encoding': 'us-ascii'})
-
-    # provided md5 does not match the md5 of the content of the file
-    with pytest.raises(RuntimeError):
-        client.cadcput('cadc:TEST/putfile', file_name, md5_checksum='b000')
+    upload_mock.assert_called_with(
+        url=location1, src=file_name, md5_checksum=None,
+        headers={'Content-Type': 'text/plain', 'Content-Encoding': 'us-ascii'})
 
     # mimic libmagic missing
     cadcdata.storageinv.MAGIC_WARN = 'Some warning'
-    put_mock.reset_mock()
+    upload_mock.reset_mock()
     client.cadcinfo = Mock(side_effect=exceptions.NotFoundException())
     client.cadcput('cadc:TEST/putfile', file_name)
-    put_mock.assert_called_with(
-        'https://url1/minoc/files',
-        data=ANY,
-        headers={})
+    upload_mock.assert_called_with(
+        url='https://url1/minoc/files', src=file_name,
+        md5_checksum=None, headers={})
     cadcdata.core.MAGIC_WARN = None
 
     # replace file
@@ -379,12 +375,12 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
                                          'encoding': 'none'})
     client.cadcput('cadc:TEST/putfile', file_name, replace=True,
                    file_type='text/plain', file_encoding='us-ascii')
-    put_mock.assert_called_with('https://url1/minoc/files', data=ANY,
-                                headers={'Content-Type': 'text/plain',
-                                         'Content-Encoding': 'us-ascii'})
+    upload_mock.assert_called_with(
+        url='https://url1/minoc/files', src=file_name, md5_checksum=None,
+        headers={'Content-Type': 'text/plain', 'Content-Encoding': 'us-ascii'})
 
     # update metadata only
-    put_mock.reset_mock()
+    upload_mock.reset_mock()
     post_mock = Mock()
     basews_mock.return_value.post = post_mock
     client._get_transfer_urls = Mock(
@@ -396,14 +392,14 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
     client.cadcput('cadc:TEST/putfile', file_name, replace=True,
                    file_type='text/plain', file_encoding='us-ascii',
                    md5_checksum='0x123456789')
-    put_mock.assert_not_called()
+    upload_mock.assert_not_called()
     post_mock.assert_called_with('https://url1/minoc/files',
                                  headers={'Content-Type': 'text/plain',
                                           'Content-Encoding': 'us-ascii',
                                           'digest': 'md5=MHgxMjM0NTY3ODk='})
 
     # no update required - data and metadata identical
-    put_mock.reset_mock()
+    upload_mock.reset_mock()
     post_mock.reset_mock()
     client._get_transfer_urls = Mock(
         return_value=['https://url1/minoc/files'])
@@ -415,7 +411,7 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
     client.cadcput('cadc:TEST/putfile', file_name, replace=True,
                    file_type='text/plain', file_encoding='us-ascii',
                    md5_checksum='0x123456789')
-    put_mock.assert_not_called()
+    upload_mock.assert_not_called()
     post_mock.assert_not_called()
 
     # replace non existing file
@@ -433,53 +429,54 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
         client.cadcput('cadc:TEST/putfile', file_name, replace=False)
 
     # Transfer error on all urls
-    put_mock.reset_mock()
+    upload_mock.reset_mock()
     basews_mock.return_value.post = post_mock
     url_list = ['https://url1/minoc/files/', 'https://url2/minoc/files/']
     client._get_transfer_urls = Mock(return_value=list(url_list))  # copy list
-    put_mock.side_effect = [exceptions.TransferException()] * 2 * \
+    upload_mock.side_effect = [exceptions.TransferException()] * 2 * \
         cadcdata.storageinv.MAX_TRANSIENT_TRIES
     client.cadcinfo = Mock(side_effect=exceptions.NotFoundException())
     with pytest.raises(exceptions.HttpException):
         client.cadcput('cadc:TEST/putfile', file_name,
                        file_type='text/plain', file_encoding='us-ascii',
                        md5_checksum='0x1234567890')
-    assert put_mock.call_count == \
+    assert upload_mock.call_count == \
            len(url_list) * cadcdata.storageinv.MAX_TRANSIENT_TRIES
 
     # Transfer error on one url, NotFound on the other
-    put_mock.reset_mock()
+    upload_mock.reset_mock()
     basews_mock.return_value.post = post_mock
     url_list = ['https://url1/minoc/files/', 'https://url2/minoc/files/']
     client._get_transfer_urls = Mock(return_value=list(url_list))  # copy list
-    put_mock.side_effect = [exceptions.TransferException(),
-                            exceptions.NotFoundException(),
-                            exceptions.TransferException(),
-                            exceptions.TransferException]
+    upload_mock.side_effect = [exceptions.TransferException(),
+                               exceptions.NotFoundException(),
+                               exceptions.TransferException(),
+                               exceptions.TransferException]
     client.cadcinfo = Mock(side_effect=exceptions.NotFoundException())
     with pytest.raises(exceptions.HttpException):
         client.cadcput('cadc:TEST/putfile', file_name,
                        file_type='text/plain', file_encoding='us-ascii',
                        md5_checksum='0x1234567890')
-    assert put_mock.call_count == 1 + cadcdata.storageinv.MAX_TRANSIENT_TRIES
+    assert \
+        upload_mock.call_count == 1 + cadcdata.storageinv.MAX_TRANSIENT_TRIES
 
     # Transfer error on one url followed by 2 NotFound
-    put_mock.reset_mock()
+    upload_mock.reset_mock()
     basews_mock.return_value.post = post_mock
     url_list = ['https://url1/minoc/files/', 'https://url2/minoc/files/']
     client._get_transfer_urls = Mock(return_value=list(url_list))  # copy list
-    put_mock.side_effect = [exceptions.TransferException(),
-                            exceptions.NotFoundException(),
-                            exceptions.NotFoundException()]
+    upload_mock.side_effect = [exceptions.TransferException(),
+                               exceptions.NotFoundException(),
+                               exceptions.NotFoundException()]
     client.cadcinfo = Mock(side_effect=exceptions.NotFoundException())
     with pytest.raises(exceptions.HttpException):
         client.cadcput('cadc:TEST/putfile', file_name,
                        file_type='text/plain', file_encoding='us-ascii',
                        md5_checksum='0x1234567890')
-    assert put_mock.call_count == 3
+    assert upload_mock.call_count == 3
 
 
-@patch('cadcdata.core.net.BaseWsClient')
+@patch('cadcdata.core.net.BaseDataClient')
 def test_remove(basews_mock):
     client = StorageInventoryClient(auth.Subject())
     # test a put
@@ -504,7 +501,7 @@ def test_remove(basews_mock):
         client.cadcremove('invalid-uri')
 
 
-@patch('cadcdata.storageinv.net.BaseWsClient')
+@patch('cadcdata.storageinv.net.BaseDataClient')
 def test_info(basews_mock):
     client = StorageInventoryClient(auth.Subject())
     # test an info
