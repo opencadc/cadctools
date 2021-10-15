@@ -169,7 +169,7 @@ def _main():
             with open(args.cert_filename, 'w') as w:
                 w.write(cert)
         except exceptions.UnauthorizedException as e:
-            sys.stderr.write("Invalid user password combination")
+            sys.stderr.write("FAILED: invalid username/password combination")
             return -1
         except OSError as ose:
             if ose.errno != 401:
