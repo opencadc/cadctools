@@ -178,7 +178,6 @@ def _main():
             else:
                 sys.stderr.write("Access denied\n")
         except Exception as ex:
-            print('******')
             sys.stderr.write(str(ex))
             return getattr(ex, 'errno', 1)
 
