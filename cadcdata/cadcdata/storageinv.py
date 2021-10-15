@@ -357,42 +357,7 @@ class StorageInventoryClient(object):
                 url = '{}?META=true'.format(url)
             logger.debug('GET from URL {}'.format(url))
             try:
-                response = self._cadc_client.get(url, stream=True)
-                if dest is not None:
-                    if not hasattr(dest, 'read'):
-                        # got a dest name?
-                        if os.path.isdir(dest):
-                            # file name comes from content disposition
-                            if not net.get_header_filename(response.headers):
-                                raise RuntimeError(
-                                    'BUG: No content-disposions from {} for {}'
-                                    .format(url, id))
-                            dest = \
-                                os.path.join(dest,
-                                             net.get_header_filename(
-                                                 response.headers))
-                        with open(dest, 'wb') as f:
-                            self._save_bytes(response, f, id,
-                                             process_bytes=process_bytes)
-                    else:
-                        self._save_bytes(response, dest, id,
-                                         process_bytes=process_bytes)
-                else:
-                    # get the destination name from the content disposition
-                    content_disp = net.get_header_filename(response.headers)
-                    if content_disp:
-                        dest = content_disp
-                        logger.debug(
-                            'Content disposition dest name: {}'.
-                            format(dest))
-                    # remove any path information and save the file in local
-                    # directory
-                    dest = os.path.basename(dest)
-                    logger.info('Saved file in local directory under: {}'.
-                                format(dest))
-                    with open(dest, 'wb') as f:
-                        self._save_bytes(response, f, id,
-                                         process_bytes=process_bytes)
+                self._cadc_client.download_file(url=url, dest=dest)
                 return
             except Exception as e:
                 # try a different URL

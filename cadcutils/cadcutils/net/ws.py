@@ -130,6 +130,9 @@ if os.getenv('CADC_MAX_MD5_COMPUTE_SIZE', None):
 HTTP_TRANS = 'X-Put-Txn'
 HTTP_LENGTH = 'Content-Length'
 
+# size of the read blocks in data transfers
+READ_BLOCK_SIZE = 8 * 1024
+
 # try to disable the unverified HTTPS call warnings
 try:
     requests.packages.urllib3.disable_warnings()
@@ -531,6 +534,141 @@ class BaseDataClient(BaseWsClient):
                     'File {} not properly uploaded: HTTPStatus {}'.format(
                         src, response.status_code))
 
+    def _resolve_destination_file(self, dest, src_md5, default_file_name):
+        # returns destination absolute file name as well as a temporary
+        # destination to be used during the transfer
+        if (dest is None) and (default_file_name is None):
+             raise RuntimeError('BUG: Cannot resolve file name')
+        if dest is not None:
+            # got a dest name?
+            if os.path.isdir(dest):
+                final_dest = os.path.join(dest, default_file_name)
+            else:
+                final_dest = dest
+        else:
+            final_dest = os.path.basename(default_file_name)
+        temp_dest = final_dest + "-" + src_md5
+        return final_dest, temp_dest
+
+    def download_file(self, url, dest=None, **kwargs):
+        """Method to download a file from CADC storage (archive or vospace).
+           This method takes advantage of the HTTP Range feature available
+           with the CADC services to optimize and make the transfer more
+           robust.
+           :param url: URL to get the file from
+           :param dest: name of the file to store it to. If it's the name of the
+           directory to save it to, it will use the Content-Disposion for the
+           file name. By default, it saves the file in the current directory.
+           :param kwargs: other http attributes
+           :return: requests.Response object
+           :throws: HttpExceptions
+
+        """
+        kwargs['stream'] = True
+        response = self.get(url, kwargs)
+        src_md5 = net.extract_md5(response.headers)
+        content_disp = net.get_header_filename(response.headers)
+        file_offset = 0
+        if hasattr(dest, 'read'):
+            # TODO maybe replace this with a stream option?
+            # memory buffer - no retries
+            final_dest, temp_dest = dest, dest
+        else:
+            final_dest, temp_dest = self._resolve_destination_file(
+                dest=dest, src_md5=src_md5, default_file_name=content_disp)
+            if os.path.isfile(temp_dest):
+                # resume download
+                stat_info = os.fstat(temp_dest)
+                file_offset = stat_info.st_size
+                response.raw.close()  # close existing stream
+                kwargs['Content-Range'] = 'bytes={}-'.format(file_offset)
+                response = self.get(url, kwargs)
+
+            self._save_bytes(response, temp_dest, id,
+                             process_bytes=None)
+            os.rename(temp_dest, dest)
+
+    def _save_bytes(self, response, dest_file, resource, process_bytes=None):
+        # requests automatically decompresses the data.
+        # Tell it to do it only if it had to
+        total_length = 0
+        hash_md5 = hashlib.md5()
+
+        class RawRange(object):
+            """
+            Wrapper class to make response.raw.read work as iterator and behave
+            the same way as the corresponding response.iter_content
+            """
+
+            def __init__(self, rsp):
+                """
+                :param rsp: HTTP response object
+                """
+                self._read = rsp.raw.read
+                self._decode = rsp.raw._decode
+                self.block_size = 0
+                self._md5sum = net.extract_md5(rsp.headers)
+
+            @property
+            def md5sum(self):
+                return self._md5sum
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                return self.next()
+
+            def next(self):
+                # reads the next raw block
+                data = self._read(self.block_size)
+                if len(data) > 0:
+                    if self._md5sum:
+                        hash_md5.update(data)
+                    return data
+                else:
+                    raise StopIteration()
+
+            def get_instance(self, block_size):
+                self.block_size = block_size
+                return self
+
+        try:
+            total_length = int(response.headers.get('content-length', 0))
+        except ValueError:
+            pass
+
+        if os.path.isfile(dest_file) and os.stat(dest_file).st_size > 0:
+            # digest existing content on disk
+            with open(dest_file, 'rb') as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hash_md5.update(chunk)
+
+        rr = RawRange(response)
+        reader = rr.get_instance
+        # TODO
+        # if logger.isEnabledFor(logging.INFO) and total_length:
+        #     chunks = progress.bar(reader(
+        #         READ_BLOCK_SIZE),
+        #         expected_size=((total_length / READ_BLOCK_SIZE) + 1))
+        # else:
+        chunks = reader(READ_BLOCK_SIZE)
+        start = time.time()
+        received_size = 0
+        with open(dest_file, 'wb') as dest:
+            for chunk in chunks:
+                if process_bytes is not None:
+                    process_bytes(chunk)
+                dest_file.write(chunk)
+                received_size += len(chunk)
+        src_md5sum = rr.md5sum
+        dest_md5sum = hash_md5.hexdigest()
+        if (src_md5sum is not None) and (src_md5sum != dest_md5sum):
+            raise exceptions.TransferException(
+                'Downloaded file is corrupted: '
+                'expected md5({}) != actual md5({})'.
+                    format(src_md5sum, dest_md5sum))
+        # TODO duration = time.time() - start
 
 class RetrySession(Session):
     """ Session that automatically does a number of retries for failed
@@ -653,7 +791,8 @@ class RetrySession(Session):
                 if num_retries == MAX_NUM_RETRIES:
                     break
                 self.logger.debug(
-                    "Resending request in {}s ...".format(current_delay))
+                    "Error {}. Resending request in {}s ...".format(
+                        str(current_error), current_delay))
                 time.sleep(current_delay)
                 num_retries += 1
                 current_delay = min(current_delay * 2, MAX_RETRY_DELAY)
