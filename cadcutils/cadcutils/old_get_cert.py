@@ -168,7 +168,7 @@ def _main():
             retry = False
             with open(args.cert_filename, 'w') as w:
                 w.write(cert)
-        except exceptions.UnauthorizedException as e:
+        except exceptions.UnauthorizedException:
             sys.stderr.write("FAILED: invalid username/password combination")
             return -1
         except OSError as ose:

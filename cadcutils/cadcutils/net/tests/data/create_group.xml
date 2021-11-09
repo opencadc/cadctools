@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<group uri="ivo://cadc.nrc.ca/gms?testgroup_for_somebody">
+  <owner>
+    <user>
+      <internalID>
+        <uri>ivo://bar.com/foo</uri>
+      </internalID>
+    </user>
+  </owner>
+  <userMembers>
+    <user>
+      <internalID>
+        <uri>ivo://foo.com/bar</uri>
+      </internalID>
+    </user>
+  </userMembers>
+</group>

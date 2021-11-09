@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<group uri="ivo://cadc.nrc.ca/gms?testgroup_for_somebody">
+  <owner>
+    <user>
+      <internalID>
+        <uri>ivo://bar.com/foo</uri>
+      </internalID>
+      <identities>
+        <identity type="HTTP">foo</identity>
+      </identities>
+      <details>
+        <userDetails type="personalDetails">
+          <firstName>foo</firstName>
+          <lastName>bar</lastName>
+        </userDetails>
+      </details>
+    </user>
+  </owner>
+  <description>Group for foobar</description>
+  <lastModified>1977-11-25T03:12:30.000</lastModified>
+  <userMembers>
+    <user>
+      <internalID>
+        <uri>ivo://foo.com/bar</uri>
+      </internalID>
+      <identities>
+        <identity type="HTTP">bar</identity>
+      </identities>
+      <details>
+        <userDetails type="personalDetails">
+          <firstName>bar</firstName>
+          <lastName>foo</lastName>
+        </userDetails>
+      </details>
+    </user>
+  </userMembers>
+</group>
