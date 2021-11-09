@@ -96,11 +96,11 @@ def test_minimal_group():
 
 def test_maximal_group():
     owner = User('ivo://cadc.nrc.ca/user?00000000-0000-0000-0000-00000000000a')
-    owner.identities.add(Identity('cn=foo,c=ca', 'X500'))
-    owner.identities.add(Identity('foo@bar.com', 'OpenID'))
-    owner.identities.add(Identity('foo', 'HTTP'))
-    owner.identities.add(Identity('00000000-0000-0000-0000-000000000001',
-                                  'CADC'))
+    owner.identities['X500'] = Identity('cn=foo,c=ca', 'X500')
+    owner.identities['OpenID'] = Identity('foo@bar.com', 'OpenID')
+    owner.identities['HTTP'] = Identity('foo', 'HTTP')
+    owner.identities['CADC'] = Identity('00000000-0000-0000-0000-000000000001',
+                                        'CADC')
 
     expected = Group('groupID')
     expected.owner = owner

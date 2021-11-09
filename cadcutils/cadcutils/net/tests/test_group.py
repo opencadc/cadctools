@@ -86,14 +86,25 @@ def test_group():
     group.add_user_admin(admin)
     group.add_user_member(member)
 
-    assert group.group_admins
-    assert group.group_admins.pop() == admin
-    assert group.group_members
-    assert group.group_members.pop() == member
+    assert not group.group_admins
+    assert group.user_admins
+    assert group.user_admins.pop() == admin
+    assert not group.group_members
+    assert group.user_members
+    assert group.user_members.pop() == member
 
-    with pytest.raises(ValueError):
+    admin_gr = Group(group_id='admin')
+    member_gr = Group(group_id='member')
+    group.group_admins.add(admin_gr)
+    group.group_members.add(member_gr)
+    assert group.group_admins
+    assert group.group_admins.pop() == admin_gr
+    assert group.group_members
+    assert group.group_members.pop() == member_gr
+
+    with pytest.raises(AttributeError):
         group.add_user_admin('wrong type')
-    with pytest.raises(ValueError):
+    with pytest.raises(AttributeError):
         group.add_user_member('wrong type')
 
 
