@@ -97,6 +97,9 @@ def test_group_create(basews_mock):
     test_client.create_group(group)
     put_mock.assert_called_with(gms_service_url, data=gr_xml)
 
+    with pytest.raises(ValueError):
+        test_client.create_group(None)
+
 
 @patch('cadcutils.net.groups_client.BaseWsClient')
 def test_group_get(basews_mock):
@@ -114,6 +117,9 @@ def test_group_get(basews_mock):
     get_mock.assert_called_with('{}/{}'.format(gms_service_url, group_id))
     assert group == actual_gr
 
+    with pytest.raises(ValueError):
+        test_client.get_group('')
+
 
 @patch('cadcutils.net.groups_client.BaseWsClient')
 def test_group_update(basews_mock):
@@ -130,6 +136,9 @@ def test_group_update(basews_mock):
     post_mock.assert_called_with(
         '{}/{}'.format(gms_service_url, group.group_id), data=gr_xml)
 
+    with pytest.raises(ValueError):
+        test_client.update_group(group=None)
+
 
 @patch('cadcutils.net.groups_client.BaseWsClient')
 def test_group_remove(basews_mock):
@@ -142,6 +151,9 @@ def test_group_remove(basews_mock):
     test_client.remove_group(group_id)
     delete_mock.assert_called_with(
         '{}/{}'.format(gms_service_url, group_id))
+
+    with pytest.raises(ValueError):
+        test_client.remove_group(None)
 
 
 @patch('cadcutils.net.groups_client.BaseWsClient')
@@ -160,6 +172,13 @@ def test_add_member(basews_mock):
     put_mock.assert_called_with(
         '{}/{}/userMembers/{}'.format(gms_service_url, group_id, user_id),
         params=params)
+
+    with pytest.raises(ValueError):
+        test_client.add_user_member(identity=Identity(user_id, 'CADC'),
+                                    group_id='   ')
+
+    with pytest.raises(ValueError):
+        test_client.add_user_member(identity=None, group_id='abc')
 
 
 @patch('cadcutils.net.groups_client.BaseWsClient')

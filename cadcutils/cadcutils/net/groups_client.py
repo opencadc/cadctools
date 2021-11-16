@@ -111,10 +111,6 @@ logger = util.get_logger(__name__)
 cadcgms_agent = 'cadc-gms-client/{}'.format(version.version)
 
 
-def extract_group_name(group_id):
-    return urlparse(group_id).query
-
-
 class GroupsClient():
     """Class for interacting with the access control web service"""
 
@@ -319,6 +315,8 @@ class GroupsClient():
         Remove a group from the CADC GMS
         :param group_id: The ID of the group to remove
         """
+        if not group_id:
+            raise ValueError('group_id is required')
         self._gms_client.delete('{}/{}'.format(self._groups_ep, group_id))
 
 # TODO - not needed for now
