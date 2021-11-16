@@ -90,9 +90,9 @@ def test_group_reader_errors():
 def test_group_writer_errors():
     writer = GroupPropertyWriter()
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(AttributeError):
         writer.write(None)
-    with pytest.raises(AssertionError):
+    with pytest.raises(AttributeError):
         writer.write('')
     with pytest.raises(AttributeError):
         writer.get_property_element(None)

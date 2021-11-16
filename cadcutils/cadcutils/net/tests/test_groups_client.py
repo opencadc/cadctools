@@ -198,7 +198,7 @@ def test_add_group_member(basews_mock):
                                  member_group_id=member_group_id)
     put_mock.assert_called_with(
         '{}/{}/groupMembers/{}'.format(gms_service_url,
-                                       member_group_id, group_id),
+                                       group_id, member_group_id),
         params=params)
 
     with pytest.raises(ValueError):

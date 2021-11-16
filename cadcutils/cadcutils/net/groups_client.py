@@ -229,8 +229,7 @@ class GroupsClient():
         parameters = {'idType': identity.type,
                       'userID': identity.name,
                       'groupID': group_id}
-        response = self._gms_client.put(url, params=parameters)
-        response.raise_for_status()
+        self._gms_client.put(url, params=parameters)
 
     def remove_user_member(self, group_id, identity):
         """Remove the user from the group's user members.
@@ -249,8 +248,7 @@ class GroupsClient():
                       'userID': identity.name,
                       'groupID': group_id}
 
-        response = self._gms_client.delete(url, params=parameters)
-        response.raise_for_status()
+        self._gms_client.delete(url, params=parameters)
 
     def add_group_member(self, group_id, member_group_id):
         """Add the group to the group's group members.
@@ -262,10 +260,9 @@ class GroupsClient():
         if member_group_id is None or not member_group_id.strip():
             raise ValueError("Member Group ID cannot be None or empty.")
         url = '{}/{}/{}/{}'.format(
-            self._groups_ep, member_group_id, GROUP_MEMBER_PATH, group_id)
+            self._groups_ep, group_id, GROUP_MEMBER_PATH, member_group_id)
         params = {'groupID': group_id, 'groupID2': member_group_id}
-        response = self._gms_client.put(url, params=params)
-        response.raise_for_status()
+        self._gms_client.put(url, params=params)
 
     def remove_group_member(self, group_id, member_group_id):
         """Remove the group from the group's group members.
@@ -280,8 +277,7 @@ class GroupsClient():
             self._groups_ep, member_group_id, GROUP_MEMBER_PATH, group_id)
         params = {'groupID': group_id,
                   'groupID2': member_group_id}
-        response = self._gms_client.delete(url, params=params)
-        response.raise_for_status()
+        self._gms_client.delete(url, params=params)
 
     def get_membership(self, role=Role('member'), group_id=None):
         """Search for user group membership, of a certain role.
@@ -391,7 +387,7 @@ def print_group_members(group):
     print('   User Members: {}'.format((',\n'+' '*17).join(
         ['{} ({})'.format(
             m.identities['HTTP'].name,
-            m.identities['X500'].name) for m in group.user_members])))
+            m.identities['X500x'].name) for m in group.user_members])))
     print('  Group Members: {}'.format(
         (',\n'+' '*17).join([gr.group_id for gr in group.group_members])))
 
@@ -401,7 +397,7 @@ def main_app():
                                   default_resource_id=CADC_AC_SERVICE_ID)
 
     parser.description = (
-        'Client for access the User Group Management System (GMS) at the '
+        'Client for accessing the User Group Management System (GMS) at the '
         'Canadian Astronomy Data Centre')
 
     subparsers = parser.add_subparsers(
@@ -412,7 +408,7 @@ def main_app():
     list_parser = subparsers.add_parser(
         'list',
         description='Retrieve name of all the groups the user has access to',
-        help='Retrieve name of all the groups the user has access to')
+        help='Retrieve names of all the groups the user has access to')
     list_parser.add_argument(
         '-r', '--role', choices=['admin', 'member', 'owner'],
         help='Filter by role in the group',
@@ -442,7 +438,10 @@ def main_app():
         default=None,
         help='group description',
         required=False)
-    create_parser.add_argument('groupid', help='ID of the CADC group')
+    create_parser.add_argument(
+        'groupid',
+        help='ID of the CADC group. ID cannot contain space ( ), slash (/), '
+             'escape (\\), or percent (%) characters')
     create_parser.epilog = (
         'Examples:\n'
         '        cadc-groups create --cert ~/.ssl/cadcproxy.pem -d "My first '
@@ -453,7 +452,8 @@ def main_app():
         description='Display, sets or deletes group membership information',
         help='Display, sets or deletes group membership information')
     cmd_group = members_parser.add_mutually_exclusive_group()
-    cmd_group.add_argument('-e', '--erase', action='store_true')
+    cmd_group.add_argument('-clear', '--clear', action='store_true',
+                           help='Clear group and user membership')
     cmd_group.add_argument('--remove-group', action='append',
                            help='Remove member group with provided ID')
     cmd_group.add_argument('--add-group', action='append',
@@ -519,7 +519,7 @@ def main_app():
         logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
         logger.setLevel(logging.DEBUG)
     else:
-        logging.basicConfig(level=logging.WARN, stream=sys.stdout)
+        logging.basicConfig(level=logging.WARNING, stream=sys.stdout)
 
     subject = Subject.from_cmd_line_args(args)
 
@@ -542,8 +542,9 @@ def main_app():
         elif args.cmd == 'members':
             logger.info('members')
             group = client.get_group(args.groupid)
-            if args.erase:
+            if args.clear:
                 group.group_members.clear()
+                group.user_members.clear()
                 client.update_group(group)
             elif args.add_user:
                 for au in args.add_user:

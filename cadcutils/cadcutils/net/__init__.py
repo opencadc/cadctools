@@ -13,7 +13,7 @@ directly from cadcutils.net):
     - GroupsClient: class used to interact with the CADC Group Management
     Service (GMS)
 
-Note that the library also defines and entry_point for the cadc-get-cert at
+Note that the library also defines the entry_point for the cadc-get-cert at
 cadcutils.net.auth:get_cert_main and one for cadc-groups at
 cadcutils.net.groups_client.main_app
 
@@ -46,8 +46,8 @@ Example:
    import os
    os.system('cadc-groups --help')
 
-Method 1. is the recommended method as it does not required forking external
-processes and also allows trapping the exceptions and reacting according to the
+Method 1. is the recommended method as it does not require forking external
+process and also allows trapping the exceptions and reacting according to the
 type of the error. Method 2 also works but the sys.exit needs to be trapped in
 order to prevent the script from quiting. Method 3, while simple, must rely on
 inter processes communication to determine the result of running the command.

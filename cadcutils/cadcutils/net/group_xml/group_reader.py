@@ -97,7 +97,8 @@ class GroupReader(object):
                 "group uri attribute malformed: {0}".format(uri))
 
         url_parts = urlparse(uri)
-        authority = url_parts.scheme + url_parts.netloc + url_parts.path
+        authority = '{}://{}{}'.format(
+            url_parts.scheme, url_parts.netloc, url_parts.path)
         group_id = url_parts.query
         group = Group(group_id=group_id, authority=authority)
         group.owner = self._get_owner(group_element)

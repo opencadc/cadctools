@@ -76,7 +76,8 @@ class GroupWriter(object):
 
     def write(self, group, deep_copy=True, declaration=True):
 
-        assert isinstance(group, Group), 'group is not a Group instance'
+        if not isinstance(group, Group):
+            raise AttributeError('group is not a Group instance')
 
         return etree.tostring(self.get_group_element(group, deep_copy),
                               xml_declaration=declaration,

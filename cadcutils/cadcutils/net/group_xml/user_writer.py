@@ -74,7 +74,8 @@ class UserWriter(object):
 
     def write(self, user, declaration=False):
 
-        assert isinstance(user, User), 'user is not a User instance'
+        if not isinstance(user, User):
+            raise AttributeError('user is not a User instance')
 
         return etree.tostring(self.get_user_element(user),
                               xml_declaration=declaration,

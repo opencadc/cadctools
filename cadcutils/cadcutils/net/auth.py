@@ -149,8 +149,8 @@ class Subject(object):
     @certificate.setter
     def certificate(self, value):
         if value is not None:
-            assert value != '' and os.path.isfile(value),\
-                'Certificate file {} not found'.format(value)
+            if not os.path.isfile(value):
+                raise ValueError('Certificate file {} not found'.format(value))
             self._certificate = value
 
     @property

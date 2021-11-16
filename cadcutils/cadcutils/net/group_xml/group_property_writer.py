@@ -73,8 +73,9 @@ class GroupPropertyWriter(object):
 
     def write(self, group_property, declaration=False):
 
-        assert isinstance(group_property, GroupProperty), \
-            'group_property is not a GroupProperty instance'
+        if not isinstance(group_property, GroupProperty):
+            raise AttributeError(
+                'group_property is not a GroupProperty instance')
 
         return etree.tostring(self.get_property_element(group_property),
                               xml_declaration=declaration,
