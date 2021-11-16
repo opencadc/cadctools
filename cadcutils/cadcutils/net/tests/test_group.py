@@ -67,7 +67,7 @@
 import pytest
 
 
-from cadcutils.net import GroupProperty, Group, User, Role
+from cadcutils.net import GroupProperty, Group, User, Role, Identity
 
 
 def test_group():
@@ -137,3 +137,18 @@ def test_group_property():
 
     with pytest.raises(ValueError):
         GroupProperty('key', None, True)
+
+
+def test_identity():
+    identity = Identity(name='abc', identity_type='HTTP')
+    assert identity.name == 'abc'
+    assert identity.type == 'HTTP'
+
+    assert Identity(name='abc', identity_type='OpenID') == \
+           Identity(name='abc', identity_type='OpenID')
+
+    with pytest.raises(ValueError):
+        Identity('', identity_type='HTTP')
+
+    with pytest.raises(ValueError):
+        Identity('abc', identity_type='UNKNOWN')

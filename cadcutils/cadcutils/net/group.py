@@ -166,9 +166,6 @@ class Identity():
     def __eq__(self, other):
         return self.name, self.type == other.name, other.type
 
-    def __hash__(self):
-        return hash((self.name, self.type))
-
 
 class GroupProperty:
 
