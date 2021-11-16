@@ -127,9 +127,6 @@ class User:
     def __hash__(self):
         return hash(self.internal_id)
 
-    def __repr__(self):
-        return self.internal_id
-
 
 class Role:
     """Helper class for constraining allowable roles"""
@@ -153,9 +150,6 @@ class Role:
     def __hash__(self):
         return hash(self._role)
 
-    def __repr__(self):
-        return self._role
-
 
 class Identity():
 
@@ -174,9 +168,6 @@ class Identity():
 
     def __hash__(self):
         return hash((self.name, self.type))
-
-    def __repr__(self):
-        return '%s %s' % (self.name, self.type)
 
 
 class GroupProperty:
@@ -203,9 +194,6 @@ class GroupProperty:
 
     def __hash__(self):
         return hash((self.key, self.value))
-
-    def __repr__(self):
-        return '%s %s %s' % (self.key, self.value, self.read_only)
 
 
 class Group(object):
@@ -262,6 +250,3 @@ class Group(object):
 
     def __hash__(self):
         return hash(self.group_id)
-
-    def __repr__(self):
-        return self.group_id
