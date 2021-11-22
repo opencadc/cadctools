@@ -809,10 +809,7 @@ class WsCapabilities(object):
         if content is None:
             # get information from the bootstrap registry
             try:
-                session = requests.Session()
-                # do not allow requests to use .netrc file
-                session.trust_env = False
-                rsp = session.get(url, verify=self.ws.verify)
+                rsp = self.ws.get(url)
                 rsp.raise_for_status()
                 content = rsp.text
                 if content is None or len(content.strip(' ')) == 0:
