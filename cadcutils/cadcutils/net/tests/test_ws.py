@@ -907,20 +907,18 @@ class TestWsCapabilities(unittest.TestCase):
         :return:
         """
         ws_client = Mock(resource_id='SOME_RESOURCE')
+        ws_client.get.return_value = Mock(text='')
         caps = ws.WsCapabilities(ws_client)
         now = time.time()
         resource_file = tempfile.NamedTemporaryFile()
         open(resource_file.name, 'w').write('OLD CONTENT')
-        with patch('cadcutils.net.ws.requests.Session.get') as mock_get:
-            mock_get.return_value = Mock(text='')
-            assert 'OLD CONTENT' == \
-                   caps._get_content(resource_file.name, 'some/url',
-                                     now-ws.CACHE_REFRESH_INTERVAL-1)
+        assert 'OLD CONTENT' == \
+            caps._get_content(resource_file.name, 'some/url',
+                              now-ws.CACHE_REFRESH_INTERVAL-1)
 
     @patch('cadcutils.net.ws.os.path.getmtime')
     @patch('cadcutils.net.ws.open', mock=mock_open())
-    @patch('cadcutils.net.ws.requests.Session.get')
-    def test_get_reg(self, get_mock, file_mock, file_modtime_mock):
+    def test_get_reg(self, file_mock, file_modtime_mock):
         """
         Tests the registry part of WsCapabilities
         """
@@ -934,15 +932,15 @@ class TestWsCapabilities(unittest.TestCase):
                            'http://providerurl.test/service'). \
             format(resource_id, resource_cap_url)
         response = Mock(text=cadcreg_content)
-        get_mock.return_value = response
+        ws_client = Mock(resource_id=resource_id)
+        ws_client.get.return_value = response
         # set the modified time of the cache file to 0 to make sure the info
         # is retrieved from server
         file_modtime_mock.return_value = 0
         # test anonymous access
         fh_mock = Mock()
         file_mock.write = fh_mock
-        client = Mock(resource_id=resource_id)
-        caps = ws.WsCapabilities(client)
+        caps = ws.WsCapabilities(ws_client)
         self.assertEqual(os.path.join(ws.CACHE_LOCATION, ws.REGISTRY_FILE),
                          caps.reg_file)
         self.assertEqual(
@@ -957,8 +955,8 @@ class TestWsCapabilities(unittest.TestCase):
             cadcreg_content)
 
         # test when registry information is retrieved from the cache file
-        get_mock.reset_mock()
-        get_mock.return_value = None
+        ws_client.get.reset_mock()
+        ws_client.get.return_value = None
         file_modtime_mock.reset_mock()
         file_mock.reset_mock()
         resource_cap_url2 = 'http://www.canfar.net/myservice2'
@@ -968,7 +966,7 @@ class TestWsCapabilities(unittest.TestCase):
             format(resource_id, resource_cap_url2)
         file_modtime_mock.return_value = time.time()
         file_mock().__enter__.return_value.read.return_value = cache_content2
-        caps = ws.WsCapabilities(client)
+        caps = ws.WsCapabilities(ws_client)
         self.assertEqual(resource_cap_url2, caps._get_capability_url())
 
         # test when registry information is outdated but there are
@@ -978,15 +976,13 @@ class TestWsCapabilities(unittest.TestCase):
         file_mock.reset_mock()
         file_modtime_mock.return_value = 0
         file_mock().__enter__.return_value.read.return_value = cache_content2
-        get_mock.side_effect = [exceptions.HttpException()]
-        client.get.side_effect = [exceptions.HttpException]
-        caps = ws.WsCapabilities(client)
+        ws_client.get.side_effect = [exceptions.HttpException]
+        caps = ws.WsCapabilities(ws_client)
         with patch('os.path.exists', Mock()):
             self.assertEqual(resource_cap_url2, caps._get_capability_url())
 
     @patch('cadcutils.net.ws.os.path.getmtime')
-    @patch('cadcutils.net.ws.requests.Session.get')
-    def test_get_caps(self, get_mock, file_modtime_mock):
+    def test_get_caps(self, file_modtime_mock):
         """
         Tests the capabilities part of WsCapabilities
         """
@@ -1002,9 +998,9 @@ class TestWsCapabilities(unittest.TestCase):
         expected_content = capabilities__content.replace('WS_URL',
                                                          resource_cap_url)
         response = Mock(text=expected_content)
-        get_mock.return_value = response
-        caps = ws.WsCapabilities(Mock(resource_id=resource_id,
-                                      subject=auth.Subject()))
+        ws_client = Mock(resource_id=resource_id, subject=auth.Subject())
+        ws_client.get.return_value = response
+        caps = ws.WsCapabilities(ws_client)
 
         # mock _get_capability_url to return some url without attempting
         # to access the server
@@ -1039,9 +1035,8 @@ class TestWsCapabilities(unittest.TestCase):
                                                          resource_cap_url)
         # test anonymous access
         response = Mock(text=expected_content)
-        get_mock.return_value = response
-        caps = ws.WsCapabilities(Mock(resource_id=resource_id,
-                                      subject=auth.Subject()))
+        ws_client.get.return_value = response
+        caps = ws.WsCapabilities(ws_client)
         # remove the cached file if exists
         if os.path.isfile(caps.caps_file):
             os.remove(caps.caps_file)
@@ -1096,8 +1091,8 @@ class TestWsCapabilities(unittest.TestCase):
                              'vos://cadc.nrc.ca~service/CADC/mystnd01'))
 
         # test when capabilities information is retrieved from the cache file
-        get_mock.reset_mock()
-        get_mock.return_value = None
+        ws_client.get.reset_mock()
+        ws_client.get.return_value = None
         file_modtime_mock.reset_mock()
         service = 'myservice2'
         resource_id = 'ivo://canfar.phys.uvic.ca/{}'.format(service)
