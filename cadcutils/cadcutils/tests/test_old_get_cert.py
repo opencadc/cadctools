@@ -84,7 +84,7 @@ TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
 
 
 @patch('cadcutils.old_get_cert.get_cert', Mock(return_value='CERTVALUE'))
-@patch('cadcutils.old_get_cert.BaseWsClient._get_url',
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url',
        Mock(return_value='http://the.cadc.domain/service'))
 @patch('cadcutils.old_get_cert.os.access', Mock())
 @patch('cadcutils.old_get_cert.os.getenv', Mock(return_value='/tmp'))
@@ -171,8 +171,8 @@ def test_get_cert_main_help():
 
     usage = open(os.path.join(TESTDATA_DIR, 'getCert_help.txt'), 'r').read()
 
-    with patch('cadcutils.old_get_cert.BaseWsClient._get_url', Mock(
-            return_value='https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')):
+    with patch('cadcutils.net.ws.WsCapabilities.get_access_url', Mock(
+            return_value='https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/cred')):
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             with pytest.raises(NoExit):
                 sys.argv = ['getCert', '-h']

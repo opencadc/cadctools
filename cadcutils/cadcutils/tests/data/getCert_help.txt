@@ -3,7 +3,7 @@ usage: getCert [-h] [--version] [--daysValid DAYSVALID]
 
 Retrieve a security certificate for interaction with VOSpace. Certificate will
 be valid for daysValid and stored as local file cert_filename. First looks for
-an entry in the users .netrc matching the realm www.cadc-ccda.hia-iha.nrc-
+an entry in the users .netrc matching the realm ws.cadc-ccda.hia-iha.nrc-
 cnrc.gc.ca, the user is prompted for a username and password if no entry is
 found.
 
