@@ -365,15 +365,6 @@ class StorageInventoryClient(object):
                     'WARN: Cannot retrieve data from {}. Exception: {}'.
                     format(url, e))
                 last_exception = e
-                if not hasattr(dest, 'read'):
-                    # try to cleanup the corrupted file
-                    # TODO should save in a temporary file and do a mv
-                    # at the end
-                    try:
-                        os.unlink(dest)
-                    except Exception:
-                        # nothing we can do
-                        pass
                 if isinstance(e, exceptions.TransferException) and \
                         urls.count(url) < MAX_TRANSIENT_TRIES:
                     # this is a transient exception - append url to try later

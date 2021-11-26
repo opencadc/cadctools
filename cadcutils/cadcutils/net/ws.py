@@ -692,8 +692,11 @@ class BaseDataClient(BaseWsClient):
             error_msg = 'Downloaded file is corrupted: expected md5({}) != ' \
                         'actual md5({})'.format(src_md5, dest_md5)
         else:
-            self.logger.debug('Downloaded {}MB in {}s'.format(
-                dest_downloaded, time.time() - start))
+            duration = time.time() - start
+            self.logger.info(
+                'Successfully downloaded file {} in {}s '
+                '(avg. speed: {}MB/s)'.format(dest_file, round(duration, 2),
+                round(dest_downloaded / 1024 / 1024 / duration, 2)))
             return
         if not src_length or not src_md5:
             # clean up the temporary file
