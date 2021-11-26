@@ -618,16 +618,16 @@ class BaseDataClient(BaseWsClient):
                             self.logger.warning(
                                 'Content-Range expected {} vs '
                                 'received {}'.format(exp_cr, actual_cr))
-
-            self._save_bytes(response, temp_dest, None)
+            # need to send the original file content-length. The Range response
+            # contains the content-length of the range.
+            self._save_bytes(response, src_size, temp_dest, None)
             os.rename(temp_dest, final_dest)
 
-    def _save_bytes(self, response, dest_file, process_bytes=None):
+    def _save_bytes(self, response, src_length, dest_file, process_bytes=None):
         # requests automatically decompresses the data.
         # Tell it to do it only if it had to
         hash_md5 = hashlib.md5()
         src_md5 = net.extract_md5(response.headers)
-        src_length = int(response.headers.get(HTTP_LENGTH, 0))
 
         class RawRange(object):
             """

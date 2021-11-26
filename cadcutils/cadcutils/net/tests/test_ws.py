@@ -1312,18 +1312,30 @@ def test_save_bytes():
     response.raw.read.side_effect = [b'abc', b'de']
     response.headers = \
         {'digest': 'md5=YWI1NmI0ZDkyYjQwNzEzYWNjNWFmODk5ODVkNGI3ODY='}
-    client._save_bytes(response=response, dest_file=dest.name,
+    client._save_bytes(response=response, src_length=5, dest_file=dest.name,
                        process_bytes=count_bytes)
     assert 5 == outer['bytes_count']
     assert 5 == os.stat(dest.name).st_size
     assert b'abcde' == open(dest.name, 'rb').read()
 
-    # repeat the test but make md5s of source and destination mistmatch
+    # repeat the test but make szie of source and destination mismatch
     dest = NamedTemporaryFile()
     response = Mock()
     response.raw.read.side_effect = [b'aaa', b'aa']  # different content
     response.headers = \
         {'digest': 'md5=YWI1NmI0ZDkyYjQwNzEzYWNjNWFmODk5ODVkNGI3ODY='}
     with pytest.raises(exceptions.TransferException):
-        client._save_bytes(response=response, dest_file=dest.name,
+        client._save_bytes(response=response, src_length=7,
+                           dest_file=dest.name,
+                           process_bytes=count_bytes)
+
+    # repeat the test but make md5s of source and destination mismatch
+    dest = NamedTemporaryFile()
+    response = Mock()
+    response.raw.read.side_effect = [b'aaa', b'aa']  # different content
+    response.headers = \
+        {'digest': 'md5=YWI1NmI0ZDkyYjQwNzEzYWNjNWFmODk5ODVkNGI3ODY='}
+    with pytest.raises(exceptions.TransferException):
+        client._save_bytes(response=response, src_length=5,
+                           dest_file=dest.name,
                            process_bytes=count_bytes)
