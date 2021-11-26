@@ -563,7 +563,7 @@ class BaseDataClient(BaseWsClient):
            robust.
            :param url: URL to get the file from
            :param dest: name of the file to store it to. If it's the name of
-           the directory to save it to, it will use the Content-Disposion for
+           the directory to save it to, it will use the Content-Disposition for
            the file name. By default, it saves the file in the current
            directory.
            :param kwargs: other http attributes
@@ -590,28 +590,34 @@ class BaseDataClient(BaseWsClient):
             if src_md5 and src_size and os.path.isfile(temp_dest):
                 stat_info = os.stat(temp_dest)
                 if not stat_info.st_size or stat_info.st_size >= src_size:
-                    # Note: the existance of a complete temporary file should
+                    # Note: the existence of a complete temporary file should
                     # be a bug. It's more likely that it's corrupted hence the
                     # removal below
                     os.remove(temp_dest)
                 else:
-                    # do a range request
-                    response.raw.close()  # close existing stream
-                    headers = {'Range': 'bytes={}-'.format(stat_info.st_size)}
-                    response = self.get(url, stream=True, headers=headers)
-                    # at some point the warnings below should become errors?
-                    # at the moment, they can be usefull in debugging
-                    if response.status_code != requests.codes.partial_content:
-                        self.logger.warning(
-                            'Expected partial content for range request')
-                    exp_cr = 'bytes {}-{}/{}'.format(stat_info.st_size,
-                                                     src_size - 1,
-                                                     src_size)
-                    actual_cr = response.headers.get('Content-Range', '')
-                    if actual_cr != exp_cr:
-                        self.logger.warning(
-                            'Content-Range expected {} vs '
-                            'received {}'.format(exp_cr, actual_cr))
+                    if response.headers.get('Accept-Ranges', None) and \
+                       response.headers.get('Accept-Ranges').strip() == \
+                            'bytes':
+                        # do a range request
+                        response.raw.close()  # close existing stream
+                        headers = {
+                            'Range': 'bytes={}-'.format(stat_info.st_size)}
+                        response = self.get(url, stream=True, headers=headers)
+                        # at some point the warnings below should become errors
+                        # even if the code can deal with a 200 response as well
+                        # right now, these can be useful in debugging
+                        if response.status_code != \
+                                requests.codes.partial_content:
+                            self.logger.warning(
+                                'Expected partial content for range request')
+                        exp_cr = 'bytes {}-{}/{}'.format(stat_info.st_size,
+                                                         src_size - 1,
+                                                         src_size)
+                        actual_cr = response.headers.get('Content-Range', '')
+                        if actual_cr != exp_cr:
+                            self.logger.warning(
+                                'Content-Range expected {} vs '
+                                'received {}'.format(exp_cr, actual_cr))
 
             self._save_bytes(response, temp_dest, None)
             os.rename(temp_dest, final_dest)
@@ -659,14 +665,17 @@ class BaseDataClient(BaseWsClient):
 
         update_mode = 'wb'
         dest_length = 0
-        if src_md5 and src_length:
-            if os.path.isfile(dest_file) and os.stat(dest_file).st_size > 0:
+        if os.path.isfile(dest_file) and os.stat(dest_file).st_size > 0:
+            if response.status_code == requests.codes.partial_content:
                 # Can resume download. Digest existing content on disk first
                 update_mode = 'ab'
                 dest_length = os.stat(dest_file).st_size
                 with open(dest_file, 'rb') as f:
                     for chunk in iter(lambda: f.read(4096), b""):
                         hash_md5.update(chunk)
+            else:
+                os.remove(dest_file)
+
         rr = RawRange(response)
         reader = rr.get_instance
         # TODO - progress bar

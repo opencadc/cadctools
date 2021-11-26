@@ -1237,14 +1237,18 @@ def test_download_file_method():
     assert os.path.isfile(dest)
     assert not os.path.isfile(temp_dest)
     assert client._save_bytes.called
+    client.get.assert_called_once_with('https://dataservice', stream=True)
 
     # calling it the second time does not cause another get
+    client.get.reset_mock()
     client._save_bytes.reset_mock()
     client.get = Mock(return_value=response)
     client.download_file('https://dataservice', temp_dir.name)
     assert not client._save_bytes.called
+    client.get.assert_called_once_with('https://dataservice', stream=True)
 
     # make temporary file larger (BUG case). Operation should succeed
+    client.get.reset_mock()
     os.rename(dest, temp_dest)
     open(temp_dest, 'ab').write(b'ghi')
     assert 5 < os.stat(temp_dest).st_size
@@ -1255,21 +1259,45 @@ def test_download_file_method():
     assert os.path.isfile(dest)
     assert not os.path.isfile(temp_dest)
     assert client._save_bytes.called
+    client.get.assert_called_once_with('https://dataservice', stream=True)
 
     # calling it when incomplete temporary file exits
-    # truncate the last 3 bytes
+    # truncate the last 3 bytes but the service does not support
+    # ranges
+    client.get.reset_mock()
     os.rename(dest, temp_dest)
     with open(temp_dest, 'r+') as f:
         f.seek(0, os.SEEK_END)
         f.seek(f.tell() - 3, os.SEEK_SET)
         f.truncate()
-    response.status_code = 206
+    response.raw.read.side_effect = [b'abc', b'de']
+    client.get = Mock(return_value=response)
+    client.download_file('https://dataservice', temp_dir.name)
+    assert os.path.isfile(dest)
+    assert not os.path.isfile(temp_dest)
+    assert client._save_bytes.called
+    client.get.assert_called_once_with('https://dataservice', stream=True)
+
+    # repeat the test when the service supports ranges
+    client.get.reset_mock()
+    os.rename(dest, temp_dest)
+    with open(temp_dest, 'r+') as f:
+        f.seek(0, os.SEEK_END)
+        f.seek(f.tell() - 3, os.SEEK_SET)
+        f.truncate()
+    response.status_code = requests.codes.partial_content
+    response.headers['Accept-Ranges'] = 'bytes '
     response.raw.read.side_effect = [b'cde']
     client.get = Mock(return_value=response)
     client.download_file('https://dataservice', temp_dir.name)
     assert os.path.isfile(dest)
     assert not os.path.isfile(temp_dest)
     assert client._save_bytes.called
+    assert 2 == client.get.call_count
+    # second get call with Range header expected
+    assert [call('https://dataservice', stream=True),
+            call('https://dataservice', stream=True,
+                 headers={'Range': 'bytes=2-'})] in client.get.mock_calls
 
 
 def test_save_bytes():
