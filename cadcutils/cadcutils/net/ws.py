@@ -538,7 +538,7 @@ class BaseDataClient(BaseWsClient):
         # returns destination absolute file name as well as a temporary
         # destination to be used during the transfer
         if (dest is None) and (default_file_name is None):
-             raise ValueError('BUG: Cannot resolve file name')
+            raise ValueError('BUG: Cannot resolve file name')
         if dest is not None:
             # got a dest name?
             if os.path.isdir(dest):
@@ -562,9 +562,10 @@ class BaseDataClient(BaseWsClient):
            with the CADC services to optimize and make the transfer more
            robust.
            :param url: URL to get the file from
-           :param dest: name of the file to store it to. If it's the name of the
-           directory to save it to, it will use the Content-Disposion for the
-           file name. By default, it saves the file in the current directory.
+           :param dest: name of the file to store it to. If it's the name of
+           the directory to save it to, it will use the Content-Disposion for
+           the file name. By default, it saves the file in the current
+           directory.
            :param kwargs: other http attributes
            :return: requests.Response object
            :throws: HttpExceptions
@@ -581,8 +582,9 @@ class BaseDataClient(BaseWsClient):
             final_dest, temp_dest = self._resolve_destination_file(
                 dest=dest, src_md5=src_md5, default_file_name=content_disp)
             if os.path.isfile(final_dest) and \
-                src_size == os.stat(final_dest).st_size and \
-                src_md5 == hashlib.md5(open(final_dest, 'rb').read()).hexdigest():
+               src_size == os.stat(final_dest).st_size and \
+               src_md5 == \
+                    hashlib.md5(open(final_dest, 'rb').read()).hexdigest():
                 # nothing to be done
                 return
             if src_md5 and src_size and os.path.isfile(temp_dest):
@@ -617,7 +619,6 @@ class BaseDataClient(BaseWsClient):
     def _save_bytes(self, response, dest_file, process_bytes=None):
         # requests automatically decompresses the data.
         # Tell it to do it only if it had to
-        total_length = 0
         hash_md5 = hashlib.md5()
         src_md5 = net.extract_md5(response.headers)
         src_length = int(response.headers.get(HTTP_LENGTH, 0))
@@ -695,13 +696,15 @@ class BaseDataClient(BaseWsClient):
             duration = time.time() - start
             self.logger.info(
                 'Successfully downloaded file {} in {}s '
-                '(avg. speed: {}MB/s)'.format(dest_file, round(duration, 2),
-                round(dest_downloaded / 1024 / 1024 / duration, 2)))
+                '(avg. speed: {}MB/s)'.format(
+                    dest_file, round(duration, 2),
+                    round(dest_downloaded / 1024 / 1024 / duration, 2)))
             return
         if not src_length or not src_md5:
             # clean up the temporary file
             os.remove(dest_file)
         raise exceptions.TransferException(error_msg)
+
 
 class RetrySession(Session):
     """ Session that automatically does a number of retries for failed
