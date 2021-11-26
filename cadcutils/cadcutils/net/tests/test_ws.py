@@ -79,6 +79,7 @@ from six.moves.urllib.parse import urlparse
 import tempfile
 import pytest
 import hashlib
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 
 from cadcutils import exceptions
 from cadcutils import net
@@ -1184,3 +1185,117 @@ class TestWsOutsideCalls(unittest.TestCase):
                  call(min(DEFAULT_RETRY_DELAY * 32, MAX_RETRY_DELAY))]
 
         time_mock.assert_has_calls(calls)
+
+
+def test_resolve_name():
+    client = ws.BaseDataClient('https://httpbin.org', net.Subject(), 'FOO')
+    dest = NamedTemporaryFile()
+    dest_dir = os.path.dirname(dest.name)
+    file_name = os.path.basename(dest.name)
+    tmp_file = os.path.join(dest_dir, 'cadcget-{}-beef'.format(file_name))
+    # file name provided
+    final_dest, temp_dest = client._resolve_destination_file(
+        dest.name, 'beef', None)
+    assert dest.name == final_dest
+    assert tmp_file == temp_dest
+
+    # directory provided
+    dest_dir = os.path.dirname(dest.name)
+    final_dest, temp_dest = client._resolve_destination_file(
+        dest_dir, 'beef', os.path.basename(dest.name))
+    assert dest.name == final_dest
+    assert tmp_file == temp_dest
+
+    # no md5 - no temporary file/resume
+    final_dest, temp_dest = client._resolve_destination_file(
+        dest_dir, None, os.path.basename(dest.name))
+    assert dest.name == final_dest == temp_dest
+
+    with pytest.raises(ValueError):
+        client._resolve_destination_file(None, 'beef', None)
+
+
+def test_download_file_method():
+    client = ws.BaseDataClient('https://httpbin.org', net.Subject(), 'FOO')
+    # mock the get
+    response = Mock()
+    file_name = 'filename.jpg'
+    md5 = 'ab56b4d92b40713acc5af89985d4b786'
+    response.status_code = requests.codes.ok
+    response.headers = \
+        {'digest': 'md5=YWI1NmI0ZDkyYjQwNzEzYWNjNWFmODk5ODVkNGI3ODY=',
+         'Content-Length': '5',
+         'content-disposition': 'attachment; filename={}'.format(file_name)}
+    response.raw.read.side_effect = [b'abc', b'de']
+    client.get = Mock(return_value=response)
+    temp_dir = TemporaryDirectory()
+    # proxy _save_bytes through a mock to check when it's called
+    client._save_bytes = Mock(side_effect=client._save_bytes)
+    client.download_file('https://dataservice', temp_dir.name)
+    dest, temp_dest = client._resolve_destination_file(
+        temp_dir.name, src_md5=md5, default_file_name=file_name)
+    assert os.path.isfile(dest)
+    assert not os.path.isfile(temp_dest)
+    assert client._save_bytes.called
+
+    # calling it the second time does not cause another get
+    client._save_bytes.reset_mock()
+    client.get = Mock(return_value=response)
+    client.download_file('https://dataservice', temp_dir.name)
+    assert not client._save_bytes.called
+
+    # make temporary file larger (BUG case). Operation should succeed
+    os.rename(dest, temp_dest)
+    open(temp_dest, 'ab').write(b'ghi')
+    assert 5 < os.stat(temp_dest).st_size
+    response.raw.read.side_effect = [b'abc', b'de']
+    client.download_file('https://dataservice', temp_dir.name)
+    dest, temp_dest = client._resolve_destination_file(
+        temp_dir.name, src_md5=md5, default_file_name=file_name)
+    assert os.path.isfile(dest)
+    assert not os.path.isfile(temp_dest)
+    assert client._save_bytes.called
+
+    # calling it when incomplete temporary file exits
+    # truncate the last 3 bytes
+    os.rename(dest, temp_dest)
+    with open(temp_dest, 'r+') as f:
+        f.seek(0, os.SEEK_END)
+        f.seek(f.tell() - 3, os.SEEK_SET)
+        f.truncate()
+    response.status_code = 206
+    response.raw.read.side_effect = [b'cde']
+    client.get = Mock(return_value=response)
+    client.download_file('https://dataservice', temp_dir.name)
+    assert os.path.isfile(dest)
+    assert not os.path.isfile(temp_dest)
+    assert client._save_bytes.called
+
+
+def test_save_bytes():
+    client = ws.BaseDataClient('https://httpbin.org', net.Subject(), 'FOO')
+    dest = NamedTemporaryFile()
+    outer = {'bytes_count': 0}
+
+    def count_bytes(bytes):
+        outer['bytes_count'] += len(bytes)
+
+    response = Mock()
+    response.raw.read.side_effect = [b'abc', b'de']
+    response.headers = \
+        {'digest': 'md5=YWI1NmI0ZDkyYjQwNzEzYWNjNWFmODk5ODVkNGI3ODY='}
+    client._save_bytes(response=response, dest_file=dest.name,
+                       process_bytes=count_bytes)
+    assert 5 == outer['bytes_count']
+    assert 5 == os.stat(dest.name).st_size
+    assert b'abcde' == open(dest.name, 'rb').read()
+
+    # repeat the test but make md5s of source and destination mistmatch
+    dest = NamedTemporaryFile()
+    response = Mock()
+    response.raw.read.side_effect = [b'aaa', b'aa']  # different content
+    response.headers = \
+        {'digest': 'md5=YWI1NmI0ZDkyYjQwNzEzYWNjNWFmODk5ODVkNGI3ODY='}
+    with pytest.raises(exceptions.TransferException):
+        client._save_bytes(response=response, dest_file=dest.name,
+                           process_bytes=count_bytes)

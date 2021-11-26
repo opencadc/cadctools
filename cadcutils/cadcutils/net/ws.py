@@ -538,7 +538,7 @@ class BaseDataClient(BaseWsClient):
         # returns destination absolute file name as well as a temporary
         # destination to be used during the transfer
         if (dest is None) and (default_file_name is None):
-             raise RuntimeError('BUG: Cannot resolve file name')
+             raise ValueError('BUG: Cannot resolve file name')
         if dest is not None:
             # got a dest name?
             if os.path.isdir(dest):
@@ -547,8 +547,14 @@ class BaseDataClient(BaseWsClient):
                 final_dest = dest
         else:
             final_dest = os.path.basename(default_file_name)
-        temp_dest = final_dest + "-" + src_md5
-        return final_dest, temp_dest
+        if src_md5:
+            dir_name = os.path.dirname(final_dest)
+            file_name = os.path.basename(final_dest)
+            temp_dest = os.path.join(
+                dir_name, 'cadcget-{}-{}'.format(file_name, src_md5))
+            return final_dest, temp_dest
+        else:
+            return final_dest, final_dest
 
     def download_file(self, url, dest=None, **kwargs):
         """Method to download a file from CADC storage (archive or vospace).
@@ -564,40 +570,63 @@ class BaseDataClient(BaseWsClient):
            :throws: HttpExceptions
 
         """
-        kwargs['stream'] = True
-        response = self.get(url, kwargs)
+        response = self.get(url, stream=True)
         src_md5 = net.extract_md5(response.headers)
+        src_size = int(response.headers.get(HTTP_LENGTH, 0))
         content_disp = net.get_header_filename(response.headers)
-        file_offset = 0
         if hasattr(dest, 'read'):
-            # TODO maybe replace this with a stream option?
-            # memory buffer - no retries
-            final_dest, temp_dest = dest, dest
+            dest.write(response.raw.read())
+            return
         else:
             final_dest, temp_dest = self._resolve_destination_file(
                 dest=dest, src_md5=src_md5, default_file_name=content_disp)
-            if os.path.isfile(temp_dest):
-                # resume download
-                stat_info = os.fstat(temp_dest)
-                file_offset = stat_info.st_size
-                response.raw.close()  # close existing stream
-                kwargs['Content-Range'] = 'bytes={}-'.format(file_offset)
-                response = self.get(url, kwargs)
+            if os.path.isfile(final_dest) and \
+                src_size == os.stat(final_dest).st_size and \
+                src_md5 == hashlib.md5(open(final_dest, 'rb').read()).hexdigest():
+                # nothing to be done
+                return
+            if src_md5 and src_size and os.path.isfile(temp_dest):
+                stat_info = os.stat(temp_dest)
+                if not stat_info.st_size or stat_info.st_size >= src_size:
+                    # Note: the existance of a complete temporary file should
+                    # be a bug. It's more likely that it's corrupted hence the
+                    # removal below
+                    os.remove(temp_dest)
+                else:
+                    # do a range request
+                    response.raw.close()  # close existing stream
+                    headers = {'Range': 'bytes={}-'.format(stat_info.st_size)}
+                    response = self.get(url, stream=True, headers=headers)
+                    # at some point the warnings below should become errors?
+                    # at the moment, they can be usefull in debugging
+                    if response.status_code != requests.codes.partial_content:
+                        self.logger.warning(
+                            'Expected partial content for range request')
+                    exp_cr = 'bytes {}-{}/{}'.format(stat_info.st_size,
+                                                     src_size - 1,
+                                                     src_size)
+                    actual_cr = response.headers.get('Content-Range', '')
+                    if actual_cr != exp_cr:
+                        self.logger.warning(
+                            'Content-Range expected {} vs '
+                            'received {}'.format(exp_cr, actual_cr))
 
-            self._save_bytes(response, temp_dest, id,
-                             process_bytes=None)
-            os.rename(temp_dest, dest)
+            self._save_bytes(response, temp_dest, None)
+            os.rename(temp_dest, final_dest)
 
-    def _save_bytes(self, response, dest_file, resource, process_bytes=None):
+    def _save_bytes(self, response, dest_file, process_bytes=None):
         # requests automatically decompresses the data.
         # Tell it to do it only if it had to
         total_length = 0
         hash_md5 = hashlib.md5()
+        src_md5 = net.extract_md5(response.headers)
+        src_length = int(response.headers.get(HTTP_LENGTH, 0))
 
         class RawRange(object):
             """
             Wrapper class to make response.raw.read work as iterator and behave
-            the same way as the corresponding response.iter_content
+            the same way as the corresponding response.iter_content. Useful
+            with a progress bar.
             """
 
             def __init__(self, rsp):
@@ -605,13 +634,7 @@ class BaseDataClient(BaseWsClient):
                 :param rsp: HTTP response object
                 """
                 self._read = rsp.raw.read
-                self._decode = rsp.raw._decode
                 self.block_size = 0
-                self._md5sum = net.extract_md5(rsp.headers)
-
-            @property
-            def md5sum(self):
-                return self._md5sum
 
             def __iter__(self):
                 return self
@@ -623,7 +646,7 @@ class BaseDataClient(BaseWsClient):
                 # reads the next raw block
                 data = self._read(self.block_size)
                 if len(data) > 0:
-                    if self._md5sum:
+                    if src_md5:
                         hash_md5.update(data)
                     return data
                 else:
@@ -633,42 +656,49 @@ class BaseDataClient(BaseWsClient):
                 self.block_size = block_size
                 return self
 
-        try:
-            total_length = int(response.headers.get('content-length', 0))
-        except ValueError:
-            pass
-
-        if os.path.isfile(dest_file) and os.stat(dest_file).st_size > 0:
-            # digest existing content on disk
-            with open(dest_file, 'rb') as f:
-                for chunk in iter(lambda: f.read(4096), b""):
-                    hash_md5.update(chunk)
-
+        update_mode = 'wb'
+        dest_length = 0
+        if src_md5 and src_length:
+            if os.path.isfile(dest_file) and os.stat(dest_file).st_size > 0:
+                # Can resume download. Digest existing content on disk first
+                update_mode = 'ab'
+                dest_length = os.stat(dest_file).st_size
+                with open(dest_file, 'rb') as f:
+                    for chunk in iter(lambda: f.read(4096), b""):
+                        hash_md5.update(chunk)
         rr = RawRange(response)
         reader = rr.get_instance
-        # TODO
+        # TODO - progress bar
         # if logger.isEnabledFor(logging.INFO) and total_length:
         #     chunks = progress.bar(reader(
         #         READ_BLOCK_SIZE),
         #         expected_size=((total_length / READ_BLOCK_SIZE) + 1))
         # else:
+        dest_downloaded = 0
         chunks = reader(READ_BLOCK_SIZE)
         start = time.time()
-        received_size = 0
-        with open(dest_file, 'wb') as dest:
+        with open(dest_file, update_mode) as dest:
             for chunk in chunks:
                 if process_bytes is not None:
                     process_bytes(chunk)
-                dest_file.write(chunk)
-                received_size += len(chunk)
-        src_md5sum = rr.md5sum
-        dest_md5sum = hash_md5.hexdigest()
-        if (src_md5sum is not None) and (src_md5sum != dest_md5sum):
-            raise exceptions.TransferException(
-                'Downloaded file is corrupted: '
-                'expected md5({}) != actual md5({})'.
-                    format(src_md5sum, dest_md5sum))
-        # TODO duration = time.time() - start
+                dest.write(chunk)
+                dest_downloaded += len(chunk)
+        dest_md5 = hash_md5.hexdigest()
+        dest_length += dest_downloaded
+        if src_length and src_length != dest_length:
+            error_msg = 'Sizes of source and downloaded file do not match: ' \
+                        '{} vs {}'.format(src_length, dest_length)
+        elif (src_md5 is not None) and (src_md5 != dest_md5):
+            error_msg = 'Downloaded file is corrupted: expected md5({}) != ' \
+                        'actual md5({})'.format(src_md5, dest_md5)
+        else:
+            self.logger.debug('Downloaded {}MB in {}s'.format(
+                dest_downloaded, time.time() - start))
+            return
+        if not src_length or not src_md5:
+            # clean up the temporary file
+            os.remove(dest_file)
+        raise exceptions.TransferException(error_msg)
 
 class RetrySession(Session):
     """ Session that automatically does a number of retries for failed
