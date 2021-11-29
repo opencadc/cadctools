@@ -551,7 +551,7 @@ class BaseDataClient(BaseWsClient):
             dir_name = os.path.dirname(final_dest)
             file_name = os.path.basename(final_dest)
             temp_dest = os.path.join(
-                dir_name, 'cadcget-{}-{}'.format(file_name, src_md5))
+                dir_name, '{}-{}.part'.format(file_name, src_md5))
             return final_dest, temp_dest
         else:
             return final_dest, final_dest
