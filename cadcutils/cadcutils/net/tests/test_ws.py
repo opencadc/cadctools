@@ -1192,7 +1192,7 @@ def test_resolve_name():
     dest = NamedTemporaryFile()
     dest_dir = os.path.dirname(dest.name)
     file_name = os.path.basename(dest.name)
-    tmp_file = os.path.join(dest_dir, 'cadcget-{}-beef'.format(file_name))
+    tmp_file = os.path.join(dest_dir, '{}-beef.part'.format(file_name))
     # file name provided
     final_dest, temp_dest = client._resolve_destination_file(
         dest.name, 'beef', None)
