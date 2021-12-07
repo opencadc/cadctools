@@ -72,6 +72,7 @@ from os.path import expanduser
 import random
 import requests
 import filecmp
+from io import BytesIO
 
 from cadcdata import StorageInventoryClient
 from cadcutils.net import Subject, ws
@@ -85,6 +86,16 @@ TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
 
 HOME = expanduser("~")
 CERT = os.path.join(HOME, '.ssl/cadcproxy.pem')
+
+
+def check_file(file_name, size, md5):
+    assert os.path.isfile(file_name)
+    assert size == os.stat(file_name).st_size
+    hash_md5 = hashlib.md5()
+    with open(file_name, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    assert md5 == hash_md5.hexdigest()
 
 
 @pytest.mark.intTests
@@ -107,13 +118,7 @@ def test_client_public():
         os.remove(dest)
     try:
         client.cadcget('cadc:IRIS/I429B4H0.fits', dest=dest)
-        assert os.path.isfile(dest)
-        assert file_info.size == os.stat(dest).st_size
-        hash_md5 = hashlib.md5()
-        with open(dest, "rb") as f:
-            for chunk in iter(lambda: f.read(4096), b""):
-                hash_md5.update(chunk)
-        assert file_info.md5sum == hash_md5.hexdigest()
+        check_file(dest, file_info.size, file_info.md5sum)
     finally:
         # clean up
         if os.path.isfile(dest):
@@ -129,10 +134,85 @@ def test_client_public():
         assert filecmp.cmp(fhead_dest,
                            os.path.join(TESTDATA_DIR, 'I429B4H0.fits.txt'),
                            shallow=False)
+
+        # read in a memory buffer
+        header_content = BytesIO()
+        client.cadcget('cadc:IRIS/I429B4H0.fits',
+                       dest=header_content, fhead=True)
+        expected = open(fhead_dest, 'rb').read()
+        assert expected == header_content.getvalue()
+
     finally:
         # clean up
         if os.path.isfile(fhead_dest):
             os.remove(fhead_dest)
+
+
+@pytest.mark.intTests
+def test_cadcget_resume():
+    # file info - NOTE: Test relies on an existing file not to be updated.
+    client = StorageInventoryClient(Subject())
+    file_id = 'cadc:IRIS/I429B4H0.fits'
+    file_info = client.cadcinfo(file_id)
+    assert 1008000 == file_info.size
+    assert 'I429B4H0.fits' == file_info.name
+    assert 'e3922d47243563529f387ebdf00b66da' == file_info.md5sum
+    # download file
+    dest = '/tmp/inttest_I429B4H0.fits'
+    if os.path.isfile(dest):
+        os.remove(dest)
+    try:
+        client.cadcget(file_id, dest=dest)
+        check_file(dest, file_info.size, file_info.md5sum)
+
+        # to mimic resume create the temporary with incomplete content
+        final_dest, temp_dest = client._cadc_client._resolve_destination_file(
+            dest=dest, src_md5=file_info.md5sum, default_file_name=None)
+        os.rename(dest, temp_dest)
+        # truncate the last 10 bytes
+        with open(temp_dest, 'r+') as f:
+            f.seek(0, os.SEEK_END)
+            f.seek(f.tell()-10, os.SEEK_SET)
+            f.truncate()
+        assert os.stat(temp_dest).st_size < file_info.size
+        # download the file again to use the resume
+        client.cadcget(file_id, dest=dest)
+        check_file(dest, file_info.size, file_info.md5sum)
+        assert not os.path.isfile(temp_dest)
+
+        # create an empty temporary file to trigger another full download
+        os.remove(dest)
+        open(temp_dest, 'w')
+        assert os.stat(temp_dest).st_size == 0
+        client.cadcget(file_id, dest=dest)
+        check_file(dest, file_info.size, file_info.md5sum)
+        assert not os.path.isfile(temp_dest)
+
+        # make the temporary file the same as the final. This is a BUG
+        # scenario which should trigger a complete download of the file
+        os.rename(dest, temp_dest)
+        assert os.stat(temp_dest).st_size == file_info.size
+        client.cadcget(file_id, dest=dest)
+        check_file(dest, file_info.size, file_info.md5sum)
+        assert not os.path.isfile(temp_dest)
+
+        # make the temporary file larger. This is also a BUG case that
+        # shouldn't happen because the md5 of source changes when size
+        # of the file changes. The test is just to make sure that the
+        # application recovers from such a case
+        os.rename(dest, temp_dest)
+        # add some text to the file
+        with open(temp_dest, 'ab') as f:
+            f.write(b'beef')
+        assert os.stat(temp_dest).st_size > file_info.size
+        # temporary file should be overriden
+        client.cadcget(file_id, dest=dest)
+        check_file(dest, file_info.size, file_info.md5sum)
+        assert not os.path.isfile(temp_dest)
+    finally:
+        # clean up
+        if os.path.isfile(dest):
+            os.remove(dest)
 
 
 @pytest.mark.intTests
@@ -169,7 +249,7 @@ def test_client_authenticated():
         for line in reg.split('\n'):
             line.strip()
             if not line.startswith('#') and ('minoc' in line) and (
-                    '/ad/minoc' not in line):
+                    '/ad/minoc' not in line) and ('ws-sf' not in line):
                 location_resource_ids.append(line.split('=')[0].strip())
 
         # test all operations on a location
