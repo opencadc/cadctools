@@ -232,8 +232,10 @@ class Subject(object):
                 return self._hosts_auth[realm]
             sys.stdout.write("{}@{}\n".format(self.username, realm))
             sys.stdout.flush()
-            self._hosts_auth[realm] = (self.username,
-                                       getpass.getpass().strip('\n'))
+            pswd = getpass.getpass().strip().strip('\n')
+            if not pswd:
+                raise ValueError('Password cannot be empty')
+            self._hosts_auth[realm] = (self.username, pswd)
             sys.stdout.write("\n")
             sys.stdout.flush()
             return self._hosts_auth[realm]
