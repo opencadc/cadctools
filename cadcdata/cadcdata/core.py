@@ -579,7 +579,7 @@ def main_app():
              '(quotes required for multiple elements)',
         required=False)
     get_parser.add_argument(
-        '--cutout', nargs='*',
+        '--cutout', action='append',
         help=('specify one or multiple extension and/or pixel range cutout '
               'operations to be performed. Use cfitsio syntax'),
         required=False)
