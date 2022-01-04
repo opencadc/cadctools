@@ -357,42 +357,7 @@ class StorageInventoryClient(object):
                 url = '{}?META=true'.format(url)
             logger.debug('GET from URL {}'.format(url))
             try:
-                response = self._cadc_client.get(url, stream=True)
-                if dest is not None:
-                    if not hasattr(dest, 'read'):
-                        # got a dest name?
-                        if os.path.isdir(dest):
-                            # file name comes from content disposition
-                            if not net.get_header_filename(response.headers):
-                                raise RuntimeError(
-                                    'BUG: No content-disposions from {} for {}'
-                                    .format(url, id))
-                            dest = \
-                                os.path.join(dest,
-                                             net.get_header_filename(
-                                                 response.headers))
-                        with open(dest, 'wb') as f:
-                            self._save_bytes(response, f, id,
-                                             process_bytes=process_bytes)
-                    else:
-                        self._save_bytes(response, dest, id,
-                                         process_bytes=process_bytes)
-                else:
-                    # get the destination name from the content disposition
-                    content_disp = net.get_header_filename(response.headers)
-                    if content_disp:
-                        dest = content_disp
-                        logger.debug(
-                            'Content disposition dest name: {}'.
-                            format(dest))
-                    # remove any path information and save the file in local
-                    # directory
-                    dest = os.path.basename(dest)
-                    logger.info('Saved file in local directory under: {}'.
-                                format(dest))
-                    with open(dest, 'wb') as f:
-                        self._save_bytes(response, f, id,
-                                         process_bytes=process_bytes)
+                self._cadc_client.download_file(url=url, dest=dest)
                 return
             except Exception as e:
                 # try a different URL
@@ -400,15 +365,6 @@ class StorageInventoryClient(object):
                     'WARN: Cannot retrieve data from {}. Exception: {}'.
                     format(url, e))
                 last_exception = e
-                if not hasattr(dest, 'read'):
-                    # try to cleanup the corrupted file
-                    # TODO should save in a temporary file and do a mv
-                    # at the end
-                    try:
-                        os.unlink(dest)
-                    except Exception:
-                        # nothing we can do
-                        pass
                 if isinstance(e, exceptions.TransferException) and \
                         urls.count(url) < MAX_TRANSIENT_TRIES:
                     # this is a transient exception - append url to try later
@@ -422,84 +378,6 @@ class StorageInventoryClient(object):
         else:
             raise exceptions.HttpException(
                 'BUG: Unable to download data to any of the available URLs')
-
-    def _save_bytes(self, response, dest_file, resource, process_bytes=None):
-        # requests automatically decompresses the data.
-        # Tell it to do it only if it had to
-        total_length = 0
-        hash_md5 = hashlib.md5()
-
-        class RawRange(object):
-            """
-            Wrapper class to make response.raw.read work as iterator and behave
-            the same way as the corresponding response.iter_content
-            """
-
-            def __init__(self, rsp):
-                """
-                :param rsp: HTTP response object
-                """
-                self._read = rsp.raw.read
-                self._decode = rsp.raw._decode
-                self.block_size = 0
-                self._md5sum = net.extract_md5(rsp.headers)
-
-            @property
-            def md5sum(self):
-                return self._md5sum
-
-            def __iter__(self):
-                return self
-
-            def __next__(self):
-                return self.next()
-
-            def next(self):
-                # reads the next raw block
-                data = self._read(self.block_size)
-                if len(data) > 0:
-                    if self._md5sum:
-                        hash_md5.update(data)
-                    return data
-                else:
-                    raise StopIteration()
-
-            def get_instance(self, block_size):
-                self.block_size = block_size
-                return self
-
-        try:
-            total_length = int(response.headers.get('content-length', 0))
-        except ValueError:
-            pass
-
-        rr = RawRange(response)
-        reader = rr.get_instance
-        if logger.isEnabledFor(logging.INFO) and total_length:
-            chunks = progress.bar(reader(
-                READ_BLOCK_SIZE),
-                expected_size=((total_length / READ_BLOCK_SIZE) + 1))
-        else:
-            chunks = reader(READ_BLOCK_SIZE)
-        start = time.time()
-        received_size = 0
-        for chunk in chunks:
-            if process_bytes is not None:
-                process_bytes(chunk)
-            dest_file.write(chunk)
-            received_size += len(chunk)
-        src_md5sum = rr.md5sum
-        dest_md5sum = hash_md5.hexdigest()
-        if (src_md5sum is not None) and (src_md5sum != dest_md5sum):
-            raise exceptions.TransferException(
-                'Downloaded file is corrupted: '
-                'expected md5({}) != actual md5({})'.
-                format(src_md5sum, dest_md5sum))
-        duration = time.time() - start
-        logger.info(
-            'Successfully downloaded file {} as {} in {}s (avg. speed: {}MB/s)'
-            ''.format(resource, dest_file.name, round(duration, 2),
-                      round(received_size / 1024 / 1024 / duration, 2)))
 
     def cadcput(self, id, src, replace=False, file_type=None,
                 file_encoding=None, md5_checksum=None):

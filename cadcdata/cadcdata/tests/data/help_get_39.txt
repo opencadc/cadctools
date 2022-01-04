@@ -1,7 +1,7 @@
 usage: cadc-data get [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
                      [--resource-id RESOURCE_ID] [-q | -v] [-o OUTPUT]
-                     [--cutout [CUTOUT ...]] [--nomd5] [-z] [--wcs] [--fhead]
+                     [--cutout CUTOUT] [--nomd5] [-z] [--wcs] [--fhead]
                      archive filename [filename ...]
 
 Retrieve files from a CADC archive
@@ -13,8 +13,7 @@ positional arguments:
 optional arguments:
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
-  --cutout [CUTOUT ...]
-                        specify one or multiple extension and/or pixel range
+  --cutout CUTOUT       specify one or multiple extension and/or pixel range
                         cutout operations to be performed. Use cfitsio syntax
   -z, --decompress      decompress the data (gzip only)
   --fhead               return the FITS header information

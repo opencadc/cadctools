@@ -149,8 +149,8 @@ class Subject(object):
     @certificate.setter
     def certificate(self, value):
         if value is not None:
-            assert value != '' and os.path.isfile(value),\
-                'Certificate file {} not found'.format(value)
+            if not os.path.isfile(value):
+                raise ValueError('Certificate file {} not found'.format(value))
             self._certificate = value
 
     @property
@@ -330,7 +330,8 @@ def get_cert_main():
         cert = get_cert(subject, days_valid=args.days_valid, host=args.host)
         with open(args.cert_filename, 'w') as w:
             w.write(cert)
-        print('DONE. {} day certificate saved in {}'.format(
+        if not args.quiet:
+            print('DONE. {} day certificate saved in {}'.format(
             args.days_valid, args.cert_filename))
     except exceptions.UnauthorizedException:
         # unauthorized
