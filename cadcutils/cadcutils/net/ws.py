@@ -469,7 +469,7 @@ class BaseDataClient(BaseWsClient):
                 with open(src, "rb") as f:
                     for chunk in iter(lambda: f.read(4096), b""):
                         hash_md5.update(chunk)
-                        md5 = hash_md5.hexdigest()
+                md5 = hash_md5.hexdigest()
                 net.add_md5_header(headers=headers, md5_checksum=md5)
 
         with util.Md5File(src, 'rb') as reader:

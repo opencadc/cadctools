@@ -559,7 +559,6 @@ class StorageInventoryClient(object):
         try:
             self.cadcinfo(id=id)
         except exceptions.NotFoundException:
-            # success
             logger.debug('{} not in global anymore. File removed')
             raise exceptions.NotFoundException(id)
         raise exceptions.HttpException(error_msg)
