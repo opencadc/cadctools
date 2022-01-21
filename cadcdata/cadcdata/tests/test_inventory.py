@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2021.                            (c) 2021.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -319,6 +319,7 @@ def test_remove(basews_mock):
     client._cadc_client.subject.anon = False  # authenticate the user
 
     client._get_transfer_urls = Mock(return_value=['url1'])
+    client.cadcinfo = Mock()
     client.cadcremove('cadc:TEST/removefile')
     remove_mock.assert_called_with('url1')
 
@@ -331,6 +332,23 @@ def test_remove(basews_mock):
         client.cadcremove(None)
     with pytest.raises(AttributeError):
         client.cadcremove('invalid-uri')
+
+    # file not found in "global"
+    basews_mock.return_value.delete = remove_mock
+    client.cadcinfo.side_effect = \
+        [exceptions.NotFoundException()]
+    with pytest.raises(exceptions.HttpException):
+        client.cadcremove('cadc:TEST/removefile')
+
+    # file initially found in global, not found at locations, and later not
+    # found in global either (eventual consistency removed the file from
+    # global while cadcremove was trying the sites).
+    basews_mock.return_value.delete.side_effect = \
+        [exceptions.NotFoundException()]
+    client.cadcinfo.side_effect = \
+        [Mock(), exceptions.NotFoundException()]
+    with pytest.raises(exceptions.HttpException):
+        client.cadcremove('cadc:TEST/removefile')
 
 
 @patch('cadcdata.storageinv.net.BaseDataClient')

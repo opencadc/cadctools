@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2016.                            (c) 2016.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -382,59 +382,32 @@ class TestWs(unittest.TestCase):
         cm = Mock()
         cm.get_access_url.return_value = "http://host/availability"
         caps_mock.return_value = cm
-        src = tempfile.NamedTemporaryFile()
         response = Mock()
         response.status_code = requests.codes.ok
         response.headers = {}
         session = Mock()
         session.put.return_value = response
+        md5_file_mock_obj = Mock()
+        md5_file_mock.return_value.__enter__.return_value = md5_file_mock_obj
         client = ws.BaseDataClient(resource_id='ivo://cadc.nrc.ca/resourceid',
                                    subject=anon_subject, agent='TestApp')
-        client._get_session = Mock(return_value=session)
-        # upload empty file. Make sure that the headers values are preserved
-        file_info = {'Content-Type': 'text/plain',
-                     'Content-Encoding': 'us-ascii'}
-        client.upload_file(
-            url=target_url, src=src.name,
-            headers=file_info)
-        session.put.assert_called_once()
-        put_headers = {}
-        empty_md5 = 'd41d8cd98f00b204e9800998ecf8427e'
-        net.add_md5_header(headers=file_info, md5_checksum=empty_md5)
-        session.put.assert_called_with(target_url,
-                                       data=ANY, verify=True,
-                                       headers=file_info)
-
-        # pass the md5 checksum with empty file
-        session.put.reset_mock()
-        md5_file_mock_obj = Mock()
-        md5_file_mock_obj.md5_checksum = empty_md5
-        md5_file_mock.return_value.__enter__.return_value = md5_file_mock_obj
-        client.upload_file(url=target_url, src=src.name,
-                           md5_checksum=empty_md5)
-        session.put.assert_called_once()
-        put_headers = {}
-        net.add_md5_header(headers=put_headers, md5_checksum=empty_md5)
-        session.put.assert_called_with(target_url, headers=put_headers,
-                                       data=ANY, verify=True)
-
-        # pass a mismatching md5 checksum as the argument
-        with pytest.raises(IOError):
-            client.upload_file(url=target_url, src=src.name,
-                               md5_checksum='beef')
-
         # upload small file (md5 checksum is pre-computed)
-        session.put.reset_mock()
+        client._get_session = Mock(return_value=session)
         content = 'this is some content for the test'
         md5 = hashlib.md5()
         md5.update(str.encode(content))
         content_md5 = md5.hexdigest()
+        src = tempfile.NamedTemporaryFile()
         with open(src.name, 'w') as f:
             f.write(content)
+        md5_file_mock_obj.md5_checksum = content_md5
+        net.add_md5_header(headers=response.headers, md5_checksum=content_md5)
         md5_file_mock_obj.md5_checksum = content_md5
         client.upload_file(url=target_url, src=src.name)
         session.put.assert_called_once()
         put_headers = {}
+        net.add_md5_header(headers=put_headers, md5_checksum=content_md5)
+        put_headers[ws.HTTP_LENGTH] = str(len(content))
         net.add_md5_header(headers=put_headers, md5_checksum=content_md5)
         session.put.assert_called_with(target_url, headers=put_headers,
                                        data=ANY, verify=True)
@@ -444,103 +417,52 @@ class TestWs(unittest.TestCase):
         client.upload_file(url=target_url, src=src.name,
                            md5_checksum=content_md5)
         session.put.assert_called_once()
-        put_headers = {}
-        net.add_md5_header(headers=put_headers, md5_checksum=content_md5)
         session.put.assert_called_with(target_url, headers=put_headers,
                                        data=ANY, verify=True)
 
-        # upload "large" file - start PUT transaction and commit at the end
-        session.put.reset_mock()
-        # decrease the threshold for "large" files so that the current test
-        # files becomes large
         orig_max_md5_compute_size = ws.MAX_MD5_COMPUTE_SIZE
         try:
-            ws.MAX_MD5_COMPUTE_SIZE = 10
-            response_202 = Mock(status_code=requests.codes.accepted)
-            put_transaction_id = '1234567'
-            response_201 = Mock(status_code=requests.codes.created)
-            response_202.headers = {ws.HTTP_TRANS: put_transaction_id}
-            net.add_md5_header(headers=response_202.headers,
-                               md5_checksum=content_md5)
-            session.put.side_effect = [response_202, response_201]
-            client.upload_file(url=target_url, src=src.name)
-            # transaction header
-            stat_info = os.stat(src.name)
-            put_headers = {ws.HTTP_TRANS: 'true',
-                           ws.HTTP_LENGTH: str(stat_info.st_size)}
-            # 2 calls - start transaction and commit
-            calls = [call(target_url, headers=put_headers,
-                          data=ANY, verify=True),
-                     call(target_url, {ws.HTTP_TRANS: put_transaction_id,
-                                       ws.HTTP_LENGTH: '0'}, verify=True)]
-            session.put.has_calls(calls)
-
-            # check that the no PUT transactions when checksum specified
-            # Note: this is likely to change when files get chunked
+            # put "large" files
             session.put.reset_mock()
-            session.put.side_effect = None
+            # lower the threshold for "large" files so that the current test
+            # files becomes large
+            ws.MAX_MD5_COMPUTE_SIZE = 10
+            # PUT headers do not contain the md5 anymore
+            client.upload_file(url=target_url, src=src.name)
+            session.put.assert_called_once()
+            put_headers = {}
+            put_headers[ws.HTTP_LENGTH] = str(len(content))
+            session.put.assert_called_with(target_url, headers=put_headers,
+                                           data=ANY, verify=True)
+
+            # repeat but provide the checksum as argument to upload_file and
+            # check that it's present in the header.
+            session.put.reset_mock()
             client.upload_file(url=target_url, src=src.name,
                                md5_checksum=content_md5)
             session.put.assert_called_once()
-            result_headers = {}
-            net.add_md5_header(headers=result_headers,
-                               md5_checksum=content_md5)
-            session.put.assert_called_with(target_url, headers=result_headers,
-                                           data=ANY, verify=True)
-
-            # test a rollback
-            session.put.reset_mock()
-            session.delete = Mock()
-            response_204 = Mock(status_code=requests.codes.no_content)
-            session.put.return_value = response_202
-            session.delete.return_value = response_204
-            response_202.headers['digest'] = 'md5=YmVlZg=='
-            with pytest.raises(exceptions.TransferException) as te:
-                client.upload_file(url=target_url, src=src.name)
-            assert 'MD5 checksum mismatch. Transaction rolled back' in str(te)
-            # 2 calls - start transaction and rollback
-            session.put.assert_called_once()
-            session.delete.assert_called_once()
+            net.add_md5_header(headers=put_headers, md5_checksum=content_md5)
             session.put.assert_called_with(target_url, headers=put_headers,
                                            data=ANY, verify=True)
-            session.delete.assert_called_with(
-                target_url,
-                headers={ws.HTTP_TRANS: put_transaction_id},
-                verify=True)
-
-            # test various wrong response codes
-            # wrong PUT status code
-            session.put.reset_mock()
-            session.put.return_value = response  # 200 instead of 202
-            with pytest.raises(IOError):
-                client.upload_file(url=target_url, src=src.name)
-
-            # wrong rollback response status
-            session.put.reset_mock()
-            session.put.return_value = response_202
-            session.delete.reset_mock()
-            session.delete.return_value = response  # 200 instead of 204
-            with pytest.raises(IOError):
-                client.upload_file(url=target_url, src=src.name)
-
-            # wrong commit response status
-            session.put.reset_mock()
-            response_202.headers = {ws.HTTP_TRANS: put_transaction_id}
-            net.add_md5_header(headers=response_202.headers,
-                               md5_checksum=content_md5)
-            session.put.side_effect = [response_202, response]  # 200 for 201
-            with pytest.raises(IOError):
-                client.upload_file(url=target_url, src=src.name)
-
-            # PUT response does not contain the proper headers
-            session.put.reset_mock()
-            session.put.side_effect = None
-            session.put.return_value = Mock()
-            with pytest.raises(IOError):
-                client.upload_file(url=target_url, src=src.name)
-
         finally:
             ws.MAX_MD5_COMPUTE_SIZE = orig_max_md5_compute_size
+
+        # check md5 mismatch
+        session.put.reset_mock()
+        response_headers = {}
+        net.add_md5_header(headers=response_headers, md5_checksum='beef')
+        response.headers = response_headers
+        with pytest.raises(exceptions.TransferException):
+            client.upload_file(url=target_url, src=src.name,
+                               md5_checksum=content_md5)
+
+        # empty file
+        empty_file = tempfile.NamedTemporaryFile()
+        with open(empty_file.name, 'w') as f:
+            f.write('')
+        with pytest.raises(ValueError):
+            client.upload_file(url=target_url,
+                               src=empty_file.name)
 
 
 class TestRetrySession(unittest.TestCase):
