@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2021.                            (c) 2021.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -529,12 +529,14 @@ class StorageInventoryClient(object):
             raise exceptions.UnauthorizedException(
                 'Must be authenticated to remove data')
 
+        # check file is there
+        self.cadcinfo(id)
         urls = self._get_transfer_urls(id, is_get=False)
         if len(urls) == 0:
             raise exceptions.NotFoundException(
                 'File not found: {}'.format(id))
 
-        # get the list of transfer points
+        error_msg = ''
         for url in urls:
             logger.debug(
                 'REMOVE file with identifier {} from URL {}'.format(id, url))
@@ -545,14 +547,21 @@ class StorageInventoryClient(object):
                 logger.info('{} removed in {} ms'.format(id, duration))
                 return
             except Exception as e:
-                # try a different URL
                 logger.debug('WARN: Cannot remove data from {}. Exception: {}'.
                              format(url, e))
+                error_msg += str(e) + '\n'
                 if urls:
+                    # try a different URL
                     logger.debug('Try the next URL')
                 continue
-        raise exceptions.HttpException(
-            'Unable to remove data from any of the available URLs')
+        # no successful DELETE so far. Double check the existence of file
+        # in global
+        try:
+            self.cadcinfo(id=id)
+        except exceptions.NotFoundException:
+            logger.debug('{} not in global anymore. File removed')
+            raise exceptions.NotFoundException(id)
+        raise exceptions.HttpException(error_msg)
 
     def cadcinfo(self, id):
         """

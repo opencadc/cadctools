@@ -99,7 +99,6 @@ def check_file(file_name, size, md5):
 
 
 @pytest.mark.intTests
-@pytest.mark.skip('Temp disabled due to system errors that prevent release')
 def test_client_public():
     # file info - NOTE: Test relies on an existing file not to be updated.
     client = StorageInventoryClient(Subject())
@@ -150,7 +149,6 @@ def test_client_public():
 
 
 @pytest.mark.intTests
-@pytest.mark.skip('Temp disabled due to system errors that prevent release')
 def test_cadcget_resume():
     # file info - NOTE: Test relies on an existing file not to be updated.
     client = StorageInventoryClient(Subject())
@@ -217,7 +215,6 @@ def test_cadcget_resume():
             os.remove(dest)
 
 
-@pytest.mark.skip('Temp disabled due to system errors that prevent release')
 @pytest.mark.intTests
 @pytest.mark.skipif(not os.path.isfile(CERT),
                     reason='CADC credentials required in '

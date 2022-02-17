@@ -455,84 +455,40 @@ class BaseDataClient(BaseWsClient):
            :throws: HttpExceptions
         """
         stat_info = os.stat(src)
-        with_transactions = False
+        if stat_info.st_size == 0:
+            raise ValueError('Cannot upload empty files')
         headers = kwargs.get('headers') or {}
         if not headers:
             kwargs['headers'] = headers
+        headers[HTTP_LENGTH] = str(stat_info.st_size)
         if md5_checksum:
             net.add_md5_header(headers=headers, md5_checksum=md5_checksum)
         else:
-            if stat_info.st_size >= MAX_MD5_COMPUTE_SIZE:
-                # pre-computing the MD5 is too costly.
-                # use PUT with transactions instead
-                headers[HTTP_TRANS] = 'true'
-                headers[HTTP_LENGTH] = str(stat_info.st_size)
-                with_transactions = True
-            else:
+            if stat_info.st_size <= MAX_MD5_COMPUTE_SIZE:
                 hash_md5 = hashlib.md5()
                 with open(src, "rb") as f:
                     for chunk in iter(lambda: f.read(4096), b""):
                         hash_md5.update(chunk)
                 md5 = hash_md5.hexdigest()
                 net.add_md5_header(headers=headers, md5_checksum=md5)
+
         with util.Md5File(src, 'rb') as reader:
             response = self._get_session().put(
                 url,
                 data=reader,
                 verify=self.verify, **kwargs)
         if md5_checksum and (md5_checksum != reader.md5_checksum):
-            raise IOError(
-                'BUG: Provided checksum for {} does not match checksum'
+            raise exceptions.TransferException(
+                'Provided checksum for {} does not match checksum'
                 'of bytes read: {} != {}'.format(src, md5_checksum,
                                                  reader.md5_checksum))
-        if with_transactions:
-            if response.status_code == requests.codes.accepted:  # 202
-                if HTTP_TRANS not in response.headers:
-                    raise IOError('BUG: server expected to return {} '
-                                  'attribute'.format(HTTP_TRANS))
-                transaction_id = response.headers[HTTP_TRANS]
-                dest_md5 = net.extract_md5(response.headers)
-                if reader.md5_checksum == dest_md5:
-                    commit_headers = {HTTP_TRANS: transaction_id,
-                                      HTTP_LENGTH: '0'}
-                    response = self._get_session().put(
-                        url,
-                        headers=commit_headers,
-                        verify=self.verify)
-                    if response.status_code != requests.codes.created:  # 201
-                        # might need to try to roll it back at this point
-                        # but unsure how common this case is
-                        raise IOError(
-                            'BUG: Could not commit PUT transaction {} for {}'.
-                            format(transaction_id, url))
-                    else:
-                        return
-                else:
-                    self.logger.debug(
-                        'Mismatched md5 checksum on PUT for URL {}. Rollback '
-                        'and re-try'.format(url))
-                    rollback_headers = {HTTP_TRANS: transaction_id}
-                    response = self._get_session().delete(
-                        url,
-                        headers=rollback_headers,
-                        verify=self.verify)
-                    if response.status_code == requests.codes.no_content:
-                        raise exceptions.TransferException(
-                            'MD5 checksum mismatch. Transaction rolled back')
-                    else:
-                        raise IOError('BUG: Could not rollback PUT transaction'
-                                      ' {} for {}'.format(transaction_id, url))
-            else:
-                raise IOError(
-                    'BUG: Expected HTTP 202 with PUT with transactions. '
-                    'Got {}'.format(response.status_code))
-        else:
-            if response.status_code == requests.codes.ok:
-                return
-            else:
-                raise exceptions.TransferException(
-                    'File {} not properly uploaded: HTTPStatus {}'.format(
-                        src, response.status_code))
+        # check the file made it OK
+        dest_md5 = net.extract_md5(response.headers)
+        if dest_md5 != reader.md5_checksum:
+            raise exceptions.TransferException(
+                'File {} not properly uploaded. Mistmatched md5 src vs '
+                'dest: {} vs {}'.format(src, reader.md5_checksum, dest_md5)
+            )
 
     def _resolve_destination_file(self, dest, src_md5, default_file_name):
         # returns destination absolute file name as well as a temporary
@@ -881,7 +837,7 @@ class RetrySession(Session):
 
 
 DEFAULT_REGISTRY = \
-    'https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-caps'
+    'https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-caps'
 CACHE_REFRESH_INTERVAL = 10 * 60
 CACHE_LOCATION = os.path.join(os.path.expanduser("~"), '.config',
                               'cadc-registry')
