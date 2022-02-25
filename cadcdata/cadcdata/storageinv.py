@@ -407,11 +407,6 @@ class StorageInventoryClient(object):
 
         headers = {}
 
-        # TODO
-        # Calculate the md5 sum of the file on the fly and rollback PUT
-        # transactions when implemented
-
-        # check whether the file exists or not
         try:
             file_info = self.cadcinfo(id)
         except exceptions.NotFoundException:

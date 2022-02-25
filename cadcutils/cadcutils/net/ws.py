@@ -126,9 +126,27 @@ MAX_MD5_COMPUTE_SIZE = 1024*1024*10
 if os.getenv('CADC_MAX_MD5_COMPUTE_SIZE', None):
     MAX_MD5_COMPUTE_SIZE = int(os.getenv('CADC_MAX_MD5_COMPUTE_SIZE'))
 
+# Files smaller that this size can be send with one request. Larger ones
+# required to be split into segments that are sent and acknowledged
+# individually
+GIB = 1024 * 1024 * 1024
+FILE_SEGMENT_THRESHOLD = 5 * GIB  # large files require segments
+PREFERRED_SEGMENT_SIZE = 2 * GIB
+
 # HTTP attribute names
-HTTP_TRANS = 'X-Put-Txn'
 HTTP_LENGTH = 'Content-Length'
+
+# PUT transactions headers/values
+PUT_TXN_OP = 'x-put-txn-op'
+PUT_TXN_ID = 'x-put-txn-id'
+PUT_TXN_TOTAL_LENGTH = 'x-total-length'
+PUT_TXN_MIN_SEGMENT = 'x-put-segment-minbytes'
+PUT_TXN_MAX_SEGMENT = 'x-put-segment-maxbytes'
+# transaction operations
+PUT_TXN_START = 'start'
+PUT_TXN_COMMIT = 'commit'
+PUT_TXN_ABORT = 'abort'
+PUT_TXN_REVERT = 'revert'
 
 # size of the read blocks in data transfers
 READ_BLOCK_SIZE = 8 * 1024
@@ -451,7 +469,6 @@ class BaseDataClient(BaseWsClient):
            available, the caller should set the attribute, otherwise the method
            might compute it (for small files) and introduce overhead.
            :param kwargs: other http attributes
-           :return: requests.Response object
            :throws: HttpExceptions
         """
         stat_info = os.stat(src)
@@ -461,34 +478,165 @@ class BaseDataClient(BaseWsClient):
         if not headers:
             kwargs['headers'] = headers
         headers[HTTP_LENGTH] = str(stat_info.st_size)
-        if md5_checksum:
-            net.add_md5_header(headers=headers, md5_checksum=md5_checksum)
-        else:
-            if stat_info.st_size <= MAX_MD5_COMPUTE_SIZE:
-                hash_md5 = hashlib.md5()
-                with open(src, "rb") as f:
-                    for chunk in iter(lambda: f.read(4096), b""):
-                        hash_md5.update(chunk)
-                md5 = hash_md5.hexdigest()
-                net.add_md5_header(headers=headers, md5_checksum=md5)
+        src_md5 = md5_checksum
+        if not src_md5 and stat_info.st_size <= MAX_MD5_COMPUTE_SIZE:
+            hash_md5 = hashlib.md5()
+            with open(src, "rb") as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hash_md5.update(chunk)
+            src_md5 = hash_md5.hexdigest()
 
-        with util.Md5File(src, 'rb') as reader:
-            response = self._get_session().put(
-                url,
-                data=reader,
-                verify=self.verify, **kwargs)
-        if md5_checksum and (md5_checksum != reader.md5_checksum):
-            raise exceptions.TransferException(
-                'Provided checksum for {} does not match checksum'
-                'of bytes read: {} != {}'.format(src, md5_checksum,
-                                                 reader.md5_checksum))
-        # check the file made it OK
-        dest_md5 = net.extract_md5(response.headers)
-        if dest_md5 != reader.md5_checksum:
-            raise exceptions.TransferException(
-                'File {} not properly uploaded. Mistmatched md5 src vs '
-                'dest: {} vs {}'.format(src, reader.md5_checksum, dest_md5)
-            )
+        if src_md5:
+            net.add_md5_header(headers=headers, md5_checksum=src_md5)
+            if stat_info.st_size < FILE_SEGMENT_THRESHOLD:
+                # no transactions needed.
+                with open(src, 'rb') as reader:
+                    response = self._get_session().put(
+                        url,
+                        data=reader,
+                        verify=self.verify, **kwargs)
+                self.logger.debug('{} uploaded (HTTP {})'.format(
+                    src, response.status_code))
+                return
+
+        if stat_info.st_size < FILE_SEGMENT_THRESHOLD:
+            # one go upload with transaction
+            headers[PUT_TXN_OP] = PUT_TXN_START
+            retries = 3
+            while retries:
+                with util.Md5File(src, 'rb') as reader:
+                    response = self._get_session().put(
+                        url,
+                        data=reader,
+                        verify=self.verify, **kwargs)
+                trans_id = response.headers[PUT_TXN_ID]
+                # check the file made it OK
+                dest_md5 = net.extract_md5(response.headers)
+                if dest_md5 != reader.md5_checksum:
+                    msg = 'File {} not properly uploaded. ' \
+                          'Mismatched md5 src vs dest: {} vs {}'.format(
+                            src, reader.md5_checksum, dest_md5)
+                    self.logger.warning(msg)
+                    # abort transaction
+                    self._get_session().post(url, headers={
+                        PUT_TXN_ID: trans_id, PUT_TXN_OP: PUT_TXN_ABORT},
+                        verify=self.verify)
+                    retries -= 1
+                    if retries:
+                        self.logger.warning('Retrying')
+                        continue
+                    else:
+                        raise exceptions.TransferException(msg)
+                    # commit tran
+                self._get_session().put(url, headers={
+                    PUT_TXN_ID: trans_id, PUT_TXN_OP: PUT_TXN_COMMIT,
+                    HTTP_LENGTH: '0'}, verify=self.verify)
+                return
+
+        # large file that requires multiple segments
+        headers[HTTP_LENGTH] = '0'
+        headers[PUT_TXN_TOTAL_LENGTH] = str(stat_info.st_size)
+        headers[PUT_TXN_OP] = PUT_TXN_START
+        response = self._get_session().put(url, headers=headers,
+                                           verify=self.verify)
+        trans_id = response.headers[PUT_TXN_ID]
+        self.logger.debug('Starting transaction {} on url {}'.format(
+            trans_id, url))
+        min_segment = response.headers.get(PUT_TXN_MIN_SEGMENT, None)
+        max_segment = response.headers.get(PUT_TXN_MAX_SEGMENT, None)
+        seg_size = self._get_segment_size(stat_info.st_size,
+                                          min_segment,
+                                          max_segment)
+        current_size = 0
+        last_digest = hashlib.md5()
+        for segment in range(0, stat_info.st_size//seg_size+1):
+            cur_seg_size = min(seg_size, stat_info.st_size-segment*seg_size)
+            self.logger.debug('Seding segment {} of size {}'.format(
+                segment, cur_seg_size))
+            kwargs['headers'] = {PUT_TXN_ID: trans_id,
+                                 HTTP_LENGTH: str(cur_seg_size)}
+            current_size += cur_seg_size
+            retries = 3
+            while retries:
+                try:
+                    with util.Md5File(src, 'rb', cur_seg_size) as reader:
+                        reader.file.seek(segment*seg_size)
+                        reader._md5_checksum = last_digest.copy()
+                        response = self._get_session().put(
+                            url,
+                            data=reader,
+                            verify=self.verify, **kwargs)
+                except exceptions.TransferException as e:
+                    self.logger.warning('Errors transfering {} to {}: {}'.
+                                        format(src, url, str(e)))
+                    try:
+                        response = self._get_session().head(
+                            url,
+                            headers={PUT_TXN_ID: trans_id,
+                                     HTTP_LENGTH: str(current_size)})
+                    except Exception as e:
+                        self.logger.error(
+                            'BUG: could not read transaction {} '
+                            'status from {}: {}'.format(trans_id, url,
+                                                        str(e)))
+                        # abort transaction?
+                        self.logger.debug('Aborting transaction')
+                        self._get_session().post(url, headers={
+                            PUT_TXN_ID: trans_id, PUT_TXN_OP: PUT_TXN_ABORT})
+                        self.logger.debug('Transaction aborted')
+                        raise e
+
+                # check the file made it OK
+                src_md5 = reader.md5_checksum
+                dest_md5 = net.extract_md5(response.headers)
+                if src_md5 != dest_md5:
+                    msg = 'File {} not properly uploaded. ' \
+                          'Mismatched md5 src vs dest: {} vs {}'.format(
+                            src, src_md5, dest_md5)
+                    self.logger.warning(msg)
+                    retries -= 1
+                    if retries:
+                        # dest_md5 == None is the start state
+                        if dest_md5 and (dest_md5 != last_digest.hexdigest()):
+                            self.logger.debug('Reverting transaction')
+                            response = self._get_session().post(url, headers={
+                                PUT_TXN_ID: trans_id,
+                                PUT_TXN_OP: PUT_TXN_REVERT},
+                                verify=self.verify)
+                            dest_md5 = net.extract_md5(response.headers)
+                        if dest_md5 is None or \
+                                dest_md5 == last_digest.hexdigest():
+                            self.logger.warning('Retrying')
+                            continue
+                        else:
+                            self.logger.error(
+                                'BUG: reverted transaction does not match '
+                                'last md5: {} != {}'.format(
+                                    dest_md5, last_digest.hexdigest()))
+                        # abort transaction
+                        self.logger.debug('Aborting transaction')
+                        self._get_session().post(url, headers={
+                            PUT_TXN_ID: trans_id, PUT_TXN_OP: PUT_TXN_ABORT},
+                            verify=self.verify)
+                        raise exceptions.TransferException(msg)
+                last_digest = reader._md5_checksum
+                break
+        # commit tran
+        self.logger.debug('Commit transaction')
+        self._get_session().put(url,
+                                headers={PUT_TXN_ID: trans_id,
+                                         PUT_TXN_OP: PUT_TXN_COMMIT,
+                                         HTTP_LENGTH: '0'},
+                                verify=self.verify)
+
+    @staticmethod
+    def _get_segment_size(file_size, min_segment, max_segment):
+        segment_size = min(file_size, PREFERRED_SEGMENT_SIZE)
+        if min_segment:
+            segment_size = max(segment_size, int(min_segment))
+        if max_segment:
+            segment_size = min(segment_size, int(max_segment))
+        return segment_size
 
     def _resolve_destination_file(self, dest, src_md5, default_file_name):
         # returns destination absolute file name as well as a temporary

@@ -375,15 +375,21 @@ class Md5File(object):
     that are being read or written.
     """
 
-    def __init__(self, f, mode):
+    def __init__(self, f, mode, read_size=None):
         self.file = open(f, mode)
         self._md5_checksum = hashlib.md5()
+        self._read_size = read_size
+        self._total_read_size = 0
 
     def __enter__(self):
         return self
 
     def read(self, size):
-        buffer = self.file.read(size)
+        batch_read_size = size
+        if self._read_size:
+            batch_read_size = min(size, self._read_size-self._total_read_size)
+        buffer = self.file.read(batch_read_size)
+        self._total_read_size += len(buffer)
         self._md5_checksum.update(buffer)
         return buffer
 

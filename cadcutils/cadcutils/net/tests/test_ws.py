@@ -376,7 +376,7 @@ class TestWs(unittest.TestCase):
 
     @patch('cadcutils.net.ws.util.Md5File')
     @patch('cadcutils.net.ws.WsCapabilities')
-    def test_upload_file(self, caps_mock, md5_file_mock):
+    def test_upload_file_no_put_txn(self, caps_mock, md5_file_mock):
         anon_subject = auth.Subject()
         target_url = 'https://someurl'
         cm = Mock()
@@ -420,41 +420,67 @@ class TestWs(unittest.TestCase):
         session.put.assert_called_with(target_url, headers=put_headers,
                                        data=ANY, verify=True)
 
+    @patch('cadcutils.net.ws.util.Md5File')
+    @patch('cadcutils.net.ws.WsCapabilities')
+    def test_upload_file_put_txn(self, caps_mock, md5_file_mock):
+        anon_subject = auth.Subject()
+        target_url = 'https://someurl'
+        cm = Mock()
+        cm.get_access_url.return_value = "http://host/availability"
+        caps_mock.return_value = cm
+        response = Mock()
+        response.status_code = requests.codes.ok
+        response.headers = {}
+        session = Mock()
+        session.put.return_value = response
+        md5_file_mock_obj = Mock()
+        md5_file_mock.return_value.__enter__.return_value = md5_file_mock_obj
+        client = ws.BaseDataClient(resource_id='ivo://cadc.nrc.ca/resourceid',
+                                   subject=anon_subject, agent='TestApp')
+        client._get_session = Mock(return_value=session)
+        content = 'this is some content for the test'
+        md5 = hashlib.md5()
+        md5.update(str.encode(content))
+        content_md5 = md5.hexdigest()
+        src = tempfile.NamedTemporaryFile()
+        with open(src.name, 'w') as f:
+            f.write(content)
+        md5_file_mock_obj.md5_checksum = content_md5
+        net.add_md5_header(headers=response.headers, md5_checksum=content_md5)
+        md5_file_mock_obj.md5_checksum = content_md5
         orig_max_md5_compute_size = ws.MAX_MD5_COMPUTE_SIZE
         try:
-            # put "large" files
+            # put larger one segment files
             session.put.reset_mock()
+            response_headers = {ws.PUT_TXN_ID: '123',
+                                ws.HTTP_LENGTH: str(len(content))}
+            net.add_md5_header(response_headers, content_md5)
+            session.put.return_value = Mock(headers=response_headers)
             # lower the threshold for "large" files so that the current test
             # files becomes large
             ws.MAX_MD5_COMPUTE_SIZE = 10
             # PUT headers do not contain the md5 anymore
             client.upload_file(url=target_url, src=src.name)
-            session.put.assert_called_once()
-            put_headers = {}
-            put_headers[ws.HTTP_LENGTH] = str(len(content))
-            session.put.assert_called_with(target_url, headers=put_headers,
-                                           data=ANY, verify=True)
+            put_headers = {ws.HTTP_LENGTH: str(len(content)),
+                           ws.PUT_TXN_OP: ws.PUT_TXN_START}
+            commit_headers = {ws.PUT_TXN_ID: '123',
+                              ws.PUT_TXN_OP: ws.PUT_TXN_COMMIT,
+                              ws.HTTP_LENGTH: '0'}
+            assert session.put.mock_calls == \
+                [call(target_url, data=ANY, verify=True, headers=put_headers),
+                 call(target_url, headers=commit_headers, verify=True)]
 
-            # repeat but provide the checksum as argument to upload_file and
-            # check that it's present in the header.
+            # repeat but provide the checksum as argument to upload_file so
+            # no transaction is required
+            del put_headers[ws.PUT_TXN_OP]
             session.put.reset_mock()
             client.upload_file(url=target_url, src=src.name,
                                md5_checksum=content_md5)
-            session.put.assert_called_once()
             net.add_md5_header(headers=put_headers, md5_checksum=content_md5)
             session.put.assert_called_with(target_url, headers=put_headers,
                                            data=ANY, verify=True)
         finally:
             ws.MAX_MD5_COMPUTE_SIZE = orig_max_md5_compute_size
-
-        # check md5 mismatch
-        session.put.reset_mock()
-        response_headers = {}
-        net.add_md5_header(headers=response_headers, md5_checksum='beef')
-        response.headers = response_headers
-        with pytest.raises(exceptions.TransferException):
-            client.upload_file(url=target_url, src=src.name,
-                               md5_checksum=content_md5)
 
         # empty file
         empty_file = tempfile.NamedTemporaryFile()
@@ -463,6 +489,161 @@ class TestWs(unittest.TestCase):
         with pytest.raises(ValueError):
             client.upload_file(url=target_url,
                                src=empty_file.name)
+
+    @patch('cadcutils.net.ws.WsCapabilities')
+    def test_upload_file_put_txn_append(self, caps_mock):
+        anon_subject = auth.Subject()
+        target_url = 'https://someurl'
+        cm = Mock()
+        cm.get_access_url.return_value = "http://host/availability"
+        caps_mock.return_value = cm
+        response = Mock()
+        response.status_code = requests.codes.ok
+        response.headers = {}
+        session = Mock()
+        session.put.return_value = response
+        client = ws.BaseDataClient(resource_id='ivo://cadc.nrc.ca/resourceid',
+                                   subject=anon_subject, agent='TestApp')
+        client._get_session = Mock(return_value=session)
+
+        orig_max_md5_compute_size = ws.MAX_MD5_COMPUTE_SIZE
+        orig_max_file_segment_size = ws.FILE_SEGMENT_THRESHOLD
+        try:
+            ws.MAX_MD5_COMPUTE_SIZE = 5  # force transaction
+            ws.FILE_SEGMENT_THRESHOLD = 10  # force segments
+            segments = [b'segment1', b'segment2', b'end']
+            md5 = hashlib.md5()
+            src = tempfile.NamedTemporaryFile()
+            seg_md5s = []
+            with open(src.name, 'wb') as f:
+                for seg in segments:
+                    f.write(seg)
+                    md5.update(seg)
+                    seg_md5s.append(md5.hexdigest())
+            file_size = os.stat(src.name).st_size
+            start_txn_headers = {ws.PUT_TXN_ID: '123',
+                                 ws.PUT_TXN_MIN_SEGMENT: '1',
+                                 ws.PUT_TXN_MAX_SEGMENT: len(segments[0])}
+
+            commit_txn_headers = {ws.HTTP_LENGTH: '0'}
+            net.add_md5_header(commit_txn_headers, seg_md5s[-1])
+            put_responses = [Mock(headers=start_txn_headers)]
+            for seg_md5 in seg_md5s:
+                segment_txn_headers = {ws.PUT_TXN_ID: '123',
+                                       ws.HTTP_LENGTH: '0'}
+                net.add_md5_header(segment_txn_headers, seg_md5)
+                put_responses.append(
+                    Mock(headers=segment_txn_headers))
+
+            put_responses.append(Mock(headers=commit_txn_headers))
+
+            def put_mock(url, data=None, **kwargs):
+                # this is a "semi" mock of the PUT function. The PUT request
+                # is mocked but this function consumes from the file (data)
+                # when available
+                headers = kwargs['headers']
+                assert url == target_url
+                if put_mock.put_num:
+                    # except the first PUT that starts transaction,
+                    # all the other ones need to include the trans id
+                    assert headers[ws.PUT_TXN_ID] == '123'
+                    if put_mock.put_num in [1, 2, 3]:
+                        if put_mock.exception is not None and \
+                                put_mock.exception == put_mock.put_num:
+                            # raise a Transfer exception for the segment
+                            session.head.return_value = put_responses[
+                                put_mock.exception]
+                            session.post.return_value = \
+                                put_responses[put_mock.exception - 1]
+                            put_mock.exception = None
+                            raise exceptions.TransferException('Test')
+                        if put_mock.wrong_md5 is not None and \
+                                (put_mock.put_num == put_mock.wrong_md5):
+                            # return the wrong md5 for the segment
+                            # set the response for the revert POST to be
+                            # similar to the previous (successful) PUT
+                            session.post.return_value = \
+                                put_responses[put_mock.wrong_md5 - 1]
+                            if put_mock.wrong_md5 == 1:
+                                # first segment - return start txn response
+                                rsp = put_responses[0]
+                            else:
+                                # return a mismatch md5 response
+                                tmp_hd = {ws.PUT_TXN_ID: '123',
+                                          ws.HTTP_LENGTH: '0'}
+                                net.add_md5_header(tmp_hd, 'beef')
+                                rsp = Mock(headers=tmp_hd)
+                            put_mock.wrong_md5 = None
+                            return rsp
+
+                        # check length of segments
+                        assert headers[ws.HTTP_LENGTH] == \
+                               str(len(segments[put_mock.put_num-1]))
+                    else:
+                        assert headers[ws.PUT_TXN_OP] == ws.PUT_TXN_COMMIT
+                        assert headers[ws.HTTP_LENGTH] == '0'
+                else:
+                    assert headers[ws.PUT_TXN_OP] == ws.PUT_TXN_START
+                    assert headers[ws.HTTP_LENGTH] == '0'
+                    assert headers[ws.PUT_TXN_TOTAL_LENGTH] == str(file_size)
+                if data:
+                    data.read(100)
+                rsp = put_responses[put_mock.put_num]
+                put_mock.put_num += 1
+                return rsp
+            put_mock.exception = None
+            put_mock.put_num = 0
+            put_mock.wrong_md5 = None
+            session.put = put_mock
+            client.upload_file(url=target_url, src=src.name)
+            # check all puts were called
+            assert len(put_responses) == put_mock.put_num
+
+            # redo the test but have an exception thrown in PUT for segment 2
+            put_mock.exception = 2
+            put_mock.put_num = 0
+            client.upload_file(url=target_url, src=src.name)
+            # check all puts were called
+            assert len(put_responses) == put_mock.put_num
+
+            # redo the test but have a md5 mismatch for segment 1
+            put_mock.wrong_md5 = 1
+            put_mock.put_num = 0
+            client.upload_file(url=target_url, src=src.name)
+            # check all puts were called
+            assert len(put_responses) == put_mock.put_num
+
+            # repeat the test but have a md5 mismatch for segment 2
+            put_mock.wrong_md5 = 2
+            put_mock.put_num = 0
+            client.upload_file(url=target_url, src=src.name)
+            # check all puts were called
+            assert len(put_responses) == put_mock.put_num
+
+            # permanent Transfer error
+            session.put = Mock(side_effect=[exceptions.TransferException] * 3)
+            with pytest.raises(exceptions.TransferException):
+                client.upload_file(url=target_url, src=src.name)
+        finally:
+            ws.MAX_MD5_COMPUTE_SIZE = orig_max_md5_compute_size
+            ws.PUT_TXN_MAX_SEGMENT = orig_max_file_segment_size
+
+    def test_get_segment_size(self):
+        get_segment = ws.BaseDataClient._get_segment_size  # shortcut
+        # file size > preferred segment size
+        assert ws.PREFERRED_SEGMENT_SIZE == \
+            get_segment(ws.PREFERRED_SEGMENT_SIZE+1, None, None)
+        # file size < preferred segment size
+        assert ws.PREFERRED_SEGMENT_SIZE - 1 == \
+            get_segment(ws.PREFERRED_SEGMENT_SIZE-1, None, None)
+        # minimum size > file_size and preferred size
+        assert ws.PREFERRED_SEGMENT_SIZE + 2 == \
+            get_segment(ws.PREFERRED_SEGMENT_SIZE,
+                        ws.PREFERRED_SEGMENT_SIZE+2, None)
+        # max size < file_size and preferred size
+        assert ws.PREFERRED_SEGMENT_SIZE - 1 == \
+               get_segment(ws.PREFERRED_SEGMENT_SIZE,
+                           None, ws.PREFERRED_SEGMENT_SIZE-1)
 
 
 class TestRetrySession(unittest.TestCase):
