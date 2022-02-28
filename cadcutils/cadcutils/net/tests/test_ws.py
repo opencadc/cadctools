@@ -479,6 +479,17 @@ class TestWs(unittest.TestCase):
             net.add_md5_header(headers=put_headers, md5_checksum=content_md5)
             session.put.assert_called_with(target_url, headers=put_headers,
                                            data=ANY, verify=True)
+
+            # mimic md5 mismatch
+            session.put.reset_mock()
+            response_headers = {ws.PUT_TXN_ID: '123',
+                                ws.HTTP_LENGTH: str(len(content))}
+            net.add_md5_header(response_headers, 'beef')
+            session.put.return_value = Mock(headers=response_headers)
+
+            with pytest.raises(exceptions.TransferException):
+                client.upload_file(url=target_url, src=src.name)
+
         finally:
             ws.MAX_MD5_COMPUTE_SIZE = orig_max_md5_compute_size
 
@@ -621,8 +632,17 @@ class TestWs(unittest.TestCase):
             assert len(put_responses) == put_mock.put_num
 
             # permanent Transfer error
-            session.put = Mock(side_effect=[exceptions.TransferException] * 3)
+            session.put = Mock(Mock(headers=start_txn_headers),
+                               side_effect=[exceptions.TransferException] * 3)
             with pytest.raises(exceptions.TransferException):
+                client.upload_file(url=target_url, src=src.name)
+
+            # permanent Transfer error including in HEAD
+            session.put = Mock(side_effect=[Mock(headers=start_txn_headers),
+                                            exceptions.TransferException])
+            head_exception = exceptions.UnexpectedException
+            session.head = Mock(side_effect=head_exception)
+            with pytest.raises(head_exception):
                 client.upload_file(url=target_url, src=src.name)
         finally:
             ws.MAX_MD5_COMPUTE_SIZE = orig_max_md5_compute_size

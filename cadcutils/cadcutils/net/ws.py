@@ -121,7 +121,7 @@ SERVICE_AVAILABILITY_ID = 'ivo://ivoa.net/std/VOSI#availability'
 # Files up to this size might have their md5 checksum pre-computed before
 # transferring. For larger files, the added overhead does not justify it.
 # Can be overriden
-MAX_MD5_COMPUTE_SIZE = 1024*1024*10
+MAX_MD5_COMPUTE_SIZE = 5 * 1024 * 1024
 # can be overriden by environment
 if os.getenv('CADC_MAX_MD5_COMPUTE_SIZE', None):
     MAX_MD5_COMPUTE_SIZE = int(os.getenv('CADC_MAX_MD5_COMPUTE_SIZE'))
@@ -537,8 +537,9 @@ class BaseDataClient(BaseWsClient):
         headers[HTTP_LENGTH] = '0'
         headers[PUT_TXN_TOTAL_LENGTH] = str(stat_info.st_size)
         headers[PUT_TXN_OP] = PUT_TXN_START
-        response = self._get_session().put(url, headers=headers,
-                                           verify=self.verify)
+        response = self._get_session().put(url,
+                                           verify=self.verify,
+                                           **kwargs)
         trans_id = response.headers[PUT_TXN_ID]
         self.logger.debug('Starting transaction {} on url {}'.format(
             trans_id, url))
@@ -553,19 +554,23 @@ class BaseDataClient(BaseWsClient):
             cur_seg_size = min(seg_size, stat_info.st_size-segment*seg_size)
             self.logger.debug('Seding segment {} of size {}'.format(
                 segment, cur_seg_size))
+            # Note: setting the content length here is irrelevant as
+            # requests is going to override it according to the size
+            # of the data (as returned by Md5File file handler)
             kwargs['headers'] = {PUT_TXN_ID: trans_id,
                                  HTTP_LENGTH: str(cur_seg_size)}
             current_size += cur_seg_size
             retries = 3
             while retries:
                 try:
-                    with util.Md5File(src, 'rb', cur_seg_size) as reader:
-                        reader.file.seek(segment*seg_size)
+                    with util.Md5File(src, 'rb', segment*seg_size,
+                                      cur_seg_size) as reader:
                         reader._md5_checksum = last_digest.copy()
                         response = self._get_session().put(
                             url,
                             data=reader,
-                            verify=self.verify, **kwargs)
+                            verify=self.verify,
+                            **kwargs)
                 except exceptions.TransferException as e:
                     self.logger.warning('Errors transfering {} to {}: {}'.
                                         format(src, url, str(e)))
