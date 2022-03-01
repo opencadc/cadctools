@@ -552,83 +552,85 @@ class BaseDataClient(BaseWsClient):
                                           max_segment)
         current_size = 0
         last_digest = hashlib.md5()
-        # Obs -(-stat_info.st_size//seg_size) - ceiling division in PYTHON
-        for segment in range(0, -(-stat_info.st_size//seg_size)):
-            cur_seg_size = min(seg_size, stat_info.st_size-segment*seg_size)
-            self.logger.debug('Seding segment {} of size {}'.format(
-                segment, cur_seg_size))
-            # Note: setting the content length here is irrelevant as
-            # requests is going to override it according to the size
-            # of the data (as returned by Md5File file handler)
-            kwargs['headers'] = {PUT_TXN_ID: trans_id,
-                                 HTTP_LENGTH: str(cur_seg_size)}
-            current_size += cur_seg_size
-            retries = 3
-            while retries:
-                try:
-                    with util.Md5File(src, 'rb', segment*seg_size,
-                                      cur_seg_size) as reader:
-                        reader._md5_checksum = last_digest.copy()
-                        response = self._get_session().put(
-                            url,
-                            data=reader,
-                            verify=self.verify,
-                            **kwargs)
-                except exceptions.TransferException as e:
-                    self.logger.warning('Errors transfering {} to {}: {}'.
-                                        format(src, url, e.msg))
+        try:
+            # Obs -(-stat_info.st_size//seg_size) - ceiling division in PYTHON
+            for segment in range(0, -(-stat_info.st_size//seg_size)):
+                cur_seg_size = min(seg_size,
+                                   stat_info.st_size-segment*seg_size)
+                self.logger.debug('Seding segment {} of size {}'.format(
+                    segment, cur_seg_size))
+                # Note: setting the content length here is irrelevant as
+                # requests is going to override it according to the size
+                # of the data (as returned by Md5File file handler)
+                kwargs['headers'] = {PUT_TXN_ID: trans_id,
+                                     HTTP_LENGTH: str(cur_seg_size)}
+                current_size += cur_seg_size
+                retries = 3
+                while retries:
                     try:
-                        response = self._get_session().head(
-                            url,
-                            headers={PUT_TXN_ID: trans_id,
-                                     HTTP_LENGTH: str(current_size)})
-                    except Exception as e:
-                        self.logger.error(
-                            'BUG: could not read transaction {} '
-                            'status from {}: {}'.format(trans_id, url,
-                                                        str(e)))
-                        # abort transaction?
-                        self.logger.debug('Aborting transaction')
-                        self._get_session().post(url, headers={
-                            PUT_TXN_ID: trans_id, PUT_TXN_OP: PUT_TXN_ABORT})
-                        self.logger.debug('Transaction aborted')
-                        raise e
-
-                # check the file made it OK
-                src_md5 = reader.md5_checksum
-                dest_md5 = net.extract_md5(response.headers)
-                if src_md5 != dest_md5:
-                    msg = 'File {} not properly uploaded. ' \
-                          'Mismatched md5 src vs dest: {} vs {}'.format(
-                            src, src_md5, dest_md5)
-                    self.logger.warning(msg)
-                    retries -= 1
-                    if retries:
-                        # dest_md5 == None is the start state
-                        if dest_md5 and (dest_md5 != last_digest.hexdigest()):
-                            self.logger.debug('Reverting transaction')
-                            response = self._get_session().post(url, headers={
-                                PUT_TXN_ID: trans_id,
-                                PUT_TXN_OP: PUT_TXN_REVERT},
-                                verify=self.verify)
-                            dest_md5 = net.extract_md5(response.headers)
-                        if dest_md5 is None or \
-                                dest_md5 == last_digest.hexdigest():
-                            self.logger.warning('Retrying')
-                            continue
-                        else:
+                        with util.Md5File(src, 'rb', segment*seg_size,
+                                          cur_seg_size) as reader:
+                            reader._md5_checksum = last_digest.copy()
+                            response = self._get_session().put(
+                                url,
+                                data=reader,
+                                verify=self.verify,
+                                **kwargs)
+                    except exceptions.TransferException as e:
+                        self.logger.warning('Errors transfering {} to {}: {}'.
+                                            format(src, url, e.msg))
+                        try:
+                            response = self._get_session().head(
+                                url,
+                                headers={PUT_TXN_ID: trans_id,
+                                         HTTP_LENGTH: str(current_size)})
+                        except Exception as e:
                             self.logger.error(
-                                'BUG: reverted transaction does not match '
-                                'last md5: {} != {}'.format(
-                                    dest_md5, last_digest.hexdigest()))
-                        # abort transaction
-                        self.logger.debug('Aborting transaction')
-                        self._get_session().post(url, headers={
-                            PUT_TXN_ID: trans_id, PUT_TXN_OP: PUT_TXN_ABORT},
-                            verify=self.verify)
-                        raise exceptions.TransferException(msg)
-                last_digest = reader._md5_checksum
-                break
+                                'BUG: could not read transaction {} '
+                                'status from {}: {}'.format(trans_id, url,
+                                                            str(e)))
+                            raise e
+                    # check the file made it OK
+                    src_md5 = reader.md5_checksum
+                    dest_md5 = net.extract_md5(response.headers)
+                    if src_md5 != dest_md5:
+                        msg = 'File {} not properly uploaded. ' \
+                              'Mismatched md5 src vs dest: {} vs {}'.format(
+                                src, src_md5, dest_md5)
+                        self.logger.warning(msg)
+                        retries -= 1
+                        if retries:
+                            # dest_md5 == None is the start state
+                            if dest_md5 and \
+                                    (dest_md5 != last_digest.hexdigest()):
+                                self.logger.debug('Reverting transaction')
+                                response = self._get_session().post(
+                                    url, headers={PUT_TXN_ID: trans_id,
+                                                  PUT_TXN_OP: PUT_TXN_REVERT},
+                                    verify=self.verify)
+                                dest_md5 = net.extract_md5(response.headers)
+                            if dest_md5 is None or \
+                                    dest_md5 == last_digest.hexdigest():
+                                self.logger.warning('Retrying')
+                                continue
+                            else:
+                                self.logger.error(
+                                    'BUG: reverted transaction does not match '
+                                    'last md5: {} != {}'.format(
+                                        dest_md5, last_digest.hexdigest()))
+                            raise exceptions.TransferException(msg)
+                    last_digest = reader._md5_checksum
+                    break
+        except BaseException as e:
+            if trans_id:
+                # abort transaction
+                self.logger.debug('Aborting transaction {}'.format(trans_id))
+                self._get_session().post(url, headers={
+                    PUT_TXN_ID: trans_id, PUT_TXN_OP: PUT_TXN_ABORT},
+                                         verify=self.verify)
+                self.logger.warning('Transaction {} aborted'.format(trans_id))
+                raise e
+
         # commit tran
         self.logger.debug('Commit transaction')
         self._get_session().put(url,
