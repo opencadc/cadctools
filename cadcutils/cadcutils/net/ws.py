@@ -461,8 +461,10 @@ class BaseDataClient(BaseWsClient):
 
     def upload_file(self, url, src, md5_checksum=None, **kwargs):
         """Method to upload a file to CADC storage (archive or vospace). This
-           method takes advantage of features in CADC services that optimize
-           and make the transfer more robust.
+           method takes advantage of features in CADC services that uses
+           PUTs with transactions in order to optimize and make the transfer
+           more robust. A detailed description of the mechanism can be found
+           at https://github.com/opencadc/storage-inventory/blob/master/minoc/PutTransaction.md
            :param url: URL to upload the file to
            :param src: name of the file to upload
            :param md5_checksum: optional md5 checksum of the file content. If
@@ -644,7 +646,8 @@ class BaseDataClient(BaseWsClient):
             segment_size = min(segment_size, int(max_segment))
         return segment_size
 
-    def _resolve_destination_file(self, dest, src_md5, default_file_name):
+    @staticmethod
+    def _resolve_destination_file(dest, src_md5, default_file_name):
         # returns destination absolute file name as well as a temporary
         # destination to be used during the transfer
         if (dest is None) and (default_file_name is None):
