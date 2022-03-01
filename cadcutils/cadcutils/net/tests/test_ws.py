@@ -420,6 +420,23 @@ class TestWs(unittest.TestCase):
         session.put.assert_called_with(target_url, headers=put_headers,
                                        data=ANY, verify=True)
 
+        # make it fail the first attempt but succeed on the next
+        session.put.reset_mock()
+        session.put.side_effect = [exceptions.BadRequestException, Mock()]
+        client.upload_file(url=target_url, src=src.name,
+                           md5_checksum=content_md5)
+        assert session.put.mock_calls == [
+            call(target_url, headers=put_headers, data=ANY, verify=True),
+            call(target_url, headers=put_headers, data=ANY, verify=True)]
+
+        # fail on repead BadRequests
+        session.put.reset_mock()
+        session.put.side_effect = [exceptions.BadRequestException] * 4
+        with pytest.raises(exceptions.BadRequestException):
+            client.upload_file(url=target_url, src=src.name,
+                               md5_checksum=content_md5)
+
+
     @patch('cadcutils.net.ws.util.Md5File')
     @patch('cadcutils.net.ws.WsCapabilities')
     def test_upload_file_put_txn(self, caps_mock, md5_file_mock):

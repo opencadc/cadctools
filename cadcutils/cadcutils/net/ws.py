@@ -133,6 +133,8 @@ GIB = 1024 * 1024 * 1024
 FILE_SEGMENT_THRESHOLD = 5 * GIB  # large files require segments
 PREFERRED_SEGMENT_SIZE = 2 * GIB
 
+MD5_MISMATCH_RETRY = 3  # number of times to retry on md5 mismatch errors
+
 # HTTP attribute names
 HTTP_LENGTH = 'Content-Length'
 
@@ -492,19 +494,27 @@ class BaseDataClient(BaseWsClient):
             net.add_md5_header(headers=headers, md5_checksum=src_md5)
             if stat_info.st_size < FILE_SEGMENT_THRESHOLD:
                 # no transactions needed.
-                with open(src, 'rb') as reader:
-                    response = self._get_session().put(
-                        url,
-                        data=reader,
-                        verify=self.verify, **kwargs)
-                self.logger.debug('{} uploaded (HTTP {})'.format(
-                    src, response.status_code))
-                return
+                retries = MD5_MISMATCH_RETRY
+                while retries:
+                    try:
+                        with open(src, 'rb') as reader:
+                            response = self._get_session().put(
+                                url,
+                                data=reader,
+                                verify=self.verify, **kwargs)
+                        self.logger.debug('{} uploaded (HTTP {})'.format(
+                            src, response.status_code))
+                        return
+                    except exceptions.BadRequestException as e:
+                        # retry as this is likely caused by md5 mismatch
+                        if not retries:
+                            raise e
+                        retries -= 1
 
         if stat_info.st_size < FILE_SEGMENT_THRESHOLD:
             # one go upload with transaction
             headers[PUT_TXN_OP] = PUT_TXN_START
-            retries = 3
+            retries = MD5_MISMATCH_RETRY
             while retries:
                 with util.Md5File(src, 'rb') as reader:
                     response = self._get_session().put(
@@ -557,7 +567,7 @@ class BaseDataClient(BaseWsClient):
             for segment in range(0, -(-stat_info.st_size//seg_size)):
                 cur_seg_size = min(seg_size,
                                    stat_info.st_size-segment*seg_size)
-                self.logger.debug('Seding segment {} of size {}'.format(
+                self.logger.debug('Sending segment {} of size {}'.format(
                     segment, cur_seg_size))
                 # Note: setting the content length here is irrelevant as
                 # requests is going to override it according to the size
@@ -565,7 +575,7 @@ class BaseDataClient(BaseWsClient):
                 kwargs['headers'] = {PUT_TXN_ID: trans_id,
                                      HTTP_LENGTH: str(cur_seg_size)}
                 current_size += cur_seg_size
-                retries = 3
+                retries = MD5_MISMATCH_RETRY
                 while retries:
                     try:
                         with util.Md5File(src, 'rb', segment*seg_size,
@@ -586,7 +596,7 @@ class BaseDataClient(BaseWsClient):
                                          HTTP_LENGTH: str(current_size)})
                         except Exception as e:
                             self.logger.error(
-                                'BUG: could not read transaction {} '
+                                'Could not retrieve transaction {} '
                                 'status from {}: {}'.format(trans_id, url,
                                                             str(e)))
                             raise e
