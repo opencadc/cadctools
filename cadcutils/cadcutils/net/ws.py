@@ -550,7 +550,8 @@ class BaseDataClient(BaseWsClient):
                                           max_segment)
         current_size = 0
         last_digest = hashlib.md5()
-        for segment in range(0, stat_info.st_size//seg_size+1):
+        # Obs -(-stat_info.st_size//seg_size) - ceiling division in PYTHON
+        for segment in range(0, -(-stat_info.st_size//seg_size)):
             cur_seg_size = min(seg_size, stat_info.st_size-segment*seg_size)
             self.logger.debug('Seding segment {} of size {}'.format(
                 segment, cur_seg_size))
@@ -573,7 +574,7 @@ class BaseDataClient(BaseWsClient):
                             **kwargs)
                 except exceptions.TransferException as e:
                     self.logger.warning('Errors transfering {} to {}: {}'.
-                                        format(src, url, str(e)))
+                                        format(src, url, e.msg))
                     try:
                         response = self._get_session().head(
                             url,
