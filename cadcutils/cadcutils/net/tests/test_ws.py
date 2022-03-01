@@ -522,31 +522,38 @@ class TestWs(unittest.TestCase):
         try:
             ws.MAX_MD5_COMPUTE_SIZE = 5  # force transaction
             ws.FILE_SEGMENT_THRESHOLD = 10  # force segments
-            segments = [b'segment1', b'segment2', b'end']
-            md5 = hashlib.md5()
+            segments = [b'segment1', b'segment2', b'end3']
             src = tempfile.NamedTemporaryFile()
-            seg_md5s = []
-            with open(src.name, 'wb') as f:
-                for seg in segments:
-                    f.write(seg)
-                    md5.update(seg)
-                    seg_md5s.append(md5.hexdigest())
-            file_size = os.stat(src.name).st_size
             start_txn_headers = {ws.PUT_TXN_ID: '123',
                                  ws.PUT_TXN_MIN_SEGMENT: '1',
                                  ws.PUT_TXN_MAX_SEGMENT: len(segments[0])}
 
-            commit_txn_headers = {ws.HTTP_LENGTH: '0'}
-            net.add_md5_header(commit_txn_headers, seg_md5s[-1])
-            put_responses = [Mock(headers=start_txn_headers)]
-            for seg_md5 in seg_md5s:
-                segment_txn_headers = {ws.PUT_TXN_ID: '123',
-                                       ws.HTTP_LENGTH: '0'}
-                net.add_md5_header(segment_txn_headers, seg_md5)
-                put_responses.append(
-                    Mock(headers=segment_txn_headers))
+            def _create_put_responses():
+                # this function creates the content of the file according
+                # to the segments and also generates the responses to
+                # PUT commands with corresponding headers
+                md5 = hashlib.md5()
+                seg_md5s = []
+                with open(src.name, 'wb') as f:
+                    for seg in segments:
+                        f.write(seg)
+                        md5.update(seg)
+                        seg_md5s.append(md5.hexdigest())
+                commit_txn_headers = {ws.HTTP_LENGTH: '0'}
+                net.add_md5_header(commit_txn_headers, seg_md5s[-1])
+                responses = [Mock(headers=start_txn_headers)]
+                for seg_md5 in seg_md5s:
+                    segment_txn_headers = {ws.PUT_TXN_ID: '123',
+                                           ws.HTTP_LENGTH: '0'}
+                    net.add_md5_header(segment_txn_headers, seg_md5)
+                    responses.append(
+                        Mock(headers=segment_txn_headers))
 
-            put_responses.append(Mock(headers=commit_txn_headers))
+                responses.append(Mock(headers=commit_txn_headers))
+                return responses
+
+            put_responses = _create_put_responses()
+            file_size = os.stat(src.name).st_size
 
             def put_mock(url, data=None, **kwargs):
                 # this is a "semi" mock of the PUT function. The PUT request
@@ -606,6 +613,20 @@ class TestWs(unittest.TestCase):
             put_mock.put_num = 0
             put_mock.wrong_md5 = None
             session.put = put_mock
+            client.upload_file(url=target_url, src=src.name)
+            # check all puts were called
+            assert len(put_responses) == put_mock.put_num
+
+            # redo the tests but have the file size multiple of its segments
+            # reset the put_mock "mock" function first
+
+            put_mock.exception = None
+            put_mock.put_num = 0
+            put_mock.wrong_md5 = None
+            segments = [b'segment1', b'segment2', b'endsize3']
+            put_responses = _create_put_responses()
+            file_size = os.stat(src.name).st_size
+
             client.upload_file(url=target_url, src=src.name)
             # check all puts were called
             assert len(put_responses) == put_mock.put_num
