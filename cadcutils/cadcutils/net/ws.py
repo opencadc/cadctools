@@ -505,7 +505,7 @@ class BaseDataClient(BaseWsClient):
                         self.logger.debug('{} uploaded (HTTP {})'.format(
                             src, response.status_code))
                         return
-                    except exceptions.BadRequestException as e:
+                    except exceptions.PreconditionFailedException as e:
                         # retry as this is likely caused by md5 mismatch
                         if not retries:
                             raise e
@@ -991,6 +991,8 @@ class RetrySession(Session):
                 raise exceptions.ForbiddenException(orig_exception=e)
             elif e.response.status_code == requests.codes.bad_request:
                 raise exceptions.BadRequestException(orig_exception=e)
+            elif e.response.status_code == requests.codes.precondition_failed:
+                raise exceptions.PreconditionFailedException(orig_exception=e)
             elif e.response.status_code == requests.codes.conflict:
                 raise exceptions.AlreadyExistsException(orig_exception=e)
             elif e.response.status_code == \
