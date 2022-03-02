@@ -79,7 +79,7 @@ from cadcutils.net import Subject, ws
 from cadcutils.util import str2ivoa
 from cadcutils import exceptions
 
-REG_HOST = 'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca'
+REG_HOST = 'ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca'
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
@@ -244,7 +244,7 @@ def test_client_authenticated():
         file_size = os.stat(test_file).st_size
         # find out locations
         reg = requests.get(
-            'https://{}/reg/resource-caps'.format(REG_HOST)).text
+            'https://{}/reg/resource-caps'.format(REG_HOST), verify=False).text
         location_resource_ids = []
         for line in reg.split('\n'):
             line.strip()
@@ -253,7 +253,8 @@ def test_client_authenticated():
                 location_resource_ids.append(line.split('=')[0].strip())
 
         # test all operations on a location
-        for resource_id in location_resource_ids:
+        for resource_id in \
+                [id for id in location_resource_ids if 'minoc' in id]:
             location_operations(subject=subject, resource_id=resource_id,
                                 file=test_file, id_root=id_root,
                                 md5sum=md5sum, size=file_size)
@@ -261,15 +262,18 @@ def test_client_authenticated():
         # to test global without waiting for the eventual consistency to occur,
         # put the file to global and look for it in at least one of the
         # location. get it and then remove it from that location
-        client = StorageInventoryClient(subject=subject)
+        client = StorageInventoryClient(subject=subject, host=REG_HOST,
+                                        insecure=True)
 
         client.cadcput(id=global_id, src=test_file)
 
         file_info = None
-        for resource_id in location_resource_ids:
+        for resource_id in \
+                [id for id in location_resource_ids if 'minoc' in id]:
             try:
                 location_client = StorageInventoryClient(
-                    subject=subject, resource_id=resource_id)
+                    subject=subject, resource_id=resource_id, host=REG_HOST,
+                    insecure=True)
                 file_info = location_client.cadcinfo(global_id)
                 break
             except exceptions.NotFoundException:
@@ -304,17 +308,12 @@ def test_client_authenticated():
 @pytest.mark.skipif(not os.path.isfile(CERT),
                     reason='CADC credentials required in '
                            '$HOME/.ssl/cadcproxy.pem')
-@pytest.mark.skip('To enable when put-txn is released')
 def test_put_transactions():
     # very similar with the test_client_authenticated except that threshold
-    # is set to a minimum value such that the test file is considered large
-    # and its md5 checksum is not pre-computed which forces the use of trans
+    # for pre-computing md5 checksum is lowered such that the use of
+    # PUT transactions is required
     orig_max_md5_size = ws.MAX_MD5_COMPUTE_SIZE
-    global REG_HOST
-    # TODO remove after put-txn released
-    orig_reg_host = REG_HOST
     try:
-        REG_HOST = 'localhost.cadc.dao.nrc.ca'
         ws.MAX_MD5_COMPUTE_SIZE = 5
         """ uses $HOME/.ssl/cadcproxy.pem certificates"""
         # create a random root for file IDs
@@ -349,8 +348,100 @@ def test_put_transactions():
                         '/ad/minoc' not in line):
                     location_resource_ids.append(line.split('=')[0].strip())
 
-            # TODO remove line after put-txn released
-            location_resource_ids = ['ivo://cadc.nrc.ca/minoc']
+            # test all operations on a location
+            for resource_id in location_resource_ids:
+                location_operations(subject=subject, resource_id=resource_id,
+                                    file=test_file, id_root=id_root,
+                                    md5sum=md5sum, size=file_size)
+            # pick up one location to test a transaction rollback
+
+            client = StorageInventoryClient(
+                subject=subject,
+                resource_id=location_resource_ids[0],
+                host=REG_HOST,
+                insecure=True)
+            # file should not be on the storage to start with
+            with pytest.raises(exceptions.NotFoundException):
+                client.cadcinfo(id=id_root)
+
+            orig_put = client._cadc_client._get_session().put
+
+            # simulate a rollback
+            def tamper_md5(url, **kwargs):
+                # tamper with the md5 checksum returned from the server
+                # so that the code finds a mismatch and rollbacks the
+                # transaction
+                response = orig_put(url, **kwargs)
+                if 'Digest' in response.headers:
+                    response.headers['Digest'] = 'md5=YmVlZg=='
+                return response
+
+            client._cadc_client._get_session().put = tamper_md5
+            with pytest.raises(exceptions.TransferException) as te:
+                client.cadcput(id=id_root, src=test_file)
+            assert 'Mismatched md5 src vs dest:' in str(te)
+
+            # transaction should be rolled back at this point so the file
+            # should not be there
+            with pytest.raises(exceptions.NotFoundException):
+                client.cadcinfo(id=id_root)
+
+        finally:
+            # cleanup
+            if os.path.isfile(dest_file):
+                os.remove(dest_file)
+            if os.path.isfile(test_file):
+                os.remove(test_file)
+
+    finally:
+        ws.MAX_MD5_COMPUTE_SIZE = orig_max_md5_size
+
+
+@pytest.mark.intTests
+@pytest.mark.skipif(not os.path.isfile(CERT),
+                    reason='CADC credentials required in '
+                           '$HOME/.ssl/cadcproxy.pem')
+def test_put_transaction_append():
+    # very similar with the test_client_authenticated except that threshold
+    # for pre-computing md5 checksum is lowered such that the use of
+    # PUT transactions is required
+    orig_max_md5_size = ws.MAX_MD5_COMPUTE_SIZE
+    orig_file_segment_threshold = ws.FILE_SEGMENT_THRESHOLD
+    try:
+        ws.MAX_MD5_COMPUTE_SIZE = 5
+        ws.FILE_SEGMENT_THRESHOLD = 5
+        """ uses $HOME/.ssl/cadcproxy.pem certificates"""
+        # create a random root for file IDs
+        # Note: "+" in the file name is testing the special character in URI
+        test_file = '/tmp/cadcdata+inttest.txt'
+        id_root = 'cadc:TEST/cadcdata+intttest-{}'.format(
+            random.randrange(100000))
+        global_id = id_root + '/global'
+        file_name = global_id.split('/')[-1]
+        dest_file = os.path.join('/tmp', file_name)
+        try:
+
+            subject = Subject(certificate=CERT)
+
+            if os.path.isfile(test_file):
+                os.remove(test_file)
+            with open(test_file, 'a') as f:
+                f.write('THIS IS A TEST')
+
+            md5 = hashlib.md5()
+            with open(test_file, 'rb') as f:
+                md5.update(f.read())
+            md5sum = md5.hexdigest()
+            file_size = os.stat(test_file).st_size
+            # find out locations
+            reg = requests.get('https://{}/reg/resource-caps'.format(REG_HOST),
+                               verify=False).text
+            location_resource_ids = []
+            for line in reg.split('\n'):
+                line.strip()
+                if not line.startswith('#') and ('minoc' in line) and (
+                        '/ad/minoc' not in line):
+                    location_resource_ids.append(line.split('=')[0].strip())
 
             # test all operations on a location
             for resource_id in location_resource_ids:
@@ -383,7 +474,7 @@ def test_put_transactions():
             client._cadc_client._get_session().put = tamper_md5
             with pytest.raises(exceptions.TransferException) as te:
                 client.cadcput(id=id_root, src=test_file)
-            assert 'MD5 checksum mismatch. Transaction rolled back' in str(te)
+            assert 'Mismatched md5 src vs dest:' in str(te)
 
             # transaction should be rolled back at this point so the file
             # should not be there
@@ -399,7 +490,7 @@ def test_put_transactions():
 
     finally:
         ws.MAX_MD5_COMPUTE_SIZE = orig_max_md5_size
-        REG_HOST = orig_reg_host
+        ws.PUT_TXN_MAX_SEGMENT = orig_file_segment_threshold
 
 
 def location_operations(subject, resource_id, file, id_root, md5sum, size):

@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2016.                            (c) 2016.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -75,6 +75,7 @@ from datetime import datetime
 from six.moves.urllib.parse import urlparse
 from operator import attrgetter
 import hashlib
+import os
 
 __all__ = ['IVOA_DATE_FORMAT', 'date2ivoa', 'str2ivoa',
            'get_logger', 'get_log_level', 'get_base_parser', 'Md5File']
@@ -372,18 +373,42 @@ class _ServiceAction(Action):
 class Md5File(object):
     """
     A wrapper to a file object that calculates the MD5 sum of the bytes
-    that are being read or written.
+    that are being read or written. It allows allows seeking to a particular
+    position in the file and it limits the legth of the data to be read,
+    essentially enabling chunking/segmentation of large files.
     """
 
-    def __init__(self, f, mode):
+    def __init__(self, f, mode, offset=0, length=None):
+        """
+
+        :param f: location of the file
+        :param mode: open mode (must be binary)
+        :param offset: offset to start from
+        :param length: data length to read from
+        """
         self.file = open(f, mode)
+        self._offset = offset
+        self._length = length
+        self._end_offset = os.stat(f).st_size
+        if offset:
+            if offset > self._end_offset:
+                raise AttributeError(
+                    '{} offset greater that file size: {} vs {}'.format(
+                        f, offset, self._end_offset))
+            self.file.seek(offset)
+        if length:
+            self._end_offset = min(offset + length, self._end_offset)
         self._md5_checksum = hashlib.md5()
+        self._total_read_length = 0
 
     def __enter__(self):
         return self
 
     def read(self, size):
-        buffer = self.file.read(size)
+        batch_read_size = \
+            min(size, self._end_offset-self._total_read_length-self._offset)
+        buffer = self.file.read(batch_read_size)
+        self._total_read_length += len(buffer)
         self._md5_checksum.update(buffer)
         return buffer
 
@@ -406,7 +431,22 @@ class Md5File(object):
                 exit()
 
     def __getattr__(self, attr):
-        return getattr(self.file, attr)
+        if attr not in ['__len__', 'len']:
+            # requests or other libraries might want to use `tell` and `seek`
+            # to retry etc. Do not allow it as it might interfere with the
+            # md5 checksum calculations
+            raise AttributeError('Unsupported attribute: {}'.format(attr))
+
+    def __len__(self):
+        """
+        :return: size meant to be seen by the clients (entire file or just
+        a segment/chunk)
+        """
+        sz = self._end_offset - self._offset
+        return sz
+
+    def len(self):
+        return self.__len__()
 
     def __iter__(self):
         return iter(self.file)
