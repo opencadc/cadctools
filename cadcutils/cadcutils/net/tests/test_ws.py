@@ -444,7 +444,6 @@ class TestWs(unittest.TestCase):
             client.upload_file(url=target_url, src=src.name,
                                md5_checksum=content_md5)
 
-
     @patch('cadcutils.net.ws.util.Md5File')
     @patch('cadcutils.net.ws.WsCapabilities')
     def test_upload_file_put_txn(self, caps_mock, md5_file_mock):
