@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2016.                            (c) 2016.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -78,6 +78,7 @@ import logging
 import hashlib
 from cadcutils.util import date2ivoa, str2ivoa, get_base_parser, \
     get_log_level, get_logger, Md5File
+import pytest
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
@@ -368,3 +369,41 @@ class TestMd5File(unittest.TestCase):
                 hash.update(content)
                 content = f.read(5)
         assert f.md5_checksum == hash.hexdigest()
+
+        # read part of the file
+        with Md5File(tmpfile.name, 'rb', length=4) as f:
+            assert binary_content[:4] == f.read(1000)
+        hash = hashlib.md5()
+        hash.update(binary_content[:4])
+        assert f.md5_checksum == hash.hexdigest()
+
+        # repeat but read from an offset
+        with Md5File(tmpfile.name, 'rb', offset=4) as f:
+            assert len(f) == len(txt) - 4
+            assert binary_content[4:] == f.read(1000)
+        hash = hashlib.md5()
+        hash.update(binary_content[4:])
+        assert f.md5_checksum == hash.hexdigest()
+
+        # repeat but tread just a segment
+        with Md5File(tmpfile.name, 'rb', offset=5, length=6) as f:
+            assert f.len() == 6
+            assert binary_content[5:11] == f.read(1000)
+        hash = hashlib.md5()
+        hash.update(binary_content[5:11])
+        assert f.md5_checksum == hash.hexdigest()
+
+        # repeat but tread just a segment and read smaller buffers
+        with Md5File(tmpfile.name, 'rb', offset=5, length=10) as f:
+            buffer = f.read(2)
+            result = b''
+            while buffer:
+                result += buffer
+                buffer = f.read(2)
+            assert binary_content[5:15] == result
+        hash = hashlib.md5()
+        hash.update(binary_content[5:15])
+        assert f.md5_checksum == hash.hexdigest()
+
+        with pytest.raises(AttributeError):
+            Md5File(tmpfile.name, 'rb', offset=1000)
