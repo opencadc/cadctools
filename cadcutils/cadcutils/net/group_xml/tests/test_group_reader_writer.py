@@ -107,7 +107,7 @@ def test_maximal_group():
     expected.description = 'description'
     expected.last_modified = datetime(2014, 1, 20, 19, 45, 37, 0)
     expected.properties.add(GroupProperty('key1', 'value1', True))
-    expected.properties.add(GroupProperty('key2', 'value2', False))
+    expected.properties.add(GroupProperty('key2', 'special char é', False))
 
     user1 = User('ivo://cadc.nrc.ca/user?00000000-0000-0000-0000-00000000000b')
     user2 = User('ivo://cadc.nrc.ca/user?00000000-0000-0000-0000-00000000000c')
