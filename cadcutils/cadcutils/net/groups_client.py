@@ -187,7 +187,6 @@ class GroupsClient():
         self._gms_client.put(self._groups_ep, data=xml_string)
 
     def get_group(self, group_id):
-
         if group_id is None or group_id.strip() == '':
             raise ValueError("Group ID cannot be None or empty.")
 
@@ -385,7 +384,7 @@ def print_group_members(group):
     print('   User Members: {}'.format((',\n'+' '*17).join(
         ['{} ({})'.format(
             m.identities['HTTP'].name,
-            m.identities['X500x'].name) for m in group.user_members])))
+            m.identities['X500'].name) for m in group.user_members])))
     print('  Group Members: {}'.format(
         (',\n'+' '*17).join([gr.group_id for gr in group.group_members])))
 
@@ -427,7 +426,7 @@ def main_app():
 
     create_parser = subparsers.add_parser(
         'create',
-        description='Creates a new CADC Group. Caller is owner and member of'
+        description='Creates a new CADC Group. Caller is owner and member of '
                     'the new group',
         help='Creates a new CADC Group. Caller is owner and member of the new '
              'group')
@@ -439,7 +438,7 @@ def main_app():
     create_parser.add_argument(
         'groupid',
         help='ID of the CADC group. ID cannot contain space ( ), slash (/), '
-             'escape (\\), or percent (%) characters')
+             'escape (\\), or percent characters')
     create_parser.epilog = (
         'Examples:\n'
         '        cadc-groups create --cert ~/.ssl/cadcproxy.pem -d "My first '
@@ -521,14 +520,17 @@ def main_app():
 
     subject = Subject.from_cmd_line_args(args)
 
-    client = GroupsClient(subject, args.resource_id, host=args.host)
+    client = GroupsClient(subject, args.resource_id, host=args.host,
+                          insecure=args.insecure)
     try:
         if args.cmd == 'list':
             logger.info('list')
             if args.role:
-                print(client.get_membership(Role(args.role)))
+                groups = client.get_membership(Role(args.role))
             else:
-                print(client.get_membership())
+                groups = client.get_membership()
+            for gr in groups:
+                print(gr.group_id)
         elif args.cmd == 'get':
             logger.info('get')
             for gi in args.groupid:
