@@ -407,12 +407,14 @@ class CadcTapClient(object):
                                    stream=True, timeout=timeout*60) as result:
             with smart_open(output_file, response_format) as f:
                 header = True
-                if data_only or no_column_names or response_format == 'VOTable':
+                if data_only or no_column_names or \
+                        response_format == 'VOTable':
                     for chunk in result.iter_content(chunk_size=8192):
                         if chunk:  # filter out keep-alive new chunks
                             if response_format != 'VOTable':
                                 chunk = chunk.decode('utf-8')
-                                if header and no_column_names and '\n' in chunk:
+                                if header and no_column_names and \
+                                        '\n' in chunk:
                                     chunk = chunk[chunk.index('\n')+1:]
                                     header = False
                             f.write(chunk)

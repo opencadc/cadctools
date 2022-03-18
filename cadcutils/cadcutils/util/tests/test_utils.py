@@ -274,7 +274,7 @@ class UtilTests(unittest.TestCase):
                 parser = get_base_parser(subparsers=False, version=3.3)
                 parser.parse_args()
             assert expected_stdout.strip('\n') == \
-                   _fix_help(stdout_mock.getvalue())
+                _fix_help(stdout_mock.getvalue())
 
         # same test but no version this time
         with open(os.path.join(TESTDATA_DIR, 'help_no_version.txt'), 'r') as f:
@@ -286,7 +286,7 @@ class UtilTests(unittest.TestCase):
                 parser = get_base_parser(subparsers=False)
                 parser.parse_args()
             assert expected_stdout.strip('\n') == \
-                   _fix_help(stdout_mock.getvalue())
+                _fix_help(stdout_mock.getvalue())
 
         # --help with a simple parser with a few extra command line options
         with open(os.path.join(TESTDATA_DIR, 'help_extra_opt.txt'), 'r') as f:
@@ -344,7 +344,7 @@ class UtilTests(unittest.TestCase):
                 sys.argv = ['cadc-client', 'cmd2', '-h']
                 parser.parse_args()
             assert expected_stdout.strip('\n') == \
-                   _fix_help(stdout_mock.getvalue())
+                _fix_help(stdout_mock.getvalue())
 
 
 def _fix_help(help_txt):

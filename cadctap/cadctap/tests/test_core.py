@@ -853,21 +853,24 @@ class TestCadcTapClient(unittest.TestCase):
 
         sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice', 'QUERY']
         main_app()
-        calls = [call('QUERY', None, 'tsv', None, no_column_names=False, timeout=2)]
+        calls = [call('QUERY', None, 'tsv', None, no_column_names=False,
+                      timeout=2)]
         client_mock.return_value.query.assert_has_calls(calls)
 
         client_mock.reset_mock()
         sys.argv = ['cadc-tap', 'query', '-q', '-s', 'http://someservice',
                     'QUERY']
         main_app()
-        calls = [call('QUERY', None, 'tsv', None, no_column_names=True, timeout=2)]
+        calls = [call('QUERY', None, 'tsv', None, no_column_names=True,
+                      timeout=2)]
         client_mock.return_value.query.assert_has_calls(calls)
 
         client_mock.reset_mock()
         sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice',
                     '--timeout', '7', 'QUERY']
         main_app()
-        calls = [call('QUERY', None, 'tsv', None, no_column_names=False, timeout=7)]
+        calls = [call('QUERY', None, 'tsv', None, no_column_names=False,
+                      timeout=7)]
         client_mock.return_value.query.assert_has_calls(calls)
 
         client_mock.reset_mock()

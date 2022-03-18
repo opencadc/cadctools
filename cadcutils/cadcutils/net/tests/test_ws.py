@@ -620,7 +620,7 @@ class TestWs(unittest.TestCase):
 
                         # check length of segments
                         assert headers[ws.HTTP_LENGTH] == \
-                               str(len(segments[put_mock.put_num-1]))
+                            str(len(segments[put_mock.put_num-1]))
                     else:
                         assert headers[ws.PUT_TXN_OP] == ws.PUT_TXN_COMMIT
                         assert headers[ws.HTTP_LENGTH] == '0'
@@ -707,8 +707,8 @@ class TestWs(unittest.TestCase):
                         ws.PREFERRED_SEGMENT_SIZE+2, None)
         # max size < file_size and preferred size
         assert ws.PREFERRED_SEGMENT_SIZE - 1 == \
-               get_segment(ws.PREFERRED_SEGMENT_SIZE,
-                           None, ws.PREFERRED_SEGMENT_SIZE-1)
+            get_segment(ws.PREFERRED_SEGMENT_SIZE,
+                        None, ws.PREFERRED_SEGMENT_SIZE-1)
 
 
 class TestRetrySession(unittest.TestCase):

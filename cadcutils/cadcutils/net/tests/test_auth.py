@@ -148,7 +148,6 @@ Expected /tmp/testcertfile to be a directory.
             'default: {}/.ssl/cadcproxy.pem'.format(os.getenv("HOME")),
             usage)
 
-
         # --help
         self.maxDiff = None  # Display the entire difference
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
