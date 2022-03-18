@@ -406,7 +406,11 @@ def test_help():
             sys.argv = [cmd, '--help']
             with pytest.raises(MyExitError):
                 getattr(cadcdata, '{}_cli'.format(cmd))()
-        assert usage == stdout_mock.getvalue()
+
+        # Make it Python 3.10 compatible
+        actual = stdout_mock.getvalue().\
+            replace('options:', 'optional arguments:').strip('\n')
+        assert usage.strip('\n') == actual
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))

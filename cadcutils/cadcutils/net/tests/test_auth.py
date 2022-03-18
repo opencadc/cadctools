@@ -148,13 +148,17 @@ Expected /tmp/testcertfile to be a directory.
             'default: {}/.ssl/cadcproxy.pem'.format(os.getenv("HOME")),
             usage)
 
+
         # --help
         self.maxDiff = None  # Display the entire difference
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             sys.argv = ["cadc-get-cert", "--help"]
             with self.assertRaises(MyExitError):
                 auth.get_cert_main()
-            self.assertEqual(usage, stdout_mock.getvalue())
+            # new title in 3.10
+            actual = stdout_mock.getvalue().replace('options:',
+                                                    'optional arguments:')
+            self.assertEqual(usage.strip('\n'), actual.strip('\n'))
 
     @patch('cadcutils.net.auth.os')
     def testSubject(self, os_mock):
