@@ -437,6 +437,7 @@ def test_help():
             main_app()
         assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
+
 def _fix_help(help_txt):
     """
     Deals with incompatibilities between versions
@@ -445,6 +446,7 @@ def _fix_help(help_txt):
     """
     # Different title in python 3.10
     return help_txt.replace('options:', 'optional arguments:').strip('\n')
+
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
                                      MyExitError, MyExitError,
