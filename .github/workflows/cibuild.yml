@@ -25,8 +25,6 @@ jobs:
         run: cd cadcdata && tox -e egg_info
       - name: egg-info cadctap
         run: cd cadctap && tox -e egg_info
-      - name: egg-info cadccutout
-        run: cd cadccutout && tox -e egg_info
 
   tests:
     needs: egginfo
@@ -37,7 +35,6 @@ jobs:
         #TODO 2.7 fails on GH Actions but cannot be reproduced locally. Disabled for now.
         # python-version: [2.7,3.5,3.6,3.7,3.8,3.9]
         python-version: ["3.5","3.6","3.7","3.8","3.9","3.10"]
-        # cadccutout is left out since it does not support all the above python versions
         package: [cadcutils, cadcdata, cadctap]
     steps:
     - name: Checkout code
@@ -77,12 +74,10 @@ jobs:
         run: cd cadcdata && tox -e checkstyle && tox -e cov
       - name: checkstyle & coverage cadctap
         run: cd cadctap &&  tox -e checkstyle && tox -e cov
-      - name: checkstyle & coverage cadccutout
-        run: cd cadccutout &&  tox -e checkstyle && tox -e cov
       - name: Upload coverage to codecov
         uses: codecov/codecov-action@v1
         with:
-          files: ./cadcutils/coverage.xml,./cadcdata/coverage.xml,./cadctap/coverage.xml,./cadccutout/coverage.xml
+          files: ./cadcutils/coverage.xml,./cadcdata/coverage.xml,./cadctap/coverage.xml
        
   build-n-publish:
     name: Build and publish to PyPI
