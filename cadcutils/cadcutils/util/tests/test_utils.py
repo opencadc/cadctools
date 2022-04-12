@@ -273,7 +273,8 @@ class UtilTests(unittest.TestCase):
                 sys.argv = ["cadc-client", "--help"]
                 parser = get_base_parser(subparsers=False, version=3.3)
                 parser.parse_args()
-            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+            assert expected_stdout.strip('\n') == \
+                _fix_help(stdout_mock.getvalue())
 
         # same test but no version this time
         with open(os.path.join(TESTDATA_DIR, 'help_no_version.txt'), 'r') as f:
@@ -284,7 +285,8 @@ class UtilTests(unittest.TestCase):
                 sys.argv = ["cadc-client", "--help"]
                 parser = get_base_parser(subparsers=False)
                 parser.parse_args()
-            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+            assert expected_stdout.strip('\n') == \
+                _fix_help(stdout_mock.getvalue())
 
         # --help with a simple parser with a few extra command line options
         with open(os.path.join(TESTDATA_DIR, 'help_extra_opt.txt'), 'r') as f:
@@ -300,7 +302,7 @@ class UtilTests(unittest.TestCase):
                                     help='the ID of the file in the archive',
                                     nargs='+')
                 parser.parse_args()
-            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+            assert expected_stdout.strip() == _fix_help(stdout_mock.getvalue())
 
         # help with a parser with 2 subcommands
         parser = get_base_parser()
@@ -321,7 +323,7 @@ class UtilTests(unittest.TestCase):
             with self.assertRaises(MyExitError):
                 sys.argv = ["cadc-client", "-h"]
                 parser.parse_args()
-            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+        assert expected_stdout.strip('\n') == _fix_help(stdout_mock.getvalue())
 
         with open(os.path.join(TESTDATA_DIR, 'help_subcommands1.txt'),
                   'r') as f:
@@ -331,7 +333,7 @@ class UtilTests(unittest.TestCase):
             with self.assertRaises(MyExitError):
                 sys.argv = ['cadc-client', 'cmd1', '-h']
                 parser.parse_args()
-            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+        assert expected_stdout.strip('\n') == _fix_help(stdout_mock.getvalue())
 
         with open(os.path.join(TESTDATA_DIR, 'help_subcommands2.txt'),
                   'r') as f:
@@ -341,7 +343,18 @@ class UtilTests(unittest.TestCase):
             with self.assertRaises(MyExitError):
                 sys.argv = ['cadc-client', 'cmd2', '-h']
                 parser.parse_args()
-            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+            assert expected_stdout.strip('\n') == \
+                _fix_help(stdout_mock.getvalue())
+
+
+def _fix_help(help_txt):
+    """
+    Deals with incompatibilities between versions
+    :param help_txt:
+    :return:
+    """
+    # Different title in python 3.10
+    return help_txt.replace('options:', 'optional arguments:').strip('\n')
 
 
 class TestMd5File(unittest.TestCase):

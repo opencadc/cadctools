@@ -145,7 +145,7 @@ def test_identity():
     assert identity.type == 'HTTP'
 
     assert Identity(name='abc', identity_type='OpenID') == \
-           Identity(name='abc', identity_type='OpenID')
+        Identity(name='abc', identity_type='OpenID')
 
     with pytest.raises(ValueError):
         Identity('', identity_type='HTTP')

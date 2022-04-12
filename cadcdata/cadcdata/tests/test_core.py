@@ -390,17 +390,17 @@ def test_help():
         sys.argv = ['cadc-data', '--help']
         with pytest.raises(MyExitError):
             main_app()
-        assert usage == stdout_mock.getvalue()
+        assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
     usage = ('usage: cadc-data [-h] [-V] {get,put,info} ...\n'
              'cadc-data: error: too few arguments\n')
 
-    with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+    with patch('sys.stdout', new_callable=StringIO):
         with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
             sys.argv = ['cadc-data']
             with pytest.raises(MyExitError):
                 main_app()
-            assert usage == stderr_mock.getvalue()
+            assert usage.strip('\n') == _fix_help(stderr_mock.getvalue())
 
     # get -h
     # output is different in Python 3.9
@@ -415,7 +415,7 @@ def test_help():
         sys.argv = ['cadc-data', 'get', '--help']
         with pytest.raises(MyExitError):
             main_app()
-        assert usage == stdout_mock.getvalue()
+        assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
     # put -h
     with open(os.path.join(TESTDATA_DIR, 'help_put.txt'), 'r') as myfile:
@@ -425,7 +425,7 @@ def test_help():
         sys.argv = ['cadc-data', 'put', '-h']
         with pytest.raises(MyExitError):
             main_app()
-        assert usage == stdout_mock.getvalue()
+        assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
     # info -h
     with open(os.path.join(TESTDATA_DIR, 'help_info.txt'), 'r') as myfile:
@@ -435,7 +435,17 @@ def test_help():
         sys.argv = ['cadc-data', 'info', '--help']
         with pytest.raises(MyExitError):
             main_app()
-        assert usage == stdout_mock.getvalue()
+        assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
+
+
+def _fix_help(help_txt):
+    """
+    Deals with incompatibilities between versions
+    :param help_txt:
+    :return:
+    """
+    # Different title in python 3.10
+    return help_txt.replace('options:', 'optional arguments:').strip('\n')
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,

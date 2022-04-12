@@ -26,13 +26,13 @@ Requires pip.
 
 Installing Packages
 -------------------
+Note: might need to escape chars in your shell
 
 ::
 
-    cd cadcutils && pip install -r ./dev_requirements.txt
-    cd cadcdata && pip install -r ./dev_requirements.txt
-    cd cadctap && pip install -r ./dev_requirements.txt
-    cd cadccutout && pip install -r ./dev_requirements.txt
+    cd cadcutils && pip install -e .[test]
+    cd cadcdata && pip install -e .[test]
+    cd cadctap && pip install -e .[test]
 
 Testing packages
 ----------------
@@ -61,13 +61,6 @@ Testing cadctap
     cd ./cadcdata
     pytest cadctap
 
-Testing cadccutout
-~~~~~~~~~~~~~~~~
-
-::
-
-    cd ./cadccutout
-    pytest cadccutout
 
 
 Checkstyle
@@ -77,8 +70,7 @@ not report errors
 
 ::
 
-     flake8 cadcutils/cadcutils cadcdata/cadcdata cadcetrans/cadcetrans
-     cadccutout/cadccutout
+     flake8 cadcutils/cadcutils cadcdata/cadcdata
 
 
 Testing with tox
