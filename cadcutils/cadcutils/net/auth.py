@@ -4,7 +4,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2016.                            (c) 2016.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -84,7 +84,7 @@ import sys
 import html2text
 
 from cadcutils.net import ws
-from cadcutils import util
+from cadcutils import util, exceptions
 
 CRED_RESOURCE_ID = 'ivo://cadc.nrc.ca/cred'
 CRED_PROXY_FEATURE_ID = 'ivo://ivoa.net/std/CDP#proxy-1.0'
@@ -149,8 +149,8 @@ class Subject(object):
     @certificate.setter
     def certificate(self, value):
         if value is not None:
-            assert value != '' and os.path.isfile(value),\
-                'Certificate file {} not found'.format(value)
+            if not os.path.isfile(value):
+                raise ValueError('Certificate file {} not found'.format(value))
             self._certificate = value
 
     @property
@@ -207,7 +207,7 @@ class Subject(object):
         """
         Returns a user/password touple for the given realm. Note that this
         function prompts for the password on stdout when the username of the
-        subject is known but no correponding password can be found
+        subject is known but no corresponding password can be found
 
         :param realm: realm for the authentication
         :return: (username, password) touple or None if subject is anonymous
@@ -232,8 +232,10 @@ class Subject(object):
                 return self._hosts_auth[realm]
             sys.stdout.write("{}@{}\n".format(self.username, realm))
             sys.stdout.flush()
-            self._hosts_auth[realm] = (self.username,
-                                       getpass.getpass().strip('\n'))
+            pswd = getpass.getpass().strip().strip('\n')
+            if not pswd:
+                raise ValueError('Password cannot be empty')
+            self._hosts_auth[realm] = (self.username, pswd)
             sys.stdout.write("\n")
             sys.stdout.flush()
             return self._hosts_auth[realm]
@@ -312,35 +314,32 @@ def get_cert_main():
     args = parser.parse_args()
 
     dirname = os.path.dirname(args.cert_filename)
-    try:
-        os.makedirs(dirname)
-    except OSError as oex:
-        if os.path.isdir(dirname):
-            pass
-        elif oex.errno == 20 or oex.errno == 17:
-            sys.stderr.write("%s : %s\n" % (str(oex), dirname))
-            sys.stderr.write("Expected %s to be a directory.\n" % dirname)
-            sys.exit(oex.errno)
-        else:
-            raise oex
+    if dirname:
+        try:
+            os.makedirs(dirname)
+        except OSError as oex:
+            if os.path.isdir(dirname):
+                pass
+            elif oex.errno == 20 or oex.errno == 17:
+                sys.stderr.write("%s : %s\n" % (str(oex), dirname))
+                sys.stderr.write("Expected %s to be a directory.\n" % dirname)
+                sys.exit(oex.errno)
+            else:
+                raise oex
 
     try:
         subject = Subject.from_cmd_line_args(args)
         cert = get_cert(subject, days_valid=args.days_valid, host=args.host)
         with open(args.cert_filename, 'w') as w:
             w.write(cert)
-        print('DONE. {} day certificate saved in {}'.format(
-            args.days_valid, args.cert_filename))
-    except OSError as ose:
-        sys.stderr.write("FAILED to retrieved {} day certificate\n".format(
-            args.days_valid))
-        if ose.errno != 401:
-            sys.stderr.write(html2text.html2text(str(ose)))
-            return getattr(ose, 'errno', 1)
-        else:
-            sys.stderr.write("Access denied\n")
+        if not args.quiet:
+            print('DONE. {} day certificate saved in {}'.format(
+                args.days_valid, args.cert_filename))
+    except exceptions.UnauthorizedException:
+        # unauthorized
+        sys.stderr.write('FAILED: invalid username/password combination')
     except Exception as ex:
-        sys.stderr.write("FAILED to retrieved {} day certificate\n".format(
+        sys.stderr.write("FAILED to retrieve {} day certificate\n".format(
             args.days_valid))
         sys.stderr.write('{}'.format(html2text.html2text(str(ex))))
         return getattr(ex, 'errno', 1)

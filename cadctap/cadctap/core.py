@@ -167,7 +167,7 @@ class CadcTapClient(object):
     """
 
     def __init__(self, subject, resource_id=DEFAULT_SERVICE_ID,
-                 host=None, agent=None):
+                 host=None, agent=None, insecure=False):
         """
         Instance of a CadcTapClient
         :param subject: the subject performing the action
@@ -175,6 +175,7 @@ class CadcTapClient(object):
         :param resource_id: the resource ID of the service
         :param host: Host for the caom2repo service
         :param agent: The name of the agent (to be used in server logging)
+        :param insecure Allow insecure server connections over SSL
         """
         self.resource_id = resource_id
         self.host = host
@@ -194,7 +195,7 @@ class CadcTapClient(object):
            net.auth.SECURITY_METHODS_IDS['basic'] in \
            subject.get_security_methods():
             login = net.BaseWsClient(CADC_AC_SERVICE, net.Subject(),
-                                     self.agent,
+                                     self.agent, insecure=insecure,
                                      retry=True, host=self.host)
             login_url = login._get_url((CADC_LOGIN_CAPABILITY, None))
             realm = urlparse(login_url).hostname
@@ -217,7 +218,8 @@ class CadcTapClient(object):
                                         '"{}"'.format(cookie_response.text)))
 
         self._tap_client = net.BaseWsClient(resource_id, subject, self.agent,
-                                            retry=True, host=self.host)
+                                            retry=True, host=self.host,
+                                            insecure=insecure)
         # check for the presence of optional TAP features
         self.permissions_support = True
         try:
@@ -357,7 +359,8 @@ class CadcTapClient(object):
                 logger.info('Done uploading file {}'.format(fh.name))
 
     def query(self, query, output_file=None, response_format='VOTable',
-              tmptable=None, lang='ADQL', timeout=2, data_only=False):
+              tmptable=None, lang='ADQL', timeout=2, data_only=False,
+              no_column_names=False):
         """
         Send query to database and output or save results
         :param query: the query to send to the database
@@ -368,7 +371,8 @@ class CadcTapClient(object):
         :param lang: the language to use for the query (should be ADQL)
         :param timeout: time in minutes before the query should timeout when no
         response receive from server.
-        :param data_only: print only data - no headers or footers
+        :param data_only: print only data with name of columns
+        :param no_column_name: print just data with no column names
         """
         pass
         if not query:
@@ -402,11 +406,17 @@ class CadcTapClient(object):
                                        'Content-Type': m.content_type},
                                    stream=True, timeout=timeout*60) as result:
             with smart_open(output_file, response_format) as f:
-                if data_only or response_format == 'VOTable':
+                header = True
+                if data_only or no_column_names or \
+                        response_format == 'VOTable':
                     for chunk in result.iter_content(chunk_size=8192):
                         if chunk:  # filter out keep-alive new chunks
                             if response_format != 'VOTable':
                                 chunk = chunk.decode('utf-8')
+                                if header and no_column_names and \
+                                        '\n' in chunk:
+                                    chunk = chunk[chunk.index('\n')+1:]
+                                    header = False
                             f.write(chunk)
                     return
                 header = True
@@ -790,33 +800,6 @@ def _add_anon_option(parser):
     raise RuntimeError("Missing authentication option")
 
 
-def _customize_parser(parser):
-    # cadc-tap customizes some of the options inherited from the CADC parser
-    # TODO make it work or process list of subparsers
-    found = False
-    for i, op in enumerate(parser._actions):
-        if op.dest == 'resource_id':
-            # Remove --resource-id option for now
-            parser._remove_action(parser._actions[i])
-            for action in parser._action_groups:
-                vars_action = vars(action)
-                var_group_actions = vars_action['_group_actions']
-                for x in var_group_actions:
-                    if x.dest == 'resource_id':
-                        var_group_actions.remove(x)
-                        found = True
-    if not found:
-        return
-    parser.add_argument(
-        '-s', '--service',
-        default=DEFAULT_SERVICE_ID,
-        help='set the TAP service. For the CADC TAP services both the ivo '
-             'and the short formats (ivo://cadc.nrc.ca/youcat or youcat) are '
-             'accepted. External TAP services can be referred to by their URL '
-             '(https://almascience.nrao.edu/tap). Default is {}'.
-             format(DEFAULT_SERVICE_ID))
-
-
 def _get_subject_from_netrc(args):
     # Checks to see if user has the required user/passwd in the .netrc file
     # for the service host in order to use it.
@@ -973,10 +956,9 @@ def _get_permission_modes(opt):
 
 def main_app(command='cadc-tap query'):
     parser = util.get_base_parser(version=version.version,
-                                  default_resource_id=DEFAULT_SERVICE_ID)
+                                  service=DEFAULT_SERVICE_ID)
 
     _add_anon_option(parser)
-    _customize_parser(parser)
     parser.description = (
         'Client for accessing databases using TAP protocol at the Canadian '
         'Astronomy Data Centre (www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)')
@@ -1140,48 +1122,7 @@ def main_app(command='cadc-tap query'):
         'GROUPS', nargs='*',
         help="name(s) of group(s) to assign read/write permission to. "
              "One group per r or w permission.")
-    # options_parser = permission_parser.add_mutually_exclusive_group(
-    #     required=False)
-    # options_parser.add_argument(
-    #     '-o-r', action='store_true',
-    #     help='remove anonymous read access')
-    # options_parser.add_argument(
-    #     '-o+r', action='store_true',
-    #     help='add anonymous read access')
-    # options_parser.add_argument(
-    #     '-g+r', metavar='<group name>',
-    #     help='grant group read permission')
-    # options_parser.add_argument(
-    #     '-g-r', action='store_true',
-    #     help='revoke group read permission')
-    # options_parser.add_argument(
-    #     '-g+w', metavar = '<group name>',
-    #     help='grant group write (and implicitly read) permission')
-    # options_parser.add_argument(
-    #     '-g-w', action='store_true',
-    #     help='revoke group write permission')
 
-#    def handle_error(msg, exit_after=True):
-#        """
-#        Prints error message and exit (by default)
-#        :param msg: error message to print
-#        :param exit_after: True if log error message and exit,
-#        False if log error message and return
-#        :return:
-#        """
-#
-#        errors[0] += 1
-#        logger.error(msg)
-#        if exit_after:
-#            sys.exit(-1)  # TODO use different error codes?
-
-    _customize_parser(schema_parser)
-    _customize_parser(query_parser)
-    _customize_parser(create_parser)
-    _customize_parser(delete_parser)
-    _customize_parser(index_parser)
-    _customize_parser(load_parser)
-    _customize_parser(permission_parser)
     args = parser.parse_args()
     if len(sys.argv) < 2:
         parser.print_usage(file=sys.stderr)
@@ -1202,7 +1143,7 @@ def main_app(command='cadc-tap query'):
         subject = _get_subject(args)
 
         client = CadcTapClient(subject, resource_id=args.service,
-                               host=args.host)
+                               host=args.host, insecure=args.insecure)
 
         if args.cmd == 'create':
             client.create_table(args.TABLENAME, args.TABLEDEFINITION,
@@ -1233,7 +1174,7 @@ def main_app(command='cadc-tap query'):
             else:
                 query = args.QUERY
             client.query(query, args.output_file, args.format, args.tmptable,
-                         timeout=args.timeout, data_only=args.quiet)
+                         timeout=args.timeout, no_column_names=args.quiet)
         elif args.cmd == 'schema':
             client.schema(args.tablename)
         elif args.cmd == 'permission':

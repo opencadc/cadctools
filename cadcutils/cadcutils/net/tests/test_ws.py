@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2016.                            (c) 2016.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -73,9 +73,13 @@ import time
 import unittest
 
 import requests
-from mock import Mock, patch, call, mock_open
+from mock import Mock, patch, call, mock_open, ANY
 from six import StringIO
 from six.moves.urllib.parse import urlparse
+import tempfile
+import pytest
+import hashlib
+from tempfile import NamedTemporaryFile, TemporaryDirectory
 
 from cadcutils import exceptions
 from cadcutils import net
@@ -170,7 +174,7 @@ class TestWs(unittest.TestCase):
             ws.BaseWsClient(None, anon_subject, "TestApp")
         resource = 'aresource'
         service = 'myservice'
-        resource_id = 'ivo://www.canfar.phys.uvic.ca/{}'.format(service)
+        resource_id = 'ivo://www.canfar.net/{}'.format(service)
         # test anonymous access
         cm = Mock()
         cm.get_access_url.return_value = "http://host/availability"
@@ -187,16 +191,16 @@ class TestWs(unittest.TestCase):
         self.assertTrue(client.retry)
         self.assertEqual(None, client._session)  # lazy initialization
         client.get(resource_url)
-        get_mock.assert_called_with(resource_url, params=None)
+        get_mock.assert_called_with(resource_url, params=None, verify=True)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
         client.post(resource_url, **params)
-        post_mock.assert_called_with(resource_url, **params)
+        post_mock.assert_called_with(resource_url, verify=True, **params)
         client.delete(resource_url)
-        delete_mock.assert_called_with(resource_url)
+        delete_mock.assert_called_with(resource_url, verify=True)
         client.head(resource_url)
-        head_mock.assert_called_with(resource_url)
+        head_mock.assert_called_with(resource_url, verify=True)
         client.put(resource_url, **params)
-        put_mock.assert_called_with(resource_url, **params)
+        put_mock.assert_called_with(resource_url, verify=True, **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
 
         # test basic authentication access
@@ -214,16 +218,16 @@ class TestWs(unittest.TestCase):
         self.assertEqual('TestApp', client.agent)
         self.assertFalse(client.retry)
         client.get(resource_url)
-        get_mock.assert_called_with(resource_url, params=None)
+        get_mock.assert_called_with(resource_url, params=None, verify=True)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
         client.post(resource_url, **params)
-        post_mock.assert_called_with(resource_url, **params)
+        post_mock.assert_called_with(resource_url, verify=True, **params)
         client.delete(resource_url)
-        delete_mock.assert_called_with(resource_url)
+        delete_mock.assert_called_with(resource_url, verify=True)
         client.head(resource_url)
-        head_mock.assert_called_with(resource_url)
+        head_mock.assert_called_with(resource_url, verify=True)
         client.put(resource_url, **params)
-        put_mock.assert_called_with(resource_url, **params)
+        put_mock.assert_called_with(resource_url, verify=True, **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
 
         # test cert authentication
@@ -241,16 +245,16 @@ class TestWs(unittest.TestCase):
         self.assertEqual('TestApp', client.agent)
         self.assertTrue(client.retry)
         client.get(resource_url)
-        get_mock.assert_called_with(resource_url, params=None)
+        get_mock.assert_called_with(resource_url, params=None, verify=True)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
         client.post(resource_url, **params)
-        post_mock.assert_called_with(resource_url, **params)
+        post_mock.assert_called_with(resource_url, verify=True, **params)
         client.delete(resource_url)
-        delete_mock.assert_called_with(resource_url)
+        delete_mock.assert_called_with(resource_url, verify=True)
         client.head(resource_url)
-        head_mock.assert_called_with(resource_url)
+        head_mock.assert_called_with(resource_url, verify=True)
         client.put(resource_url, **params)
-        put_mock.assert_called_with(resource_url, **params)
+        put_mock.assert_called_with(resource_url, verify=True, **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
         self.assertEqual((certfile, certfile), client._session.cert)
 
@@ -269,16 +273,16 @@ class TestWs(unittest.TestCase):
         self.assertTrue(client.retry)
         self.assertEqual(None, client._session)  # lazy initialization
         client.get(resource_url)
-        get_mock.assert_called_with(resource_url, params=None)
+        get_mock.assert_called_with(resource_url, params=None, verify=True)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
         client.post(resource_url, **params)
-        post_mock.assert_called_with(resource_url, **params)
+        post_mock.assert_called_with(resource_url, verify=True, **params)
         client.delete(resource_url)
-        delete_mock.assert_called_with(resource_url)
+        delete_mock.assert_called_with(resource_url, verify=True)
         client.head(resource_url)
-        head_mock.assert_called_with(resource_url)
+        head_mock.assert_called_with(resource_url, verify=True)
         client.put(resource_url, **params)
-        put_mock.assert_called_with(resource_url, **params)
+        put_mock.assert_called_with(resource_url, verify=True, **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
 
         # test basic authentication access
@@ -298,16 +302,16 @@ class TestWs(unittest.TestCase):
         self.assertEqual('TestApp', client.agent)
         self.assertFalse(client.retry)
         client.get(resource_url)
-        get_mock.assert_called_with(resource_url, params=None)
+        get_mock.assert_called_with(resource_url, params=None, verify=True)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
         client.post(resource_url, **params)
-        post_mock.assert_called_with(resource_url, **params)
+        post_mock.assert_called_with(resource_url, verify=True, **params)
         client.delete(resource_url)
-        delete_mock.assert_called_with(resource_url)
+        delete_mock.assert_called_with(resource_url, verify=True)
         client.head(resource_url)
-        head_mock.assert_called_with(resource_url)
+        head_mock.assert_called_with(resource_url, verify=True)
         client.put(resource_url, **params)
-        put_mock.assert_called_with(resource_url, **params)
+        put_mock.assert_called_with(resource_url, verify=True, **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
 
         # test cert authentication
@@ -325,16 +329,16 @@ class TestWs(unittest.TestCase):
         self.assertEqual('TestApp', client.agent)
         self.assertTrue(client.retry)
         client.get(resource_url)
-        get_mock.assert_called_with(resource_url, params=None)
+        get_mock.assert_called_with(resource_url, params=None, verify=True)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
         client.post(resource_url, **params)
-        post_mock.assert_called_with(resource_url, **params)
+        post_mock.assert_called_with(resource_url, verify=True, **params)
         client.delete(resource_url)
-        delete_mock.assert_called_with(resource_url)
+        delete_mock.assert_called_with(resource_url, verify=True)
         client.head(resource_url)
-        head_mock.assert_called_with(resource_url)
+        head_mock.assert_called_with(resource_url, verify=True)
         client.put(resource_url, **params)
-        put_mock.assert_called_with(resource_url, **params)
+        put_mock.assert_called_with(resource_url, verify=True, **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
         self.assertEqual((certfile, certfile), client._session.cert)
 
@@ -347,27 +351,364 @@ class TestWs(unittest.TestCase):
         subject = auth.Subject()
         subject.cookies.append(auth.CookieInfo(resource_uri.netloc,
                                                'MyTestCookie', 'cookievalue'))
-        client = ws.BaseWsClient(resource_id, subject, 'TestApp')
+        client = ws.BaseWsClient(resource_id, subject, 'TestApp',
+                                 insecure=True)
         base_url = 'https://{}{}/observations'.format(resource_uri.netloc,
                                                       resource_uri.path)
         resource_url = '{}/{}'.format(base_url, resource)
         self.assertEqual('TestApp', client.agent)
         self.assertTrue(client.retry)
         client.get(resource_url)
-        get_mock.assert_called_with(resource_url, params=None)
+        get_mock.assert_called_with(resource_url, params=None, verify=False)
         params = {'arg1': 'abc', 'arg2': 123, 'arg3': True}
         client.post(resource_url, **params)
-        post_mock.assert_called_with(resource_url, **params)
+        post_mock.assert_called_with(resource_url, verify=False, **params)
         client.delete(resource_url)
-        delete_mock.assert_called_with(resource_url)
+        delete_mock.assert_called_with(resource_url, verify=False)
         client.head(resource_url)
-        head_mock.assert_called_with(resource_url)
+        head_mock.assert_called_with(resource_url, verify=False)
         client.put(resource_url, **params)
-        put_mock.assert_called_with(resource_url, **params)
+        put_mock.assert_called_with(resource_url, verify=False, **params)
         self.assertTrue(isinstance(client._session, ws.RetrySession))
         self.assertEqual(1, len(client._session.cookies))
         self.assertEqual('cookievalue',
                          client._session.cookies['MyTestCookie'])
+
+    @patch('cadcutils.net.ws.util.Md5File')
+    @patch('cadcutils.net.ws.WsCapabilities')
+    def test_upload_file_no_put_txn(self, caps_mock, md5_file_mock):
+        anon_subject = auth.Subject()
+        target_url = 'https://someurl'
+        cm = Mock()
+        cm.get_access_url.return_value = "http://host/availability"
+        caps_mock.return_value = cm
+        response = Mock()
+        response.status_code = requests.codes.ok
+        response.headers = {}
+        session = Mock()
+        session.put.return_value = response
+        md5_file_mock_obj = Mock()
+        md5_file_mock.return_value.__enter__.return_value = md5_file_mock_obj
+        client = ws.BaseDataClient(resource_id='ivo://cadc.nrc.ca/resourceid',
+                                   subject=anon_subject, agent='TestApp')
+        # upload small file (md5 checksum is pre-computed)
+        client._get_session = Mock(return_value=session)
+        content = 'this is some content for the test'
+        md5 = hashlib.md5()
+        md5.update(str.encode(content))
+        content_md5 = md5.hexdigest()
+        src = tempfile.NamedTemporaryFile()
+        with open(src.name, 'w') as f:
+            f.write(content)
+        md5_file_mock_obj.md5_checksum = content_md5
+        net.add_md5_header(headers=response.headers, md5_checksum=content_md5)
+        md5_file_mock_obj.md5_checksum = content_md5
+        client.upload_file(url=target_url, src=src.name)
+        session.put.assert_called_once()
+        put_headers = {}
+        net.add_md5_header(headers=put_headers, md5_checksum=content_md5)
+        put_headers[ws.HTTP_LENGTH] = str(len(content))
+        net.add_md5_header(headers=put_headers, md5_checksum=content_md5)
+        session.put.assert_called_with(target_url, headers=put_headers,
+                                       data=ANY, verify=True)
+
+        # pass the md5 in update small file
+        session.put.reset_mock()
+        client.upload_file(url=target_url, src=src.name,
+                           md5_checksum=content_md5)
+        session.put.assert_called_once()
+        session.put.assert_called_with(target_url, headers=put_headers,
+                                       data=ANY, verify=True)
+
+        # make it fail the first attempt but succeed on the next
+        session.put.reset_mock()
+        session.put.side_effect = [exceptions.PreconditionFailedException,
+                                   Mock()]
+        client.upload_file(url=target_url, src=src.name,
+                           md5_checksum=content_md5)
+        assert session.put.mock_calls == [
+            call(target_url, headers=put_headers, data=ANY, verify=True),
+            call(target_url, headers=put_headers, data=ANY, verify=True)]
+
+        # fail on repeated BadRequests
+        session.put.reset_mock()
+        session.put.side_effect = [exceptions.PreconditionFailedException] * 4
+        with pytest.raises(exceptions.PreconditionFailedException):
+            client.upload_file(url=target_url, src=src.name,
+                               md5_checksum=content_md5)
+
+        # fail on other errors
+        session.put.reset_mock()
+        session.put.side_effect = [exceptions.UnexpectedException]
+        with pytest.raises(exceptions.UnexpectedException):
+            client.upload_file(url=target_url, src=src.name,
+                               md5_checksum=content_md5)
+
+    @patch('cadcutils.net.ws.util.Md5File')
+    @patch('cadcutils.net.ws.WsCapabilities')
+    def test_upload_file_put_txn(self, caps_mock, md5_file_mock):
+        anon_subject = auth.Subject()
+        target_url = 'https://someurl'
+        cm = Mock()
+        cm.get_access_url.return_value = "http://host/availability"
+        caps_mock.return_value = cm
+        response = Mock()
+        response.status_code = requests.codes.ok
+        response.headers = {}
+        session = Mock()
+        session.put.return_value = response
+        md5_file_mock_obj = Mock()
+        md5_file_mock.return_value.__enter__.return_value = md5_file_mock_obj
+        client = ws.BaseDataClient(resource_id='ivo://cadc.nrc.ca/resourceid',
+                                   subject=anon_subject, agent='TestApp')
+        client._get_session = Mock(return_value=session)
+        content = 'this is some content for the test'
+        md5 = hashlib.md5()
+        md5.update(str.encode(content))
+        content_md5 = md5.hexdigest()
+        src = tempfile.NamedTemporaryFile()
+        with open(src.name, 'w') as f:
+            f.write(content)
+        md5_file_mock_obj.md5_checksum = content_md5
+        net.add_md5_header(headers=response.headers, md5_checksum=content_md5)
+        md5_file_mock_obj.md5_checksum = content_md5
+        orig_max_md5_compute_size = ws.MAX_MD5_COMPUTE_SIZE
+        try:
+            # put larger one segment files
+            session.put.reset_mock()
+            response_headers = {ws.PUT_TXN_ID: '123',
+                                ws.HTTP_LENGTH: str(len(content))}
+            net.add_md5_header(response_headers, content_md5)
+            session.put.return_value = Mock(headers=response_headers)
+            # lower the threshold for "large" files so that the current test
+            # files becomes large
+            ws.MAX_MD5_COMPUTE_SIZE = 10
+            # PUT headers do not contain the md5 anymore
+            client.upload_file(url=target_url, src=src.name)
+            put_headers = {ws.HTTP_LENGTH: str(len(content)),
+                           ws.PUT_TXN_OP: ws.PUT_TXN_START}
+            commit_headers = {ws.PUT_TXN_ID: '123',
+                              ws.PUT_TXN_OP: ws.PUT_TXN_COMMIT,
+                              ws.HTTP_LENGTH: '0'}
+            assert session.put.mock_calls == \
+                [call(target_url, data=ANY, verify=True, headers=put_headers),
+                 call(target_url, headers=commit_headers, verify=True)]
+
+            # repeat but provide the checksum as argument to upload_file so
+            # no transaction is required
+            del put_headers[ws.PUT_TXN_OP]
+            session.put.reset_mock()
+            client.upload_file(url=target_url, src=src.name,
+                               md5_checksum=content_md5)
+            net.add_md5_header(headers=put_headers, md5_checksum=content_md5)
+            session.put.assert_called_with(target_url, headers=put_headers,
+                                           data=ANY, verify=True)
+
+            # mimic md5 mismatch
+            session.put.reset_mock()
+            response_headers = {ws.PUT_TXN_ID: '123',
+                                ws.HTTP_LENGTH: str(len(content))}
+            net.add_md5_header(response_headers, 'beef')
+            session.put.return_value = Mock(headers=response_headers)
+
+            with pytest.raises(exceptions.TransferException):
+                client.upload_file(url=target_url, src=src.name)
+
+        finally:
+            ws.MAX_MD5_COMPUTE_SIZE = orig_max_md5_compute_size
+
+        # empty file
+        empty_file = tempfile.NamedTemporaryFile()
+        with open(empty_file.name, 'w') as f:
+            f.write('')
+        with pytest.raises(ValueError):
+            client.upload_file(url=target_url,
+                               src=empty_file.name)
+
+    @patch('cadcutils.net.ws.WsCapabilities')
+    def test_upload_file_put_txn_append(self, caps_mock):
+        anon_subject = auth.Subject()
+        target_url = 'https://someurl'
+        cm = Mock()
+        cm.get_access_url.return_value = "http://host/availability"
+        caps_mock.return_value = cm
+        response = Mock()
+        response.status_code = requests.codes.ok
+        response.headers = {}
+        session = Mock()
+        session.put.return_value = response
+        client = ws.BaseDataClient(resource_id='ivo://cadc.nrc.ca/resourceid',
+                                   subject=anon_subject, agent='TestApp')
+        client._get_session = Mock(return_value=session)
+
+        orig_max_md5_compute_size = ws.MAX_MD5_COMPUTE_SIZE
+        orig_max_file_segment_size = ws.FILE_SEGMENT_THRESHOLD
+        try:
+            ws.MAX_MD5_COMPUTE_SIZE = 5  # force transaction
+            ws.FILE_SEGMENT_THRESHOLD = 10  # force segments
+            segments = [b'segment1', b'segment2', b'end3']
+            src = tempfile.NamedTemporaryFile()
+            start_txn_headers = {ws.PUT_TXN_ID: '123',
+                                 ws.PUT_TXN_MIN_SEGMENT: '1',
+                                 ws.PUT_TXN_MAX_SEGMENT: len(segments[0])}
+
+            def _create_put_responses():
+                # this function creates the content of the file according
+                # to the segments and also generates the responses to
+                # PUT commands with corresponding headers
+                md5 = hashlib.md5()
+                seg_md5s = []
+                with open(src.name, 'wb') as f:
+                    for seg in segments:
+                        f.write(seg)
+                        md5.update(seg)
+                        seg_md5s.append(md5.hexdigest())
+                commit_txn_headers = {ws.HTTP_LENGTH: '0'}
+                net.add_md5_header(commit_txn_headers, seg_md5s[-1])
+                responses = [Mock(headers=start_txn_headers)]
+                for seg_md5 in seg_md5s:
+                    segment_txn_headers = {ws.PUT_TXN_ID: '123',
+                                           ws.HTTP_LENGTH: '0'}
+                    net.add_md5_header(segment_txn_headers, seg_md5)
+                    responses.append(
+                        Mock(headers=segment_txn_headers))
+
+                responses.append(Mock(headers=commit_txn_headers))
+                return responses
+
+            put_responses = _create_put_responses()
+            file_size = os.stat(src.name).st_size
+
+            def put_mock(url, data=None, **kwargs):
+                # this is a "semi" mock of the PUT function. The PUT request
+                # is mocked but this function consumes from the file (data)
+                # when available
+                headers = kwargs['headers']
+                assert url == target_url
+                if put_mock.put_num:
+                    # except the first PUT that starts transaction,
+                    # all the other ones need to include the trans id
+                    assert headers[ws.PUT_TXN_ID] == '123'
+                    if put_mock.put_num in [1, 2, 3]:
+                        if put_mock.exception is not None and \
+                                put_mock.exception == put_mock.put_num:
+                            # raise a Transfer exception for the segment
+                            session.head.return_value = put_responses[
+                                put_mock.exception]
+                            session.post.return_value = \
+                                put_responses[put_mock.exception - 1]
+                            put_mock.exception = None
+                            raise exceptions.TransferException('Test')
+                        if put_mock.wrong_md5 is not None and \
+                                (put_mock.put_num == put_mock.wrong_md5):
+                            # return the wrong md5 for the segment
+                            # set the response for the revert POST to be
+                            # similar to the previous (successful) PUT
+                            session.post.return_value = \
+                                put_responses[put_mock.wrong_md5 - 1]
+                            if put_mock.wrong_md5 == 1:
+                                # first segment - return start txn response
+                                rsp = put_responses[0]
+                            else:
+                                # return a mismatch md5 response
+                                tmp_hd = {ws.PUT_TXN_ID: '123',
+                                          ws.HTTP_LENGTH: '0'}
+                                net.add_md5_header(tmp_hd, 'beef')
+                                rsp = Mock(headers=tmp_hd)
+                            put_mock.wrong_md5 = None
+                            return rsp
+
+                        # check length of segments
+                        assert headers[ws.HTTP_LENGTH] == \
+                            str(len(segments[put_mock.put_num-1]))
+                    else:
+                        assert headers[ws.PUT_TXN_OP] == ws.PUT_TXN_COMMIT
+                        assert headers[ws.HTTP_LENGTH] == '0'
+                else:
+                    assert headers[ws.PUT_TXN_OP] == ws.PUT_TXN_START
+                    assert headers[ws.HTTP_LENGTH] == '0'
+                    assert headers[ws.PUT_TXN_TOTAL_LENGTH] == str(file_size)
+                if data:
+                    data.read(100)
+                rsp = put_responses[put_mock.put_num]
+                put_mock.put_num += 1
+                return rsp
+            put_mock.exception = None
+            put_mock.put_num = 0
+            put_mock.wrong_md5 = None
+            session.put = put_mock
+            client.upload_file(url=target_url, src=src.name)
+            # check all puts were called
+            assert len(put_responses) == put_mock.put_num
+
+            # redo the tests but have the file size multiple of its segments
+            # reset the put_mock "mock" function first
+
+            put_mock.exception = None
+            put_mock.put_num = 0
+            put_mock.wrong_md5 = None
+            segments = [b'segment1', b'segment2', b'endsize3']
+            put_responses = _create_put_responses()
+            file_size = os.stat(src.name).st_size
+
+            client.upload_file(url=target_url, src=src.name)
+            # check all puts were called
+            assert len(put_responses) == put_mock.put_num
+
+            # redo the test but have an exception thrown in PUT for segment 2
+            put_mock.exception = 2
+            put_mock.put_num = 0
+            client.upload_file(url=target_url, src=src.name)
+            # check all puts were called
+            assert len(put_responses) == put_mock.put_num
+
+            # redo the test but have a md5 mismatch for segment 1
+            put_mock.wrong_md5 = 1
+            put_mock.put_num = 0
+            client.upload_file(url=target_url, src=src.name)
+            # check all puts were called
+            assert len(put_responses) == put_mock.put_num
+
+            # repeat the test but have a md5 mismatch for segment 2
+            put_mock.wrong_md5 = 2
+            put_mock.put_num = 0
+            client.upload_file(url=target_url, src=src.name)
+            # check all puts were called
+            assert len(put_responses) == put_mock.put_num
+
+            # permanent Transfer error
+            session.put = Mock(Mock(headers=start_txn_headers),
+                               side_effect=[exceptions.TransferException] * 3)
+            with pytest.raises(exceptions.TransferException):
+                client.upload_file(url=target_url, src=src.name)
+
+            # permanent Transfer error including in HEAD
+            session.put = Mock(side_effect=[Mock(headers=start_txn_headers),
+                                            exceptions.TransferException])
+            head_exception = exceptions.UnexpectedException
+            session.head = Mock(side_effect=head_exception)
+            with pytest.raises(head_exception):
+                client.upload_file(url=target_url, src=src.name)
+        finally:
+            ws.MAX_MD5_COMPUTE_SIZE = orig_max_md5_compute_size
+            ws.PUT_TXN_MAX_SEGMENT = orig_max_file_segment_size
+
+    def test_get_segment_size(self):
+        get_segment = ws.BaseDataClient._get_segment_size  # shortcut
+        # file size > preferred segment size
+        assert ws.PREFERRED_SEGMENT_SIZE == \
+            get_segment(ws.PREFERRED_SEGMENT_SIZE+1, None, None)
+        # file size < preferred segment size
+        assert ws.PREFERRED_SEGMENT_SIZE - 1 == \
+            get_segment(ws.PREFERRED_SEGMENT_SIZE-1, None, None)
+        # minimum size > file_size and preferred size
+        assert ws.PREFERRED_SEGMENT_SIZE + 2 == \
+            get_segment(ws.PREFERRED_SEGMENT_SIZE,
+                        ws.PREFERRED_SEGMENT_SIZE+2, None)
+        # max size < file_size and preferred size
+        assert ws.PREFERRED_SEGMENT_SIZE - 1 == \
+            get_segment(ws.PREFERRED_SEGMENT_SIZE,
+                        None, ws.PREFERRED_SEGMENT_SIZE-1)
 
 
 class TestRetrySession(unittest.TestCase):
@@ -390,26 +731,51 @@ class TestRetrySession(unittest.TestCase):
         rs.send(request, timeout=77)
         send_mock.assert_called_with(request, timeout=77)
 
-        # mock delays for the 'Connection reset by peer error'
-        # one connection error delay = DEFAULT_RETRY_DELAY
+        # mock delays for connect timeout
         send_mock.reset_mock()
         rs = ws.RetrySession()
         # connection error that triggers retries
-        ce = requests.exceptions.ConnectionError()
-        ce.errno = 104
+        cte = requests.exceptions.ConnectTimeout()
         response = requests.Response()
         response.status_code = requests.codes.ok
-        send_mock.side_effect = [ce, response]
+        send_mock.side_effect = [cte, response]
         rs.send(request)
         time_mock.assert_called_with(DEFAULT_RETRY_DELAY)
+
+        # mock delays for read timeout
+        send_mock.reset_mock()
+        rs = ws.RetrySession()
+        # connection error that triggers retries
+        rte = requests.exceptions.ReadTimeout()
+        send_mock.side_effect = [rte]
+        with self.assertRaises(exceptions.TransferException):
+            rs.send(request)
+
+        # mock Connection errors
+        send_mock.reset_mock()
+        rs = ws.RetrySession()
+        # connection error that triggers retries
+        ce = requests.exceptions.ConnectionError('Some error')
+        send_mock.side_effect = [ce]
+        with self.assertRaises(exceptions.HttpException):
+            rs.send(request)
+
+        # mock reset by peer error
+        # mock Connection errors
+        send_mock.reset_mock()
+        rs = ws.RetrySession()
+        # connection error that triggers retries
+        ce = requests.exceptions.ConnectionError('Connection reset by peer')
+        send_mock.side_effect = [ce]
+        with self.assertRaises(exceptions.TransferException):
+            rs.send(request)
 
         # two connection error delay = DEFAULT_RETRY_DELAY
         send_mock.reset_mock()
         time_mock.reset_mock()
         rs = ws.RetrySession()
         # connection error that triggers retries
-        ce = requests.exceptions.ConnectionError()
-        ce.errno = 104
+        ce = requests.exceptions.ConnectTimeout()
         response = requests.Response()
         response.status_code = requests.codes.ok
         send_mock.side_effect = [ce, ce, response]  # two connection errors
@@ -423,8 +789,7 @@ class TestRetrySession(unittest.TestCase):
         time_mock.reset_mock()
         rs = ws.RetrySession(start_delay=MAX_RETRY_DELAY / 2 + 1)
         # connection error that triggers retries
-        ce = requests.exceptions.ConnectionError()
-        ce.errno = 104
+        ce = requests.exceptions.ConnectTimeout()
         response = requests.Response()
         response.status_code = requests.codes.ok
         send_mock.side_effect = [ce, ce, response]  # two connection errors
@@ -437,8 +802,7 @@ class TestRetrySession(unittest.TestCase):
         time_mock.reset_mock()
         rs = ws.RetrySession(start_delay=MAX_RETRY_DELAY / 2 + 1)
         # connection error that triggers retries
-        ce = requests.exceptions.ConnectionError()
-        ce.errno = 104
+        ce = requests.exceptions.ConnectTimeout()
         # make sure the mock returns more errors than the maximum number
         # of retries allowed
         http_errors = []
@@ -447,17 +811,6 @@ class TestRetrySession(unittest.TestCase):
             http_errors.append(ce)
             i += 1
         send_mock.side_effect = http_errors
-        with self.assertRaises(exceptions.HttpException):
-            rs.send(request)
-
-        # return the connection error other than 104 - connection reset by peer
-        send_mock.reset_mock()
-        time_mock.reset_mock()
-        rs = ws.RetrySession(start_delay=MAX_RETRY_DELAY / 2 + 1)
-        # connection error that triggers retries
-        ce = requests.exceptions.ConnectionError()
-        ce.errno = 105
-        send_mock.side_effect = ce
         with self.assertRaises(exceptions.HttpException):
             rs.send(request)
 
@@ -609,6 +962,63 @@ class TestRetrySession(unittest.TestCase):
             with self.assertRaises(exceptions.UnexpectedException):
                 session.check_status(response)
 
+    @patch('time.sleep')
+    @patch('cadcutils.net.ws.requests.Session.send')
+    def test_idempotent(self, send_mock, time_mock):
+        # mock delays for connect timeout
+        send_mock.reset_mock()
+        rs = ws.RetrySession()
+        # GET, PUT, DELETE, HEAD are idempotent operations so re-tries on
+        # connection timeouts happen automatically
+        cte = requests.exceptions.ConnectTimeout()
+        response = requests.Response()
+        response.status_code = requests.codes.ok
+        # GET
+        send_mock.side_effect = [cte, response]
+        rs.get('https://someurl')
+        time_mock.assert_called_with(DEFAULT_RETRY_DELAY)
+        # PUT
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        send_mock.side_effect = [cte, response]
+        rs.put('https://someurl')
+        time_mock.assert_called_with(DEFAULT_RETRY_DELAY)
+        # DELETE
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        send_mock.side_effect = [cte, response]
+        rs.delete('https://someurl')
+        time_mock.assert_called_with(DEFAULT_RETRY_DELAY)
+        # HEAD
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        send_mock.side_effect = [cte, response]
+        rs.head('https://someurl')
+        time_mock.assert_called_with(DEFAULT_RETRY_DELAY)
+
+        # POST is not idempotent by default so re-try does not happen
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        send_mock.side_effect = [cte, response]
+        with pytest.raises(requests.exceptions.ConnectTimeout):
+            rs.post('https://someurl')
+
+        # POST with service unavailable response. Note the different exception
+        # when exception is generated from response
+        unavailable = requests.Response()
+        unavailable.status_code = requests.codes.unavailable
+        send_mock.side_effect = [unavailable]
+        with pytest.raises(exceptions.UnexpectedException):
+            rs.post('https://someurl')
+
+        # Create session with idempotent POSTs to enable retries
+        send_mock.reset_mock()
+        time_mock.reset_mock()
+        send_mock.side_effect = [cte, response]
+        rs = ws.RetrySession(idempotent_posts=True)
+        rs.post('https://someurl')
+        time_mock.assert_called_with(DEFAULT_RETRY_DELAY)
+
 
 capabilities__content = \
     """
@@ -659,9 +1069,26 @@ capabilities__content = \
 class TestWsCapabilities(unittest.TestCase):
     """Class for testing the webservie client"""
 
+    def test_get_content(self):
+        """
+        Sometimes servers return empty capabilities documents and
+        the client is expected to re-use the cached document
+        :return:
+        """
+        ws_client = Mock(resource_id='SOME_RESOURCE')
+        caps = ws.WsCapabilities(ws_client)
+        now = time.time()
+        resource_file = tempfile.NamedTemporaryFile()
+        open(resource_file.name, 'w').write('OLD CONTENT')
+        with patch('cadcutils.net.ws.requests.Session.get') as mock_get:
+            mock_get.return_value = Mock(text='')
+            assert 'OLD CONTENT' == \
+                   caps._get_content(resource_file.name, 'some/url',
+                                     now-ws.CACHE_REFRESH_INTERVAL-1)
+
     @patch('cadcutils.net.ws.os.path.getmtime')
     @patch('cadcutils.net.ws.open', mock=mock_open())
-    @patch('cadcutils.net.ws.requests.get')
+    @patch('cadcutils.net.ws.requests.Session.get')
     def test_get_reg(self, get_mock, file_mock, file_modtime_mock):
         """
         Tests the registry part of WsCapabilities
@@ -723,10 +1150,11 @@ class TestWsCapabilities(unittest.TestCase):
         get_mock.side_effect = [exceptions.HttpException()]
         client.get.side_effect = [exceptions.HttpException]
         caps = ws.WsCapabilities(client)
-        self.assertEqual(resource_cap_url2, caps._get_capability_url())
+        with patch('os.path.exists', Mock()):
+            self.assertEqual(resource_cap_url2, caps._get_capability_url())
 
     @patch('cadcutils.net.ws.os.path.getmtime')
-    @patch('cadcutils.net.ws.requests.get')
+    @patch('cadcutils.net.ws.requests.Session.get')
     def test_get_caps(self, get_mock, file_modtime_mock):
         """
         Tests the capabilities part of WsCapabilities
@@ -925,3 +1353,157 @@ class TestWsOutsideCalls(unittest.TestCase):
                  call(min(DEFAULT_RETRY_DELAY * 32, MAX_RETRY_DELAY))]
 
         time_mock.assert_has_calls(calls)
+
+
+def test_resolve_name():
+    client = ws.BaseDataClient('https://httpbin.org', net.Subject(), 'FOO')
+    dest = NamedTemporaryFile()
+    dest_dir = os.path.dirname(dest.name)
+    file_name = os.path.basename(dest.name)
+    tmp_file = os.path.join(dest_dir, '{}-beef.part'.format(file_name))
+    # file name provided
+    final_dest, temp_dest = client._resolve_destination_file(
+        dest.name, 'beef', None)
+    assert dest.name == final_dest
+    assert tmp_file == temp_dest
+
+    # directory provided
+    dest_dir = os.path.dirname(dest.name)
+    final_dest, temp_dest = client._resolve_destination_file(
+        dest_dir, 'beef', os.path.basename(dest.name))
+    assert dest.name == final_dest
+    assert tmp_file == temp_dest
+
+    # no md5 - no temporary file/resume
+    final_dest, temp_dest = client._resolve_destination_file(
+        dest_dir, None, os.path.basename(dest.name))
+    assert dest.name == final_dest == temp_dest
+
+    with pytest.raises(ValueError):
+        client._resolve_destination_file(None, 'beef', None)
+
+
+def test_download_file_method():
+    client = ws.BaseDataClient('https://httpbin.org', net.Subject(), 'FOO')
+    # mock the get
+    response = Mock()
+    file_name = 'filename.jpg'
+    md5 = 'ab56b4d92b40713acc5af89985d4b786'
+    response.status_code = requests.codes.ok
+    response.headers = \
+        {'digest': 'md5=YWI1NmI0ZDkyYjQwNzEzYWNjNWFmODk5ODVkNGI3ODY=',
+         'Content-Length': '5',
+         'content-disposition': 'attachment; filename={}'.format(file_name)}
+    response.raw.read.side_effect = [b'abc', b'de']
+    client.get = Mock(return_value=response)
+    temp_dir = TemporaryDirectory()
+    # proxy _save_bytes through a mock to check when it's called
+    client._save_bytes = Mock(side_effect=client._save_bytes)
+    client.download_file('https://dataservice', temp_dir.name)
+    dest, temp_dest = client._resolve_destination_file(
+        temp_dir.name, src_md5=md5, default_file_name=file_name)
+    assert os.path.isfile(dest)
+    assert not os.path.isfile(temp_dest)
+    assert client._save_bytes.called
+    client.get.assert_called_once_with('https://dataservice', stream=True)
+
+    # calling it the second time does not cause another get
+    client.get.reset_mock()
+    client._save_bytes.reset_mock()
+    client.get = Mock(return_value=response)
+    client.download_file('https://dataservice', temp_dir.name)
+    assert not client._save_bytes.called
+    client.get.assert_called_once_with('https://dataservice', stream=True)
+
+    # make temporary file larger (BUG case). Operation should succeed
+    client.get.reset_mock()
+    os.rename(dest, temp_dest)
+    open(temp_dest, 'ab').write(b'ghi')
+    assert 5 < os.stat(temp_dest).st_size
+    response.raw.read.side_effect = [b'abc', b'de']
+    client.download_file('https://dataservice', temp_dir.name)
+    dest, temp_dest = client._resolve_destination_file(
+        temp_dir.name, src_md5=md5, default_file_name=file_name)
+    assert os.path.isfile(dest)
+    assert not os.path.isfile(temp_dest)
+    assert client._save_bytes.called
+    client.get.assert_called_once_with('https://dataservice', stream=True)
+
+    # calling it when incomplete temporary file exits
+    # truncate the last 3 bytes but the service does not support
+    # ranges
+    client.get.reset_mock()
+    os.rename(dest, temp_dest)
+    with open(temp_dest, 'r+') as f:
+        f.seek(0, os.SEEK_END)
+        f.seek(f.tell() - 3, os.SEEK_SET)
+        f.truncate()
+    response.raw.read.side_effect = [b'abc', b'de']
+    client.get = Mock(return_value=response)
+    client.download_file('https://dataservice', temp_dir.name)
+    assert os.path.isfile(dest)
+    assert not os.path.isfile(temp_dest)
+    assert client._save_bytes.called
+    client.get.assert_called_once_with('https://dataservice', stream=True)
+
+    # repeat the test when the service supports ranges
+    client.get.reset_mock()
+    os.rename(dest, temp_dest)
+    with open(temp_dest, 'r+') as f:
+        f.seek(0, os.SEEK_END)
+        f.seek(f.tell() - 3, os.SEEK_SET)
+        f.truncate()
+    response.status_code = requests.codes.partial_content
+    response.headers['Accept-Ranges'] = 'bytes '
+    response.raw.read.side_effect = [b'cde']
+    client.get = Mock(return_value=response)
+    client.download_file('https://dataservice', temp_dir.name)
+    assert os.path.isfile(dest)
+    assert not os.path.isfile(temp_dest)
+    assert client._save_bytes.called
+    assert 2 == client.get.call_count
+    # second get call with Range header expected
+    assert [call('https://dataservice', stream=True),
+            call('https://dataservice', stream=True,
+                 headers={'Range': 'bytes=2-'})] in client.get.mock_calls
+
+
+def test_save_bytes():
+    client = ws.BaseDataClient('https://httpbin.org', net.Subject(), 'FOO')
+    dest = NamedTemporaryFile()
+    outer = {'bytes_count': 0}
+
+    def count_bytes(bytes):
+        outer['bytes_count'] += len(bytes)
+
+    response = Mock()
+    response.raw.read.side_effect = [b'abc', b'de']
+    response.headers = \
+        {'digest': 'md5=YWI1NmI0ZDkyYjQwNzEzYWNjNWFmODk5ODVkNGI3ODY='}
+    client._save_bytes(response=response, src_length=5, dest_file=dest.name,
+                       process_bytes=count_bytes)
+    assert 5 == outer['bytes_count']
+    assert 5 == os.stat(dest.name).st_size
+    assert b'abcde' == open(dest.name, 'rb').read()
+
+    # repeat the test but make szie of source and destination mismatch
+    dest = NamedTemporaryFile()
+    response = Mock()
+    response.raw.read.side_effect = [b'aaa', b'aa']  # different content
+    response.headers = \
+        {'digest': 'md5=YWI1NmI0ZDkyYjQwNzEzYWNjNWFmODk5ODVkNGI3ODY='}
+    with pytest.raises(exceptions.TransferException):
+        client._save_bytes(response=response, src_length=7,
+                           dest_file=dest.name,
+                           process_bytes=count_bytes)
+
+    # repeat the test but make md5s of source and destination mismatch
+    dest = NamedTemporaryFile()
+    response = Mock()
+    response.raw.read.side_effect = [b'aaa', b'aa']  # different content
+    response.headers = \
+        {'digest': 'md5=YWI1NmI0ZDkyYjQwNzEzYWNjNWFmODk5ODVkNGI3ODY='}
+    with pytest.raises(exceptions.TransferException):
+        client._save_bytes(response=response, src_length=5,
+                           dest_file=dest.name,
+                           process_bytes=count_bytes)

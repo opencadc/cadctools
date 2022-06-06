@@ -66,7 +66,7 @@ HOST = '--host ' + TAP_HOST
 def test_astropytable():
     # example of how to integrate with astropy table. Not sure it belongs here
     client = cadctap.CadcTapClient(Subject(),
-                                   resource_id='ivo://cadc.nrc.ca/tap')
+                                   resource_id='ivo://cadc.nrc.ca/argus')
     buffer = BytesIO()
     client.query('select top 1000 * from caom2.Observation', output_file=buffer)
     tb = parse_single_table(buffer).to_table()
@@ -75,7 +75,7 @@ def test_astropytable():
 
 def test_commands(monkeypatch):
     # test cadc TAP service with anonymous access
-    sys.argv = ['cadc-tap', 'query', '-d', '-a', '-s', 'ivo://cadc.nrc.ca/tap', '-f',
+    sys.argv = ['cadc-tap', 'query', '-d', '-a', '-s', 'ivo://cadc.nrc.ca/argus', '-f',
                 'VOTable', 'select observationID FROM caom2.Observation '
                 'where observationID=\'dao_c122_2018_003262\'']
     with patch('sys.stdout', new_callable=BytesIO) as stdout_mock:

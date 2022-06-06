@@ -1,8 +1,0 @@
--e .
-numpy>=1.16
-pytest>=4.6
-pytest-arraydiff
-pytest-cov>=2.5.1
-flake8>=3.5.0
-coveralls>=1.5.1
-memory_profiler

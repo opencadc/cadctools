@@ -38,7 +38,7 @@ class Config(object):
         self.parser = configparser.ConfigParser()
         if default_config_path:
             try:
-                self.parser.readfp(open(default_config_path))
+                self.parser.read_file(open(default_config_path))
             except configparser.Error as exc:
                 logger.debug("Error opening {0} because {1}.".format(
                     default_config_path, exc.message))

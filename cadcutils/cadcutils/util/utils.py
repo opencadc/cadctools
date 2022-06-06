@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2016.                            (c) 2016.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -69,13 +69,16 @@ from __future__ import (absolute_import, division, print_function,
 import logging
 import sys
 import inspect
-from argparse import ArgumentParser, RawDescriptionHelpFormatter
+from argparse import ArgumentParser, RawDescriptionHelpFormatter, SUPPRESS, \
+    Action
 from datetime import datetime
 from six.moves.urllib.parse import urlparse
 from operator import attrgetter
+import hashlib
+import os
 
 __all__ = ['IVOA_DATE_FORMAT', 'date2ivoa', 'str2ivoa',
-           'get_logger', 'get_log_level', 'get_base_parser']
+           'get_logger', 'get_log_level', 'get_base_parser', 'Md5File']
 
 # TODO both these are very bad, implement more sensibly
 IVOA_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
@@ -222,7 +225,8 @@ class SingleMetavarHelpFormatter(RawDescriptionHelpFormatter):
         :return:
         """
         if (len(actions) > 0) and \
-           (actions[0].container.title == 'optional arguments'):
+           (actions[0].container.title in ['optional arguments', 'options']):
+            actions[0].container.title = 'optional arguments'
             actions = sorted(actions, key=attrgetter('dest'))
         super(SingleMetavarHelpFormatter, self).add_arguments(actions)
 
@@ -281,7 +285,8 @@ class _CustomArgParser(ArgumentParser):
 
 
 def get_base_parser(subparsers=True, version=None, usecert=True,
-                    default_resource_id=None, auth_required=False):
+                    default_resource_id=None, auth_required=False,
+                    service=None):
     """
     An ArgumentParser with some common things most CADC clients will want.
     There are two modes to use this parser: with or without subparsers.
@@ -294,9 +299,11 @@ def get_base_parser(subparsers=True, version=None, usecert=True,
     otherwise False
     :param version: A version number if desired.
     :param usecert: If True add '--cert' argument.
-    :param default_resource_id: default resource identifier to use
+    :param default_resource_id: default resource identifier to use. (deprecated
+    in favour of service argument)
     :param auth_required: At least one of the authentication options is
     required
+    :param service: Alias of resource_id
     :return: An ArgumentParser instance.
     """
     cparser = ArgumentParser(add_help=False,
@@ -316,24 +323,32 @@ def get_base_parser(subparsers=True, version=None, usecert=True,
                             help='name of user to authenticate. ' +
                                  'Note: application prompts for the '
                                  'corresponding password!')
-    cparser.add_argument('--host',
-                         help='base hostname for services - used mainly '
-                              'for testing (default: '
-                              'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)',
-                         default='www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')
-    if default_resource_id is None:
-        cparser.add_argument('--resource-id',
-                             type=urlparse, required=True,
-                             help='resource identifier '
-                                  '(e.g. ivo://cadc.nrc.ca/service)')
+    cparser.add_argument('--host', help=SUPPRESS)
+    cparser.add_argument('-k', '--insecure', action='store_true',
+                         help=SUPPRESS)
+    if service is None:
+        if default_resource_id is None:
+            cparser.add_argument('--resource-id',
+                                 type=urlparse, required=True,
+                                 help='resource identifier '
+                                      '(e.g. ivo://cadc.nrc.ca/service)')
+        else:
+            cparser.add_argument('--resource-id', type=parse_resource_id,
+                                 default=default_resource_id,
+                                 help='resource identifier (default {})'.
+                                 format(default_resource_id))
     else:
-        cparser.add_argument('--resource-id', type=parse_resource_id,
-                             default=default_resource_id,
-                             help='resource identifier (default {})'.format(
-                                 default_resource_id))
+        cparser.add_argument(
+            '-s', '--service', action=_ServiceAction,
+            default=service,
+            help='service this command accesses. Both IDs in short '
+                 'form (<service>) or the complete one '
+                 '(ivo://cadc.nrc.ca/<service>) as well as actual URLs to the '
+                 'root of the service (https://someurl/service) are accepted.'
+                 ' Default is: {}'.format(service))
     log_group = cparser.add_mutually_exclusive_group()
     log_group.add_argument('-d', '--debug', action='store_true',
-                           help='debug messages')
+                           help=SUPPRESS)
     log_group.add_argument('-q', '--quiet', action='store_true',
                            help='run quietly')
     log_group.add_argument('-v', '--verbose', action='store_true',
@@ -342,3 +357,101 @@ def get_base_parser(subparsers=True, version=None, usecert=True,
     argparser = _CustomArgParser(subparsers=subparsers, common_parser=cparser,
                                  version=version)
     return argparser
+
+
+class _ServiceAction(Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        super(_ServiceAction, self).__init__(option_strings, dest, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        if not (values.startswith('ivo://') or (values.startswith('http'))):
+            values = 'ivo://cadc.nrc.ca/{}'.format(values)
+        setattr(namespace, self.dest, values)
+
+
+class Md5File(object):
+    """
+    A wrapper to a file object that calculates the MD5 sum of the bytes
+    that are being read or written. It allows allows seeking to a particular
+    position in the file and it limits the legth of the data to be read,
+    essentially enabling chunking/segmentation of large files.
+    """
+
+    def __init__(self, f, mode, offset=0, length=None):
+        """
+
+        :param f: location of the file
+        :param mode: open mode (must be binary)
+        :param offset: offset to start from
+        :param length: data length to read from
+        """
+        self.file = open(f, mode)
+        self._offset = offset
+        self._length = length
+        self._end_offset = os.stat(f).st_size
+        if offset:
+            if offset > self._end_offset:
+                raise AttributeError(
+                    '{} offset greater that file size: {} vs {}'.format(
+                        f, offset, self._end_offset))
+            self.file.seek(offset)
+        if length:
+            self._end_offset = min(offset + length, self._end_offset)
+        self._md5_checksum = hashlib.md5()
+        self._total_read_length = 0
+
+    def __enter__(self):
+        return self
+
+    def read(self, size):
+        batch_read_size = \
+            min(size, self._end_offset-self._total_read_length-self._offset)
+        buffer = self.file.read(batch_read_size)
+        self._total_read_length += len(buffer)
+        self._md5_checksum.update(buffer)
+        return buffer
+
+    def write(self, buffer):
+        self._md5_checksum.update(buffer)
+        self.file.write(buffer)
+        self.file.flush()
+
+    def __exit__(self, *args, **kwargs):
+        if not self.file.closed:
+            self.file.close()
+        # clean up
+        exit = getattr(self.file, '__exit__', None)
+        if exit is not None:
+            return exit(*args, **kwargs)
+        else:
+            exit = getattr(self.file, 'close',
+                           None)
+            if exit is not None:
+                exit()
+
+    def __getattr__(self, attr):
+        if attr not in ['__len__', 'len']:
+            # requests or other libraries might want to use `tell` and `seek`
+            # to retry etc. Do not allow it as it might interfere with the
+            # md5 checksum calculations
+            raise AttributeError('Unsupported attribute: {}'.format(attr))
+
+    def __len__(self):
+        """
+        :return: size meant to be seen by the clients (entire file or just
+        a segment/chunk)
+        """
+        sz = self._end_offset - self._offset
+        return sz
+
+    def len(self):
+        return self.__len__()
+
+    def __iter__(self):
+        return iter(self.file)
+
+    @property
+    def md5_checksum(self):
+        return self._md5_checksum.hexdigest()

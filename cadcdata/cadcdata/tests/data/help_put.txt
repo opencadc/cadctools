@@ -1,8 +1,7 @@
 usage: cadc-data put [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
-                     [--host HOST] [--resource-id RESOURCE_ID] [-d | -q | -v]
-                     [-t TYPE] [-e ENCODING] [-s ARCHIVE_STREAM] [-i INPUT]
-                     [--nomd5]
+                     [--resource-id RESOURCE_ID] [-q | -v] [-t TYPE]
+                     [-e ENCODING] [-s ARCHIVE_STREAM] [-i INPUT] [--nomd5]
                      archive source [source ...]
 
 Upload files into a CADC archive
@@ -16,13 +15,10 @@ optional arguments:
                         specific archive stream to add the file to
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
-  -d, --debug           debug messages
   -e, --encoding ENCODING
                         MIME encoding to set in archive. If missing, the
                         application will try to deduce it
   -h, --help            show this help message and exit
-  --host HOST           base hostname for services - used mainly for testing
-                        (default: www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca)
   -i, --input INPUT     space-separated list of input name to use in archive -
                         overrides the actual file names in source. (quotes
                         required for multiple elements)
@@ -41,11 +37,11 @@ optional arguments:
 
 Examples:
 - Use certificate to put a file in an archive stream under a different name :
-        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default 
-                  -t "application/gzip" -i newfilename.fits.gz TEST myfile.fits.gz
+        cadc-data put --cert ~/.ssl/cadcproxy.pem -s default 
+                  -t "application/fits" -i newfilename.fits.gz TEST myfile.fits.gz
 - Use default netrc file ($HOME/.netrc) to put two files:
         cadc-data put -v -n TEST myfile1.fits.gz myfile2.fits.gz
 - Use a different netrc file to put files from a directory:
-        cadc-data put -d --netrc ~/mynetrc TEST dir
+        cadc-data put --netrc ~/mynetrc TEST dir
 - Connect as user to put files from multiple sources (prompt for password if user not in $HOME/.netrc):
         cadc-data put -v -u auser TEST myfile.fits.gz dir1 dir2

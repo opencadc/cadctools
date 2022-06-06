@@ -144,6 +144,16 @@ class BadRequestException(HttpException):
         HttpException.__init__(self, msg, orig_exception)
 
 
+class PreconditionFailedException(HttpException):
+    """One or more conditions given in the request header fields evaluated
+    to false when tested on the server.
+    Attributes:
+        msg
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        HttpException.__init__(self, msg, orig_exception)
+
+
 class AlreadyExistsException(HttpException):
     """Resource already exists
     Attributes:
@@ -175,6 +185,17 @@ class InternalServerException(HttpException):
 
 class UnexpectedException(HttpException):
     """Unexpected error
+    Attributes:
+        msg
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        HttpException.__init__(self, msg, orig_exception)
+
+
+class TransferException(HttpException):
+    """A transfer exception was encountered. Client should either try another
+    mirror URL or re-try this if possible (data is still accessible - not
+    streamed)
     Attributes:
         msg
     """

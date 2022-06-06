@@ -4,7 +4,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2016.                            (c) 2016.
+#  (c) 2021.                            (c) 2021.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -81,13 +81,14 @@ import sys
 import time
 import platform
 import os
+import hashlib
 
 import requests
 from requests import Session
 from six.moves.urllib.parse import urlparse
 import distro
 
-from cadcutils import exceptions
+from cadcutils import exceptions, util, net
 from cadcutils import version as cadctools_version
 from . import wscapabilities
 
@@ -105,7 +106,7 @@ except ImportError:
     # it's an earlier version of requests that doesn't use pyOpenSSL
     pass
 
-__all__ = ['BaseWsClient', 'get_resources', 'list_resources',
+__all__ = ['BaseWsClient', 'BaseDataClient', 'get_resources', 'list_resources',
            'DEFAULT_REGISTRY']
 
 BUFSIZE = 8388608  # Size of read/write buffer
@@ -116,6 +117,41 @@ MAX_NUM_RETRIES = 6
 
 SERVICE_RETRY = 'Retry-After'
 SERVICE_AVAILABILITY_ID = 'ivo://ivoa.net/std/VOSI#availability'
+
+# Files up to this size might have their md5 checksum pre-computed before
+# transferring. For larger files, the added overhead does not justify it.
+# Can be overriden
+MAX_MD5_COMPUTE_SIZE = 5 * 1024 * 1024
+# can be overriden by environment
+if os.getenv('CADC_MAX_MD5_COMPUTE_SIZE', None):
+    MAX_MD5_COMPUTE_SIZE = int(os.getenv('CADC_MAX_MD5_COMPUTE_SIZE'))
+
+# Files smaller that this size can be send with one request. Larger ones
+# required to be split into segments that are sent and acknowledged
+# individually
+GIB = 1024 * 1024 * 1024
+FILE_SEGMENT_THRESHOLD = 5 * GIB  # large files require segments
+PREFERRED_SEGMENT_SIZE = 2 * GIB
+
+MD5_MISMATCH_RETRY = 3  # number of times to retry on md5 mismatch errors
+
+# HTTP attribute names
+HTTP_LENGTH = 'Content-Length'
+
+# PUT transactions headers/values
+PUT_TXN_OP = 'x-put-txn-op'
+PUT_TXN_ID = 'x-put-txn-id'
+PUT_TXN_TOTAL_LENGTH = 'x-total-length'
+PUT_TXN_MIN_SEGMENT = 'x-put-segment-minbytes'
+PUT_TXN_MAX_SEGMENT = 'x-put-segment-maxbytes'
+# transaction operations
+PUT_TXN_START = 'start'
+PUT_TXN_COMMIT = 'commit'
+PUT_TXN_ABORT = 'abort'
+PUT_TXN_REVERT = 'revert'
+
+# size of the read blocks in data transfers
+READ_BLOCK_SIZE = 8 * 1024
 
 # try to disable the unverified HTTPS call warnings
 try:
@@ -197,7 +233,7 @@ class BaseWsClient(object):
        """
 
     def __init__(self, resource_id, subject, agent, retry=True, host=None,
-                 session_headers=None):
+                 session_headers=None, insecure=False, idempotent_posts=False):
         """
         Client constructor
         :param resource_id -- ID of the resource being accessed (URI format)
@@ -213,6 +249,11 @@ class BaseWsClient(object):
         (for testing purposes)
         :param session_headers -- Headers used throughout the session -
         dictionary format expected.
+        :param insecure -- Allow insecure connections over SSL
+        :param idempotent_post -- True if all HTTP POSTs can be considered
+        idempotent, either because the server can deal with duplicate POSTs or
+        because there's a higher level mechanism to deal with this. Idempotent
+        POSTs can be automatically re-tried making them more fault tolerant.
         """
 
         self.logger = logging.getLogger('BaseWsClient')
@@ -228,6 +269,8 @@ class BaseWsClient(object):
         self.resource_id = resource_id
         self.retry = retry
         self.session_headers = session_headers
+        self.verify = not insecure
+        self.idempotent_posts = idempotent_posts
 
         # agent is / delimited key value pairs, separated by a space,
         # containing the application name and version,
@@ -291,7 +334,8 @@ class BaseWsClient(object):
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
         """
-        return self._get_session().post(self._get_url(resource), **kwargs)
+        return self._get_session().post(self._get_url(resource),
+                                        verify=self.verify, **kwargs)
 
     def put(self, resource=None, **kwargs):
         """Wrapper for PUT so that we use this client's session
@@ -303,7 +347,8 @@ class BaseWsClient(object):
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
         """
-        return self._get_session().put(self._get_url(resource), **kwargs)
+        return self._get_session().put(self._get_url(resource),
+                                       verify=self.verify, **kwargs)
 
     def get(self, resource, params=None, **kwargs):
         """Wrapper for GET so that we use this client's session
@@ -316,7 +361,7 @@ class BaseWsClient(object):
            :returns response as received from the request library
         """
         return self._get_session().get(self._get_url(resource), params=params,
-                                       **kwargs)
+                                       verify=self.verify, **kwargs)
 
     def delete(self, resource=None, **kwargs):
         """Wrapper for DELETE so that we use this client's session
@@ -327,7 +372,8 @@ class BaseWsClient(object):
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
         """
-        return self._get_session().delete(self._get_url(resource), **kwargs)
+        return self._get_session().delete(self._get_url(resource),
+                                          verify=self.verify, **kwargs)
 
     def head(self, resource=None, **kwargs):
         """Wrapper for HEAD so that we use this client's session
@@ -338,7 +384,8 @@ class BaseWsClient(object):
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
         """
-        return self._get_session().head(self._get_url(resource), **kwargs)
+        return self._get_session().head(self._get_url(resource),
+                                        verify=self.verify, **kwargs)
 
     def is_available(self):
         """
@@ -379,7 +426,10 @@ class BaseWsClient(object):
         # are provided.
         if self._session is None:
             self.logger.debug('Creating session.')
-            self._session = RetrySession(self.retry)
+            self._session = RetrySession(
+                self.retry, idempotent_posts=self.idempotent_posts)
+            # prevent requests from using .netrc
+            self._session.trust_env = False
             if self.subject.certificate is not None:
                 self._session.cert = (
                     self.subject.certificate, self.subject.certificate)
@@ -401,14 +451,401 @@ class BaseWsClient(object):
         if self.session_headers is not None:
             for header in self.session_headers:
                 self._session.headers.update(self.session_headers)
-        assert isinstance(self._session, requests.Session)
+        self._session.verify = self.verify
         return self._session
+
+
+class BaseDataClient(BaseWsClient):
+    """
+    Base class for clients that interact with the CADC storage system (cadcdata
+    and vos). Provides utilities for uploading and downloading files
+    """
+
+    def upload_file(self, url, src, md5_checksum=None, **kwargs):
+        """Method to upload a file to CADC storage (archive or vospace). This
+           method takes advantage of features in CADC services that uses
+           PUTs with transactions in order to optimize and make the transfer
+           more robust. A detailed description of the mechanism can be found
+           at https://github.com/opencadc/storage-inventory/blob/master/minoc/PutTransaction.md
+           :param url: URL to upload the file to
+           :param src: name of the file to upload
+           :param md5_checksum: optional md5 checksum of the file content. If
+           available, the caller should set the attribute, otherwise the method
+           might compute it (for small files) and introduce overhead.
+           :param kwargs: other http attributes
+           :throws: HttpExceptions
+        """
+        stat_info = os.stat(src)
+        if stat_info.st_size == 0:
+            raise ValueError('Cannot upload empty files')
+        headers = kwargs.get('headers') or {}
+        if not headers:
+            kwargs['headers'] = headers
+        headers[HTTP_LENGTH] = str(stat_info.st_size)
+        src_md5 = md5_checksum
+        if not src_md5 and stat_info.st_size <= MAX_MD5_COMPUTE_SIZE:
+            hash_md5 = hashlib.md5()
+            with open(src, "rb") as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    hash_md5.update(chunk)
+            src_md5 = hash_md5.hexdigest()
+
+        if src_md5:
+            net.add_md5_header(headers=headers, md5_checksum=src_md5)
+            if stat_info.st_size < FILE_SEGMENT_THRESHOLD:
+                # no transactions needed.
+                retries = MD5_MISMATCH_RETRY
+                while retries:
+                    try:
+                        with open(src, 'rb') as reader:
+                            response = self._get_session().put(
+                                url,
+                                data=reader,
+                                verify=self.verify, **kwargs)
+                        self.logger.debug('{} uploaded (HTTP {})'.format(
+                            src, response.status_code))
+                        return
+                    except exceptions.PreconditionFailedException as e:
+                        # retry as this is likely caused by md5 mismatch
+                        if not retries:
+                            raise e
+                        retries -= 1
+
+        if stat_info.st_size < FILE_SEGMENT_THRESHOLD:
+            # one go upload with transaction
+            headers[PUT_TXN_OP] = PUT_TXN_START
+            retries = MD5_MISMATCH_RETRY
+            while retries:
+                with util.Md5File(src, 'rb') as reader:
+                    response = self._get_session().put(
+                        url,
+                        data=reader,
+                        verify=self.verify, **kwargs)
+                trans_id = response.headers[PUT_TXN_ID]
+                # check the file made it OK
+                dest_md5 = net.extract_md5(response.headers)
+                if dest_md5 != reader.md5_checksum:
+                    msg = 'File {} not properly uploaded. ' \
+                          'Mismatched md5 src vs dest: {} vs {}'.format(
+                            src, reader.md5_checksum, dest_md5)
+                    self.logger.warning(msg)
+                    # abort transaction
+                    self._get_session().post(url, headers={
+                        PUT_TXN_ID: trans_id, PUT_TXN_OP: PUT_TXN_ABORT},
+                        verify=self.verify)
+                    retries -= 1
+                    if retries:
+                        self.logger.warning('Retrying')
+                        continue
+                    else:
+                        raise exceptions.TransferException(msg)
+                    # commit tran
+                self._get_session().put(url, headers={
+                    PUT_TXN_ID: trans_id, PUT_TXN_OP: PUT_TXN_COMMIT,
+                    HTTP_LENGTH: '0'}, verify=self.verify)
+                return
+
+        # large file that requires multiple segments
+        headers[HTTP_LENGTH] = '0'
+        headers[PUT_TXN_TOTAL_LENGTH] = str(stat_info.st_size)
+        headers[PUT_TXN_OP] = PUT_TXN_START
+        response = self._get_session().put(url,
+                                           verify=self.verify,
+                                           **kwargs)
+        trans_id = response.headers[PUT_TXN_ID]
+        self.logger.debug('Starting transaction {} on url {}'.format(
+            trans_id, url))
+        min_segment = response.headers.get(PUT_TXN_MIN_SEGMENT, None)
+        max_segment = response.headers.get(PUT_TXN_MAX_SEGMENT, None)
+        seg_size = self._get_segment_size(stat_info.st_size,
+                                          min_segment,
+                                          max_segment)
+        current_size = 0
+        last_digest = hashlib.md5()
+        try:
+            # Obs -(-stat_info.st_size//seg_size) - ceiling division in PYTHON
+            for segment in range(0, -(-stat_info.st_size//seg_size)):
+                cur_seg_size = min(seg_size,
+                                   stat_info.st_size-segment*seg_size)
+                self.logger.debug('Sending segment {} of size {}'.format(
+                    segment, cur_seg_size))
+                # Note: setting the content length here is irrelevant as
+                # requests is going to override it according to the size
+                # of the data (as returned by Md5File file handler)
+                kwargs['headers'] = {PUT_TXN_ID: trans_id,
+                                     HTTP_LENGTH: str(cur_seg_size)}
+                current_size += cur_seg_size
+                retries = MD5_MISMATCH_RETRY
+                while retries:
+                    try:
+                        with util.Md5File(src, 'rb', segment*seg_size,
+                                          cur_seg_size) as reader:
+                            reader._md5_checksum = last_digest.copy()
+                            response = self._get_session().put(
+                                url,
+                                data=reader,
+                                verify=self.verify,
+                                **kwargs)
+                    except exceptions.TransferException as e:
+                        self.logger.warning('Errors transfering {} to {}: {}'.
+                                            format(src, url, e.msg))
+                        try:
+                            response = self._get_session().head(
+                                url,
+                                headers={PUT_TXN_ID: trans_id,
+                                         HTTP_LENGTH: str(current_size)})
+                        except Exception as e:
+                            self.logger.error(
+                                'Could not retrieve transaction {} '
+                                'status from {}: {}'.format(trans_id, url,
+                                                            str(e)))
+                            raise e
+                    # check the file made it OK
+                    src_md5 = reader.md5_checksum
+                    dest_md5 = net.extract_md5(response.headers)
+                    if src_md5 != dest_md5:
+                        msg = 'File {} not properly uploaded. ' \
+                              'Mismatched md5 src vs dest: {} vs {}'.format(
+                                src, src_md5, dest_md5)
+                        self.logger.warning(msg)
+                        retries -= 1
+                        if retries:
+                            # dest_md5 == None is the start state
+                            if dest_md5 and \
+                                    (dest_md5 != last_digest.hexdigest()):
+                                self.logger.debug('Reverting transaction')
+                                response = self._get_session().post(
+                                    url, headers={PUT_TXN_ID: trans_id,
+                                                  PUT_TXN_OP: PUT_TXN_REVERT},
+                                    verify=self.verify)
+                                dest_md5 = net.extract_md5(response.headers)
+                            if dest_md5 is None or \
+                                    dest_md5 == last_digest.hexdigest():
+                                self.logger.warning('Retrying')
+                                continue
+                            else:
+                                self.logger.error(
+                                    'BUG: reverted transaction does not match '
+                                    'last md5: {} != {}'.format(
+                                        dest_md5, last_digest.hexdigest()))
+                            raise exceptions.TransferException(msg)
+                    last_digest = reader._md5_checksum
+                    break
+        except BaseException as e:
+            if trans_id:
+                # abort transaction
+                self.logger.debug('Aborting transaction {}'.format(trans_id))
+                self._get_session().post(url, headers={
+                    PUT_TXN_ID: trans_id, PUT_TXN_OP: PUT_TXN_ABORT},
+                                         verify=self.verify)
+                self.logger.warning('Transaction {} aborted'.format(trans_id))
+                raise e
+
+        # commit tran
+        self.logger.debug('Commit transaction')
+        self._get_session().put(url,
+                                headers={PUT_TXN_ID: trans_id,
+                                         PUT_TXN_OP: PUT_TXN_COMMIT,
+                                         HTTP_LENGTH: '0'},
+                                verify=self.verify)
+
+    @staticmethod
+    def _get_segment_size(file_size, min_segment, max_segment):
+        segment_size = min(file_size, PREFERRED_SEGMENT_SIZE)
+        if min_segment:
+            segment_size = max(segment_size, int(min_segment))
+        if max_segment:
+            segment_size = min(segment_size, int(max_segment))
+        return segment_size
+
+    @staticmethod
+    def _resolve_destination_file(dest, src_md5, default_file_name):
+        # returns destination absolute file name as well as a temporary
+        # destination to be used during the transfer
+        if (dest is None) and (default_file_name is None):
+            raise ValueError('BUG: Cannot resolve file name')
+        if dest is not None:
+            # got a dest name?
+            if os.path.isdir(dest):
+                final_dest = os.path.join(dest, default_file_name)
+            else:
+                final_dest = dest
+        else:
+            final_dest = os.path.basename(default_file_name)
+        if src_md5:
+            dir_name = os.path.dirname(final_dest)
+            file_name = os.path.basename(final_dest)
+            temp_dest = os.path.join(
+                dir_name, '{}-{}.part'.format(file_name, src_md5))
+            return final_dest, temp_dest
+        else:
+            return final_dest, final_dest
+
+    def download_file(self, url, dest=None, **kwargs):
+        """Method to download a file from CADC storage (archive or vospace).
+           This method takes advantage of the HTTP Range feature available
+           with the CADC services to optimize and make the transfer more
+           robust.
+           :param url: URL to get the file from
+           :param dest: name of the file to store it to. If it's the name of
+           the directory to save it to, it will use the Content-Disposition for
+           the file name. By default, it saves the file in the current
+           directory.
+           :param kwargs: other http attributes
+           :return: requests.Response object
+           :throws: HttpExceptions
+
+        """
+        response = self.get(url, stream=True)
+        src_md5 = net.extract_md5(response.headers)
+        src_size = int(response.headers.get(HTTP_LENGTH, 0))
+        content_disp = net.get_header_filename(response.headers)
+        if hasattr(dest, 'read'):
+            dest.write(response.raw.read())
+            return
+        else:
+            final_dest, temp_dest = self._resolve_destination_file(
+                dest=dest, src_md5=src_md5, default_file_name=content_disp)
+            if os.path.isfile(final_dest) and \
+               src_size == os.stat(final_dest).st_size and \
+               src_md5 == \
+                    hashlib.md5(open(final_dest, 'rb').read()).hexdigest():
+                # nothing to be done
+                return
+            if src_md5 and src_size and os.path.isfile(temp_dest):
+                stat_info = os.stat(temp_dest)
+                if not stat_info.st_size or stat_info.st_size >= src_size:
+                    # Note: the existence of a complete temporary file should
+                    # be a bug. It's more likely that it's corrupted hence the
+                    # removal below
+                    os.remove(temp_dest)
+                else:
+                    if response.headers.get('Accept-Ranges', None) and \
+                       response.headers.get('Accept-Ranges').strip() == \
+                            'bytes':
+                        # do a range request
+                        response.raw.close()  # close existing stream
+                        headers = {
+                            'Range': 'bytes={}-'.format(stat_info.st_size)}
+                        response = self.get(url, stream=True, headers=headers)
+                        # at some point the warnings below should become errors
+                        # even if the code can deal with a 200 response as well
+                        # right now, these can be useful in debugging
+                        if response.status_code != \
+                                requests.codes.partial_content:
+                            self.logger.warning(
+                                'Expected partial content for range request')
+                        exp_cr = 'bytes {}-{}/{}'.format(stat_info.st_size,
+                                                         src_size - 1,
+                                                         src_size)
+                        actual_cr = response.headers.get('Content-Range', '')
+                        if actual_cr != exp_cr:
+                            self.logger.warning(
+                                'Content-Range expected {} vs '
+                                'received {}'.format(exp_cr, actual_cr))
+            # need to send the original file content-length. The Range response
+            # contains the content-length of the range.
+            self._save_bytes(response, src_size, temp_dest, None)
+            os.rename(temp_dest, final_dest)
+
+    def _save_bytes(self, response, src_length, dest_file, process_bytes=None):
+        # requests automatically decompresses the data.
+        # Tell it to do it only if it had to
+        hash_md5 = hashlib.md5()
+        src_md5 = net.extract_md5(response.headers)
+
+        class RawRange(object):
+            """
+            Wrapper class to make response.raw.read work as iterator and behave
+            the same way as the corresponding response.iter_content. Useful
+            with a progress bar.
+            """
+
+            def __init__(self, rsp):
+                """
+                :param rsp: HTTP response object
+                """
+                self._read = rsp.raw.read
+                self.block_size = 0
+
+            def __iter__(self):
+                return self
+
+            def __next__(self):
+                return self.next()
+
+            def next(self):
+                # reads the next raw block
+                data = self._read(self.block_size)
+                if len(data) > 0:
+                    if src_md5:
+                        hash_md5.update(data)
+                    return data
+                else:
+                    raise StopIteration()
+
+            def get_instance(self, block_size):
+                self.block_size = block_size
+                return self
+
+        update_mode = 'wb'
+        dest_length = 0
+        if os.path.isfile(dest_file) and os.stat(dest_file).st_size > 0:
+            if response.status_code == requests.codes.partial_content:
+                # Can resume download. Digest existing content on disk first
+                update_mode = 'ab'
+                dest_length = os.stat(dest_file).st_size
+                with open(dest_file, 'rb') as f:
+                    for chunk in iter(lambda: f.read(4096), b""):
+                        hash_md5.update(chunk)
+            else:
+                os.remove(dest_file)
+
+        rr = RawRange(response)
+        reader = rr.get_instance
+        # TODO - progress bar
+        # if logger.isEnabledFor(logging.INFO) and total_length:
+        #     chunks = progress.bar(reader(
+        #         READ_BLOCK_SIZE),
+        #         expected_size=((total_length / READ_BLOCK_SIZE) + 1))
+        # else:
+        dest_downloaded = 0
+        chunks = reader(READ_BLOCK_SIZE)
+        start = time.time()
+        with open(dest_file, update_mode) as dest:
+            for chunk in chunks:
+                if process_bytes is not None:
+                    process_bytes(chunk)
+                dest.write(chunk)
+                dest_downloaded += len(chunk)
+        dest_md5 = hash_md5.hexdigest()
+        dest_length += dest_downloaded
+        if src_length and src_length != dest_length:
+            error_msg = 'Sizes of source and downloaded file do not match: ' \
+                        '{} vs {}'.format(src_length, dest_length)
+        elif (src_md5 is not None) and (src_md5 != dest_md5):
+            error_msg = 'Downloaded file is corrupted: expected md5({}) != ' \
+                        'actual md5({})'.format(src_md5, dest_md5)
+        else:
+            duration = time.time() - start
+            self.logger.info(
+                'Successfully downloaded file {} in {}s '
+                '(avg. speed: {}MB/s)'.format(
+                    dest_file, round(duration, 2),
+                    round(dest_downloaded / 1024 / 1024 / duration, 2)))
+            return
+        if not src_length or not src_md5:
+            # clean up the temporary file
+            os.remove(dest_file)
+        raise exceptions.TransferException(error_msg)
 
 
 class RetrySession(Session):
     """ Session that automatically does a number of retries for failed
         transient errors. The time between retries double every time until a
         maximum of 30sec is reached
+
+        This does not work with POST method
 
         The following network errors are considered transient:
             requests.codes.unavailable,
@@ -430,21 +867,25 @@ class RetrySession(Session):
                     requests.codes.gateway_timeout,
                     requests.codes.request_timeout,
                     requests.codes.timeout,
-                    requests.codes.precondition_failed,
-                    requests.codes.precondition,
                     requests.codes.payment_required,
                     requests.codes.payment]
 
-    def __init__(self, retry=True, start_delay=1, *args, **kwargs):
+    def __init__(self, retry=True, start_delay=1, idempotent_posts=False,
+                 *args, **kwargs):
         """
         ::param retry: set to False if retries not required
         ::param start_delay: start delay interval between retries (default=1s).
                 Note that for HTTP 503, this code follows the retry timeout
                 set by the server in Retry-After
+        ::param idempotent_posts: POST requests in general are not idempotent
+        and they are not automatically re-tried on failures. Setting this flag
+        to true can override that, in case when a specific client-server
+        implementation can handle duplicate POST requests at a higher level.
         """
         self.logger = logging.getLogger('RetrySession')
         self.retry = retry
         self.start_delay = start_delay
+        self.idempotent_posts = idempotent_posts
         super(RetrySession, self).__init__(*args, **kwargs)
 
     def send(self, request, **kwargs):
@@ -469,19 +910,33 @@ class RetrySession(Session):
         if 'timeout' not in kwargs or kwargs['timeout'] is None:
             kwargs['timeout'] = 120
 
-        if self.retry:
+        if (request.method.upper() == 'POST') and self.idempotent_posts:
+            self.logger.debug(
+                'POST requests considered idempotent. re-tries enabled')
+
+        if (request.method.upper() != 'POST' or self.idempotent_posts) \
+           and self.retry:
             current_delay = max(self.start_delay, DEFAULT_RETRY_DELAY)
             current_delay = min(current_delay, MAX_RETRY_DELAY)
             num_retries = 0
             self.logger.debug(
                 "Sending request {0}  to server.".format(request))
             current_error = None
-            while num_retries < MAX_NUM_RETRIES:
+            while True:
                 try:
                     response = super(RetrySession, self).send(request,
                                                               **kwargs)
                     self.check_status(response)
                     return response
+                except requests.exceptions.ConnectTimeout as ct:
+                    # retry on timeouts
+                    current_error = ct
+                    self.logger.debug(ct)
+                except requests.exceptions.ReadTimeout as rt:
+                    # this could happen after the request has made it to
+                    # the server so it should be re-done
+                    raise exceptions.TransferException(
+                        'Read timeout on {}'.format(request.url), rt)
                 except requests.HTTPError as e:
                     if e.response.status_code not in self.retry_errors:
                         raise exceptions.HttpException(e)
@@ -495,39 +950,34 @@ class RetrySession(Session):
                             current_delay = min(current_delay, MAX_RETRY_DELAY)
                         except Exception:
                             pass
-
                 except requests.ConnectionError as ce:
-                    current_error = ce
-                    # TODO not sure this appropriate for all the
-                    # 'Connection reset by peer' errors.
-                    # A post/put to vospace returns a document. If operation
-                    # succeeded but the error occurs during the response the
-                    # code below will send the request again. Since the
-                    # resource has been created/updated, a new error (bad
-                    # request maybe) might be issued by the server and that
-                    # can confuse the caller.
-                    # This code should probably deal with HTTP errors only
-                    # as the 503s above.
-                    self.logger.debug("Caught exception: {0}".format(ce))
-                    if ce.errno != 104:
-                        # Only continue trying on a reset by peer error.
+                    if 'Connection reset by peer' in str(ce):
+                        # Likely a network error that the caller can re-try
+                        raise exceptions.TransferException(
+                            'Transfer error on URL: {}'.format(request.url))
+                    else:
+                        # Can't recover (bad url, etc)
                         raise exceptions.HttpException(orig_exception=ce)
-                self.logger.warning(
-                    "Resending request in {}s ...".format(current_delay))
+                if num_retries == MAX_NUM_RETRIES:
+                    break
+                self.logger.debug(
+                    "Error {}. Resending request in {}s ...".format(
+                        str(current_error), current_delay))
                 time.sleep(current_delay)
                 num_retries += 1
                 current_delay = min(current_delay * 2, MAX_RETRY_DELAY)
             raise exceptions.HttpException(current_error)
         else:
             response = super(RetrySession, self).send(request, **kwargs)
-            self.check_status(response)
+            self.check_status(response, False)
             return response
 
-    def check_status(self, response):
+    def check_status(self, response, retry=True):
         """
         Check the response status. Maps the application related requests
         error status into Exceptions and raises the others
         :param response: response
+        :param retry: request can be re-tried. Let the re-tried errors through
         :return:
         """
         try:
@@ -541,6 +991,8 @@ class RetrySession(Session):
                 raise exceptions.ForbiddenException(orig_exception=e)
             elif e.response.status_code == requests.codes.bad_request:
                 raise exceptions.BadRequestException(orig_exception=e)
+            elif e.response.status_code == requests.codes.precondition_failed:
+                raise exceptions.PreconditionFailedException(orig_exception=e)
             elif e.response.status_code == requests.codes.conflict:
                 raise exceptions.AlreadyExistsException(orig_exception=e)
             elif e.response.status_code == \
@@ -549,14 +1001,14 @@ class RetrySession(Session):
             elif e.response.status_code == \
                     requests.codes.request_entity_too_large:
                 raise exceptions.ByteLimitException(orig_exception=e)
-            elif self.retry and e.response.status_code in self.retry_errors:
+            elif retry and e.response.status_code in self.retry_errors:
                 raise e
             else:
                 raise exceptions.UnexpectedException(orig_exception=e)
 
 
 DEFAULT_REGISTRY = \
-    'https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-caps'
+    'https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-caps'
 CACHE_REFRESH_INTERVAL = 10 * 60
 CACHE_LOCATION = os.path.join(os.path.expanduser("~"), '.config',
                               'cadc-registry')
@@ -668,18 +1120,28 @@ class WsCapabilities(object):
         if content is None:
             # get information from the bootstrap registry
             try:
-                content = requests.get(url, timeout=120).text
+                session = requests.Session()
+                # do not allow requests to use .netrc file
+                session.trust_env = False
+                rsp = session.get(url, verify=self.ws.verify)
+                rsp.raise_for_status()
+                content = rsp.text
+                if content is None or len(content.strip(' ')) == 0:
+                    # workaround for a problem with CADC servers
+                    raise exceptions.HttpException('Received empty content')
                 with open(resource_file, 'w') as f:
                     f.write(content)
-            except exceptions.HttpException:
+            except exceptions.HttpException as e:
                 # problems with the bootstrap registry. Try to use the old
                 # local one regardless of how old it is
-                with open(resource_file, 'r') as f:
-                    content = f.read()
+                self.logger.error("ERROR: cannot read registry info from " +
+                                  url + ": " + str(e))
+                if os.path.exists(resource_file):
+                    with open(resource_file, 'r') as f:
+                        content = f.read()
         if content is None:
             raise RuntimeError(
-                "Cannot get the registry info from either"
-                "local or remote source")
+                "Cannot get the registry info for resource " + url)
         return content
 
     def _get_capability_url(self):

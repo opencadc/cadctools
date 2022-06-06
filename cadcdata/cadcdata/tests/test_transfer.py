@@ -115,10 +115,8 @@ def test_transfer_constructor():
                     version=VOSPACE_21)
 
     assert tran.target == test_target_good, 'Wrong target.'
-    assert 2 == len(tran.protocols), 'Wrong number of protocols.'
+    assert 1 == len(tran.protocols), 'Wrong number of protocols.'
     assert tran.protocols[0].uri == DIRECTION_PROTOCOL_MAP[test_dir_put][0],\
-        'Wrong protocol URI'
-    assert tran.protocols[1].uri == DIRECTION_PROTOCOL_MAP[test_dir_put][1], \
         'Wrong protocol URI'
     assert VOSPACE_21 == tran.version
     assert 1 == len(tran.properties), 'Wrong number of properties'
@@ -126,24 +124,18 @@ def test_transfer_constructor():
 
     # The simplest constructor for a put automatically sets protocol
     tran = Transfer(test_target_good, test_dir_put)
-    assert 2 == len(tran.protocols), 'Wrong number of protocols.'
+    assert 1 == len(tran.protocols), 'Wrong number of protocols.'
     assert tran.protocols[0].uri == DIRECTION_PROTOCOL_MAP[test_dir_put][0],\
-        'Wrong protocol URI'
-    assert tran.protocols[1].uri == DIRECTION_PROTOCOL_MAP[test_dir_put][1], \
         'Wrong protocol URI'
 
     tran = Transfer('mast:HST/foo.fits', test_dir_put)
-    assert 2 == len(tran.protocols), 'Wrong number of protocols.'
+    assert 1 == len(tran.protocols), 'Wrong number of protocols.'
     assert tran.protocols[0].uri == DIRECTION_PROTOCOL_MAP[test_dir_put][0],\
-        'Wrong protocol URI'
-    assert tran.protocols[1].uri == DIRECTION_PROTOCOL_MAP[test_dir_put][1], \
         'Wrong protocol URI'
 
     # For a get constructor protocol is not set
     tran = Transfer(test_target_good, test_dir_get)
     assert tran.protocols[0].uri == DIRECTION_PROTOCOL_MAP[test_dir_get][0],\
-        'Wrong protocol URI'
-    assert tran.protocols[1].uri == DIRECTION_PROTOCOL_MAP[test_dir_get][1], \
         'Wrong protocol URI'
 
     # Bad scheme

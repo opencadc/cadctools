@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2016.                            (c) 2016.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -71,12 +71,14 @@ from argparse import ArgumentError
 from mock import Mock, patch
 from six import StringIO
 from six.moves.urllib.parse import urlparse
-
+import tempfile
 import os
 import sys
 import logging
+import hashlib
 from cadcutils.util import date2ivoa, str2ivoa, get_base_parser, \
-    get_log_level, get_logger
+    get_log_level, get_logger, Md5File
+import pytest
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
@@ -205,6 +207,17 @@ class UtilTests(unittest.TestCase):
                                          ArgumentError(None, None)]))
     def test_base_parser(self):
 
+        parser = get_base_parser(subparsers=False, service=True)
+        # new service arg replacement for resourceid
+        service_id = 'ivo://some.domain/resourceid'
+        args = parser.parse_args(["--service", service_id])
+        self.assertEqual(service_id, args.service)
+
+        short_service_id = 'resourceid'
+        args = parser.parse_args(["--service", short_service_id])
+        self.assertEqual('ivo://cadc.nrc.ca/{}'.format(
+            short_service_id), args.service)
+
         parser = get_base_parser(subparsers=False)
         resource_id = "ivo://www.some.resource/resourceid"
         args = parser.parse_args(["--resource-id", resource_id])
@@ -260,7 +273,8 @@ class UtilTests(unittest.TestCase):
                 sys.argv = ["cadc-client", "--help"]
                 parser = get_base_parser(subparsers=False, version=3.3)
                 parser.parse_args()
-            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+            assert expected_stdout.strip('\n') == \
+                _fix_help(stdout_mock.getvalue())
 
         # same test but no version this time
         with open(os.path.join(TESTDATA_DIR, 'help_no_version.txt'), 'r') as f:
@@ -271,7 +285,8 @@ class UtilTests(unittest.TestCase):
                 sys.argv = ["cadc-client", "--help"]
                 parser = get_base_parser(subparsers=False)
                 parser.parse_args()
-            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+            assert expected_stdout.strip('\n') == \
+                _fix_help(stdout_mock.getvalue())
 
         # --help with a simple parser with a few extra command line options
         with open(os.path.join(TESTDATA_DIR, 'help_extra_opt.txt'), 'r') as f:
@@ -287,7 +302,7 @@ class UtilTests(unittest.TestCase):
                                     help='the ID of the file in the archive',
                                     nargs='+')
                 parser.parse_args()
-            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+            assert expected_stdout.strip() == _fix_help(stdout_mock.getvalue())
 
         # help with a parser with 2 subcommands
         parser = get_base_parser()
@@ -308,7 +323,7 @@ class UtilTests(unittest.TestCase):
             with self.assertRaises(MyExitError):
                 sys.argv = ["cadc-client", "-h"]
                 parser.parse_args()
-            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+        assert expected_stdout.strip('\n') == _fix_help(stdout_mock.getvalue())
 
         with open(os.path.join(TESTDATA_DIR, 'help_subcommands1.txt'),
                   'r') as f:
@@ -318,7 +333,7 @@ class UtilTests(unittest.TestCase):
             with self.assertRaises(MyExitError):
                 sys.argv = ['cadc-client', 'cmd1', '-h']
                 parser.parse_args()
-            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+        assert expected_stdout.strip('\n') == _fix_help(stdout_mock.getvalue())
 
         with open(os.path.join(TESTDATA_DIR, 'help_subcommands2.txt'),
                   'r') as f:
@@ -328,4 +343,80 @@ class UtilTests(unittest.TestCase):
             with self.assertRaises(MyExitError):
                 sys.argv = ['cadc-client', 'cmd2', '-h']
                 parser.parse_args()
-            self.assertEqual(expected_stdout, stdout_mock.getvalue())
+            assert expected_stdout.strip('\n') == \
+                _fix_help(stdout_mock.getvalue())
+
+
+def _fix_help(help_txt):
+    """
+    Deals with incompatibilities between versions
+    :param help_txt:
+    :return:
+    """
+    # Different title in python 3.10
+    return help_txt.replace('options:', 'optional arguments:').strip('\n')
+
+
+class TestMd5File(unittest.TestCase):
+    """Test the vos Md5File class.
+    """
+    def test_operations(self):
+        tmpfile = tempfile.NamedTemporaryFile()
+        txt = 'This is a test of the Md5File class'
+        with open(tmpfile.name, 'w') as f:
+            f.write(txt)
+
+        binary_content = open(tmpfile.name, 'rb').read()
+        with Md5File(tmpfile.name, 'rb') as f:
+            assert binary_content == f.read(10000)
+        assert f.file.closed
+        hash = hashlib.md5()
+        hash.update(binary_content)
+        assert f.md5_checksum == hash.hexdigest()
+
+        # read small chunks
+        hash = hashlib.md5()
+        with Md5File(tmpfile.name, 'rb') as f:
+            content = f.read(5)
+            while content:
+                hash.update(content)
+                content = f.read(5)
+        assert f.md5_checksum == hash.hexdigest()
+
+        # read part of the file
+        with Md5File(tmpfile.name, 'rb', length=4) as f:
+            assert binary_content[:4] == f.read(1000)
+        hash = hashlib.md5()
+        hash.update(binary_content[:4])
+        assert f.md5_checksum == hash.hexdigest()
+
+        # repeat but read from an offset
+        with Md5File(tmpfile.name, 'rb', offset=4) as f:
+            assert len(f) == len(txt) - 4
+            assert binary_content[4:] == f.read(1000)
+        hash = hashlib.md5()
+        hash.update(binary_content[4:])
+        assert f.md5_checksum == hash.hexdigest()
+
+        # repeat but tread just a segment
+        with Md5File(tmpfile.name, 'rb', offset=5, length=6) as f:
+            assert f.len() == 6
+            assert binary_content[5:11] == f.read(1000)
+        hash = hashlib.md5()
+        hash.update(binary_content[5:11])
+        assert f.md5_checksum == hash.hexdigest()
+
+        # repeat but tread just a segment and read smaller buffers
+        with Md5File(tmpfile.name, 'rb', offset=5, length=10) as f:
+            buffer = f.read(2)
+            result = b''
+            while buffer:
+                result += buffer
+                buffer = f.read(2)
+            assert binary_content[5:15] == result
+        hash = hashlib.md5()
+        hash.update(binary_content[5:15])
+        assert f.md5_checksum == hash.hexdigest()
+
+        with pytest.raises(AttributeError):
+            Md5File(tmpfile.name, 'rb', offset=1000)

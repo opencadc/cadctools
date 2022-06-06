@@ -3,7 +3,7 @@ import os
 import tempfile
 import shutil
 import uuid
-import unittest2 as unittest
+import unittest
 from cadcutils.util import config
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))

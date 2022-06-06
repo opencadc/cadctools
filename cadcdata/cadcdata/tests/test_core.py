@@ -239,8 +239,7 @@ def test_get_file(trans_reader_mock, basews_mock):
          'vos="http://www.ivoa.net/xml/VOSpace/v2.0">\n  '
          '<vos:target>ad:TEST/getfile</vos:target>\n  '
          '<vos:direction>pullFromVoSpace</vos:direction>\n  '
-         '<vos:protocol uri="ivo://ivoa.net/vospace/core#httpget"/>\n'
-         '  <vos:protocol uri="ivo://ivoa.net/vospace/core#httpsget"/>\n'
+         '<vos:protocol uri="ivo://ivoa.net/vospace/core#httpsget"/>\n'
          '</vos:transfer>\n').encode()
     post_mock.assert_called_with(resource=(TRANSFER_RESOURCE_ID, None),
                                  params={'wcs': True}, data=trans_doc,
@@ -391,27 +390,32 @@ def test_help():
         sys.argv = ['cadc-data', '--help']
         with pytest.raises(MyExitError):
             main_app()
-        assert usage == stdout_mock.getvalue()
+        assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
     usage = ('usage: cadc-data [-h] [-V] {get,put,info} ...\n'
              'cadc-data: error: too few arguments\n')
 
-    with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+    with patch('sys.stdout', new_callable=StringIO):
         with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
             sys.argv = ['cadc-data']
             with pytest.raises(MyExitError):
                 main_app()
-            assert usage == stderr_mock.getvalue()
+            assert usage.strip('\n') == _fix_help(stderr_mock.getvalue())
 
     # get -h
-    with open(os.path.join(TESTDATA_DIR, 'help_get.txt'), 'r') as myfile:
-        usage = myfile.read()
+    # output is different in Python 3.9
+    if sys.version_info >= (3, 9):
+        with open(os.path.join(TESTDATA_DIR, 'help_get_39.txt'), 'r') as afile:
+            usage = afile.read()
+    else:
+        with open(os.path.join(TESTDATA_DIR, 'help_get.txt'), 'r') as afile:
+            usage = afile.read()
 
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         sys.argv = ['cadc-data', 'get', '--help']
         with pytest.raises(MyExitError):
             main_app()
-        assert usage == stdout_mock.getvalue()
+        assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
     # put -h
     with open(os.path.join(TESTDATA_DIR, 'help_put.txt'), 'r') as myfile:
@@ -421,7 +425,7 @@ def test_help():
         sys.argv = ['cadc-data', 'put', '-h']
         with pytest.raises(MyExitError):
             main_app()
-        assert usage == stdout_mock.getvalue()
+        assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
     # info -h
     with open(os.path.join(TESTDATA_DIR, 'help_info.txt'), 'r') as myfile:
@@ -431,7 +435,17 @@ def test_help():
         sys.argv = ['cadc-data', 'info', '--help']
         with pytest.raises(MyExitError):
             main_app()
-        assert usage == stdout_mock.getvalue()
+        assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
+
+
+def _fix_help(help_txt):
+    """
+    Deals with incompatibilities between versions
+    :param help_txt:
+    :return:
+    """
+    # Different title in python 3.10
+    return help_txt.replace('options:', 'optional arguments:').strip('\n')
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,

@@ -1,0 +1,5 @@
+Invoke integration tests with command:
+    pytest cadcdata -m intTests
+
+Note that some of tests require CADC credentials (valid $HOME/.ssl/cadcproxy.pem certificate)
+and work for CADC staff only.

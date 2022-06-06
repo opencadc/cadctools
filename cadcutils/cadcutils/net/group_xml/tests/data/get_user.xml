@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<user>
+    <internalID>
+        <uri>ivo://bar.com/user?00000000-0000-0000-0000-000000000f00</uri>
+    </internalID>
+    <identities>
+        <identity type="HTTP">foo</identity>
+        <identity type="X500">cn=foo,c=bar</identity>
+        <identity type="CADC">00000000-0000-0000-0000-000000000f00</identity>
+    </identities>
+</user>

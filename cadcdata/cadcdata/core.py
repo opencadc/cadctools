@@ -75,7 +75,6 @@ import os
 import os.path
 import sys
 import time
-import socket
 from clint.textui import progress
 import hashlib
 
@@ -95,6 +94,8 @@ except ImportError as e:
     else:
         raise e
 
+# maximum number of times to try an URL with transient error
+MAX_TRANSIENT_TRIES = 3
 
 # make the stream bar show up on stdout
 progress.STREAM = sys.stdout
@@ -272,14 +273,12 @@ class CadcDataClient(object):
                                          process_bytes=process_bytes,
                                          md5_check=md5_check)
                 return
-            except (exceptions.HttpException, socket.timeout) as e:
+            except Exception as e:
                 # try a different URL
                 self.logger.info(
                     'WARN: Cannot retrieve data from {}. Exception: {}'.
                     format(url, e))
-                self.logger.warn('Try the next URL')
-                continue
-            except DownloadError as e:
+                self.logger.warning('Try the next URL')
                 if not hasattr(destination, 'read'):
                     # try to cleanup the corrupted file
                     try:
@@ -287,7 +286,11 @@ class CadcDataClient(object):
                     except Exception:
                         # nothing we can do
                         pass
-                raise exceptions.HttpException(str(e))
+                if isinstance(e, exceptions.TransferException) and \
+                        protocols.count(protocol) < MAX_TRANSIENT_TRIES:
+                    # this is a transient exception - append url to try later
+                    protocols.append(protocol)
+                continue
         raise exceptions.HttpException(
             'Unable to download data from any of the available URLs')
 
@@ -367,7 +370,7 @@ class CadcDataClient(object):
         if md5_check and (response.headers.get('content-MD5', 0) != 0):
             md5sum = hash_md5.hexdigest()
             if md5sum and response.headers.get('content-MD5', 0) != md5sum:
-                raise DownloadError(
+                raise exceptions.TransferException(
                     'Downloaded file is corrupted: '
                     'expected md5({}) != actual md5({})'.
                     format(response.headers.get('content-MD5', 0), md5sum))
@@ -467,11 +470,15 @@ class CadcDataClient(object):
                         archive, src_file, round(duration, 2),
                         round(stat_info.st_size / 1024 / 1024 / duration, 2)))
                 return
-            except (exceptions.HttpException, socket.timeout) as e:
+            except Exception as e:
+                if isinstance(e, exceptions.TransferException) and \
+                        protocols.count(protocol) < MAX_TRANSIENT_TRIES:
+                    # this is a transient exception - append url to try later
+                    protocols.append(protocol)
                 # try a different URL
                 self.logger.info('WARN: Cannot put data to {}. Exception: {}'.
                                  format(url, e))
-                self.logger.warn('Try the next URL')
+                self.logger.warning('Try the next URL')
                 continue
         raise exceptions.HttpException(
             'Unable to put data from any of the available URLs')
@@ -550,15 +557,6 @@ class CadcDataClient(object):
         return hash_md5.hexdigest()
 
 
-class DownloadError(Exception):
-    """Download error (file corrupted)
-    Attributes:
-        msg
-    """
-    def __init__(self, msg=None):
-        Exception.__init__(self, msg)
-
-
 def main_app():
     parser = util.get_base_parser(version=version.version,
                                   default_resource_id=DEFAULT_RESOURCE_ID)
@@ -581,7 +579,7 @@ def main_app():
              '(quotes required for multiple elements)',
         required=False)
     get_parser.add_argument(
-        '--cutout', nargs='*',
+        '--cutout', action='append', nargs=1,
         help=('specify one or multiple extension and/or pixel range cutout '
               'operations to be performed. Use cfitsio syntax'),
         required=False)
@@ -611,7 +609,7 @@ def main_app():
         'file:\n'
         '        cadc-data get -v -n --fhead GEMINI 00aug02_002.fits\n'
         '- Use a different netrc file to download wcs information:\n'
-        '        cadc-data get -d --netrc ~/mynetrc -o /tmp/700000o-wcs.fits '
+        '        cadc-data get --netrc ~/mynetrc -o /tmp/700000o-wcs.fits '
         '--wcs CFHT 700000o\n'
         '- Connect as user to download two files and uncompress them '
         '(prompt for password if user not in $HOME/.netrc):\n'
@@ -652,13 +650,13 @@ def main_app():
         'Examples:\n'
         '- Use certificate to put a file in an archive stream under a '
         'different name :\n'
-        '        cadc-data put --cert ~/.ssl/cadcproxy.pem -as default \n'
-        '                  -t "application/gzip" -i newfilename.fits.gz '
+        '        cadc-data put --cert ~/.ssl/cadcproxy.pem -s default \n'
+        '                  -t "application/fits" -i newfilename.fits.gz '
         'TEST myfile.fits.gz\n'
         '- Use default netrc file ($HOME/.netrc) to put two files:\n'
         '        cadc-data put -v -n TEST myfile1.fits.gz myfile2.fits.gz\n'
         '- Use a different netrc file to put files from a directory:\n'
-        '        cadc-data put -d --netrc ~/mynetrc TEST dir\n'
+        '        cadc-data put --netrc ~/mynetrc TEST dir\n'
         '- Connect as user to put files from multiple sources (prompt for '
         'password if user not in $HOME/.netrc):\n'
         '        cadc-data put -v -u auser TEST myfile.fits.gz dir1 dir2')
