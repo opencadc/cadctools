@@ -647,6 +647,16 @@ def test_error_cases():
         assert not client.permissions_support
 
 
+def _fix_help(help_txt):
+    """
+    Deals with incompatibilities between versions
+    :param help_txt:
+    :return:
+    """
+    # Different title in python 3.10
+    return help_txt.replace('options:', 'optional arguments:').strip('\n')
+
+
 class TestCadcTapClient(unittest.TestCase):
     """Test the CadcTapClient class"""
 
@@ -663,19 +673,19 @@ class TestCadcTapClient(unittest.TestCase):
             sys.argv = ['cadc-tap', '--help']
             with self.assertRaises(MyExitError):
                 main_app()
-            self.assertEqual(usage, stdout_mock.getvalue())
+            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
         usage = ('usage: cadc-tap [-h] [-V]\n'
                  '                {schema,query,create,delete,index,'
                  'load,permission} ...'
                  '\ncadc-tap: error: too few arguments\n')
 
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+        with patch('sys.stdout', new_callable=StringIO):
             with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
                 sys.argv = ['cadc-tap']
                 with self.assertRaises(MyExitError):
                     main_app()
-                self.assertEqual(usage, stderr_mock.getvalue())
+                assert usage.strip('\n') == _fix_help(stderr_mock.getvalue())
 
         # schema -h
         with open(os.path.join(TESTDATA_DIR,
@@ -686,7 +696,7 @@ class TestCadcTapClient(unittest.TestCase):
             sys.argv = ['cadc-tap', 'schema', '--help']
             with self.assertRaises(MyExitError):
                 main_app()
-            self.assertEqual(usage, stdout_mock.getvalue())
+            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
         # query -h
         with open(os.path.join(TESTDATA_DIR,
@@ -697,7 +707,7 @@ class TestCadcTapClient(unittest.TestCase):
             sys.argv = ['cadc-tap', 'query', '--help']
             with self.assertRaises(MyExitError):
                 main_app()
-            self.assertEqual(usage, stdout_mock.getvalue())
+            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
         # create -h
         with open(os.path.join(TESTDATA_DIR,
@@ -708,7 +718,7 @@ class TestCadcTapClient(unittest.TestCase):
             sys.argv = ['cadc-tap', 'create', '--help']
             with self.assertRaises(MyExitError):
                 main_app()
-            self.assertEqual(usage, stdout_mock.getvalue())
+            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
         # delete -h
         with open(os.path.join(TESTDATA_DIR,
@@ -719,7 +729,7 @@ class TestCadcTapClient(unittest.TestCase):
             sys.argv = ['cadc-tap', 'delete', '--help']
             with self.assertRaises(MyExitError):
                 main_app()
-            self.assertEqual(usage, stdout_mock.getvalue())
+            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
         # index -h
         with open(os.path.join(TESTDATA_DIR,
@@ -730,7 +740,7 @@ class TestCadcTapClient(unittest.TestCase):
             sys.argv = ['cadc-tap', 'index', '--help']
             with self.assertRaises(MyExitError):
                 main_app()
-            self.assertEqual(usage, stdout_mock.getvalue())
+            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
         # load -h
         with open(os.path.join(TESTDATA_DIR,
@@ -741,7 +751,7 @@ class TestCadcTapClient(unittest.TestCase):
             sys.argv = ['cadc-tap', 'load', '--help']
             with self.assertRaises(MyExitError):
                 main_app()
-            self.assertEqual(usage, stdout_mock.getvalue())
+            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
         # permission -h
         # help is slightly different in python 3.9
@@ -758,7 +768,7 @@ class TestCadcTapClient(unittest.TestCase):
             sys.argv = ['cadc-tap', 'permission', '--help']
             with self.assertRaises(MyExitError):
                 main_app()
-            self.assertEqual(usage, stdout_mock.getvalue())
+            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
     @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
                                          MyExitError, MyExitError, MyExitError,
@@ -843,21 +853,24 @@ class TestCadcTapClient(unittest.TestCase):
 
         sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice', 'QUERY']
         main_app()
-        calls = [call('QUERY', None, 'tsv', None, no_column_names=False, timeout=2)]
+        calls = [call('QUERY', None, 'tsv', None, no_column_names=False,
+                      timeout=2)]
         client_mock.return_value.query.assert_has_calls(calls)
 
         client_mock.reset_mock()
         sys.argv = ['cadc-tap', 'query', '-q', '-s', 'http://someservice',
                     'QUERY']
         main_app()
-        calls = [call('QUERY', None, 'tsv', None, no_column_names=True, timeout=2)]
+        calls = [call('QUERY', None, 'tsv', None, no_column_names=True,
+                      timeout=2)]
         client_mock.return_value.query.assert_has_calls(calls)
 
         client_mock.reset_mock()
         sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice',
                     '--timeout', '7', 'QUERY']
         main_app()
-        calls = [call('QUERY', None, 'tsv', None, no_column_names=False, timeout=7)]
+        calls = [call('QUERY', None, 'tsv', None, no_column_names=False,
+                      timeout=7)]
         client_mock.return_value.query.assert_has_calls(calls)
 
         client_mock.reset_mock()

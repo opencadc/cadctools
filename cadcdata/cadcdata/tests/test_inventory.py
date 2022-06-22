@@ -119,9 +119,9 @@ def test_get():
     client.cadcget('cadc:COLLECTION/file', dest='/tmp')
     assert 2 == download_file_mock.call_count
     assert call(url='https://url1', dest='/tmp') in \
-           download_file_mock.mock_calls
+        download_file_mock.mock_calls
     assert call(url='https://url2', dest='/tmp') in \
-           download_file_mock.mock_calls
+        download_file_mock.mock_calls
 
     # fhead call
     client._get_transfer_urls.reset_mock()
@@ -273,7 +273,7 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
                        file_type='text/plain', file_encoding='us-ascii',
                        md5_checksum='0x1234567890')
     assert upload_mock.call_count == \
-           len(url_list) * cadcdata.storageinv.MAX_TRANSIENT_TRIES
+        len(url_list) * cadcdata.storageinv.MAX_TRANSIENT_TRIES
 
     # Transfer error on one url, NotFound on the other
     upload_mock.reset_mock()
@@ -406,7 +406,11 @@ def test_help():
             sys.argv = [cmd, '--help']
             with pytest.raises(MyExitError):
                 getattr(cadcdata, '{}_cli'.format(cmd))()
-        assert usage == stdout_mock.getvalue()
+
+        # Make it Python 3.10 compatible
+        actual = stdout_mock.getvalue().\
+            replace('options:', 'optional arguments:').strip('\n')
+        assert usage.strip('\n') == actual
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))
