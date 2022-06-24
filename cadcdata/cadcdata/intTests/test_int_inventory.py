@@ -267,8 +267,8 @@ def test_client_authenticated():
 
         client.cadcput(id=global_id, src=test_file)
 
-        # new - raven now finds the location even if it's not sync-ed to
-        # global yet - hides the eventual consistency effects
+        # new - raven now finds the location immediately after the put
+        # and hides the eventual consistency effects
         client.cadcinfo(global_id)
 
         file_info = None
