@@ -633,18 +633,14 @@ class BaseDataClient(BaseWsClient):
                             if dest_md5 and \
                                     (dest_md5 != last_digest.hexdigest()):
                                 self.logger.debug('Reverting transaction')
-                                # kwargs[HEADERS] = combine_headers(
-                                #     {PUT_TXN_ID: trans_id,
-                                #      PUT_TXN_OP: PUT_TXN_REVERT,
-                                #      HTTP_LENGTH: '0'})
-                                # response = self._get_session().post(
-                                #     url,
-                                #     verify=self.verify,
-                                #     **kwargs)
+                                kwargs[HEADERS] = combine_headers(
+                                    {PUT_TXN_ID: trans_id,
+                                     PUT_TXN_OP: PUT_TXN_REVERT,
+                                     HTTP_LENGTH: '0'})
                                 response = self._get_session().post(
-                                    url, headers={PUT_TXN_ID: trans_id,
-                                                  PUT_TXN_OP: PUT_TXN_REVERT},
-                                    verify=self.verify)
+                                    url,
+                                    verify=self.verify,
+                                    **kwargs)
                                 dest_md5 = net.extract_md5(response.headers)
                             if dest_md5 is None or \
                                     dest_md5 == last_digest.hexdigest():

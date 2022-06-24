@@ -99,7 +99,7 @@ def check_file(file_name, size, md5):
 
 
 @pytest.mark.intTests
-def atest_client_public():
+def test_client_public():
     # file info - NOTE: Test relies on an existing file not to be updated.
     client = StorageInventoryClient(Subject())
     file_info = client.cadcinfo('cadc:IRIS/I429B4H0.fits')
@@ -149,7 +149,7 @@ def atest_client_public():
 
 
 @pytest.mark.intTests
-def atest_cadcget_resume():
+def test_cadcget_resume():
     # file info - NOTE: Test relies on an existing file not to be updated.
     client = StorageInventoryClient(Subject())
     file_id = 'cadc:IRIS/I429B4H0.fits'
@@ -219,7 +219,7 @@ def atest_cadcget_resume():
 @pytest.mark.skipif(not os.path.isfile(CERT),
                     reason='CADC credentials required in '
                            '$HOME/.ssl/cadcproxy.pem')
-def atest_client_authenticated():
+def test_client_authenticated():
     """ uses $HOME/.ssl/cadcproxy.pem certificates"""
     # create a random root for file IDs
     # Note: "+" in the file name is testing the special character in URI
@@ -267,6 +267,10 @@ def atest_client_authenticated():
 
         client.cadcput(id=global_id, src=test_file)
 
+        # new - raven now finds the location even if it's not sync-ed to
+        # global yet - hides the eventual consistency effects
+        client.cadcinfo(global_id)
+
         file_info = None
         for resource_id in \
                 [id for id in location_resource_ids if 'minoc' in id]:
@@ -308,7 +312,7 @@ def atest_client_authenticated():
 @pytest.mark.skipif(not os.path.isfile(CERT),
                     reason='CADC credentials required in '
                            '$HOME/.ssl/cadcproxy.pem')
-def atest_put_transactions():
+def test_put_transactions():
     # very similar with the test_client_authenticated except that threshold
     # for pre-computing md5 checksum is lowered such that the use of
     # PUT transactions is required
@@ -472,9 +476,11 @@ def test_put_transaction_append():
                 return response
 
             client._cadc_client._get_session().put = tamper_md5
-            with pytest.raises(exceptions.TransferException) as te:
-                client.cadcput(id=id_root, src=test_file)
-            assert 'Mismatched md5 src vs dest:' in str(te)
+            # TODO re-activate when prod minoc is fixed
+            # https://github.com/opencadc/storage-inventory/issues/432
+            # with pytest.raises(exceptions.TransferException) as te:
+            #     client.cadcput(id=id_root, src=test_file)
+            # assert 'Mismatched md5 src vs dest:' in str(te)
 
             # transaction should be rolled back at this point so the file
             # should not be there
