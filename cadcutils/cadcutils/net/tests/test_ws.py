@@ -91,6 +91,10 @@ from cadcutils.net.ws import DEFAULT_RETRY_DELAY, MAX_RETRY_DELAY, \
 # 25532 (https://bugs.python.org/issue25532)
 call.__wrapped__ = None
 
+# Content type header
+CONTENT_TYPE = 'Content-Type'
+TEXT_TYPE = 'text/plain'
+
 
 class TestListResources(unittest.TestCase):
     @patch('cadcutils.net.ws.requests.get')
@@ -403,13 +407,17 @@ class TestWs(unittest.TestCase):
         md5_file_mock_obj.md5_checksum = content_md5
         net.add_md5_header(headers=response.headers, md5_checksum=content_md5)
         md5_file_mock_obj.md5_checksum = content_md5
-        client.upload_file(url=target_url, src=src.name)
+        # add caller headers and test they are passed through
+        caller_header = {CONTENT_TYPE: TEXT_TYPE}
+        client.upload_file(url=target_url, src=src.name, headers=caller_header)
         session.put.assert_called_once()
         put_headers = {}
         net.add_md5_header(headers=put_headers, md5_checksum=content_md5)
         put_headers[ws.HTTP_LENGTH] = str(len(content))
         net.add_md5_header(headers=put_headers, md5_checksum=content_md5)
-        session.put.assert_called_with(target_url, headers=put_headers,
+        expected_headers = caller_header
+        expected_headers.update(put_headers)
+        session.put.assert_called_with(target_url, headers=expected_headers,
                                        data=ANY, verify=True)
 
         # pass the md5 in update small file
@@ -480,19 +488,28 @@ class TestWs(unittest.TestCase):
                                 ws.HTTP_LENGTH: str(len(content))}
             net.add_md5_header(response_headers, content_md5)
             session.put.return_value = Mock(headers=response_headers)
+            # add caller headers and test they are passed through
+            caller_header = {CONTENT_TYPE: TEXT_TYPE}
             # lower the threshold for "large" files so that the current test
             # files becomes large
             ws.MAX_MD5_COMPUTE_SIZE = 10
             # PUT headers do not contain the md5 anymore
-            client.upload_file(url=target_url, src=src.name)
+            client.upload_file(url=target_url, src=src.name,
+                               headers=caller_header)
             put_headers = {ws.HTTP_LENGTH: str(len(content)),
                            ws.PUT_TXN_OP: ws.PUT_TXN_START}
             commit_headers = {ws.PUT_TXN_ID: '123',
                               ws.PUT_TXN_OP: ws.PUT_TXN_COMMIT,
                               ws.HTTP_LENGTH: '0'}
+            expected_put_headers = dict(caller_header)
+            expected_put_headers.update(put_headers)
+            expected_commit_headers = dict(caller_header)
+            expected_commit_headers.update(commit_headers)
             assert session.put.mock_calls == \
-                [call(target_url, data=ANY, verify=True, headers=put_headers),
-                 call(target_url, headers=commit_headers, verify=True)]
+                [call(target_url, data=ANY, verify=True,
+                      headers=expected_put_headers),
+                 call(target_url, verify=True,
+                      headers=expected_commit_headers)]
 
             # repeat but provide the checksum as argument to upload_file so
             # no transaction is required
@@ -621,13 +638,16 @@ class TestWs(unittest.TestCase):
                         # check length of segments
                         assert headers[ws.HTTP_LENGTH] == \
                             str(len(segments[put_mock.put_num-1]))
+                        assert headers[CONTENT_TYPE] == TEXT_TYPE
                     else:
                         assert headers[ws.PUT_TXN_OP] == ws.PUT_TXN_COMMIT
                         assert headers[ws.HTTP_LENGTH] == '0'
+                        assert headers[CONTENT_TYPE] == TEXT_TYPE
                 else:
                     assert headers[ws.PUT_TXN_OP] == ws.PUT_TXN_START
                     assert headers[ws.HTTP_LENGTH] == '0'
                     assert headers[ws.PUT_TXN_TOTAL_LENGTH] == str(file_size)
+                    assert headers[CONTENT_TYPE] == TEXT_TYPE
                 if data:
                     data.read(100)
                 rsp = put_responses[put_mock.put_num]
@@ -637,7 +657,10 @@ class TestWs(unittest.TestCase):
             put_mock.put_num = 0
             put_mock.wrong_md5 = None
             session.put = put_mock
-            client.upload_file(url=target_url, src=src.name)
+            # add caller headers and test they are passed through
+            caller_header = {CONTENT_TYPE: TEXT_TYPE}
+            client.upload_file(url=target_url, src=src.name,
+                               headers=caller_header)
             # check all puts were called
             assert len(put_responses) == put_mock.put_num
 
@@ -651,28 +674,32 @@ class TestWs(unittest.TestCase):
             put_responses = _create_put_responses()
             file_size = os.stat(src.name).st_size
 
-            client.upload_file(url=target_url, src=src.name)
+            client.upload_file(url=target_url, src=src.name,
+                               headers=caller_header)
             # check all puts were called
             assert len(put_responses) == put_mock.put_num
 
             # redo the test but have an exception thrown in PUT for segment 2
             put_mock.exception = 2
             put_mock.put_num = 0
-            client.upload_file(url=target_url, src=src.name)
+            client.upload_file(url=target_url, src=src.name,
+                               headers=caller_header)
             # check all puts were called
             assert len(put_responses) == put_mock.put_num
 
             # redo the test but have a md5 mismatch for segment 1
             put_mock.wrong_md5 = 1
             put_mock.put_num = 0
-            client.upload_file(url=target_url, src=src.name)
+            client.upload_file(url=target_url, src=src.name,
+                               headers=caller_header)
             # check all puts were called
             assert len(put_responses) == put_mock.put_num
 
             # repeat the test but have a md5 mismatch for segment 2
             put_mock.wrong_md5 = 2
             put_mock.put_num = 0
-            client.upload_file(url=target_url, src=src.name)
+            client.upload_file(url=target_url, src=src.name,
+                               headers=caller_header)
             # check all puts were called
             assert len(put_responses) == put_mock.put_num
 
