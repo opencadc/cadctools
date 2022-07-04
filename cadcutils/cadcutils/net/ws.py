@@ -150,6 +150,8 @@ PUT_TXN_COMMIT = 'commit'
 PUT_TXN_ABORT = 'abort'
 PUT_TXN_REVERT = 'revert'
 
+HEADERS = 'headers'  # name of the kwargs headers arg
+
 # size of the read blocks in data transfers
 READ_BLOCK_SIZE = 8 * 1024
 
@@ -478,10 +480,18 @@ class BaseDataClient(BaseWsClient):
         stat_info = os.stat(src)
         if stat_info.st_size == 0:
             raise ValueError('Cannot upload empty files')
-        headers = kwargs.get('headers') or {}
-        if not headers:
-            kwargs['headers'] = headers
-        headers[HTTP_LENGTH] = str(stat_info.st_size)
+        if HEADERS not in kwargs:
+            kwargs[HEADERS] = {}
+        orig_headers = kwargs.get(HEADERS)
+        orig_headers[HTTP_LENGTH] = str(stat_info.st_size)
+
+        def combine_headers(new_headers):
+            # return a new dictionary that combines the original headers
+            # and the new headers
+            result = dict(orig_headers)
+            result.update(new_headers)
+            return result
+
         src_md5 = md5_checksum
         if not src_md5 and stat_info.st_size <= MAX_MD5_COMPUTE_SIZE:
             hash_md5 = hashlib.md5()
@@ -491,7 +501,7 @@ class BaseDataClient(BaseWsClient):
             src_md5 = hash_md5.hexdigest()
 
         if src_md5:
-            net.add_md5_header(headers=headers, md5_checksum=src_md5)
+            net.add_md5_header(headers=orig_headers, md5_checksum=src_md5)
             if stat_info.st_size < FILE_SEGMENT_THRESHOLD:
                 # no transactions needed.
                 retries = MD5_MISMATCH_RETRY
@@ -513,10 +523,11 @@ class BaseDataClient(BaseWsClient):
 
         if stat_info.st_size < FILE_SEGMENT_THRESHOLD:
             # one go upload with transaction
-            headers[PUT_TXN_OP] = PUT_TXN_START
             retries = MD5_MISMATCH_RETRY
             while retries:
                 with util.Md5File(src, 'rb') as reader:
+                    kwargs[HEADERS] = combine_headers(
+                        {PUT_TXN_OP: PUT_TXN_START})
                     response = self._get_session().put(
                         url,
                         data=reader,
@@ -530,9 +541,11 @@ class BaseDataClient(BaseWsClient):
                             src, reader.md5_checksum, dest_md5)
                     self.logger.warning(msg)
                     # abort transaction
-                    self._get_session().post(url, headers={
-                        PUT_TXN_ID: trans_id, PUT_TXN_OP: PUT_TXN_ABORT},
-                        verify=self.verify)
+                    kwargs[HEADERS] = combine_headers(
+                        {PUT_TXN_ID: trans_id,
+                         PUT_TXN_OP: PUT_TXN_ABORT,
+                         HTTP_LENGTH: '0'})
+                    self._get_session().post(url, verify=self.verify, **kwargs)
                     retries -= 1
                     if retries:
                         self.logger.warning('Retrying')
@@ -540,15 +553,18 @@ class BaseDataClient(BaseWsClient):
                     else:
                         raise exceptions.TransferException(msg)
                     # commit tran
-                self._get_session().put(url, headers={
-                    PUT_TXN_ID: trans_id, PUT_TXN_OP: PUT_TXN_COMMIT,
-                    HTTP_LENGTH: '0'}, verify=self.verify)
+                kwargs[HEADERS] = combine_headers({
+                    PUT_TXN_ID: trans_id,
+                    PUT_TXN_OP: PUT_TXN_COMMIT,
+                    HTTP_LENGTH: '0'})
+                self._get_session().put(url, verify=self.verify, **kwargs)
                 return
 
         # large file that requires multiple segments
-        headers[HTTP_LENGTH] = '0'
-        headers[PUT_TXN_TOTAL_LENGTH] = str(stat_info.st_size)
-        headers[PUT_TXN_OP] = PUT_TXN_START
+        kwargs[HEADERS] = combine_headers({
+            HTTP_LENGTH: '0',
+            PUT_TXN_TOTAL_LENGTH: str(stat_info.st_size),
+            PUT_TXN_OP: PUT_TXN_START})
         response = self._get_session().put(url,
                                            verify=self.verify,
                                            **kwargs)
@@ -572,8 +588,6 @@ class BaseDataClient(BaseWsClient):
                 # Note: setting the content length here is irrelevant as
                 # requests is going to override it according to the size
                 # of the data (as returned by Md5File file handler)
-                kwargs['headers'] = {PUT_TXN_ID: trans_id,
-                                     HTTP_LENGTH: str(cur_seg_size)}
                 current_size += cur_seg_size
                 retries = MD5_MISMATCH_RETRY
                 while retries:
@@ -581,6 +595,9 @@ class BaseDataClient(BaseWsClient):
                         with util.Md5File(src, 'rb', segment*seg_size,
                                           cur_seg_size) as reader:
                             reader._md5_checksum = last_digest.copy()
+                            kwargs[HEADERS] = combine_headers({
+                                PUT_TXN_ID: trans_id,
+                                HTTP_LENGTH: str(cur_seg_size)})
                             response = self._get_session().put(
                                 url,
                                 data=reader,
@@ -590,10 +607,12 @@ class BaseDataClient(BaseWsClient):
                         self.logger.warning('Errors transfering {} to {}: {}'.
                                             format(src, url, e.msg))
                         try:
+                            kwargs[HEADERS] = combine_headers(
+                                {PUT_TXN_ID: trans_id,
+                                 HTTP_LENGTH: '0'})
                             response = self._get_session().head(
                                 url,
-                                headers={PUT_TXN_ID: trans_id,
-                                         HTTP_LENGTH: str(current_size)})
+                                **kwargs)
                         except Exception as e:
                             self.logger.error(
                                 'Could not retrieve transaction {} '
@@ -614,10 +633,14 @@ class BaseDataClient(BaseWsClient):
                             if dest_md5 and \
                                     (dest_md5 != last_digest.hexdigest()):
                                 self.logger.debug('Reverting transaction')
+                                kwargs[HEADERS] = combine_headers(
+                                    {PUT_TXN_ID: trans_id,
+                                     PUT_TXN_OP: PUT_TXN_REVERT,
+                                     HTTP_LENGTH: '0'})
                                 response = self._get_session().post(
-                                    url, headers={PUT_TXN_ID: trans_id,
-                                                  PUT_TXN_OP: PUT_TXN_REVERT},
-                                    verify=self.verify)
+                                    url,
+                                    verify=self.verify,
+                                    **kwargs)
                                 dest_md5 = net.extract_md5(response.headers)
                             if dest_md5 is None or \
                                     dest_md5 == last_digest.hexdigest():
@@ -628,26 +651,27 @@ class BaseDataClient(BaseWsClient):
                                     'BUG: reverted transaction does not match '
                                     'last md5: {} != {}'.format(
                                         dest_md5, last_digest.hexdigest()))
-                            raise exceptions.TransferException(msg)
+                        raise exceptions.TransferException(msg)
                     last_digest = reader._md5_checksum
                     break
         except BaseException as e:
             if trans_id:
                 # abort transaction
                 self.logger.debug('Aborting transaction {}'.format(trans_id))
-                self._get_session().post(url, headers={
-                    PUT_TXN_ID: trans_id, PUT_TXN_OP: PUT_TXN_ABORT},
-                                         verify=self.verify)
+                kwargs[HEADERS] = combine_headers({PUT_TXN_ID: trans_id,
+                                                   PUT_TXN_OP: PUT_TXN_ABORT,
+                                                   HTTP_LENGTH: '0'})
+                self._get_session().post(url, verify=self.verify, **kwargs)
                 self.logger.warning('Transaction {} aborted'.format(trans_id))
                 raise e
 
         # commit tran
         self.logger.debug('Commit transaction')
-        self._get_session().put(url,
-                                headers={PUT_TXN_ID: trans_id,
-                                         PUT_TXN_OP: PUT_TXN_COMMIT,
-                                         HTTP_LENGTH: '0'},
-                                verify=self.verify)
+        kwargs[HEADERS] = combine_headers({
+            PUT_TXN_ID: trans_id,
+            PUT_TXN_OP: PUT_TXN_COMMIT,
+            HTTP_LENGTH: '0'})
+        self._get_session().put(url, verify=self.verify, **kwargs)
 
     @staticmethod
     def _get_segment_size(file_size, min_segment, max_segment):
@@ -696,7 +720,7 @@ class BaseDataClient(BaseWsClient):
            :throws: HttpExceptions
 
         """
-        response = self.get(url, stream=True)
+        response = self.get(url, stream=True, **kwargs)
         src_md5 = net.extract_md5(response.headers)
         src_size = int(response.headers.get(HTTP_LENGTH, 0))
         content_disp = net.get_header_filename(response.headers)
