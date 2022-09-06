@@ -496,7 +496,7 @@ class CadcDataClient(object):
         self.logger.debug('HEAD {}'.format(resource))
         response = self._data_client.head(resource, allow_redirects=True)
         h = response.headers
-        hmap = {'name': 'content-disposition',
+        hmap = {'name': 'Content-Disposition',
                 'size': 'Content-Length',
                 'md5sum': 'Content-MD5',
                 'type': 'Content-Type',
