@@ -508,8 +508,10 @@ class CadcDataClient(object):
         for key in hmap:
             file_info[key] = h.get(hmap[key], None)
         if file_info['name'] is not None:
-            file_info['name'] = file_info['name'].replace(
-                'inline; filename=', '')
+            file_info['name'] = \
+                net.netutils.get_header_filename(response.headers)
+        if file_info['md5sum'] is None:
+            file_info['md5sum'] = net.extract_md5(response.headers)
         # TODO file_info['ingest_date'] = h[?]
         self.logger.debug("File info: {}".format(file_info))
         return file_info
