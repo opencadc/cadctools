@@ -496,7 +496,7 @@ class CadcDataClient(object):
         self.logger.debug('HEAD {}'.format(resource))
         response = self._data_client.head(resource, allow_redirects=True)
         h = response.headers
-        hmap = {'name': 'Content-Disposition',
+        hmap = {'name': 'content-disposition',
                 'size': 'Content-Length',
                 'md5sum': 'Content-MD5',
                 'type': 'Content-Type',
@@ -508,8 +508,10 @@ class CadcDataClient(object):
         for key in hmap:
             file_info[key] = h.get(hmap[key], None)
         if file_info['name'] is not None:
-            file_info['name'] = file_info['name'].replace(
-                'inline; filename=', '')
+            file_info['name'] = \
+                net.netutils.get_header_filename(response.headers)
+        if file_info['md5sum'] is None:
+            file_info['md5sum'] = net.extract_md5(response.headers)
         # TODO file_info['ingest_date'] = h[?]
         self.logger.debug("File info: {}".format(file_info))
         return file_info
