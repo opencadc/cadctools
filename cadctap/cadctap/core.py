@@ -360,7 +360,7 @@ class CadcTapClient(object):
 
     def query(self, query, output_file=None, response_format='VOTable',
               tmptable=None, lang='ADQL', timeout=2, data_only=False,
-              no_column_names=False):
+              no_column_names=False, maxrec=None):
         """
         Send query to database and output or save results
         :param query: the query to send to the database
@@ -373,14 +373,18 @@ class CadcTapClient(object):
         response receive from server.
         :param data_only: print only data with name of columns
         :param no_column_name: print just data with no column names
+        :param maxrec: maximum number of records to return (minimum 0)
         """
-        pass
         if not query:
             raise AttributeError('missing query')
 
+        if maxrec is not None and maxrec < 0:
+            raise ValueError('maxrec cannot be negative: {}'.format(maxrec))
+
         fields = {'LANG': lang,
                   'QUERY': query,
-                  'FORMAT': response_format}
+                  'FORMAT': response_format,
+                  'MAXREC': str(maxrec)}
         if tmptable is not None:
             tmp = tmptable.split(':')
             tablename = tmp[0]
@@ -982,8 +986,13 @@ def main_app(command='cadc-tap query'):
     query_parser.add_argument(
         '-o', '--output-file',
         default=None,
-        help='write query results to file (default is to STDOUT)',
+        help='Write query results to file (default is to STDOUT)',
         required=False)
+    query_parser.add_argument(
+        '-m', '--maxrec', type=int,
+        help='Limit the number of returned records to this maximum',
+        required=False
+    )
     options_parser = query_parser.add_mutually_exclusive_group(required=True)
     options_parser.add_argument(
         'QUERY',
@@ -1174,7 +1183,8 @@ def main_app(command='cadc-tap query'):
             else:
                 query = args.QUERY
             client.query(query, args.output_file, args.format, args.tmptable,
-                         timeout=args.timeout, no_column_names=args.quiet)
+                         timeout=args.timeout, no_column_names=args.quiet,
+                         maxrec=args.maxrec)
         elif args.cmd == 'schema':
             client.schema(args.tablename)
         elif args.cmd == 'permission':

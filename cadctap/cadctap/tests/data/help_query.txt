@@ -1,7 +1,8 @@
 usage: cadc-tap query [-h]
                       [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a]
-                      [-s SERVICE] [-q | -v] [-o OUTPUT_FILE] [-i INPUT_FILE]
-                      [--timeout TIMEOUT] [-f {VOTable,csv,tsv}] [-t TMPTABLE]
+                      [-s SERVICE] [-q | -v] [-o OUTPUT_FILE] [-m MAXREC]
+                      [-i INPUT_FILE] [--timeout TIMEOUT]
+                      [-f {VOTable,csv,tsv}] [-t TMPTABLE]
                       [QUERY]
 
 Run an adql query
@@ -32,11 +33,12 @@ optional arguments:
   -i, --input-file INPUT_FILE
                         read query string from file (default is from STDIN),
                         location of file
+  -m, --maxrec MAXREC   Limit the number of returned records to this maximum
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -o, --output-file OUTPUT_FILE
-                        write query results to file (default is to STDOUT)
+                        Write query results to file (default is to STDOUT)
   -q, --quiet           run quietly
   -s, --service SERVICE
                         service this command accesses. Both IDs in short form
