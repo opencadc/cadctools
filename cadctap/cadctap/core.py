@@ -383,8 +383,9 @@ class CadcTapClient(object):
 
         fields = {'LANG': lang,
                   'QUERY': query,
-                  'FORMAT': response_format,
-                  'MAXREC': str(maxrec)}
+                  'FORMAT': response_format}
+        if maxrec:
+            fields['MAXREC'] = str(maxrec)
         if tmptable is not None:
             tmp = tmptable.split(':')
             tablename = tmp[0]
