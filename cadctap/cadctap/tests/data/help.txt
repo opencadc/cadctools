@@ -7,13 +7,13 @@ positional arguments:
   {schema,query,create,delete,index,load,permission}
                         supported commands. Use the -h|--help argument of a
                         command for more details
-    schema              Print the tables available for querying.
-    query               Run an adql query
-    create              Create a table
-    delete              Delete a table
-    index               Create a table index
-    load                Load data to a table
-    permission          Control table access
+    schema              print the tables available for querying.
+    query               run an adql query
+    create              create a table
+    delete              delete a table
+    index               create a table index
+    load                load data to a table
+    permission          control table access
 
 optional arguments:
   -h, --help            show this help message and exit

@@ -3,7 +3,7 @@ usage: cadc-tap load [-h]
                      [-s SERVICE] [-q | -v] [-f {FITSTable,csv,tsv}]
                      TABLENAME SOURCE [SOURCE ...]
 
-Load data to a table
+load data to a table
 
 To obtain the host associated with a service, execute a subcommand
 with the service in verbose mode without specifying any authentication
@@ -24,7 +24,7 @@ optional arguments:
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -f, --format {FITSTable,csv,tsv}
-                        Format of the data file
+                        format of the data file
   -h, --help            show this help message and exit
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
