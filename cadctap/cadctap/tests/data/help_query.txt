@@ -33,12 +33,12 @@ optional arguments:
   -i, --input-file INPUT_FILE
                         read query string from file (default is from STDIN),
                         location of file
-  -m, --maxrec MAXREC   Limit the number of returned records to this maximum
+  -m, --maxrec MAXREC   limit the number of returned records to this maximum
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -o, --output-file OUTPUT_FILE
-                        Write query results to file (default is to STDOUT)
+                        write query results to file (default is to STDOUT)
   -q, --quiet           run quietly
   -s, --service SERVICE
                         service this command accesses. Both IDs in short form
@@ -48,7 +48,7 @@ optional arguments:
                         are accepted. Default is: ivo://cadc.nrc.ca/youcat
   --timeout TIMEOUT     query timeout in minutes. Default 2min
   -t, --tmptable TMPTABLE
-                        Temp table upload, the value is in format:
+                        temp table upload, the value is in format:
                         "tablename:/path/to/table". In query to reference the
                         table use tap_upload.tablename
   -u, --user USER       name of user to authenticate. Note: application
