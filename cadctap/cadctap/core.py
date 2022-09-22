@@ -360,7 +360,7 @@ class CadcTapClient(object):
 
     def query(self, query, output_file=None, response_format='VOTable',
               tmptable=None, lang='ADQL', timeout=2, data_only=False,
-              no_column_names=False):
+              no_column_names=False, maxrec=None):
         """
         Send query to database and output or save results
         :param query: the query to send to the database
@@ -373,14 +373,18 @@ class CadcTapClient(object):
         response receive from server.
         :param data_only: print only data with name of columns
         :param no_column_name: print just data with no column names
+        :param maxrec: maximum number of records to return (minimum 0)
         """
-        pass
         if not query:
             raise AttributeError('missing query')
 
+        if maxrec is not None and maxrec < 0:
+            raise ValueError('maxrec cannot be negative: {}'.format(maxrec))
+
         fields = {'LANG': lang,
                   'QUERY': query,
-                  'FORMAT': response_format}
+                  'FORMAT': response_format,
+                  'MAXREC': str(maxrec)}
         if tmptable is not None:
             tmp = tmptable.split(':')
             tablename = tmp[0]
@@ -971,19 +975,24 @@ def main_app(command='cadc-tap query'):
         'schema',
         description=('Print the tables available for querying.\n') +
         AUTH_OPTION_EXPLANATION,
-        help='Print the tables available for querying.')
+        help='print the tables available for querying.')
     schema_parser.add_argument(
         'tablename', metavar='SCHEMA.TABLENAME',
-        help='Table to get the schema for', nargs='?')
+        help='table to get the schema for', nargs='?')
     query_parser = subparsers.add_parser(
         'query',
         description=('Run an adql query\n') + AUTH_OPTION_EXPLANATION,
-        help='Run an adql query')
+        help='run an adql query')
     query_parser.add_argument(
         '-o', '--output-file',
         default=None,
         help='write query results to file (default is to STDOUT)',
         required=False)
+    query_parser.add_argument(
+        '-m', '--maxrec', type=int,
+        help='limit the number of returned records to this maximum',
+        required=False
+    )
     options_parser = query_parser.add_mutually_exclusive_group(required=True)
     options_parser.add_argument(
         'QUERY',
@@ -1017,7 +1026,7 @@ def main_app(command='cadc-tap query'):
     query_parser.add_argument(
         '-t', '--tmptable',
         default=None,
-        help='Temp table upload, the value is in format: '
+        help='temp table upload, the value is in format: '
              '"tablename:/path/to/table". In query to reference the table'
              ' use tap_upload.tablename',
         required=False)
@@ -1041,11 +1050,11 @@ def main_app(command='cadc-tap query'):
     create_parser = subparsers.add_parser(
         'create',
         description='Create a table\n' + AUTH_OPTION_EXPLANATION,
-        help='Create a table')
+        help='create a table')
     create_parser.add_argument(
         '-f', '--format', choices=sorted(ALLOWED_TB_DEF_TYPES.keys()),
         required=False, default='VOSITable',
-        help='Format of the table definition file. Default VOSITable format')
+        help='format of the table definition file. Default VOSITable format')
     create_parser.add_argument(
         'TABLENAME',
         help='name of the table (<schema.table>) in the tap service')
@@ -1057,7 +1066,7 @@ def main_app(command='cadc-tap query'):
     delete_parser = subparsers.add_parser(
         'delete',
         description='Delete a table\n' + AUTH_OPTION_EXPLANATION,
-        help='Delete a table')
+        help='delete a table')
     delete_parser.add_argument(
         'TABLENAME',
         help='name of the table (<schema.table)'
@@ -1065,8 +1074,8 @@ def main_app(command='cadc-tap query'):
 
     index_parser = subparsers.add_parser(
         'index',
-        description='Create a table index\n' + AUTH_OPTION_EXPLANATION,
-        help='Create a table index')
+        description='create a table index\n' + AUTH_OPTION_EXPLANATION,
+        help='create a table index')
     index_parser.add_argument(
         '-U', '--unique', action='store_true',
         help='index is unique')
@@ -1079,12 +1088,12 @@ def main_app(command='cadc-tap query'):
 
     load_parser = subparsers.add_parser(
         'load',
-        description='Load data to a table\n' + AUTH_OPTION_EXPLANATION,
-        help='Load data to a table')
+        description='load data to a table\n' + AUTH_OPTION_EXPLANATION,
+        help='load data to a table')
     load_parser.add_argument(
         '-f', '--format', choices=sorted(ALLOWED_CONTENT_TYPES.keys()),
         required=False, default='tsv',
-        help='Format of the data file')
+        help='format of the data file')
     load_parser.add_argument(
         'TABLENAME',
         help='name of the table (<schema.table>) to load data to')
@@ -1097,7 +1106,7 @@ def main_app(command='cadc-tap query'):
         'permission',
         description='Update access permissions of a table or a schema. '
                     'Use schema command to display the existing permissions',
-        help='Control table access'
+        help='control table access'
     )
 
     def check_mode(mode):
@@ -1174,7 +1183,8 @@ def main_app(command='cadc-tap query'):
             else:
                 query = args.QUERY
             client.query(query, args.output_file, args.format, args.tmptable,
-                         timeout=args.timeout, no_column_names=args.quiet)
+                         timeout=args.timeout, no_column_names=args.quiet,
+                         maxrec=args.maxrec)
         elif args.cmd == 'schema':
             client.schema(args.tablename)
         elif args.cmd == 'permission':

@@ -3,7 +3,7 @@ usage: cadc-tap index [-h]
                       [-s SERVICE] [-q | -v] [-U]
                       TABLENAME COLUMN
 
-Create a table index
+create a table index
 
 To obtain the host associated with a service, execute a subcommand
 with the service in verbose mode without specifying any authentication
