@@ -110,7 +110,7 @@ def test_get():
     download_file_mock = Mock()
     client._cadc_client.download_file = download_file_mock
     client.cadcget('cadc:COLLECTION/file', dest='/tmp')
-    download_file_mock.assert_called_once_with(url='https://url1', dest='/tmp')
+    download_file_mock.assert_called_once_with(url='https://url1', dest='/tmp', params=[])
 
     # raise error on the first url
     client._get_transfer_urls.reset_mock()
@@ -118,9 +118,9 @@ def test_get():
     download_file_mock.side_effect = [exceptions.TransferException(), None]
     client.cadcget('cadc:COLLECTION/file', dest='/tmp')
     assert 2 == download_file_mock.call_count
-    assert call(url='https://url1', dest='/tmp') in \
+    assert call(url='https://url1', dest='/tmp', params=[]) in \
         download_file_mock.mock_calls
-    assert call(url='https://url2', dest='/tmp') in \
+    assert call(url='https://url2', dest='/tmp', params=[]) in \
         download_file_mock.mock_calls
 
     # fhead call
@@ -128,8 +128,17 @@ def test_get():
     download_file_mock.reset_mock()
     download_file_mock.side_effect = None
     client.cadcget('cadc:COLLECTION/file', dest='/tmp', fhead=True)
-    download_file_mock.assert_called_once_with(url='https://url1?META=true',
-                                               dest='/tmp')
+    download_file_mock.assert_called_once_with(
+        url='https://url1', dest='/tmp', params=[('META', 'true')])
+
+    # cutout call
+    client._get_transfer_urls.reset_mock()
+    download_file_mock.reset_mock()
+    download_file_mock.side_effect = None
+    client.cadcget('COLLECTION/file?CUTOUT=[1][1:1]&CUTOUT=[2][2:2]', dest='/tmp')
+    download_file_mock.assert_called_once_with(
+        url='https://url1', dest='/tmp',
+        params=[('SUB', '[1][1:1]'), ('SUB', '[2][2:2]')])
 
     # no urls after transfer negotiation
     client._get_transfer_urls.reset_mock()
@@ -152,6 +161,11 @@ def test_get():
         [exceptions.TransferException()] * num_transient_errors
     with pytest.raises(exceptions.TransferException):
         client.cadcget('cadc:COLLECTION/file', dest='/tmp')
+
+    # no cutouts and fhead at the same time
+    with pytest.raises(AttributeError):
+        client.cadcget('cadc:COLLECTION/file?CUTOUT=[1]',
+                       dest='/tmp', fhead=True)
 
 
 @pytest.mark.skipif(cadcdata.storageinv.MAGIC_WARN is not None,
@@ -391,6 +405,47 @@ def test_info(basews_mock):
         client.cadcinfo(id)
 
 
+@patch('cadcdata.storageinv.net.BaseDataClient')
+def test_get_uris(basews_mock):
+    client = StorageInventoryClient(auth.Subject())
+    schemes = client._parse_scheme_config('')
+    assert len(schemes) == 1
+    assert schemes['default'] == ['cadc']
+    content = 'TEST: abc def:'
+    schemes = client._parse_scheme_config(content)
+    assert len(schemes) == 2
+    assert 'TEST' in schemes
+    assert len(schemes['TEST']) == 2
+    assert schemes['TEST'][0] == 'abc'
+    assert schemes['TEST'][1] == 'def'
+    assert schemes['default'] == ['cadc']
+
+    content = ' TEST : abc def\n #default follows\ndefault: foo'
+    schemes = client._parse_scheme_config(content)
+    assert len(schemes) == 2
+    assert 'TEST' in schemes
+    assert len(schemes['TEST']) == 2
+    assert schemes['TEST'][0] == 'abc'
+    assert schemes['TEST'][1] == 'def'
+    assert 'default' in schemes
+    assert schemes['default'] == ['foo']
+
+    with pytest.raises(ValueError):
+        client._parse_scheme_config('TEST')
+    with pytest.raises(ValueError):
+        client._parse_scheme_config('TEST:      ')
+    with pytest.raises(ValueError):
+        client._parse_scheme_config(':TEST abc')
+
+    uri = 'cadc:TEST/testfile.txt'
+    fixed_uris = client._get_uris(uri)
+    assert 1 == len(fixed_uris)
+    assert uri == fixed_uris[0]
+
+    uris = client._get_uris('VLASS/700000o.fits.fz')
+    print(uris)
+
+
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
                                      MyExitError, MyExitError,
                                      MyExitError]))
@@ -441,7 +496,8 @@ def test_cadcinfo_cli(cadcinfo_mock):
     sys.argv = ['cadcinfo', 'cadc:TEST/file1.txt.gz']
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         cadcinfo_cli()
-    expected = ('CADC Storage Inventory identifier cadc:TEST/file1.txt.gz:\n'
+    expected = ('CADC Storage Inventory artifact cadc:TEST/file1.txt.gz:\n'
+                '\t              id: cadc:TEST/file1.txt.gz\n'
                 '\t            name: file1.txt.gz\n'
                 '\t            size: 5\n'
                 '\t            type: text\n'
@@ -461,17 +517,19 @@ def test_cadcinfo_cli(cadcinfo_mock):
                           size='5000', md5sum='0x123456', file_type='text',
                           lastmod=str2ivoa('2021-12-22T10:00:00.000'))]
 
-    sys.argv = ['cadcinfo', 'cadc:TEST/file1.txt.gz', 'cadc:TEST/file2.txt']
+    sys.argv = ['cadcinfo', 'cadc:TEST/file1.txt.gz', 'TEST/file2.txt']
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         cadcinfo_cli()
-    expected = ('CADC Storage Inventory identifier cadc:TEST/file1.txt.gz:\n'
+    expected = ('CADC Storage Inventory artifact cadc:TEST/file1.txt.gz:\n'
+                '\t              id: cadc:TEST/file1.txt.gz\n'
                 '\t            name: file1.txt.gz\n'
                 '\t            size: 5\n'
                 '\t            type: text\n'
                 '\t        encoding: gzip\n'
                 '\t   last modified: 2021-11-11T10:00:00.000\n'
                 '\t          md5sum: 0x33\n'
-                'CADC Storage Inventory identifier cadc:TEST/file2.txt:\n'
+                'CADC Storage Inventory artifact TEST/file2.txt:\n'
+                '\t              id: cadc:TEST/file2.txt\n'
                 '\t            name: file2.txt\n'
                 '\t            size: 5000\n'
                 '\t            type: text\n'
@@ -595,8 +653,10 @@ def test_validate_uri():
         storageinv.argparse_validate_uri(None)
 
     # no scheme
+    storageinv.validate_uri('/tmp/somefile.txt', strict=False)
     with pytest.raises(AttributeError):
-        storageinv.validate_uri('/tmp/somefile.txt')
+        storageinv.validate_uri('/tmp/somefile.txt', strict=True)
 
+    storageinv.argparse_validate_uri('/tmp/somefile.txt')
     with pytest.raises(argparse.ArgumentTypeError):
-        storageinv.argparse_validate_uri('/tmp/somefile.txt')
+        storageinv.argparse_validate_uri_strict('/tmp/somefile.txt')

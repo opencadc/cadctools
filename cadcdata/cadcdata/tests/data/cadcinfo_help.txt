@@ -5,8 +5,10 @@ usage: cadcinfo [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
 Displays information about a file from the CADC Storage Inventory
 
 positional arguments:
-  identifier            unique identifier (URI) given to the file in the CADC
-                        Storage Inventory
+  identifier            unique identifier (URI) given to the file in the CADC,
+                        typically of the form <scheme>:<archive>/<filename>
+                        where <scheme> is a concept internal to SI and is
+                        optional with this command.Storage Inventory
 
 optional arguments:
   --cert CERT           location of your X509 certificate to use for
@@ -30,4 +32,6 @@ optional arguments:
 
 Examples:
 - Anonymously getting a public file:
-        cadcinfo gemini:GEMINI/00aug02_002.fits
+        cadcinfo GEMINI/N20220825S0383.fits
+- Anonymously getting the same public file using a full URI:
+        cadcinfo cadc:GEMINI/N20220825S0383_th.jpg
