@@ -148,6 +148,23 @@ def test_client_public():
             if os.path.isfile(fhead_dest):
                 os.remove(fhead_dest)
 
+        # cutout
+        # file name as in the returned Content-Disposition
+        cutout_dest = '/tmp/I429B4H0.0__1_1___1__1_1.fits'
+        if os.path.isfile(cutout_dest):
+            os.remove(cutout_dest)
+        try:
+            client.cadcget(file_id + '?CUTOUT=[0][1:1]&CUTOUT=[1][1:1]',
+                           dest=cutout_dest)
+            assert os.path.isfile(cutout_dest)
+            assert filecmp.cmp(cutout_dest,
+                               os.path.join(TESTDATA_DIR, 'I429B4H0.0__1_1___1__1_1.fits'),
+                               shallow=False)
+        finally:
+            # clean up
+            if os.path.isfile(cutout_dest):
+                os.remove(cutout_dest)
+
 
 @pytest.mark.intTests
 def test_cadcget_resume():
