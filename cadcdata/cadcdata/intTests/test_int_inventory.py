@@ -150,16 +150,15 @@ def test_client_public():
 
         # cutout
         # file name as in the returned Content-Disposition
-        cutout_dest = '/tmp/I429B4H0.0__1_1___1__1_1.fits'
+        file_id = 'CFHT/806045o.fits.fz'
+        cutout_dest = '/tmp/806045o.fits.1__10_120_20_30___2__10_120_20_30.fz'
         if os.path.isfile(cutout_dest):
             os.remove(cutout_dest)
         try:
-            client.cadcget(file_id + '?CUTOUT=[0][1:1]&CUTOUT=[1][1:1]',
-                           dest=cutout_dest)
+            client.cadcget(file_id + '?cutout=[1][10:120,20:30]&cutout=[2][10:120,20:30]',
+                           dest='/tmp')
             assert os.path.isfile(cutout_dest)
-            assert filecmp.cmp(cutout_dest,
-                               os.path.join(TESTDATA_DIR, 'I429B4H0.0__1_1___1__1_1.fits'),
-                               shallow=False)
+            # not sure how to check the content of the file
         finally:
             # clean up
             if os.path.isfile(cutout_dest):
