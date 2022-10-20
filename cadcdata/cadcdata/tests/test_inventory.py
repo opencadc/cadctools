@@ -78,6 +78,7 @@ import base64
 import datetime
 from requests.structures import CaseInsensitiveDict
 import argparse
+import tempfile
 
 from cadcutils.net import auth
 from cadcutils import exceptions
@@ -442,8 +443,26 @@ def test_get_uris(basews_mock):
     assert 1 == len(fixed_uris)
     assert uri == fixed_uris[0]
 
-    uris = client._get_uris('VLASS/700000o.fits.fz')
-    print(uris)
+    # test _get_uris
+    tmpdirname = tempfile.mkdtemp()
+    # fool client to use a test .data_uri_scheme_map file
+    bogus_caps_file = os.path.join(tmpdirname, '.caps')
+    uri_map_file = os.path.join(tmpdirname, '.data_uri_scheme_map')
+    with open(uri_map_file, 'w') as f:
+        f.write('default: cadc\nMYARCHIVE: scheme1 scheme2')
+    orig_caps_file = client._data_client.caps.caps_file
+    try:
+        client._data_client.caps.caps_file = bogus_caps_file
+        myarchive_uris = client._get_uris('MYARCHIVE/file.fits')
+        default_uris = client._get_uris('SOMEARCHIVE/file.fits')
+    finally:
+        client._data_client.caps.caps_file = orig_caps_file
+
+    assert len(myarchive_uris) == 2
+    assert 'scheme1:MYARCHIVE/file.fits' == myarchive_uris[0]
+    assert 'scheme2:MYARCHIVE/file.fits' == myarchive_uris[1]
+
+    assert ['cadc:SOMEARCHIVE/file.fits'] == default_uris
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,

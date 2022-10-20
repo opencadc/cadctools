@@ -707,7 +707,7 @@ class StorageInventoryClient(object):
             name_spaces = [i.strip() for i in ns.split()]
             if not name_spaces:
                 raise ValueError('No scheme found for archive {} (row {})'.format(archive, row))
-            result[archive.strip()] = name_spaces
+            result[archive] = name_spaces
         if 'default' not in result:
             result['default'] = ['cadc']
         return result
@@ -846,14 +846,15 @@ def cadcinfo_cli():
         'identifier', type=argparse_validate_uri,
         help='unique identifier (URI) given to the file in the CADC, typically'
              ' of the form <scheme>:<archive>/<filename> where <scheme> is a '
-             ' concept internal to SI and is optional with this command.'
-             'Storage Inventory', nargs='+')
+             ' concept internal to the storage system and is optional with this command.',
+             nargs='+')
     parser.epilog = (
         'Examples:\n'
-        '- Anonymously getting a public file:\n'
-        '        cadcinfo GEMINI/N20220825S0383.fits\n'
-        '- Anonymously getting the same public file using a full URI:\n'
-        '        cadcinfo cadc:GEMINI/N20220825S0383_th.jpg\n')
+        '- Anonymously getting information about a public file:\n'
+        '        cadcinfo CFHT/1000003f.fits.fz\n'
+        '- Anonymously getting the information for the same public file '
+        '  using a full URI:\n'
+        '        cadcinfo cadc:CFHT/1000003f.fits.fz\n')
 
     args = parser.parse_args()
     client = _create_client(args)

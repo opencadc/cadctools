@@ -158,6 +158,27 @@ def test_client_public():
             client.cadcget(file_id + '?cutout=[1][10:120,20:30]&cutout=[2][10:120,20:30]',
                            dest='/tmp')
             assert os.path.isfile(cutout_dest)
+            # check if the header of the cutout file contains the appropriate NAXIS:
+            # NAXIS   =                    0 / number of data axes
+            # NAXIS   =                    2 / dimension of original image
+            # NAXIS1  =                  111 / size of the n'th axis
+            # NAXIS2  =                   11 / size of the n'th axis
+            # NAXIS   =                    2 / dimension of original image
+            # NAXIS1  =                  111 / size of the n'th axis
+            # NAXIS2  =                   11 / size of the n'th axis
+            with open(cutout_dest, 'rb') as f:
+                line = f.read(80).decode('ascii')
+                while line:
+                    if 'NAXIS ' in line:
+                        if 'number of data axes' in line:
+                            assert '0' in line
+                        else:
+                            assert '2' in line
+                    if 'NAXIS1' in line:
+                        assert '111' in line
+                    if 'NAXIS2' in line:
+                        assert '11' in line
+                    line = f.read(80).decode('ascii')
             # not sure how to check the content of the file
         finally:
             # clean up
