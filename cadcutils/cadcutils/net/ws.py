@@ -1119,15 +1119,18 @@ class WsCapabilities(object):
     def host(self):
         return self._host
 
-    def _get_content(self, resource_file, url, last_accessed):
+    def _get_content(self, resource_file, url, last_accessed=None):
         """
          Return content from a local cache file if information is recent
          (it was accessed less than CACHE_REFRESH_INTERVAL seconds ago).
-         If not, it updates the cache from the provided url before
+         If not or if last_accessed is not specified and the cache is stale,
+         it updates the cache from the provided url before
          returning the content.
         """
         content = None
-        if (time.time() - last_accessed) < CACHE_REFRESH_INTERVAL:
+        if not last_accessed and os.path.exists(resource_file):
+            last_accessed = os.path.getmtime(resource_file)
+        if (last_accessed and (time.time() - last_accessed) < CACHE_REFRESH_INTERVAL):
             # get reg information from the cached file
             self.logger.debug(
                 'Read cached content of {}'.format(resource_file))

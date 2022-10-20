@@ -6,8 +6,14 @@ Download files from the CADC Storage Inventory into the current
 directory unless overriden with the -o option.
 
 positional arguments:
-  identifier            unique identifier (URI) given to the file in the CADC
-                        Storage Inventory
+  identifier            unique identifier (URI) given to the file in the CADC,
+                        typically of the form <scheme>:<archive>/<filename>
+                        where <scheme> is a concept internal to SI and is
+                        optional with this command. It is possible to attach
+                        cutout arguments to the identifier to download
+                        specific sections of a FITS file as in:
+                        CFHT/806045o.fits.fz?cutout=[1][10:120,20:30]Storage
+                        Inventory
 
 optional arguments:
   --cert CERT           location of your X509 certificate to use for
@@ -34,7 +40,6 @@ optional arguments:
 
 Examples:
 - Anonymously download a file to current directory:
-      cadcget gemini:GEMINI/00aug02_002.fits
-- Use certificate to get a cutout and save it to a file:
-      cadcget --cert ~/.ssl/cadcproxy.pem -o /tmp/700000o-cutout.fits
-        cadc:CFHT/700000o[1]
+      cadcget GEMINI/N20220825S0383.fits
+- Use certificate and a full specified id to get a cutout and save it to a file in the current directory (service provided file name):
+      cadcget --cert ~/.ssl/cadcproxy.pem       CFHT/806045o.fits.fz?cutout=[1][10:120,20:30]&cutout=[2][10:120,20:30]
