@@ -166,7 +166,7 @@ def test_transfer():
         {'Location': 'https://transfer.host/transfer'}
     response = Mock()
     response.status_code = 200
-    response.text = (
+    response.content = (
         '<?xml version="1.0" encoding="UTF-8"?>'
         '<vos:transfer xmlns:vos="http://www.ivoa.net/xml/VOSpace/v2.0" '
         'version="2.1">'
