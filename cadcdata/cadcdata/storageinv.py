@@ -824,7 +824,7 @@ def cadcget_cli():
         '- Use certificate and a full specified id to get a cutout and save '
         'it to a file in the current directory (service provided file name):\n'
         '      cadcget --cert ~/.ssl/cadcproxy.pem '
-        '      CFHT/806045o.fits.fz?cutout=[1][10:120,20:30]&cutout=[2][10:120,20:30]\n')
+        '"CFHT/806045o.fits.fz?cutout=[1][10:120,20:30]&cutout=[2][10:120,20:30]\n"')
 
     args = parser.parse_args()
     client = _create_client(args)
