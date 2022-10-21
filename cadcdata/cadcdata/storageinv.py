@@ -227,6 +227,7 @@ def validate_get_uri(uri):
         else:
             raise ValueError(square_error_msg)
 
+
 def argparse_validate_uri(uri):
     """
     Same as `validate_uri` but customized to be used with argparse
@@ -251,6 +252,7 @@ def argparse_validate_uri_strict(uri):
     except (AttributeError, ValueError) as e:
         raise argparse.ArgumentTypeError(str(e))
     return uri
+
 
 def argparse_validate_get_uri(uri):
     """
