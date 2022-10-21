@@ -155,7 +155,7 @@ def test_client_public():
         if os.path.isfile(cutout_dest):
             os.remove(cutout_dest)
         try:
-            client.cadcget(file_id + '?cutout=[1][10:120,20:30]&cutout=[2][10:120,20:30]',
+            client.cadcget(file_id + '?cutOUT=[1][10:120,20:30]&cuTout=[2][10:120,20:30]',
                            dest='/tmp')
             assert os.path.isfile(cutout_dest)
             # check if the header of the cutout file contains the appropriate NAXIS:

@@ -345,7 +345,7 @@ def test_remove(basews_mock):
         client.cadcremove('cadc:TEST/removefile')
     with pytest.raises(AttributeError):
         client.cadcremove(None)
-    with pytest.raises(AttributeError):
+    with pytest.raises(ValueError):
         client.cadcremove('invalid-uri')
 
     # file not found in "global"
@@ -673,9 +673,37 @@ def test_validate_uri():
 
     # no scheme
     storageinv.validate_uri('/tmp/somefile.txt', strict=False)
-    with pytest.raises(AttributeError):
+    with pytest.raises(ValueError):
         storageinv.validate_uri('/tmp/somefile.txt', strict=True)
 
     storageinv.argparse_validate_uri('/tmp/somefile.txt')
     with pytest.raises(argparse.ArgumentTypeError):
         storageinv.argparse_validate_uri_strict('/tmp/somefile.txt')
+
+
+def test_validate_get_uri():
+    valid_uri = 'cadc:TEST/somefile.txt?CutOUT=[1]'
+    assert None is storageinv.validate_get_uri(valid_uri)
+    assert valid_uri == storageinv.argparse_validate_get_uri(valid_uri)
+
+    valid_uri += '&cutout=[2]'
+    assert None is storageinv.validate_get_uri(valid_uri)
+    assert valid_uri == storageinv.argparse_validate_get_uri(valid_uri)
+
+    valid_uri = 'cadc:TEST/comefile.txt?PARAM=val'
+    assert None is storageinv.validate_get_uri(valid_uri)
+    assert valid_uri == storageinv.argparse_validate_get_uri(valid_uri)
+
+    # various typos
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txt[1]')
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txtCUTOUT=[1]')
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txt?[1]')
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txt?CUTOUT[1]')
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txt[1]?CUTOUT=[1]&CUTOUT[2]')
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txt?CUTOUT=[1]&CUTUOT=[2]')
