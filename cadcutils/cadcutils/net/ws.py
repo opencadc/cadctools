@@ -290,7 +290,8 @@ class BaseWsClient(object):
                                           platform.version())
         o_s = sys.platform
         if o_s.lower().startswith('linux'):
-            distname, version, osid = distro.linux_distribution()
+            distname = distro.name()
+            version = distro.version()
             self.os_info = "{} {}".format(distname, version)
         elif o_s == "darwin":
             release, version, machine = platform.mac_ver()
