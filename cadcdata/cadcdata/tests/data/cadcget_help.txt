@@ -42,4 +42,4 @@ Examples:
 - Anonymously download a file to current directory:
       cadcget GEMINI/N20220825S0383.fits
 - Use certificate and a full specified id to get a cutout and save it to a file in the current directory (service provided file name):
-      cadcget --cert ~/.ssl/cadcproxy.pem       CFHT/806045o.fits.fz?cutout=[1][10:120,20:30]&cutout=[2][10:120,20:30]
+      cadcget --cert ~/.ssl/cadcproxy.pem "CFHT/806045o.fits.fz?cutout=[1][10:120,20:30]&cutout=[2][10:120,20:30]"
