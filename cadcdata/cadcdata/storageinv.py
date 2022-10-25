@@ -438,7 +438,6 @@ class StorageInventoryClient(object):
             lquery = uri.query.lower()
             params['SUB'] = [x.strip('&') for x in lquery.split('cutout=')[1:]]
             id = uri.scheme + ":" + uri.path
-        # TODO transfer optimizations (skip download when destination exists)
         urls = self._get_transfer_urls(id, params=params)
         if len(urls) == 0:
             raise exceptions.HttpException('No URLs available to access data')
