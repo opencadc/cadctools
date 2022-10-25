@@ -445,7 +445,6 @@ class StorageInventoryClient(object):
         last_exception = None
         if fhead:
             if params and ('SUB' in params):
-                print(params)
                 raise AttributeError(
                     'Cannot perform fhead and cutout at the same time')
             else:

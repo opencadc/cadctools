@@ -136,7 +136,7 @@ def test_get():
     client._get_transfer_urls.reset_mock()
     download_file_mock.reset_mock()
     download_file_mock.side_effect = None
-    client.cadcget('COLLECTION/file?CUTOUT=[1][1:1]&CUTOUT=[2][2:2]', dest='/tmp')
+    client.cadcget('COLLECTION/file?cutOUT=[1][1:1]&Cutout=[2][2:2]', dest='/tmp')
     download_file_mock.assert_called_once_with(
         url='https://url1', dest='/tmp',
         params={'SUB': ['[1][1:1]', '[2][2:2]']})
