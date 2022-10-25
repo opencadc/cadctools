@@ -111,7 +111,7 @@ def test_get():
     download_file_mock = Mock()
     client._cadc_client.download_file = download_file_mock
     client.cadcget('cadc:COLLECTION/file', dest='/tmp')
-    download_file_mock.assert_called_once_with(url='https://url1', dest='/tmp', params=[])
+    download_file_mock.assert_called_once_with(url='https://url1', dest='/tmp', params={})
 
     # raise error on the first url
     client._get_transfer_urls.reset_mock()
@@ -119,9 +119,9 @@ def test_get():
     download_file_mock.side_effect = [exceptions.TransferException(), None]
     client.cadcget('cadc:COLLECTION/file', dest='/tmp')
     assert 2 == download_file_mock.call_count
-    assert call(url='https://url1', dest='/tmp', params=[]) in \
+    assert call(url='https://url1', dest='/tmp', params={}) in \
         download_file_mock.mock_calls
-    assert call(url='https://url2', dest='/tmp', params=[]) in \
+    assert call(url='https://url2', dest='/tmp', params={}) in \
         download_file_mock.mock_calls
 
     # fhead call
@@ -130,7 +130,7 @@ def test_get():
     download_file_mock.side_effect = None
     client.cadcget('cadc:COLLECTION/file', dest='/tmp', fhead=True)
     download_file_mock.assert_called_once_with(
-        url='https://url1', dest='/tmp', params=[('META', 'true')])
+        url='https://url1', dest='/tmp', params={'META': 'true'})
 
     # cutout call
     client._get_transfer_urls.reset_mock()
@@ -139,7 +139,7 @@ def test_get():
     client.cadcget('COLLECTION/file?CUTOUT=[1][1:1]&CUTOUT=[2][2:2]', dest='/tmp')
     download_file_mock.assert_called_once_with(
         url='https://url1', dest='/tmp',
-        params=[('SUB', '[1][1:1]'), ('SUB', '[2][2:2]')])
+        params={'SUB': ['[1][1:1]', '[2][2:2]']})
 
     # no urls after transfer negotiation
     client._get_transfer_urls.reset_mock()

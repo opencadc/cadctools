@@ -432,25 +432,25 @@ class StorageInventoryClient(object):
 
         validate_get_uri(id)
         logger.debug('cadcget GET {} -> {}'.format(id, dest))
-        params = []
+        params = {}
         uri = urlparse(id)
         if 'cutout=[' in uri.query.lower():
             lquery = uri.query.lower()
-            params = [('SUB', x.strip('&')) for x in lquery.split('cutout=')[1:]]
+            params['SUB'] = [x.strip('&') for x in lquery.split('cutout=')[1:]]
             id = uri.scheme + ":" + uri.path
         # TODO transfer optimizations (skip download when destination exists)
         urls = self._get_transfer_urls(id, params=params)
         if len(urls) == 0:
             raise exceptions.HttpException('No URLs available to access data')
         last_exception = None
+        if fhead:
+            if params and ('SUB' in params):
+                print(params)
+                raise AttributeError(
+                    'Cannot perform fhead and cutout at the same time')
+            else:
+                params['META'] = 'true'
         for url in urls:
-            if fhead:
-                if params and ('SUB' in params):
-                    print(params)
-                    raise AttributeError(
-                        'Cannot perform fhead and cutout at the same time')
-                else:
-                    params.append(('META', 'true'))
             logger.debug('GET from URL {}'.format(url))
             try:
                 self._cadc_client.download_file(url=url, dest=dest, params=params)
