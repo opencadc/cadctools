@@ -4,7 +4,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2021.                            (c) 2021.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -91,20 +91,6 @@ import distro
 from cadcutils import exceptions, util, net
 from cadcutils import version as cadctools_version
 from . import wscapabilities
-
-# an issue related to the requests library
-# (https://github.com/shazow/urllib3/issues/1060)
-# prevents the latest versions of the requests library work when pyOpenSSL
-# is installed in the system. The temporary workaround below makes
-# requests ignore the install pyOpenSSL
-# TODO remove after the above issue is closed
-try:
-    from requests.packages.urllib3.contrib import pyopenssl
-
-    pyopenssl.extract_from_urllib3()
-except ImportError:
-    # it's an earlier version of requests that doesn't use pyOpenSSL
-    pass
 
 __all__ = ['BaseWsClient', 'BaseDataClient', 'get_resources', 'list_resources',
            'DEFAULT_REGISTRY']
@@ -290,7 +276,8 @@ class BaseWsClient(object):
                                           platform.version())
         o_s = sys.platform
         if o_s.lower().startswith('linux'):
-            distname, version, osid = distro.linux_distribution()
+            distname = distro.name()
+            version = distro.version()
             self.os_info = "{} {}".format(distname, version)
         elif o_s == "darwin":
             release, version, machine = platform.mac_ver()

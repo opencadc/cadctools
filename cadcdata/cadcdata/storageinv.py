@@ -203,8 +203,29 @@ def validate_uri(uri, strict=True):
         raise AttributeError('URI required')
     res = urlparse(uri)
     if strict and not res.scheme:
-        raise AttributeError(
+        raise ValueError(
             '{} not a valid id (missing URI scheme)'.format(uri))
+
+
+def validate_get_uri(uri):
+    """
+    Validate ID URI format for a get command that accepts parameters such as
+    CUTOUT
+    :param uri:
+    :param strict: need to include a scheme
+    :return: None if uri valid or raises AttributeError otherwise
+    """
+    validate_uri(uri, False)
+    square_error_msg = \
+        'Typo? Square brackets ([]) only allowed with the "CUTOUT=" parameters: ' + uri
+    if ('[' in uri) or (']' in uri):
+        res = urlparse(uri)
+        if res.query:
+            for param in res.query.lower().split('&'):
+                if (('[' in param) or (']' in param)) and 'cutout=[' not in param:
+                    raise ValueError(square_error_msg)
+        else:
+            raise ValueError(square_error_msg)
 
 
 def argparse_validate_uri(uri):
@@ -228,7 +249,20 @@ def argparse_validate_uri_strict(uri):
     """
     try:
         validate_uri(uri, True)
-    except AttributeError as e:
+    except (AttributeError, ValueError) as e:
+        raise argparse.ArgumentTypeError(str(e))
+    return uri
+
+
+def argparse_validate_get_uri(uri):
+    """
+    Same as `validate__get_uri` but customized to be used with argparse
+    :param uri:
+    :return:
+    """
+    try:
+        validate_get_uri(uri)
+    except (AttributeError, ValueError) as e:
         raise argparse.ArgumentTypeError(str(e))
     return uri
 
@@ -396,26 +430,25 @@ class StorageInventoryClient(object):
         :param process_bytes: function to be applied to the received bytes
         """
 
-        validate_uri(id)
+        validate_get_uri(id)
         logger.debug('cadcget GET {} -> {}'.format(id, dest))
-        params = []
+        params = {}
         uri = urlparse(id)
         if 'cutout=[' in uri.query.lower():
             lquery = uri.query.lower()
-            params = [('SUB', x.strip('&')) for x in lquery.split('cutout=')[1:]]
+            params['SUB'] = [x.strip('&') for x in lquery.split('cutout=')[1:]]
             id = uri.scheme + ":" + uri.path
-        # TODO transfer optimizations (skip download when destination exists)
         urls = self._get_transfer_urls(id, params=params)
         if len(urls) == 0:
             raise exceptions.HttpException('No URLs available to access data')
         last_exception = None
+        if fhead:
+            if params and ('SUB' in params):
+                raise AttributeError(
+                    'Cannot perform fhead and cutout at the same time')
+            else:
+                params['META'] = 'true'
         for url in urls:
-            if fhead:
-                if params:
-                    raise AttributeError(
-                        'Cannot perform fhead and cutout at the same time')
-                else:
-                    params.append(('META', 'true'))
             logger.debug('GET from URL {}'.format(url))
             try:
                 self._cadc_client.download_file(url=url, dest=dest, params=params)
@@ -806,7 +839,7 @@ def cadcget_cli():
         help='write to file or other directory instead of the current one.',
         required=False)
     parser.add_argument(
-        'identifier', type=argparse_validate_uri,
+        'identifier', type=argparse_validate_get_uri,
         help='unique identifier (URI) given to the file in the CADC, typically'
              ' of the form <scheme>:<archive>/<filename> where <scheme> is a'
              ' concept internal to SI and is optional with this command. It is'
@@ -824,7 +857,7 @@ def cadcget_cli():
         '- Use certificate and a full specified id to get a cutout and save '
         'it to a file in the current directory (service provided file name):\n'
         '      cadcget --cert ~/.ssl/cadcproxy.pem '
-        '      CFHT/806045o.fits.fz?cutout=[1][10:120,20:30]&cutout=[2][10:120,20:30]\n')
+        '"CFHT/806045o.fits.fz?cutout=[1][10:120,20:30]&cutout=[2][10:120,20:30]"\n')
 
     args = parser.parse_args()
     client = _create_client(args)

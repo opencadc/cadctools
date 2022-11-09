@@ -111,7 +111,7 @@ def test_get():
     download_file_mock = Mock()
     client._cadc_client.download_file = download_file_mock
     client.cadcget('cadc:COLLECTION/file', dest='/tmp')
-    download_file_mock.assert_called_once_with(url='https://url1', dest='/tmp', params=[])
+    download_file_mock.assert_called_once_with(url='https://url1', dest='/tmp', params={})
 
     # raise error on the first url
     client._get_transfer_urls.reset_mock()
@@ -119,9 +119,9 @@ def test_get():
     download_file_mock.side_effect = [exceptions.TransferException(), None]
     client.cadcget('cadc:COLLECTION/file', dest='/tmp')
     assert 2 == download_file_mock.call_count
-    assert call(url='https://url1', dest='/tmp', params=[]) in \
+    assert call(url='https://url1', dest='/tmp', params={}) in \
         download_file_mock.mock_calls
-    assert call(url='https://url2', dest='/tmp', params=[]) in \
+    assert call(url='https://url2', dest='/tmp', params={}) in \
         download_file_mock.mock_calls
 
     # fhead call
@@ -130,16 +130,16 @@ def test_get():
     download_file_mock.side_effect = None
     client.cadcget('cadc:COLLECTION/file', dest='/tmp', fhead=True)
     download_file_mock.assert_called_once_with(
-        url='https://url1', dest='/tmp', params=[('META', 'true')])
+        url='https://url1', dest='/tmp', params={'META': 'true'})
 
     # cutout call
     client._get_transfer_urls.reset_mock()
     download_file_mock.reset_mock()
     download_file_mock.side_effect = None
-    client.cadcget('COLLECTION/file?CUTOUT=[1][1:1]&CUTOUT=[2][2:2]', dest='/tmp')
+    client.cadcget('COLLECTION/file?cutOUT=[1][1:1]&Cutout=[2][2:2]', dest='/tmp')
     download_file_mock.assert_called_once_with(
         url='https://url1', dest='/tmp',
-        params=[('SUB', '[1][1:1]'), ('SUB', '[2][2:2]')])
+        params={'SUB': ['[1][1:1]', '[2][2:2]']})
 
     # no urls after transfer negotiation
     client._get_transfer_urls.reset_mock()
@@ -345,7 +345,7 @@ def test_remove(basews_mock):
         client.cadcremove('cadc:TEST/removefile')
     with pytest.raises(AttributeError):
         client.cadcremove(None)
-    with pytest.raises(AttributeError):
+    with pytest.raises(ValueError):
         client.cadcremove('invalid-uri')
 
     # file not found in "global"
@@ -673,9 +673,37 @@ def test_validate_uri():
 
     # no scheme
     storageinv.validate_uri('/tmp/somefile.txt', strict=False)
-    with pytest.raises(AttributeError):
+    with pytest.raises(ValueError):
         storageinv.validate_uri('/tmp/somefile.txt', strict=True)
 
     storageinv.argparse_validate_uri('/tmp/somefile.txt')
     with pytest.raises(argparse.ArgumentTypeError):
         storageinv.argparse_validate_uri_strict('/tmp/somefile.txt')
+
+
+def test_validate_get_uri():
+    valid_uri = 'cadc:TEST/somefile.txt?CutOUT=[1]'
+    assert None is storageinv.validate_get_uri(valid_uri)
+    assert valid_uri == storageinv.argparse_validate_get_uri(valid_uri)
+
+    valid_uri += '&cutout=[2]'
+    assert None is storageinv.validate_get_uri(valid_uri)
+    assert valid_uri == storageinv.argparse_validate_get_uri(valid_uri)
+
+    valid_uri = 'cadc:TEST/comefile.txt?PARAM=val'
+    assert None is storageinv.validate_get_uri(valid_uri)
+    assert valid_uri == storageinv.argparse_validate_get_uri(valid_uri)
+
+    # various typos
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txt[1]')
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txtCUTOUT=[1]')
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txt?[1]')
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txt?CUTOUT[1]')
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txt[1]?CUTOUT=[1]&CUTOUT[2]')
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txt?CUTOUT=[1]&CUTUOT=[2]')
