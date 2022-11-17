@@ -84,11 +84,10 @@ import sys
 import html2text
 
 from cadcutils.net import ws
-from cadcutils import util, exceptions
+from cadcutils import util, exceptions, version
 
 CRED_RESOURCE_ID = 'ivo://cadc.nrc.ca/cred'
 CRED_PROXY_FEATURE_ID = 'ivo://ivoa.net/std/CDP#proxy-1.0'
-GET_CERT_VERSION = '1.0.2'
 
 __all__ = ['get_cert', 'Subject']
 
@@ -294,7 +293,7 @@ def get_cert_main():
 
     signal.signal(signal.SIGINT, _signal_handler)
 
-    parser = util.get_base_parser(subparsers=False, version=GET_CERT_VERSION,
+    parser = util.get_base_parser(subparsers=False, version=version.version,
                                   default_resource_id=CRED_RESOURCE_ID,
                                   auth_required=True)
     parser.description = ('Retrieve a security certificate for interaction '

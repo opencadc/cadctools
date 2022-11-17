@@ -76,6 +76,8 @@ from six.moves.urllib.parse import urlparse
 from operator import attrgetter
 import hashlib
 import os
+from distutils.version import StrictVersion
+import requests
 
 __all__ = ['IVOA_DATE_FORMAT', 'date2ivoa', 'str2ivoa',
            'get_logger', 'get_log_level', 'get_base_parser', 'Md5File']
@@ -259,6 +261,7 @@ class _CustomArgParser(ArgumentParser):
         self.subparsers = subparsers
         self._subparsers_added = False
         self.kwargs = kwargs
+        self._version = version
         kwargs['formatter_class'] = SingleMetavarHelpFormatter
         if not self.subparsers:
             super(_CustomArgParser, self).__init__(parents=[common_parser],
@@ -280,9 +283,37 @@ class _CustomArgParser(ArgumentParser):
     def parse_args(self, args=None, namespace=None):
         if self.subparsers and not self._subparsers_added:
             raise RuntimeError('No subparsers added. Change the parsers flag?')
-        return super(_CustomArgParser, self).parse_args(args=args,
+        result = super(_CustomArgParser, self).parse_args(args=args,
                                                         namespace=namespace)
+        if hasattr(result, 'verbose') and (result.verbose or result.debug):
+            # print package version info
+            try:
+                newer_version = self._get_newer_version()
+            except Exception:
+                newer_version = None
+            if newer_version:
+                print('{} (Latest version available: {})'.format(self._version, newer_version))
+            else:
+                print(self._version)
+        return result
 
+    def _get_newer_version(self):
+        package, pkg_version = self._version.split(' ')
+        resp = requests.get('https://pypi.org/pypi/{}/json'.format(package))
+        data = resp.json()
+        versions = list(data['releases'].keys())
+        newer_version = None
+        current_version = StrictVersion(pkg_version)
+        versions.reverse()
+        for v in versions:
+            try:
+                release_version = StrictVersion(v)
+            except ValueError:
+                continue
+            if current_version < release_version and 'a' not in v and 'b' not in v:
+                newer_version = v
+                break
+        return newer_version
 
 def get_base_parser(subparsers=True, version=None, usecert=True,
                     default_resource_id=None, auth_required=False,
