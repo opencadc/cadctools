@@ -364,6 +364,7 @@ class UtilTests(unittest.TestCase):
             assert None == client_v10._get_newer_version()
             assert None == client_v11._get_newer_version()
 
+
 def _fix_help(help_txt):
     """
     Deals with incompatibilities between versions
