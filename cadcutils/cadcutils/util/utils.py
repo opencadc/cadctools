@@ -302,7 +302,6 @@ class _CustomArgParser(ArgumentParser):
         resp = requests.get('https://pypi.org/pypi/{}/json'.format(package))
         data = resp.json()
         versions = list(data['releases'].keys())
-        newer_version = None
         current_version = StrictVersion(pkg_version)
         versions.reverse()
         for v in versions:
@@ -311,9 +310,8 @@ class _CustomArgParser(ArgumentParser):
             except ValueError:
                 continue
             if current_version < release_version and 'a' not in v and 'b' not in v:
-                newer_version = v
-                break
-        return newer_version
+                return v
+        return None
 
 def get_base_parser(subparsers=True, version=None, usecert=True,
                     default_resource_id=None, auth_required=False,
