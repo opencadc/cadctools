@@ -284,7 +284,7 @@ class _CustomArgParser(ArgumentParser):
         if self.subparsers and not self._subparsers_added:
             raise RuntimeError('No subparsers added. Change the parsers flag?')
         result = super(_CustomArgParser, self).parse_args(args=args,
-                                                        namespace=namespace)
+                                                          namespace=namespace)
         if hasattr(result, 'verbose') and (result.verbose or result.debug):
             # print package version info
             try:
@@ -303,14 +303,16 @@ class _CustomArgParser(ArgumentParser):
         data = resp.json()
         versions = list(data['releases'].keys())
         current_version = StrictVersion(pkg_version)
-        versions.reverse()
+        strict_versions = []
         for v in versions:
             try:
-                release_version = StrictVersion(v)
+                StrictVersion(v)  # strict version
+                strict_versions.append(v)
             except ValueError:
                 continue
-            if current_version < release_version and 'a' not in v and 'b' not in v:
-                return v
+        strict_versions.sort(key=StrictVersion)
+        if strict_versions and current_version < strict_versions[-1]:
+            return strict_versions[-1]
         return None
 
 

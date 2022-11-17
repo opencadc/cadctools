@@ -361,8 +361,8 @@ class UtilTests(unittest.TestCase):
             mock_requests.get.return_value = response
             assert '1.0' == client_v02._get_newer_version()
             assert '1.0' == client_v09._get_newer_version()
-            assert None == client_v10._get_newer_version()
-            assert None == client_v11._get_newer_version()
+            assert client_v10._get_newer_version() is None
+            assert client_v11._get_newer_version() is None
 
 
 def _fix_help(help_txt):
