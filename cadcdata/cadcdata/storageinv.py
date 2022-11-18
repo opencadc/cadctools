@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2021.                            (c) 2021.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -111,6 +111,9 @@ __all__ = ['StorageInventoryClient', 'FileInfo', 'cadcput_cli', 'cadcget_cli',
 DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%f'
 # default inventory storage resource ID
 DEFAULT_RESOURCE_ID = 'ivo://cadc.nrc.ca/global/raven'
+# data resource ID - shell service backwards compatible with the initial CADC
+# data web service
+DATA_RESOURCE_ID = 'ivo://cadc.nrc.ca/data'
 
 # resource IDs for file transfers (LOCATE is for transfer negotiation
 # and FILES is for direct access)
@@ -189,18 +192,40 @@ def handle_error(exception, exit_after=True):
         sys.exit(-1)  # TODO use different error codes?
 
 
-def validate_uri(uri):
+def validate_uri(uri, strict=True):
     """
     Validate URI format for ID
     :param uri:
+    :param strict: need to include a scheme
     :return: None if uri valid or raises AttributeError otherwise
     """
     if not uri:
         raise AttributeError('URI required')
     res = urlparse(uri)
-    if not res.scheme:
-        raise AttributeError(
+    if strict and not res.scheme:
+        raise ValueError(
             '{} not a valid id (missing URI scheme)'.format(uri))
+
+
+def validate_get_uri(uri):
+    """
+    Validate ID URI format for a get command that accepts parameters such as
+    CUTOUT
+    :param uri:
+    :param strict: need to include a scheme
+    :return: None if uri valid or raises AttributeError otherwise
+    """
+    validate_uri(uri, False)
+    square_error_msg = \
+        'Typo? Square brackets ([]) only allowed with the "CUTOUT=" parameters: ' + uri
+    if ('[' in uri) or (']' in uri):
+        res = urlparse(uri)
+        if res.query:
+            for param in res.query.lower().split('&'):
+                if (('[' in param) or (']' in param)) and 'cutout=[' not in param:
+                    raise ValueError(square_error_msg)
+        else:
+            raise ValueError(square_error_msg)
 
 
 def argparse_validate_uri(uri):
@@ -210,10 +235,61 @@ def argparse_validate_uri(uri):
     :return:
     """
     try:
-        validate_uri(uri)
+        validate_uri(uri, False)
     except AttributeError as e:
         raise argparse.ArgumentTypeError(str(e))
     return uri
+
+
+def argparse_validate_uri_strict(uri):
+    """
+    Same as `validate_uri` strict but customized to be used with argparse
+    :param uri:
+    :return:
+    """
+    try:
+        validate_uri(uri, True)
+    except (AttributeError, ValueError) as e:
+        raise argparse.ArgumentTypeError(str(e))
+    return uri
+
+
+def argparse_validate_get_uri(uri):
+    """
+    Same as `validate__get_uri` but customized to be used with argparse
+    :param uri:
+    :return:
+    """
+    try:
+        validate_get_uri(uri)
+    except (AttributeError, ValueError) as e:
+        raise argparse.ArgumentTypeError(str(e))
+    return uri
+
+
+def _fix_uri(func):
+    def wrapper(*args, **kwargs):
+        if 'id' in kwargs:
+            id = kwargs['id']
+        else:
+            id = args[1]
+        fixed = args[0]._get_uris(id)
+        for uri in fixed:
+            if 'id' in kwargs:
+                kwargs['id'] = uri
+            else:
+                tmp = list(args)
+                tmp[1] = uri
+                args = tuple(tmp)
+            try:
+                return func(*args, **kwargs)
+            except exceptions.NotFoundException:
+                if id != uri:
+                    logger.debug(uri + ' not found.')
+        if len(fixed) > 1:
+            logger.debug('Not found any of the possible URIs: {}'.format(' '.join(fixed)))
+        raise exceptions.NotFoundException(id)
+    return wrapper
 
 
 class StorageInventoryClient(object):
@@ -303,7 +379,13 @@ class StorageInventoryClient(object):
                 subject.cookies.append(
                     net.auth.CookieInfo(cadc_realm, CADC_SSO_COOKIE_NAME,
                                         '"{}"'.format(cookie_response.text)))
-        self._cadc_client = net.BaseWsClient(resource_id, subject,
+        self._cadc_client = net.BaseDataClient(
+            resource_id, subject,
+            agent, retry=True, host=self.host,
+            insecure=insecure)
+
+        # for now, this is only used to get the pub schema-archive mapping info
+        self._data_client = net.BaseWsClient(DATA_RESOURCE_ID, net.Subject(),
                                              agent, retry=True, host=self.host,
                                              insecure=insecure)
 
@@ -331,67 +413,45 @@ class StorageInventoryClient(object):
         except KeyError:
             return None
 
+    @_fix_uri
     def cadcget(self, id, dest=None, fhead=False, process_bytes=None):
         """
         Get a file from an archive. The entire file is delivered unless the
-         cutout argument is present specifying a cutout to extract from file.
+        cutout argument is present in the id in which case only the
+        specified sections of a FITS file are downloaded.
         :param id: the CADC Storage Inventory identifier (URI) of the file to
-        retrieve
+        retrieve. If the scheme in the URI is missing, the system will try to
+        guess it and return the first match. The id could also contain cutout
+        parameters if only parts of a FITS file are required ex:
+        CFHT/806045o.fits.fz?cutout=[1][10:120,20:30]&cutout=[2][10:120,20:30]
         :param dest: file to save data to (file, file_name, stream or
         anything that supports open/close and write).
         :param fhead: return the FITS header information (for all extensions)
         :param process_bytes: function to be applied to the received bytes
         """
-        validate_uri(id)
+
+        validate_get_uri(id)
         logger.debug('cadcget GET {} -> {}'.format(id, dest))
-        # TODO cutouts
-        # TODO transfer optimizations (skip download when destination exists)
-        urls = self._get_transfer_urls(id)
+        params = {}
+        uri = urlparse(id)
+        if 'cutout=[' in uri.query.lower():
+            lquery = uri.query.lower()
+            params['SUB'] = [x.strip('&') for x in lquery.split('cutout=')[1:]]
+            id = uri.scheme + ":" + uri.path
+        urls = self._get_transfer_urls(id, params=params)
         if len(urls) == 0:
             raise exceptions.HttpException('No URLs available to access data')
         last_exception = None
+        if fhead:
+            if params and ('SUB' in params):
+                raise AttributeError(
+                    'Cannot perform fhead and cutout at the same time')
+            else:
+                params['META'] = 'true'
         for url in urls:
-            if fhead:
-                # TODO this should not be allowed with cutouts
-                url = '{}?META=true'.format(url)
             logger.debug('GET from URL {}'.format(url))
             try:
-                response = self._cadc_client.get(url, stream=True)
-                if dest is not None:
-                    if not hasattr(dest, 'read'):
-                        # got a dest name?
-                        if os.path.isdir(dest):
-                            # file name comes from content disposition
-                            if not net.get_header_filename(response.headers):
-                                raise RuntimeError(
-                                    'BUG: No content-disposions from {} for {}'
-                                    .format(url, id))
-                            dest = \
-                                os.path.join(dest,
-                                             net.get_header_filename(
-                                                 response.headers))
-                        with open(dest, 'wb') as f:
-                            self._save_bytes(response, f, id,
-                                             process_bytes=process_bytes)
-                    else:
-                        self._save_bytes(response, dest, id,
-                                         process_bytes=process_bytes)
-                else:
-                    # get the destination name from the content disposition
-                    content_disp = net.get_header_filename(response.headers)
-                    if content_disp:
-                        dest = content_disp
-                        logger.debug(
-                            'Content disposition dest name: {}'.
-                            format(dest))
-                    # remove any path information and save the file in local
-                    # directory
-                    dest = os.path.basename(dest)
-                    logger.info('Saved file in local directory under: {}'.
-                                format(dest))
-                    with open(dest, 'wb') as f:
-                        self._save_bytes(response, f, id,
-                                         process_bytes=process_bytes)
+                self._cadc_client.download_file(url=url, dest=dest, params=params)
                 return
             except Exception as e:
                 # try a different URL
@@ -399,15 +459,6 @@ class StorageInventoryClient(object):
                     'WARN: Cannot retrieve data from {}. Exception: {}'.
                     format(url, e))
                 last_exception = e
-                if not hasattr(dest, 'read'):
-                    # try to cleanup the corrupted file
-                    # TODO should save in a temporary file and do a mv
-                    # at the end
-                    try:
-                        os.unlink(dest)
-                    except Exception:
-                        # nothing we can do
-                        pass
                 if isinstance(e, exceptions.TransferException) and \
                         urls.count(url) < MAX_TRANSIENT_TRIES:
                     # this is a transient exception - append url to try later
@@ -422,90 +473,12 @@ class StorageInventoryClient(object):
             raise exceptions.HttpException(
                 'BUG: Unable to download data to any of the available URLs')
 
-    def _save_bytes(self, response, dest_file, resource, process_bytes=None):
-        # requests automatically decompresses the data.
-        # Tell it to do it only if it had to
-        total_length = 0
-        hash_md5 = hashlib.md5()
-
-        class RawRange(object):
-            """
-            Wrapper class to make response.raw.read work as iterator and behave
-            the same way as the corresponding response.iter_content
-            """
-
-            def __init__(self, rsp):
-                """
-                :param rsp: HTTP response object
-                """
-                self._read = rsp.raw.read
-                self._decode = rsp.raw._decode
-                self.block_size = 0
-                self._md5sum = net.extract_md5(rsp.headers)
-
-            @property
-            def md5sum(self):
-                return self._md5sum
-
-            def __iter__(self):
-                return self
-
-            def __next__(self):
-                return self.next()
-
-            def next(self):
-                # reads the next raw block
-                data = self._read(self.block_size)
-                if len(data) > 0:
-                    if self._md5sum:
-                        hash_md5.update(data)
-                    return data
-                else:
-                    raise StopIteration()
-
-            def get_instance(self, block_size):
-                self.block_size = block_size
-                return self
-
-        try:
-            total_length = int(response.headers.get('content-length', 0))
-        except ValueError:
-            pass
-
-        rr = RawRange(response)
-        reader = rr.get_instance
-        if logger.isEnabledFor(logging.INFO) and total_length:
-            chunks = progress.bar(reader(
-                READ_BLOCK_SIZE),
-                expected_size=((total_length / READ_BLOCK_SIZE) + 1))
-        else:
-            chunks = reader(READ_BLOCK_SIZE)
-        start = time.time()
-        received_size = 0
-        for chunk in chunks:
-            if process_bytes is not None:
-                process_bytes(chunk)
-            dest_file.write(chunk)
-            received_size += len(chunk)
-        src_md5sum = rr.md5sum
-        dest_md5sum = hash_md5.hexdigest()
-        if (src_md5sum is not None) and (src_md5sum != dest_md5sum):
-            raise exceptions.TransferException(
-                'Downloaded file is corrupted: '
-                'expected md5({}) != actual md5({})'.
-                format(src_md5sum, dest_md5sum))
-        duration = time.time() - start
-        logger.info(
-            'Successfully downloaded file {} as {} in {}s (avg. speed: {}MB/s)'
-            ''.format(resource, dest_file.name, round(duration, 2),
-                      round(received_size / 1024 / 1024 / duration, 2)))
-
     def cadcput(self, id, src, replace=False, file_type=None,
                 file_encoding=None, md5_checksum=None):
         """
         Puts a file into the inventory system
         :param id: unique identifier (URI) for the file in the CADC inventory
-        system
+        system. The URI must include the scheme.
         :param src: location of the source file
         :param replace: boolean indicated whether this is expected to be
         a replacement of an existing file in the inventory system or not (file
@@ -528,11 +501,6 @@ class StorageInventoryClient(object):
 
         headers = {}
 
-        # TODO
-        # Calculate the md5 sum of the file on the fly and rollback PUT
-        # transactions when implemented
-
-        # check whether the file exists or not
         try:
             file_info = self.cadcinfo(id)
         except exceptions.NotFoundException:
@@ -601,37 +569,19 @@ class StorageInventoryClient(object):
                 return
             logger.debug('PUT to URL {}'.format(url))
             try:
+                file_info = os.stat(src)
                 start = time.time()
-                with util.Md5File(src, 'rb') as reader:
-                    self._cadc_client.put(url, headers=headers, data=reader)
+                self._cadc_client.upload_file(
+                    url=url,
+                    src=src,
+                    md5_checksum=md5_checksum,
+                    headers=headers)
                 duration = time.time() - start
-                stat_info = os.stat(src)
-                if md5_checksum and (md5_checksum != reader.md5_checksum):
-                    raise RuntimeError(
-                        'BUG: Provided checksum for {} does not match checksum'
-                        'of bytes read: {} != {}'.format(src, md5_checksum,
-                                                         reader.md5_checksum))
-                # do a head on the URL to check the md5 checksum
-                # TODO - hack warning: in order to create the correct URL,
-                # need to find the "files" endpoint of the location that
-                # the file was successfully put to. Not sure this is the
-                # correct way
-                location_url = url[:url.index('/files')] + '/files/'
-                head_url = location_url + id
-                logger.debug('Getting info file successfully put: HEAD '
-                             'at {}'.format(head_url))
-                response = self._cadc_client.head(head_url)
-                dest_md5 = net.extract_md5(response.headers)
-                if reader.md5_checksum != dest_md5:
-                    # corrupt file - TODO rollback tran
-                    raise exceptions.TransferException(
-                        'Uploaded file is corrupted: expected md5({}) != '
-                        'actual md5({})'.format(reader.md5_checksum, dest_md5))
                 logger.info(
                     ('Successfully uploaded file {} in {}s '
                      '(avg. speed: {}MB/s)').format(
                         id, round(duration, 2),
-                        round(stat_info.st_size / 1024 / 1024 / duration, 2)))
+                        round(file_info.st_size / 1024 / 1024 / duration, 2)))
                 return
             except Exception as e:
                 last_exception = e
@@ -657,7 +607,7 @@ class StorageInventoryClient(object):
         Removes a file into the inventory system. `NotFoundException` is raised
         if the `id` is not found.
         :param id: unique identifier (URI) for the file in the CADC inventory
-        system.
+        system. The URI must include the scheme.
         """
 
         # We actually raise an exception here since the web
@@ -668,12 +618,14 @@ class StorageInventoryClient(object):
             raise exceptions.UnauthorizedException(
                 'Must be authenticated to remove data')
 
+        # check file is there
+        self.cadcinfo(id)
         urls = self._get_transfer_urls(id, is_get=False)
         if len(urls) == 0:
             raise exceptions.NotFoundException(
                 'File not found: {}'.format(id))
 
-        # get the list of transfer points
+        error_msg = ''
         for url in urls:
             logger.debug(
                 'REMOVE file with identifier {} from URL {}'.format(id, url))
@@ -684,21 +636,30 @@ class StorageInventoryClient(object):
                 logger.info('{} removed in {} ms'.format(id, duration))
                 return
             except Exception as e:
-                # try a different URL
                 logger.debug('WARN: Cannot remove data from {}. Exception: {}'.
                              format(url, e))
+                error_msg += str(e) + '\n'
                 if urls:
+                    # try a different URL
                     logger.debug('Try the next URL')
                 continue
-        raise exceptions.HttpException(
-            'Unable to remove data from any of the available URLs')
+        # no successful DELETE so far. Double check the existence of file
+        # in global
+        try:
+            self.cadcinfo(id=id)
+        except exceptions.NotFoundException:
+            logger.debug('{} not in global anymore. File removed')
+            raise exceptions.NotFoundException(id)
+        raise exceptions.HttpException(error_msg)
 
+    @_fix_uri
     def cadcinfo(self, id):
         """
-        Get information regarding a file in the archive
-        :param archive: Name of the archive
-        :param file_name: name of the file
-        :returns dictionary of attributes/values
+        Get information regarding a file in SI.
+        :param id: unique identifier (URI) for the file in the CADC inventory
+        system. If the scheme in the URI is missing, the system will try to
+        guess it and return the first match.
+        :returns FileInfo object with the file metadata
         """
         validate_uri(id)
         resource = (FILES_STANDARD_ID, id)
@@ -723,7 +684,7 @@ class StorageInventoryClient(object):
         logger.debug('File info: {}'.format(file_info))
         return file_info
 
-    def _get_transfer_urls(self, id, is_get=True):
+    def _get_transfer_urls(self, id, params=None, is_get=True):
         if not self.transfer:
             # this is site location
             return ['{}/{}'.format(self.files, id)]
@@ -731,7 +692,7 @@ class StorageInventoryClient(object):
         return trans.transfer(
             endpoint_url=self.transfer, uri=id,
             direction='pullFromVoSpace' if is_get else 'pushToVoSpace',
-            with_uws_job=False)
+            with_uws_job=False, cutout=params)
 
     def _get_md5sum(self, filename):
         # return the md5sum of a file
@@ -740,6 +701,49 @@ class StorageInventoryClient(object):
             for chunk in iter(lambda: f.read(4096), b''):
                 hash_md5.update(chunk)
         return hash_md5.hexdigest()
+
+    def _get_uris(self, target):
+        # takes a target URI and if the URI is not fully qualified (schema
+        # is missing, returns a list of possible fully qualified
+        # corresponding URIs
+        parts = urlparse(target)
+        if parts.scheme:
+            return [target]
+
+        scheme_file = os.path.join(
+            os.path.dirname(self._data_client.caps.caps_file),
+            '.data_uri_scheme_map')
+        scheme_url = self._data_client.caps.caps_urls[DATA_RESOURCE_ID].replace('/capabilities', '/uri-scheme-map')
+        content = self._data_client.caps._get_content(scheme_file, scheme_url)
+        schemes = self._parse_scheme_config(content)
+        archive = target.split('/')[0]
+        if archive in schemes:
+            return ['{}:{}'.format(x.strip(':'), target) for x in schemes[archive]]
+        else:
+            return ['{}:{}'.format(schemes['default'][0], target)]
+
+    def _parse_scheme_config(self, content):
+        # parses the uri schemes map. Returns dictionary of archives and
+        # corresponding list of schemes. It alwas contains the 'default` key
+        result = {}
+        for row in content.split('\n'):
+            row = row.strip()
+            if not row or row.startswith('#'):
+                continue
+            tokens = row.split(':')
+            if not tokens:
+                raise ValueError('Cannot parse archive/scheme content in row ' + row)
+            archive = tokens[0].strip()
+            if not archive:
+                raise ValueError('Cannot find archive name in row ' + row)
+            ns = ''.join(tokens[1:])
+            name_spaces = [i.strip() for i in ns.split()]
+            if not name_spaces:
+                raise ValueError('No scheme found for archive {} (row {})'.format(archive, row))
+            result[archive] = name_spaces
+        if 'default' not in result:
+            result['default'] = ['cadc']
+        return result
 
 
 def cadcput_cli():
@@ -764,7 +768,7 @@ def cadcput_cli():
                              'is new. This is a safeguard for accidental '
                              'file replacements')
     parser.add_argument(
-        'identifier', type=argparse_validate_uri,
+        'identifier', type=argparse_validate_uri_strict,
         help='unique identifier (URI) given to the file in the CADC '
              'Storage Inventory or a root identifier when multiple files'
              'are uploaded at the same time')
@@ -835,8 +839,13 @@ def cadcget_cli():
         help='write to file or other directory instead of the current one.',
         required=False)
     parser.add_argument(
-        'identifier', type=argparse_validate_uri,
-        help='unique identifier (URI) given to the file in the CADC '
+        'identifier', type=argparse_validate_get_uri,
+        help='unique identifier (URI) given to the file in the CADC, typically'
+             ' of the form <scheme>:<archive>/<filename> where <scheme> is a'
+             ' concept internal to SI and is optional with this command. It is'
+             ' possible to attach cutout arguments to the identifier to'
+             ' download specific sections of a FITS file as in:'
+             ' CFHT/806045o.fits.fz?cutout=[1][10:120,20:30]'
              'Storage Inventory')
     parser.add_argument(
         '--fhead', action='store_true',
@@ -844,11 +853,11 @@ def cadcget_cli():
     parser.epilog = (
         'Examples:\n'
         '- Anonymously download a file to current directory:\n'
-        '      cadcget gemini:GEMINI/00aug02_002.fits\n'
-        '- Use certificate to get a cutout and save it to a file:\n'
-        '      cadcget --cert ~/.ssl/cadcproxy.pem -o '
-        '/tmp/700000o-cutout.fits\n'
-        '        cadc:CFHT/700000o[1]\n')
+        '      cadcget GEMINI/N20220825S0383.fits\n'
+        '- Use certificate and a full specified id to get a cutout and save '
+        'it to a file in the current directory (service provided file name):\n'
+        '      cadcget --cert ~/.ssl/cadcproxy.pem '
+        '"CFHT/806045o.fits.fz?cutout=[1][10:120,20:30]&cutout=[2][10:120,20:30]"\n')
 
     args = parser.parse_args()
     client = _create_client(args)
@@ -868,12 +877,17 @@ def cadcinfo_cli():
 
     parser.add_argument(
         'identifier', type=argparse_validate_uri,
-        help='unique identifier (URI) given to the file in the CADC '
-             'Storage Inventory', nargs='+')
+        help='unique identifier (URI) given to the file in the CADC, typically'
+             ' of the form <scheme>:<archive>/<filename> where <scheme> is a '
+             ' concept internal to the storage system and is optional with this command.',
+             nargs='+')
     parser.epilog = (
         'Examples:\n'
-        '- Anonymously getting a public file:\n'
-        '        cadcinfo gemini:GEMINI/00aug02_002.fits\n')
+        '- Anonymously getting information about a public file:\n'
+        '        cadcinfo CFHT/1000003f.fits.fz\n'
+        '- Anonymously getting the information for the same public file '
+        '  using a full URI:\n'
+        '        cadcinfo cadc:CFHT/1000003f.fits.fz\n')
 
     args = parser.parse_args()
     client = _create_client(args)
@@ -881,7 +895,8 @@ def cadcinfo_cli():
         logger.info('INFO for id {}'.format(id))
         try:
             file_info = execute_cmd(client.cadcinfo, {'id': id})
-            print('CADC Storage Inventory identifier {}:'.format(id))
+            print('CADC Storage Inventory artifact {}:'.format(id))
+            print('\t {:>15}: {}'.format('id', file_info.id))
             print('\t {:>15}: {}'.format('name', file_info.name))
             print('\t {:>15}: {}'.format('size', file_info.size))
             print('\t {:>15}: {}'.format('type', file_info.file_type))
@@ -905,7 +920,7 @@ def cadcremove_cli():
         'Remove files from the CADC Storage Inventory')
 
     parser.add_argument(
-        'identifier', type=argparse_validate_uri,
+        'identifier', type=argparse_validate_uri_strict,
         help='unique identifier (URI) given to the file in the CADC '
              'Storage Inventory', nargs='+')
     parser.epilog = (

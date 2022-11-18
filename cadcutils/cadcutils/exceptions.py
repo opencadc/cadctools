@@ -144,6 +144,16 @@ class BadRequestException(HttpException):
         HttpException.__init__(self, msg, orig_exception)
 
 
+class PreconditionFailedException(HttpException):
+    """One or more conditions given in the request header fields evaluated
+    to false when tested on the server.
+    Attributes:
+        msg
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        HttpException.__init__(self, msg, orig_exception)
+
+
 class AlreadyExistsException(HttpException):
     """Resource already exists
     Attributes:

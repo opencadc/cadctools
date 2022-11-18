@@ -182,4 +182,6 @@ def test_get_cert_main_help():
                     'https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca'
                 sys.argv = ['getCert', '-h']
                 old_get_cert._main()
-    assert usage == stdout_mock.getvalue()
+    # new options title in 3.10
+    actual = stdout_mock.getvalue().replace('options:', 'optional arguments:')
+    assert usage.strip('\n') == actual.strip('\n')

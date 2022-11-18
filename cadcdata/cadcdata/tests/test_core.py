@@ -73,10 +73,11 @@ import os
 import sys
 import logging
 import shutil
+from requests.structures import CaseInsensitiveDict
 
 from six import StringIO
 from six.moves import xrange
-from cadcutils.net import auth
+from cadcutils.net import auth, netutils
 from cadcutils import exceptions
 from cadcdata import transfer
 from cadcdata import CadcDataClient
@@ -353,7 +354,7 @@ def test_info_file(basews_mock):
     usize = '1234'
     umd5sum = '0x1234'
 
-    h = {}
+    h = CaseInsensitiveDict()
     h['Content-Disposition'] = 'inline; filename={}'.format(file_name)
     h['Content-Length'] = size
     h['Content-MD5'] = md5sum
@@ -362,6 +363,25 @@ def test_info_file(basews_mock):
     h['Last-Modified'] = lastmod
     h['X-Uncompressed-Length'] = usize
     h['X-Uncompressed-MD5'] = umd5sum
+    response = Mock()
+    response.headers = h
+    basews_mock.return_value.head.return_value = response
+    info = client.get_file_info('TEST', 'myfile')
+    assert archive == info['archive']
+    assert file_name == info['name']
+    assert size == info['size']
+    assert md5sum == info['md5sum']
+    assert type == info['type']
+    assert encoding == info['encoding']
+    assert lastmod == info['lastmod']
+    assert usize == info['usize']
+    assert umd5sum == info['umd5sum']
+
+    # repeat test but update headers according to the ones return by SI
+    # when the HEAD is redirected to SI
+    h['content-disposition'] = 'attachment; filename="{}"'.format(file_name)
+    del h['Content-MD5']
+    netutils.add_md5_header(h, md5sum)
     response = Mock()
     response.headers = h
     basews_mock.return_value.head.return_value = response
@@ -390,17 +410,17 @@ def test_help():
         sys.argv = ['cadc-data', '--help']
         with pytest.raises(MyExitError):
             main_app()
-        assert usage == stdout_mock.getvalue()
+        assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
     usage = ('usage: cadc-data [-h] [-V] {get,put,info} ...\n'
              'cadc-data: error: too few arguments\n')
 
-    with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+    with patch('sys.stdout', new_callable=StringIO):
         with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
             sys.argv = ['cadc-data']
             with pytest.raises(MyExitError):
                 main_app()
-            assert usage == stderr_mock.getvalue()
+            assert usage.strip('\n') == _fix_help(stderr_mock.getvalue())
 
     # get -h
     # output is different in Python 3.9
@@ -415,7 +435,7 @@ def test_help():
         sys.argv = ['cadc-data', 'get', '--help']
         with pytest.raises(MyExitError):
             main_app()
-        assert usage == stdout_mock.getvalue()
+        assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
     # put -h
     with open(os.path.join(TESTDATA_DIR, 'help_put.txt'), 'r') as myfile:
@@ -425,7 +445,7 @@ def test_help():
         sys.argv = ['cadc-data', 'put', '-h']
         with pytest.raises(MyExitError):
             main_app()
-        assert usage == stdout_mock.getvalue()
+        assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
     # info -h
     with open(os.path.join(TESTDATA_DIR, 'help_info.txt'), 'r') as myfile:
@@ -435,7 +455,17 @@ def test_help():
         sys.argv = ['cadc-data', 'info', '--help']
         with pytest.raises(MyExitError):
             main_app()
-        assert usage == stdout_mock.getvalue()
+        assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
+
+
+def _fix_help(help_txt):
+    """
+    Deals with incompatibilities between versions
+    :param help_txt:
+    :return:
+    """
+    # Different title in python 3.10
+    return help_txt.replace('options:', 'optional arguments:').strip('\n')
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,

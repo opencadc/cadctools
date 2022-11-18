@@ -75,6 +75,8 @@ import os
 import os.path
 import sys
 import time
+import warnings
+from warnings import warn, warn_explicit
 from clint.textui import progress
 import hashlib
 
@@ -93,6 +95,8 @@ except ImportError as e:
                       'type and encoding for each file.')
     else:
         raise e
+
+warnings.simplefilter('always', DeprecationWarning)
 
 # maximum number of times to try an URL with transient error
 MAX_TRANSIENT_TRIES = 3
@@ -208,6 +212,9 @@ class CadcDataClient(object):
         :param md5_check: if True, do md5sum check for corrupted data
         :return: the data stream object
         """
+        warn('Please use the StorageInvetoryClient.cadcget method '
+             'which works with the new CADC storage system.',
+             DeprecationWarning, stacklevel=2)
         assert archive is not None
         assert file_name is not None
         params = {}
@@ -394,6 +401,9 @@ class CadcDataClient(object):
         :param input_name: name to use in the archive overriding the actual
         file name.
         """
+        warn('Please use the StorageInvetoryClient.cadcput method '
+             'which works with the new CADC storage system.',
+             DeprecationWarning, stacklevel=2)
         if not archive:
             raise AttributeError('No archive specified')
 
@@ -490,6 +500,9 @@ class CadcDataClient(object):
         :param file_name: name of the file
         :returns dictionary of attributes/values
         """
+        warn('Please use the StorageInvetoryClient.cadcinfo method '
+             'which works with the new CADC storage system.',
+             DeprecationWarning, stacklevel=2)
         assert archive is not None
         assert file_name is not None
         resource = (CADC_AD_CAPABILITY_ID, '{}/{}'.format(archive, file_name))
@@ -508,8 +521,10 @@ class CadcDataClient(object):
         for key in hmap:
             file_info[key] = h.get(hmap[key], None)
         if file_info['name'] is not None:
-            file_info['name'] = file_info['name'].replace(
-                'inline; filename=', '')
+            file_info['name'] = \
+                net.netutils.get_header_filename(response.headers)
+        if file_info['md5sum'] is None:
+            file_info['md5sum'] = net.extract_md5(response.headers)
         # TODO file_info['ingest_date'] = h[?]
         self.logger.debug("File info: {}".format(file_info))
         return file_info
@@ -579,7 +594,7 @@ def main_app():
              '(quotes required for multiple elements)',
         required=False)
     get_parser.add_argument(
-        '--cutout', nargs='*',
+        '--cutout', action='append', nargs=1,
         help=('specify one or multiple extension and/or pixel range cutout '
               'operations to be performed. Use cfitsio syntax'),
         required=False)
@@ -730,6 +745,8 @@ def main_app():
     client = CadcDataClient(subject, args.resource_id, host=args.host)
     try:
         if args.cmd == 'get':
+            warn_explicit('Please use the cadcget command instead',
+                          DeprecationWarning, 'cadc-data get', 0)
             logger.info('get')
             archive = args.archive
             file_names = args.filename
@@ -761,6 +778,9 @@ def main_app():
                                      exit_after=False)
         elif args.cmd == 'info':
             logger.info('info')
+            warn_explicit(
+                'Please use the cadcinfo command instead', DeprecationWarning,
+                'cadc-data info', 0)
             archive = args.archive
             for file_name in args.filename:
                 try:
@@ -776,6 +796,8 @@ def main_app():
                     print('\t {:>10}: {}'.format(field, file_info[field]))
         else:
             logger.info('put')
+            warn_explicit('Please use the cadcput command instead',
+                          DeprecationWarning, 'cadc-data put', 0)
             archive = args.archive
             sources = args.source
 

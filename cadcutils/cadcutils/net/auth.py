@@ -4,7 +4,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2016.                            (c) 2016.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -149,8 +149,8 @@ class Subject(object):
     @certificate.setter
     def certificate(self, value):
         if value is not None:
-            assert value != '' and os.path.isfile(value),\
-                'Certificate file {} not found'.format(value)
+            if not os.path.isfile(value):
+                raise ValueError('Certificate file {} not found'.format(value))
             self._certificate = value
 
     @property
@@ -232,8 +232,10 @@ class Subject(object):
                 return self._hosts_auth[realm]
             sys.stdout.write("{}@{}\n".format(self.username, realm))
             sys.stdout.flush()
-            self._hosts_auth[realm] = (self.username,
-                                       getpass.getpass().strip('\n'))
+            pswd = getpass.getpass().strip().strip('\n')
+            if not pswd:
+                raise ValueError('Password cannot be empty')
+            self._hosts_auth[realm] = (self.username, pswd)
             sys.stdout.write("\n")
             sys.stdout.flush()
             return self._hosts_auth[realm]
@@ -330,8 +332,9 @@ def get_cert_main():
         cert = get_cert(subject, days_valid=args.days_valid, host=args.host)
         with open(args.cert_filename, 'w') as w:
             w.write(cert)
-        print('DONE. {} day certificate saved in {}'.format(
-            args.days_valid, args.cert_filename))
+        if not args.quiet:
+            print('DONE. {} day certificate saved in {}'.format(
+                args.days_valid, args.cert_filename))
     except exceptions.UnauthorizedException:
         # unauthorized
         sys.stderr.write('FAILED: invalid username/password combination')

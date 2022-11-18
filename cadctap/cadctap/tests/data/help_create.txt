@@ -25,7 +25,7 @@ optional arguments:
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -f, --format {VOSITable,VOTable}
-                        Format of the table definition file. Default VOSITable
+                        format of the table definition file. Default VOSITable
                         format
   -h, --help            show this help message and exit
   -n                    use .netrc in $HOME for authentication

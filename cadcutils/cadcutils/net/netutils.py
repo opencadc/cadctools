@@ -238,7 +238,7 @@ class Transfer(object):
             headers={'Content-Type': 'text/xml'})
 
         logging.debug("{0}".format(resp))
-        logging.debug("{0}".format(resp.text))
+        logging.debug("{0}".format(resp.content))
         while resp.status_code == 303:
             goto_url = resp.headers.get('Location', None)
 
@@ -259,7 +259,7 @@ class Transfer(object):
                 self.check_job_error(
                     str.replace(transfer_url, 'xfer', 'transfers'),
                     str(uri), True)
-            xml_string = resp.text
+            xml_string = resp.content
             logging.debug('Transfer Document:{}'.format(xml_string))
             transfer_document = ElementTree.fromstring(xml_string)
             logging.debug(
