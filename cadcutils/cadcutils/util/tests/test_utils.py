@@ -79,6 +79,7 @@ import hashlib
 from cadcutils.util import date2ivoa, str2ivoa, get_base_parser, \
     get_log_level, get_logger, Md5File
 import pytest
+import json
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
@@ -345,6 +346,23 @@ class UtilTests(unittest.TestCase):
                 parser.parse_args()
             assert expected_stdout.strip('\n') == \
                 _fix_help(stdout_mock.getvalue())
+
+    def test_get_newer_version(self):
+        # mock pypi returns version ['0.9', '0.9.1a1', '1.0', '1.0.dev20190219']
+        client_v02 = get_base_parser(False, version='cadc-application 0.2')
+        client_v09 = get_base_parser(False, version='cadc-application 0.9')
+        client_v10 = get_base_parser(False, version='cadc-application 1.0')
+        client_v11 = get_base_parser(False, version='cadc-application 1.1')
+        with patch('cadcutils.util.utils.requests') as mock_requests:
+            with open(os.path.join(TESTDATA_DIR, 'myapp_versions.json')) as f:
+                versions_json = f.read()
+            response = Mock()
+            response.json.return_value = json.loads(versions_json)
+            mock_requests.get.return_value = response
+            assert '1.0' == client_v02._get_newer_version()
+            assert '1.0' == client_v09._get_newer_version()
+            assert client_v10._get_newer_version() is None
+            assert client_v11._get_newer_version() is None
 
 
 def _fix_help(help_txt):
