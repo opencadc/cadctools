@@ -88,6 +88,8 @@ CADC_LOGIN_CAPABILITY = 'ivo://ivoa.net/std/UMS#login-0.1'
 CADC_SSO_COOKIE_NAME = 'CADC_SSO'
 CADC_REALMS = ['.canfar.net', '.cadc-ccda.hia-iha.nrc-cnrc.gc.ca',
                '.cadc.dao.nrc.ca']
+SUPPORTED_SERVER_VERSIONS = {'storage-inventory/raven': '0.5',
+                             'storage-inventory/minoc': '0.1'}
 
 MAGIC_WARN = None
 try:
@@ -359,7 +361,8 @@ class StorageInventoryClient(object):
            subject.get_security_methods():
             login = net.BaseWsClient(CADC_AC_SERVICE, net.Subject(),
                                      agent,
-                                     retry=True, host=self.host)
+                                     retry=True, host=self.host,
+                                     server_versions=SUPPORTED_SERVER_VERSIONS)
             login_url = login._get_url((CADC_LOGIN_CAPABILITY, None))
             realm = urlparse(login_url).hostname
             auth = subject.get_auth(realm)
@@ -379,15 +382,18 @@ class StorageInventoryClient(object):
                 subject.cookies.append(
                     net.auth.CookieInfo(cadc_realm, CADC_SSO_COOKIE_NAME,
                                         '"{}"'.format(cookie_response.text)))
+
         self._cadc_client = net.BaseDataClient(
             resource_id, subject,
             agent, retry=True, host=self.host,
-            insecure=insecure)
+            insecure=insecure,
+            server_versions=SUPPORTED_SERVER_VERSIONS)
 
         # for now, this is only used to get the pub schema-archive mapping info
         self._data_client = net.BaseWsClient(DATA_RESOURCE_ID, net.Subject(),
                                              agent, retry=True, host=self.host,
-                                             insecure=insecure)
+                                             insecure=insecure,
+                                             server_versions=SUPPORTED_SERVER_VERSIONS)
 
     @property
     def transfer(self):
