@@ -133,7 +133,7 @@ def extract_md5(headers):
     if ('digest' in headers) and (headers['digest'].startswith('md5')):
         value = base64.b64decode(headers['digest'][4:])
         if len(value) == 16:
-            return value.hex() #  TODO only compatible with 3.5
+            return value.hex()  # TODO only compatible with 3.5
         else:
             #  TODO this is wrong and will be removed eventually
             return value.decode('ascii')

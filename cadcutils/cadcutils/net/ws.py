@@ -884,7 +884,6 @@ def _check_server_version(supported_versions, server_header):
             logging.debug(
                 'Version incompatibility for {} - Client({}.{}) vs Server({}.{})'.format(
                     server, s_major, s_minor, a_major, a_minor))
-            #TODO what type of error to raise?
             raise RuntimeError(
                 'Client and server software not compatible anymore. Please upgrade application.')
 
@@ -936,8 +935,7 @@ class RetrySession(Session):
         self.start_delay = start_delay
         self.idempotent_posts = idempotent_posts
         super(RetrySession, self).__init__(*args, **kwargs)
-        self._server_versions  = None  # server versions that client supports
-
+        self._server_versions = None  # server versions that client supports
 
     @property
     def server_versions(self):
@@ -968,7 +966,6 @@ class RetrySession(Session):
         # to add it
         if 'timeout' not in kwargs or kwargs['timeout'] is None:
             kwargs['timeout'] = 120
-
 
         if (request.method.upper() == 'POST') and self.idempotent_posts:
             self.logger.debug(
@@ -1031,7 +1028,6 @@ class RetrySession(Session):
             response = super(RetrySession, self).send(request, **kwargs)
             self.check_status(response, retry=False)
             return response
-
 
     def check_status(self, response, retry=True):
         """

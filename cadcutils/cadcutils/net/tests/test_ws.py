@@ -102,7 +102,7 @@ def test_check_server_version():
     assert _check_server_version({'server1': '1.3'}, None) is None
     assert _check_server_version(None, 'OpenCADC/cadc-rest + cadc/server1-1.2.3') is None
 
-    with pytest.raises(RuntimeError) as e:
+    with pytest.raises(RuntimeError):
         _check_server_version({'server1': '1.1'},
                               'OpenCADC/cadc-rest + cadc/server1-1.2.3')
 
@@ -122,19 +122,19 @@ def test_check_server_version():
     _check_server_version({'server0': '0.1', 'server1': '1.2'},
                           'OpenCADC/cadc-rest + cadc/server1-1.2.3')
 
-    with pytest.raises(RuntimeError) as e:
+    with pytest.raises(RuntimeError):
         _check_server_version({'server0': '2.3', 'server1': '1.1'},
                               'OpenCADC/cadc-rest + cadc/server1-1.2.3')
 
     # error cases
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError):
         _check_server_version({'server1': '1.1.1'},
                               'OpenCADC/cadc-rest + cadc/server1-1.2.3')
 
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError):
         _check_server_version({'server1': '1.1a'},
                               'OpenCADC/cadc-rest + cadc/server1-1.2.3')
-    with pytest.raises(ValueError) as e:
+    with pytest.raises(ValueError):
         _check_server_version({'server1': '1.1'},
                               'OpenCADC/cadc-rest + cadc/server1-1.2a')
 
@@ -201,8 +201,6 @@ class TestListResources(unittest.TestCase):
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             ws.list_resources()
             self.assertEqual(usage, stdout_mock.getvalue().strip())
-
-
 
     @patch('cadcutils.net.ws.WsCapabilities')
     @patch('cadcutils.net.auth.os.path.isfile', Mock())
