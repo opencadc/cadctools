@@ -235,15 +235,15 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
     client.cadcinfo = Mock(
         return_value=cadcdata.FileInfo('cadc:TEST/putfile',
                                        file_type='application/file',
-                                       encoding='none', md5sum='0x123456789'))
+                                       encoding='none', md5sum='2debfdcf79f03e4a65a667d21ef9de14'))
     client.cadcput('cadc:TEST/putfile', file_name, replace=True,
                    file_type='text/plain', file_encoding='us-ascii',
-                   md5_checksum='0x123456789')
+                   md5_checksum='2debfdcf79f03e4a65a667d21ef9de14')
     upload_mock.assert_not_called()
     post_mock.assert_called_with('https://url1/minoc/files',
                                  headers={'Content-Type': 'text/plain',
                                           'Content-Encoding': 'us-ascii',
-                                          'digest': 'md5=MHgxMjM0NTY3ODk='})
+                                          'digest': 'md5=Lev9z3nwPkplpmfSHvneFA=='})
 
     # no update required - data and metadata identical
     upload_mock.reset_mock()
@@ -254,10 +254,10 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
         return_value=cadcdata.FileInfo('cadc:TEST/putfile',
                                        file_type='text/plain',
                                        encoding='us-ascii',
-                                       md5sum='0x123456789'))
+                                       md5sum='2debfdcf79f03e4a65a667d21ef9de14'))
     client.cadcput('cadc:TEST/putfile', file_name, replace=True,
                    file_type='text/plain', file_encoding='us-ascii',
-                   md5_checksum='0x123456789')
+                   md5_checksum='2debfdcf79f03e4a65a667d21ef9de14')
     upload_mock.assert_not_called()
     post_mock.assert_not_called()
 
@@ -271,7 +271,7 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
         return_value=cadcdata.FileInfo('cadc:TEST/putfile',
                                        file_type='text/plain',
                                        encoding='us-ascii',
-                                       md5sum='0x123456789'))
+                                       md5sum='2debfdcf79f03e4a65a667d21ef9de14'))
     with pytest.raises(AttributeError):
         client.cadcput('cadc:TEST/putfile', file_name, replace=False)
 
@@ -286,7 +286,7 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
     with pytest.raises(exceptions.HttpException):
         client.cadcput('cadc:TEST/putfile', file_name,
                        file_type='text/plain', file_encoding='us-ascii',
-                       md5_checksum='0x1234567890')
+                       md5_checksum='2debfdcf79f03e4a65a667d21ef9de14')
     assert upload_mock.call_count == \
         len(url_list) * cadcdata.storageinv.MAX_TRANSIENT_TRIES
 
@@ -303,7 +303,7 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
     with pytest.raises(exceptions.HttpException):
         client.cadcput('cadc:TEST/putfile', file_name,
                        file_type='text/plain', file_encoding='us-ascii',
-                       md5_checksum='0x1234567890')
+                       md5_checksum='2debfdcf79f03e4a65a667d21ef9de14')
     assert \
         upload_mock.call_count == 1 + cadcdata.storageinv.MAX_TRANSIENT_TRIES
 
@@ -319,7 +319,7 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
     with pytest.raises(exceptions.HttpException):
         client.cadcput('cadc:TEST/putfile', file_name,
                        file_type='text/plain', file_encoding='us-ascii',
-                       md5_checksum='0x1234567890')
+                       md5_checksum='2debfdcf79f03e4a65a667d21ef9de14')
     assert upload_mock.call_count == 3
 
 

@@ -347,12 +347,12 @@ def test_info_file(basews_mock):
     file_name = 'myfile.txt'
     archive = 'TEST'
     size = '123'
-    md5sum = '0x123'
+    md5sum = '2debfdcf79f03e4a65a667d21ef9de14'
     type = 'txt'
     encoding = 'gzip'
     lastmod = '11/11/11T11:11:11.000'
     usize = '1234'
-    umd5sum = '0x1234'
+    umd5sum = '2debfdcf79f03e4a65a667d21ef9de15'
 
     h = CaseInsensitiveDict()
     h['Content-Disposition'] = 'inline; filename={}'.format(file_name)
