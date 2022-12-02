@@ -935,8 +935,7 @@ class RetrySession(Session):
         self.start_delay = start_delay
         self.idempotent_posts = idempotent_posts
         super(RetrySession, self).__init__(*args, **kwargs)
-        self._server_versions  = None  # server versions that client supports
-
+        self._server_versions = None  # server versions that client supports
 
     @property
     def server_versions(self):
@@ -967,7 +966,6 @@ class RetrySession(Session):
         # to add it
         if 'timeout' not in kwargs or kwargs['timeout'] is None:
             kwargs['timeout'] = 120
-
 
         if (request.method.upper() == 'POST') and self.idempotent_posts:
             self.logger.debug(
@@ -1030,7 +1028,6 @@ class RetrySession(Session):
             response = super(RetrySession, self).send(request, **kwargs)
             self.check_status(response, retry=False)
             return response
-
 
     def check_status(self, response, retry=True):
         """
@@ -1131,16 +1128,10 @@ class WsCapabilities(object):
         """
 
         if (time.time() - self.last_capstime) > CACHE_REFRESH_INTERVAL:
-            if self.last_capstime == 0:
-                # startup
-                try:
-                    self.last_capstime = os.path.getmtime(self.caps_file)
-                except OSError:
-                    # cannot read the cache file for whatever reason
-                    pass
-            caps = self._get_content(self.caps_file,
-                                     self._get_capability_url(),
-                                     self.last_capstime)
+            caps = util.get_url_content(url=self._get_capability_url(),
+                                        cache_file=self.caps_file,
+                                        refresh_interval=CACHE_REFRESH_INTERVAL,
+                                        verify=self.ws.verify)
             # caps is a string but it's xml content claims it's utf-8 encode,
             # hence need to encode it before
             # parsing it.
@@ -1155,58 +1146,6 @@ class WsCapabilities(object):
     @property
     def host(self):
         return self._host
-
-    def _get_content(self, resource_file, url, last_accessed=None):
-        """
-         Return content from a local cache file if information is recent
-         (it was accessed less than CACHE_REFRESH_INTERVAL seconds ago).
-         If not or if last_accessed is not specified and the cache is stale,
-         it updates the cache from the provided url before
-         returning the content.
-        """
-        content = None
-        if not last_accessed and os.path.exists(resource_file):
-            last_accessed = os.path.getmtime(resource_file)
-        if (last_accessed and (time.time() - last_accessed) < CACHE_REFRESH_INTERVAL):
-            # get reg information from the cached file
-            self.logger.debug(
-                'Read cached content of {}'.format(resource_file))
-            try:
-                with open(resource_file, 'r') as f:
-                    content = f.read()
-            except Exception:
-                # will download it
-                pass
-        # config dirs if they don't exist yet
-        if not os.path.exists(os.path.dirname(resource_file)):
-            os.makedirs(os.path.dirname(resource_file))
-
-        if content is None:
-            # get information from the bootstrap registry
-            try:
-                session = requests.Session()
-                # do not allow requests to use .netrc file
-                session.trust_env = False
-                rsp = session.get(url, verify=self.ws.verify)
-                rsp.raise_for_status()
-                content = rsp.text
-                if content is None or len(content.strip(' ')) == 0:
-                    # workaround for a problem with CADC servers
-                    raise exceptions.HttpException('Received empty content')
-                with open(resource_file, 'w') as f:
-                    f.write(content)
-            except exceptions.HttpException as e:
-                # problems with the bootstrap registry. Try to use the old
-                # local one regardless of how old it is
-                self.logger.error("ERROR: cannot read registry info from " +
-                                  url + ": " + str(e))
-                if os.path.exists(resource_file):
-                    with open(resource_file, 'r') as f:
-                        content = f.read()
-        if content is None:
-            raise RuntimeError(
-                "Cannot get the registry info for resource " + url)
-        return content
 
     def _get_capability_url(self):
         """
@@ -1233,8 +1172,10 @@ class WsCapabilities(object):
                                                   url.path)
             self.logger.debug('Resolved URL: {}'.format(registry_url))
 
-            reg = self._get_content(self.reg_file, registry_url,
-                                    self.last_regtime)
+            reg = util.get_url_content(url=registry_url,
+                                       cache_file=self.reg_file,
+                                       refresh_interval=CACHE_REFRESH_INTERVAL,
+                                       verify=self.ws.verify)
             self.caps_urls = {}
             if (time.time() - self.last_regtime) > CACHE_REFRESH_INTERVAL:
                 self.last_regtime = time.time()

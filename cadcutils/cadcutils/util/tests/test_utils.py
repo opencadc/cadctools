@@ -77,9 +77,11 @@ import sys
 import logging
 import hashlib
 from cadcutils.util import date2ivoa, str2ivoa, get_base_parser, \
-    get_log_level, get_logger, Md5File
+    get_log_level, get_logger, Md5File, get_url_content, VersionWarning, check_version
+from cadcutils import exceptions, util
 import pytest
-import json
+from tempfile import NamedTemporaryFile
+import warnings
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
@@ -347,22 +349,89 @@ class UtilTests(unittest.TestCase):
             assert expected_stdout.strip('\n') == \
                 _fix_help(stdout_mock.getvalue())
 
-    def test_get_newer_version(self):
-        # mock pypi returns version ['0.9', '0.9.1a1', '1.0', '1.0.dev20190219']
-        client_v02 = get_base_parser(False, version='cadc-application 0.2')
-        client_v09 = get_base_parser(False, version='cadc-application 0.9')
-        client_v10 = get_base_parser(False, version='cadc-application 1.0')
-        client_v11 = get_base_parser(False, version='cadc-application 1.1')
-        with patch('cadcutils.util.utils.requests') as mock_requests:
+    def test_check_version(self):
+        # mock pypi returns version ['1.0.1', '1.0.2a1', '1.0.1.1', '0.9.9', '1.0.2dev20190219']
+        with patch('cadcutils.util.utils.get_url_content') as mock_content:
             with open(os.path.join(TESTDATA_DIR, 'myapp_versions.json')) as f:
                 versions_json = f.read()
-            response = Mock()
-            response.json.return_value = json.loads(versions_json)
-            mock_requests.get.return_value = response
-            assert '1.0' == client_v02._get_newer_version()
-            assert '1.0' == client_v09._get_newer_version()
-            assert client_v10._get_newer_version() is None
-            assert client_v11._get_newer_version() is None
+            mock_content.return_value = versions_json
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", category=VersionWarning)
+                # reset checked flag
+                util.check_version.checked = []
+                with pytest.raises(VersionWarning):
+                    check_version('cadc-application 0.2')
+
+                # subsequent calls are not checked
+                check_version('cadc-application 0.2')
+
+                # check a different package. mock_content is going to return
+                # the versions above so this should fail
+                with pytest.raises(VersionWarning):
+                    check_version('cadc-other-application 0.5.5')
+
+                # subsequent calls should not be checked
+                check_version('cadc-other-application 0.5.5')
+
+                util.check_version.checked = []
+                with pytest.raises(VersionWarning):
+                    check_version('cadc-application 1.0.0')
+
+                util.check_version.checked = []
+                check_version('cadc-application 1.0.1')
+
+
+def test_get_url_content():
+    cache_file = NamedTemporaryFile()
+    content = 'TEST CACHE'
+    with patch('cadcutils.util.utils.requests.Session') as mock_session:
+        response = Mock()
+        response.text = content
+        msession = Mock()
+        msession.get.return_value = response
+        mock_session.return_value = msession
+        assert content == get_url_content('https://some.site',
+                                          cache_file=cache_file.name,
+                                          refresh_interval=0)  # force cache update
+        with open(cache_file.name, 'r') as f:
+            cache_content = f.read()
+        assert content == cache_content
+
+        new_content = 'TEST CACHE AGAIN'
+        response.text = new_content
+        msession.get.return_value = response
+        mock_session.return_value = msession
+        # use cache
+        assert content == get_url_content('https://some.site',
+                                          cache_file=cache_file.name,
+                                          refresh_interval=1000)  # use cache
+        assert mock_session.get.call_count == 0
+        # force refresh
+        assert new_content == get_url_content('https://some.site',
+                                              cache_file=cache_file.name,
+                                              refresh_interval=0)  # force refresh
+        with open(cache_file.name, 'r') as f:
+            cache_content = f.read()
+        assert new_content == cache_content
+
+        # use outdated cache when URL not accessible
+        msession = Mock()
+        msession.get.side_effect = [exceptions.HttpException()]
+        mock_session.return_value = msession
+        assert new_content == get_url_content('https://some.site',
+                                              cache_file=cache_file.name,
+                                              refresh_interval=0)
+
+        # repeat but remove the cache file
+        os.remove(cache_file.name)
+        msession = Mock()
+        msession.get.side_effect = [exceptions.HttpException()]
+        mock_session.return_value = msession
+        msession.get.side_effect = [Exception('Some error')]
+        with pytest.raises(RuntimeError):
+            assert new_content == get_url_content('https://some.site',
+                                                  cache_file=cache_file.name,
+                                                  refresh_interval=0)
 
 
 def _fix_help(help_txt):

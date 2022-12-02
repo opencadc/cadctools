@@ -276,6 +276,7 @@ def get_cert(subject, days_valid=None, host=None):
     params = {}
     if days_valid is not None:
         params['daysValid'] = int(days_valid)
+    util.check_version(version=version.version)
     client = ws.BaseWsClient(CRED_RESOURCE_ID, subject,
                              agent="cadc-get-cert/1.0.1", retry=True,
                              host=host)

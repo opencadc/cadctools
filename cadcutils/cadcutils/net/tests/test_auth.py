@@ -91,6 +91,8 @@ class TestAuth(unittest.TestCase):
     """ Class for testing networking authorization functionality """
 
     @patch('cadcutils.net.auth.get_cert', Mock(return_value='CERTVALUE'))
+    @patch('cadcutils.net.auth.util.check_version', Mock())  # mock from get_cert function
+    @patch('cadcutils.util.utils.check_version', Mock())  # mock from parse args
     @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))
     def test_get_cert_main(self):
         """ Test the cert_main function """

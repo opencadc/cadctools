@@ -127,6 +127,7 @@ class GroupsClient():
         """
         self.resource_id = resource_id
         self.host = host
+        util.check_version(version=version.version)
 
         self._subject = subject
         if agent is None:
@@ -509,14 +510,6 @@ def main_app():
         parser.print_usage(file=sys.stderr)
         sys.stderr.write("{}: error: too few arguments\n".format(APP_NAME))
         sys.exit(-1)
-    if args.verbose:
-        logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-        logger.setLevel(logging.INFO)
-    elif args.debug:
-        logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
-        logger.setLevel(logging.DEBUG)
-    else:
-        logging.basicConfig(level=logging.WARNING, stream=sys.stdout)
 
     subject = Subject.from_cmd_line_args(args)
 

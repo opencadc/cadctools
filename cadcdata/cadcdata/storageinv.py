@@ -352,6 +352,7 @@ class StorageInventoryClient(object):
         self.resource_id = resource_id
         self.host = host
         agent = '{}/{}'.format('SIClient', version.version)
+        util.check_version(version=version.version)
         # TODO
         # Storage Inventory does not support Basic Auth. The following block
         # retrieves a cookie instead. It is temporary until the token spec
@@ -720,7 +721,9 @@ class StorageInventoryClient(object):
             os.path.dirname(self._data_client.caps.caps_file),
             '.data_uri_scheme_map')
         scheme_url = self._data_client.caps.caps_urls[DATA_RESOURCE_ID].replace('/capabilities', '/uri-scheme-map')
-        content = self._data_client.caps._get_content(scheme_file, scheme_url)
+        content = util.get_url_content(url=scheme_url,
+                                       cache_file=scheme_file,
+                                       refresh_interval=24 * 60 * 60)
         schemes = self._parse_scheme_config(content)
         archive = target.split('/')[0]
         if archive in schemes:

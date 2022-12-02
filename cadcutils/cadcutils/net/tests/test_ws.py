@@ -69,11 +69,10 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import os
-import time
 import unittest
 
 import requests
-from mock import Mock, patch, call, mock_open, ANY
+from mock import Mock, patch, call, ANY
 from six import StringIO
 from six.moves.urllib.parse import urlparse
 import tempfile
@@ -1047,7 +1046,7 @@ class TestRetrySession(unittest.TestCase):
         time_mock.assert_called_with(DEFAULT_RETRY_DELAY)
 
 
-capabilities__content = \
+capabilities_content = \
     """
     <vosi:capabilities
     xmlns:vosi="http://www.ivoa.net/xml/VOSICapabilities/v1.0"
@@ -1096,27 +1095,8 @@ capabilities__content = \
 class TestWsCapabilities(unittest.TestCase):
     """Class for testing the webservie client"""
 
-    def test_get_content(self):
-        """
-        Sometimes servers return empty capabilities documents and
-        the client is expected to re-use the cached document
-        :return:
-        """
-        ws_client = Mock(resource_id='SOME_RESOURCE')
-        caps = ws.WsCapabilities(ws_client)
-        now = time.time()
-        resource_file = tempfile.NamedTemporaryFile()
-        open(resource_file.name, 'w').write('OLD CONTENT')
-        with patch('cadcutils.net.ws.requests.Session.get') as mock_get:
-            mock_get.return_value = Mock(text='')
-            assert 'OLD CONTENT' == \
-                   caps._get_content(resource_file.name, 'some/url',
-                                     now-ws.CACHE_REFRESH_INTERVAL-1)
-
-    @patch('cadcutils.net.ws.os.path.getmtime')
-    @patch('cadcutils.net.ws.open', mock=mock_open())
-    @patch('cadcutils.net.ws.requests.Session.get')
-    def test_get_reg(self, get_mock, file_mock, file_modtime_mock):
+    @patch('cadcutils.net.ws.util.get_url_content')
+    def test_get_reg(self, get_content_mock):
         """
         Tests the registry part of WsCapabilities
         """
@@ -1129,14 +1109,7 @@ class TestWsCapabilities(unittest.TestCase):
                            'ivo://some.provider/service = '
                            'http://providerurl.test/service'). \
             format(resource_id, resource_cap_url)
-        response = Mock(text=cadcreg_content)
-        get_mock.return_value = response
-        # set the modified time of the cache file to 0 to make sure the info
-        # is retrieved from server
-        file_modtime_mock.return_value = 0
-        # test anonymous access
-        fh_mock = Mock()
-        file_mock.write = fh_mock
+        get_content_mock.return_value = cadcreg_content
         client = Mock(resource_id=resource_id)
         caps = ws.WsCapabilities(client)
         self.assertEqual(os.path.join(ws.CACHE_LOCATION, ws.REGISTRY_FILE),
@@ -1146,43 +1119,9 @@ class TestWsCapabilities(unittest.TestCase):
                          'canfar.phys.uvic.ca', '.{}'.format(service)),
             caps.caps_file)
         self.assertEqual(resource_cap_url, caps._get_capability_url())
-        file_mock.assert_called_once_with(
-            os.path.join(ws.CACHE_LOCATION, ws.REGISTRY_FILE), 'w')
-        # TODO not sure why need to access write this way
-        file_mock().__enter__.return_value.write.assert_called_once_with(
-            cadcreg_content)
 
-        # test when registry information is retrieved from the cache file
-        get_mock.reset_mock()
-        get_mock.return_value = None
-        file_modtime_mock.reset_mock()
-        file_mock.reset_mock()
-        resource_cap_url2 = 'http://www.canfar.net/myservice2'
-        cache_content2 = ('#test content\n {} = {} \n'
-                          'ivo://some.provider/service = '
-                          'http://providerurl.test/service'). \
-            format(resource_id, resource_cap_url2)
-        file_modtime_mock.return_value = time.time()
-        file_mock().__enter__.return_value.read.return_value = cache_content2
-        caps = ws.WsCapabilities(client)
-        self.assertEqual(resource_cap_url2, caps._get_capability_url())
-
-        # test when registry information is outdated but there are
-        # errors retrieving it from the CADC registry
-        # so in the end go back and use the cache version
-        file_modtime_mock.reset_mock()
-        file_mock.reset_mock()
-        file_modtime_mock.return_value = 0
-        file_mock().__enter__.return_value.read.return_value = cache_content2
-        get_mock.side_effect = [exceptions.HttpException()]
-        client.get.side_effect = [exceptions.HttpException]
-        caps = ws.WsCapabilities(client)
-        with patch('os.path.exists', Mock()):
-            self.assertEqual(resource_cap_url2, caps._get_capability_url())
-
-    @patch('cadcutils.net.ws.os.path.getmtime')
-    @patch('cadcutils.net.ws.requests.Session.get')
-    def test_get_caps(self, get_mock, file_modtime_mock):
+    @patch('cadcutils.net.ws.util.get_url_content')
+    def test_get_caps(self, get_content_mock):
         """
         Tests the capabilities part of WsCapabilities
         """
@@ -1191,21 +1130,16 @@ class TestWsCapabilities(unittest.TestCase):
         service = 'myservice'
         resource_id = 'ivo://canfar.phys.uvic.ca/{}'.format(service)
         resource_cap_url = 'www.canfar.net/myservice'
-        # set the modified time of the cache file to 0 to make sure the
-        # info is retrieved from server
-        file_modtime_mock.return_value = 0
-        # test anonymous access
-        expected_content = capabilities__content.replace('WS_URL',
-                                                         resource_cap_url)
-        response = Mock(text=expected_content)
-        get_mock.return_value = response
+        expected_content = capabilities_content.replace('WS_URL',
+                                                        resource_cap_url)
+        get_content_mock.return_value = expected_content
         caps = ws.WsCapabilities(Mock(resource_id=resource_id,
                                       subject=auth.Subject()))
 
         # mock _get_capability_url to return some url without attempting
         # to access the server
         def get_url():
-            return 'http://some.url/capabilities'
+            return 'https://some.url/capabilities'
 
         caps._get_capability_url = get_url
         # remove the cached file if exists
@@ -1221,21 +1155,14 @@ class TestWsCapabilities(unittest.TestCase):
         self.assertEqual('http://{}/pub'.format(resource_cap_url),
                          caps.get_access_url(
                              'vos://cadc.nrc.ca~service/CADC/mystnd01'))
-        actual_content = open(caps.caps_file, 'r').read()
-        self.assertEqual(expected_content, actual_content)
 
         # mock _get_capability_url to return a subservice
         service = 'myservice/mysubservice'
         resource_id = 'ivo://canfar.phys.uvic.ca/{}'.format(service)
         resource_cap_url = 'www.canfar.net/myservice/mysubservice'
-        # set the modified time of the cache file to 0 to make sure the
-        # info is retrieved from server
-        file_modtime_mock.return_value = 0
-        expected_content = capabilities__content.replace('WS_URL',
-                                                         resource_cap_url)
-        # test anonymous access
-        response = Mock(text=expected_content)
-        get_mock.return_value = response
+        expected_content = capabilities_content.replace('WS_URL',
+                                                        resource_cap_url)
+        get_content_mock.return_value = expected_content
         caps = ws.WsCapabilities(Mock(resource_id=resource_id,
                                       subject=auth.Subject()))
         # remove the cached file if exists
@@ -1250,108 +1177,6 @@ class TestWsCapabilities(unittest.TestCase):
                          caps.get_access_url(
                              'ivo://ivoa.net/std/VOSI#availability'))
         self.assertEqual('http://{}/pub'.format(resource_cap_url),
-                         caps.get_access_url(
-                             'vos://cadc.nrc.ca~service/CADC/mystnd01'))
-        actual_content = open(caps.caps_file, 'r').read()
-        self.assertEqual(expected_content, actual_content)
-
-        # repeat for basic auth subject. Mock the netrc library to
-        # prevent a lookup for $HOME/.netrc
-        with patch('cadcutils.net.auth.netrclib'):
-            client = Mock(resource_id=resource_id,
-                          subject=auth.Subject(netrc=True))
-        client.get.return_value = response
-        caps = ws.WsCapabilities(client)
-        caps._get_capability_url = get_url
-        # capabilities works even if it has only one anonymous interface
-        self.assertEqual('http://{}/capabilities'.format(resource_cap_url),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#capabilities'))
-        # same for availability
-        self.assertEqual('http://{}/availability'.format(resource_cap_url),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#availability'))
-
-        # repeat for https
-        with patch('os.path.isfile'):
-            client = Mock(resource_id=resource_id,
-                          subject=auth.Subject(certificate='somecert.pem'))
-        client.get.return_value = response
-        caps = ws.WsCapabilities(client)
-        caps._get_capability_url = get_url
-        # capabilities works even if it has only one anonymous interface
-        self.assertEqual('http://{}/capabilities'.format(resource_cap_url),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#capabilities'))
-        # same for availability
-        self.assertEqual('http://{}/availability'.format(resource_cap_url),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#availability'))
-        self.assertEqual('https://{}'.format(resource_cap_url),
-                         caps.get_access_url(
-                             'vos://cadc.nrc.ca~service/CADC/mystnd01'))
-
-        # test when capabilities information is retrieved from the cache file
-        get_mock.reset_mock()
-        get_mock.return_value = None
-        file_modtime_mock.reset_mock()
-        service = 'myservice2'
-        resource_id = 'ivo://canfar.phys.uvic.ca/{}'.format(service)
-        resource_cap_url2 = 'canfar.phys.uvic.ca/myservice2'
-        expected_content = capabilities__content.replace('WS_URL',
-                                                         resource_cap_url2)
-        file_modtime_mock.return_value = time.time()
-        client = Mock(resource_id=resource_cap_url2, subject=auth.Subject())
-        caps = ws.WsCapabilities(client)
-        caps._get_capability_url = get_url
-        caps.caps_urls[service] = '{}/capabilities'.format(resource_cap_url2)
-        # manually write the content
-        with open(caps.caps_file, 'w') as f:
-            f.write(expected_content)
-        self.assertEqual('http://{}/capabilities'.format(resource_cap_url2),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#capabilities'))
-        self.assertEqual('http://{}/availability'.format(resource_cap_url2),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#availability'))
-        self.assertEqual('http://{}/pub'.format(resource_cap_url2),
-                         caps.get_access_url(
-                             'vos://cadc.nrc.ca~service/CADC/mystnd01'))
-        actual_content = open(caps.caps_file, 'r').read()
-        self.assertEqual(expected_content, actual_content)
-
-        # repeat for basic auth subject. Mock the netrc library to prevent a
-        # lookup for $HOME/.netrc
-        with patch('cadcutils.net.auth.netrclib'):
-            client = Mock(resource_id=resource_id,
-                          subject=auth.Subject(netrc=True))
-        caps = ws.WsCapabilities(client)
-        caps._get_capability_url = get_url
-        # does not work with user-password of the subject set above
-        self.assertEqual('http://{}/capabilities'.format(resource_cap_url2),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#capabilities'))
-        self.assertEqual('http://{}/availability'.format(resource_cap_url2),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#availability'))
-        self.assertEqual('http://{}/auth'.format(resource_cap_url2),
-                         caps.get_access_url(
-                             'vos://cadc.nrc.ca~service/CADC/mystnd01'))
-
-        # repeat for https
-        with patch('os.path.isfile'):
-            client = Mock(resource_id=resource_id,
-                          subject=auth.Subject(certificate='somecert.pem'))
-        caps = ws.WsCapabilities(client)
-        caps._get_capability_url = get_url
-        # does not work with user-password of the subject set above
-        self.assertEqual('http://{}/capabilities'.format(resource_cap_url2),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#capabilities'))
-        self.assertEqual('http://{}/availability'.format(resource_cap_url2),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#availability'))
-        self.assertEqual('https://{}'.format(resource_cap_url2),
                          caps.get_access_url(
                              'vos://cadc.nrc.ca~service/CADC/mystnd01'))
 
