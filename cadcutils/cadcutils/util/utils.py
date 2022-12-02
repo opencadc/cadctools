@@ -91,7 +91,7 @@ __all__ = ['IVOA_DATE_FORMAT', 'date2ivoa', 'str2ivoa', 'get_url_content',
 # TODO both these are very bad, implement more sensibly
 IVOA_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 
-CADC_CACHE_DIR = os.path.join(os.path.expanduser("~"), '.cadc', 'caches')
+CADC_CACHE_DIR = os.path.join(os.path.expanduser("~"), '.config')
 VERSION_REFRESH_INTERVAL = 24 * 60 * 60  # 24h
 
 DEFAULT_LOG_FORMAT = "%(levelname)s: %(name)s %(message)s"
@@ -582,7 +582,7 @@ def check_version(version):
         if package in check_version.checked:
             return
         check_version.checked.append(package)
-        cache_file = os.path.join(CADC_CACHE_DIR, '.{}_pypi.json'.format(package))
+        cache_file = os.path.join(CADC_CACHE_DIR, package, 'caches/.pypi_versions.json'.format(package))
         content = get_url_content(
             url='https://pypi.org/pypi/{}/json'.format(package),
             cache_file=cache_file,
