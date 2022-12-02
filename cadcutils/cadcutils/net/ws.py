@@ -1067,7 +1067,7 @@ class RetrySession(Session):
 
 DEFAULT_REGISTRY = \
     'https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-caps'
-CACHE_REFRESH_INTERVAL = 10 * 60
+REG_REFRESH_INTERVAL = 10 * 60
 CACHE_LOCATION = os.path.join(os.path.expanduser("~"), '.config',
                               'cadc-registry')
 REGISTRY_FILE = 'resource-caps'
@@ -1127,17 +1127,17 @@ class WsCapabilities(object):
         :return: corresponding access URL
         """
 
-        if (time.time() - self.last_capstime) > CACHE_REFRESH_INTERVAL:
+        if (time.time() - self.last_capstime) > REG_REFRESH_INTERVAL:
             caps = util.get_url_content(url=self._get_capability_url(),
                                         cache_file=self.caps_file,
-                                        refresh_interval=CACHE_REFRESH_INTERVAL,
+                                        refresh_interval=REG_REFRESH_INTERVAL,
                                         verify=self.ws.verify)
             # caps is a string but it's xml content claims it's utf-8 encode,
             # hence need to encode it before
             # parsing it.
             self.capabilities = self._caps_reader.parsexml(
                 caps.encode('utf-8'))
-            if (time.time() - self.last_capstime) > CACHE_REFRESH_INTERVAL:
+            if (time.time() - self.last_capstime) > REG_REFRESH_INTERVAL:
                 self.last_capstime = time.time()
         sms = self.ws.subject.get_security_methods()
 
@@ -1155,7 +1155,7 @@ class WsCapabilities(object):
         """
         if self.ws.resource_id.startswith('http'):
             return '{}/capabilities'.format(self.ws.resource_id)
-        if (time.time() - self.last_regtime) > CACHE_REFRESH_INTERVAL:
+        if (time.time() - self.last_regtime) > REG_REFRESH_INTERVAL:
             if self.last_regtime == 0:
                 # startup
                 try:
@@ -1174,10 +1174,10 @@ class WsCapabilities(object):
 
             reg = util.get_url_content(url=registry_url,
                                        cache_file=self.reg_file,
-                                       refresh_interval=CACHE_REFRESH_INTERVAL,
+                                       refresh_interval=REG_REFRESH_INTERVAL,
                                        verify=self.ws.verify)
             self.caps_urls = {}
-            if (time.time() - self.last_regtime) > CACHE_REFRESH_INTERVAL:
+            if (time.time() - self.last_regtime) > REG_REFRESH_INTERVAL:
                 self.last_regtime = time.time()
             # parse it
             for line in reg.split('\n'):
