@@ -84,7 +84,7 @@ from cadcutils import exceptions
 from cadcutils import net
 from cadcutils.net import ws, auth
 from cadcutils.net.ws import DEFAULT_RETRY_DELAY, MAX_RETRY_DELAY, \
-    MAX_NUM_RETRIES, SERVICE_RETRY
+    MAX_NUM_RETRIES, SERVICE_RETRY, _check_server_version
 
 # The following is a temporary workaround for Python issue
 # 25532 (https://bugs.python.org/issue25532)
@@ -93,6 +93,49 @@ call.__wrapped__ = None
 # Content type header
 CONTENT_TYPE = 'Content-Type'
 TEXT_TYPE = 'text/plain'
+
+
+def test_check_server_version():
+    assert _check_server_version(None, None) is None
+    assert _check_server_version({}, None) is None
+    assert _check_server_version({'server1': '1.3'}, None) is None
+    assert _check_server_version(None, 'OpenCADC/cadc-rest + cadc/server1-1.2.3') is None
+
+    with pytest.raises(RuntimeError):
+        _check_server_version({'server1': '1.1'},
+                              'OpenCADC/cadc-rest + cadc/server1-1.2.3')
+
+    # not trigger cases
+    # same version
+    _check_server_version({'server1': '1.2'},
+                          'OpenCADC/cadc-rest + cadc/server1-1.2')
+
+    # patch version
+    _check_server_version({'server1': '1.2'}, 'OpenCADC/cadc-rest + cadc/server1-1.2.3')
+
+    # client ahead
+    _check_server_version({'server1': '1.5'},
+                          'OpenCADC/cadc-rest + cadc/server1-1.2')
+
+    # client works with multiple server APIs
+    _check_server_version({'server0': '0.1', 'server1': '1.2'},
+                          'OpenCADC/cadc-rest + cadc/server1-1.2.3')
+
+    with pytest.raises(RuntimeError):
+        _check_server_version({'server0': '2.3', 'server1': '1.1'},
+                              'OpenCADC/cadc-rest + cadc/server1-1.2.3')
+
+    # error cases
+    with pytest.raises(ValueError):
+        _check_server_version({'server1': '1.1.1'},
+                              'OpenCADC/cadc-rest + cadc/server1-1.2.3')
+
+    with pytest.raises(ValueError):
+        _check_server_version({'server1': '1.1a'},
+                              'OpenCADC/cadc-rest + cadc/server1-1.2.3')
+    with pytest.raises(ValueError):
+        _check_server_version({'server1': '1.1'},
+                              'OpenCADC/cadc-rest + cadc/server1-1.2a')
 
 
 class TestListResources(unittest.TestCase):
@@ -157,10 +200,6 @@ class TestListResources(unittest.TestCase):
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             ws.list_resources()
             self.assertEqual(usage, stdout_mock.getvalue().strip())
-
-
-class TestWs(unittest.TestCase):
-    """Class for testing the webservie client"""
 
     @patch('cadcutils.net.ws.WsCapabilities')
     @patch('cadcutils.net.auth.os.path.isfile', Mock())
@@ -524,7 +563,7 @@ class TestWs(unittest.TestCase):
             session.put.reset_mock()
             response_headers = {ws.PUT_TXN_ID: '123',
                                 ws.HTTP_LENGTH: str(len(content))}
-            net.add_md5_header(response_headers, 'beef')
+            net.add_md5_header(response_headers, 'd41d8cd98f00b204e9800998ecf8427e')
             session.put.return_value = Mock(headers=response_headers)
 
             with pytest.raises(exceptions.TransferException):
@@ -629,7 +668,7 @@ class TestWs(unittest.TestCase):
                                 # return a mismatch md5 response
                                 tmp_hd = {ws.PUT_TXN_ID: '123',
                                           ws.HTTP_LENGTH: '0'}
-                                net.add_md5_header(tmp_hd, 'beef')
+                                net.add_md5_header(tmp_hd, 'beef'*8)
                                 rsp = Mock(headers=tmp_hd)
                             put_mock.wrong_md5 = None
                             return rsp

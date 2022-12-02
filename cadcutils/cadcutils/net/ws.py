@@ -885,7 +885,7 @@ def _check_server_version(supported_versions, server_header):
                 'Version incompatibility for {} - Client({}.{}) vs Server({}.{})'.format(
                     server, s_major, s_minor, a_major, a_minor))
             raise RuntimeError(
-                'Client and server software not compatible anymore. Please upgrade application')
+                'Client and server software not compatible anymore. Please upgrade application.')
 
 
 class RetrySession(Session):

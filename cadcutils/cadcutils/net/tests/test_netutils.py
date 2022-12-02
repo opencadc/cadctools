@@ -71,6 +71,7 @@ from __future__ import (absolute_import, division, print_function,
 import pytest
 from mock import patch, Mock, MagicMock, call
 from requests.utils import CaseInsensitiveDict
+import base64
 
 from cadcutils.net import get_header_filename, extract_md5, Transfer, \
     add_md5_header
@@ -93,10 +94,17 @@ def test_get_header_filename():
 
 
 def test_md5_headers():
-
-    md5_checksum = '0x12345'
+    md5_checksum = 'd41d8cd98f00b204e9800998ecf8427e'
     headers = CaseInsensitiveDict()
     add_md5_header(headers=headers, md5_checksum=md5_checksum)
+    assert md5_checksum == extract_md5(headers=headers)
+    # ensure that only the 16bytes of the md5 are sent and not the 32 of hex representation
+    assert 24 == len(headers['digest'][4:])  # 16bytes->24 base64 chars
+
+    # temporary backwards compatibility (to be removed later)
+    headers['digest'] = 'md5=' + base64.b64encode(md5_checksum.encode('ascii')).decode('ascii')
+    # send 32 bytes representation of the hex md5 value (44 bytes of base64)
+    assert 44 == len(headers['digest'][4:])  # 32bytes -> 44 base64 chars
     assert md5_checksum == extract_md5(headers=headers)
 
 
