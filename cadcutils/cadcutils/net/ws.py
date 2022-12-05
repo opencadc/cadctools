@@ -221,7 +221,8 @@ class BaseWsClient(object):
        """
 
     def __init__(self, resource_id, subject, agent, retry=True, host=None,
-                 session_headers=None, insecure=False, idempotent_posts=False):
+                 session_headers=None, insecure=False, idempotent_posts=False,
+                 server_versions=None):
         """
         Client constructor
         :param resource_id -- ID of the resource being accessed (URI format)
@@ -242,6 +243,12 @@ class BaseWsClient(object):
         idempotent, either because the server can deal with duplicate POSTs or
         because there's a higher level mechanism to deal with this. Idempotent
         POSTs can be automatically re-tried making them more fault tolerant.
+        :param server_versions -- Dictionary of server names and corresponding
+        supported versions (e.g. {'storage-inventory/raven': '1.0'}) that the
+        client uses. This versions are checked for compatibility between cliet
+        and server using the `server` HTTP header. If the version is behind
+        the server version, a RuntimeException is raised prompting user to
+        upgrade the software.
         """
 
         self.logger = logging.getLogger('BaseWsClient')
@@ -259,6 +266,7 @@ class BaseWsClient(object):
         self.session_headers = session_headers
         self.verify = not insecure
         self.idempotent_posts = idempotent_posts
+        self._server_versions = server_versions
 
         # agent is / delimited key value pairs, separated by a space,
         # containing the application name and version,
@@ -323,8 +331,9 @@ class BaseWsClient(object):
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
         """
-        return self._get_session().post(self._get_url(resource),
-                                        verify=self.verify, **kwargs)
+        session = self._get_session()
+        session.server_versions = self._server_versions
+        return session.post(self._get_url(resource), verify=self.verify, **kwargs)
 
     def put(self, resource=None, **kwargs):
         """Wrapper for PUT so that we use this client's session
@@ -336,8 +345,9 @@ class BaseWsClient(object):
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
         """
-        return self._get_session().put(self._get_url(resource),
-                                       verify=self.verify, **kwargs)
+        session = self._get_session()
+        session.server_versions = self._server_versions
+        return session.put(self._get_url(resource), verify=self.verify, **kwargs)
 
     def get(self, resource, params=None, **kwargs):
         """Wrapper for GET so that we use this client's session
@@ -349,8 +359,9 @@ class BaseWsClient(object):
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
         """
-        return self._get_session().get(self._get_url(resource), params=params,
-                                       verify=self.verify, **kwargs)
+        session = self._get_session()
+        session.server_versions = self._server_versions
+        return session.get(self._get_url(resource), params=params, verify=self.verify, **kwargs)
 
     def delete(self, resource=None, **kwargs):
         """Wrapper for DELETE so that we use this client's session
@@ -361,8 +372,9 @@ class BaseWsClient(object):
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
         """
-        return self._get_session().delete(self._get_url(resource),
-                                          verify=self.verify, **kwargs)
+        session = self._get_session()
+        session.server_versions = self._server_versions
+        return session.delete(self._get_url(resource), verify=self.verify, **kwargs)
 
     def head(self, resource=None, **kwargs):
         """Wrapper for HEAD so that we use this client's session
@@ -373,8 +385,9 @@ class BaseWsClient(object):
            :param kwargs additional arguments to pass to the requests.post
            :returns response as received from the request library
         """
-        return self._get_session().head(self._get_url(resource),
-                                        verify=self.verify, **kwargs)
+        session = self._get_session()
+        session.server_versions = self._server_versions
+        return session.head(self._get_url(resource), verify=self.verify, **kwargs)
 
     def is_available(self):
         """
@@ -851,6 +864,30 @@ class BaseDataClient(BaseWsClient):
         raise exceptions.TransferException(error_msg)
 
 
+def _check_server_version(supported_versions, server_header):
+    if not supported_versions or not server_header:
+        return
+    for server in supported_versions.keys():
+        logging.debug("Check server {}".format(server_header))
+        if server in server_header:
+            s_major, s_minor = [int(x) for x in supported_versions[server].split('.')]
+            actual_version = server_header.split(server + '-')
+            if len(actual_version) != 2:
+                raise ValueError('Cannot parse server version: ' + server_header)
+            # just in case more info is added after version
+            actual_version = actual_version[1].split(' ')[0]
+            if actual_version.count('.') < 1:
+                raise ValueError('Expected at least major.minor server version: ' + server_header)
+            a_major, a_minor = [int(x) for x in actual_version.split('.')[:2]]
+            if a_major <= s_major and a_minor <= s_minor:
+                return
+            logging.debug(
+                'Version incompatibility for {} - Client({}.{}) vs Server({}.{})'.format(
+                    server, s_major, s_minor, a_major, a_minor))
+            raise RuntimeError(
+                'Client and server software not compatible anymore. Please upgrade application.')
+
+
 class RetrySession(Session):
     """ Session that automatically does a number of retries for failed
         transient errors. The time between retries double every time until a
@@ -898,6 +935,15 @@ class RetrySession(Session):
         self.start_delay = start_delay
         self.idempotent_posts = idempotent_posts
         super(RetrySession, self).__init__(*args, **kwargs)
+        self._server_versions = None  # server versions that client supports
+
+    @property
+    def server_versions(self):
+        return self._server_versions
+
+    @server_versions.setter
+    def server_versions(self, versions):
+        self._server_versions = versions
 
     def send(self, request, **kwargs):
         """
@@ -980,7 +1026,7 @@ class RetrySession(Session):
             raise exceptions.HttpException(current_error)
         else:
             response = super(RetrySession, self).send(request, **kwargs)
-            self.check_status(response, False)
+            self.check_status(response, retry=False)
             return response
 
     def check_status(self, response, retry=True):
@@ -991,6 +1037,7 @@ class RetrySession(Session):
         :param retry: request can be re-tried. Let the re-tried errors through
         :return:
         """
+        _check_server_version(self.server_versions, response.headers.get('server', None))
         try:
             response.raise_for_status()
         except requests.HTTPError as e:
@@ -1020,7 +1067,7 @@ class RetrySession(Session):
 
 DEFAULT_REGISTRY = \
     'https://ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/reg/resource-caps'
-CACHE_REFRESH_INTERVAL = 10 * 60
+REG_REFRESH_INTERVAL = 10 * 60
 CACHE_LOCATION = os.path.join(os.path.expanduser("~"), '.config',
                               'cadc-registry')
 REGISTRY_FILE = 'resource-caps'
@@ -1080,23 +1127,17 @@ class WsCapabilities(object):
         :return: corresponding access URL
         """
 
-        if (time.time() - self.last_capstime) > CACHE_REFRESH_INTERVAL:
-            if self.last_capstime == 0:
-                # startup
-                try:
-                    self.last_capstime = os.path.getmtime(self.caps_file)
-                except OSError:
-                    # cannot read the cache file for whatever reason
-                    pass
-            caps = self._get_content(self.caps_file,
-                                     self._get_capability_url(),
-                                     self.last_capstime)
+        if (time.time() - self.last_capstime) > REG_REFRESH_INTERVAL:
+            caps = util.get_url_content(url=self._get_capability_url(),
+                                        cache_file=self.caps_file,
+                                        refresh_interval=REG_REFRESH_INTERVAL,
+                                        verify=self.ws.verify)
             # caps is a string but it's xml content claims it's utf-8 encode,
             # hence need to encode it before
             # parsing it.
             self.capabilities = self._caps_reader.parsexml(
                 caps.encode('utf-8'))
-            if (time.time() - self.last_capstime) > CACHE_REFRESH_INTERVAL:
+            if (time.time() - self.last_capstime) > REG_REFRESH_INTERVAL:
                 self.last_capstime = time.time()
         sms = self.ws.subject.get_security_methods()
 
@@ -1106,58 +1147,6 @@ class WsCapabilities(object):
     def host(self):
         return self._host
 
-    def _get_content(self, resource_file, url, last_accessed=None):
-        """
-         Return content from a local cache file if information is recent
-         (it was accessed less than CACHE_REFRESH_INTERVAL seconds ago).
-         If not or if last_accessed is not specified and the cache is stale,
-         it updates the cache from the provided url before
-         returning the content.
-        """
-        content = None
-        if not last_accessed and os.path.exists(resource_file):
-            last_accessed = os.path.getmtime(resource_file)
-        if (last_accessed and (time.time() - last_accessed) < CACHE_REFRESH_INTERVAL):
-            # get reg information from the cached file
-            self.logger.debug(
-                'Read cached content of {}'.format(resource_file))
-            try:
-                with open(resource_file, 'r') as f:
-                    content = f.read()
-            except Exception:
-                # will download it
-                pass
-        # config dirs if they don't exist yet
-        if not os.path.exists(os.path.dirname(resource_file)):
-            os.makedirs(os.path.dirname(resource_file))
-
-        if content is None:
-            # get information from the bootstrap registry
-            try:
-                session = requests.Session()
-                # do not allow requests to use .netrc file
-                session.trust_env = False
-                rsp = session.get(url, verify=self.ws.verify)
-                rsp.raise_for_status()
-                content = rsp.text
-                if content is None or len(content.strip(' ')) == 0:
-                    # workaround for a problem with CADC servers
-                    raise exceptions.HttpException('Received empty content')
-                with open(resource_file, 'w') as f:
-                    f.write(content)
-            except exceptions.HttpException as e:
-                # problems with the bootstrap registry. Try to use the old
-                # local one regardless of how old it is
-                self.logger.error("ERROR: cannot read registry info from " +
-                                  url + ": " + str(e))
-                if os.path.exists(resource_file):
-                    with open(resource_file, 'r') as f:
-                        content = f.read()
-        if content is None:
-            raise RuntimeError(
-                "Cannot get the registry info for resource " + url)
-        return content
-
     def _get_capability_url(self):
         """
         Parses the registry information and returns the url of the
@@ -1166,7 +1155,7 @@ class WsCapabilities(object):
         """
         if self.ws.resource_id.startswith('http'):
             return '{}/capabilities'.format(self.ws.resource_id)
-        if (time.time() - self.last_regtime) > CACHE_REFRESH_INTERVAL:
+        if (time.time() - self.last_regtime) > REG_REFRESH_INTERVAL:
             if self.last_regtime == 0:
                 # startup
                 try:
@@ -1183,10 +1172,12 @@ class WsCapabilities(object):
                                                   url.path)
             self.logger.debug('Resolved URL: {}'.format(registry_url))
 
-            reg = self._get_content(self.reg_file, registry_url,
-                                    self.last_regtime)
+            reg = util.get_url_content(url=registry_url,
+                                       cache_file=self.reg_file,
+                                       refresh_interval=REG_REFRESH_INTERVAL,
+                                       verify=self.ws.verify)
             self.caps_urls = {}
-            if (time.time() - self.last_regtime) > CACHE_REFRESH_INTERVAL:
+            if (time.time() - self.last_regtime) > REG_REFRESH_INTERVAL:
                 self.last_regtime = time.time()
             # parse it
             for line in reg.split('\n'):

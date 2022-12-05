@@ -34,7 +34,8 @@ jobs:
       matrix:
         #TODO 2.7 fails on GH Actions but cannot be reproduced locally. Disabled for now.
         # python-version: [2.7,3.5,3.6,3.7,3.8,3.9]
-        python-version: ["3.5","3.6","3.7","3.8","3.9","3.10"]
+        # also errors that 3.5 and 3.6 are no longer available with arch x64
+        python-version: ["3.7","3.8","3.9","3.10"]
         package: [cadcutils, cadcdata, cadctap]
     steps:
     - name: Checkout code

@@ -88,6 +88,8 @@ CADC_LOGIN_CAPABILITY = 'ivo://ivoa.net/std/UMS#login-0.1'
 CADC_SSO_COOKIE_NAME = 'CADC_SSO'
 CADC_REALMS = ['.canfar.net', '.cadc-ccda.hia-iha.nrc-cnrc.gc.ca',
                '.cadc.dao.nrc.ca']
+SUPPORTED_SERVER_VERSIONS = {'storage-inventory/raven': '0.7',
+                             'storage-inventory/minoc': '0.9'}
 
 MAGIC_WARN = None
 try:
@@ -350,6 +352,7 @@ class StorageInventoryClient(object):
         self.resource_id = resource_id
         self.host = host
         agent = '{}/{}'.format('SIClient', version.version)
+        util.check_version(version=version.version)
         # TODO
         # Storage Inventory does not support Basic Auth. The following block
         # retrieves a cookie instead. It is temporary until the token spec
@@ -359,7 +362,8 @@ class StorageInventoryClient(object):
            subject.get_security_methods():
             login = net.BaseWsClient(CADC_AC_SERVICE, net.Subject(),
                                      agent,
-                                     retry=True, host=self.host)
+                                     retry=True, host=self.host,
+                                     server_versions=SUPPORTED_SERVER_VERSIONS)
             login_url = login._get_url((CADC_LOGIN_CAPABILITY, None))
             realm = urlparse(login_url).hostname
             auth = subject.get_auth(realm)
@@ -379,15 +383,18 @@ class StorageInventoryClient(object):
                 subject.cookies.append(
                     net.auth.CookieInfo(cadc_realm, CADC_SSO_COOKIE_NAME,
                                         '"{}"'.format(cookie_response.text)))
+
         self._cadc_client = net.BaseDataClient(
             resource_id, subject,
             agent, retry=True, host=self.host,
-            insecure=insecure)
+            insecure=insecure,
+            server_versions=SUPPORTED_SERVER_VERSIONS)
 
         # for now, this is only used to get the pub schema-archive mapping info
         self._data_client = net.BaseWsClient(DATA_RESOURCE_ID, net.Subject(),
                                              agent, retry=True, host=self.host,
-                                             insecure=insecure)
+                                             insecure=insecure,
+                                             server_versions=SUPPORTED_SERVER_VERSIONS)
 
     @property
     def transfer(self):
@@ -714,7 +721,9 @@ class StorageInventoryClient(object):
             os.path.dirname(self._data_client.caps.caps_file),
             '.data_uri_scheme_map')
         scheme_url = self._data_client.caps.caps_urls[DATA_RESOURCE_ID].replace('/capabilities', '/uri-scheme-map')
-        content = self._data_client.caps._get_content(scheme_file, scheme_url)
+        content = util.get_url_content(url=scheme_url,
+                                       cache_file=scheme_file,
+                                       refresh_interval=24 * 60 * 60)
         schemes = self._parse_scheme_config(content)
         archive = target.split('/')[0]
         if archive in schemes:

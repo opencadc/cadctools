@@ -125,16 +125,28 @@ def get_header_filename(headers):
 
 
 def extract_md5(headers):
-    # extracts the md5checksum from the digest header
+    """ Extracts the md5checksum from the digest header
+        :param headers: existing request headers
+
+        :returns string with hex md5 representation if present or None otherwise
+    """
     if ('digest' in headers) and (headers['digest'].startswith('md5')):
-        return base64.b64decode(headers['digest'][4:]).decode('ascii')
+        value = base64.b64decode(headers['digest'][4:])
+        if len(value) == 16:
+            return value.hex()
+        else:
+            #  TODO this is wrong and will be removed eventually after AD is gone
+            return value.decode('ascii')
     return None
 
 
 def add_md5_header(headers, md5_checksum):
-    # adds the digest header with md5 information to the request headers
+    """ Adds the digest header with md5 information to the request headers
+        :param headers: existing request headers
+        :param md5_checksum: string with hex representation
+    """
     headers['digest'] = 'md5={}'.format(
-        base64.b64encode(md5_checksum.encode('ascii')).decode('ascii'))
+        base64.b64encode(bytes.fromhex(md5_checksum)).decode('ascii'))
 
 
 class Transfer(object):

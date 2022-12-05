@@ -179,6 +179,7 @@ class CadcTapClient(object):
         """
         self.resource_id = resource_id
         self.host = host
+        util.check_version(version=version.version)
         # cache schema info for multiple calls
         self._db_schemas = {}
 
