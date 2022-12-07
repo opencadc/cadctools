@@ -69,6 +69,7 @@
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
+import sys
 
 
 class CadcDataClient(object):
@@ -81,7 +82,8 @@ class CadcDataClient(object):
 
 
 def main_app():
-    print('cadc-data has been deprecated in favour of cadcget, cadcput, '
+    print('ERROR: cadc-data has been deprecated in favour of cadcget, cadcput, '
           'cadcinfo and cadcremove individual applications. Please consult their '
           'helpers or the CADC documentation (https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/en/doc/data/) '
           'for details on how to use them.')
+    sys.exit(-1)
