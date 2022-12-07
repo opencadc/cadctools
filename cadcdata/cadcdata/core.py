@@ -81,4 +81,7 @@ class CadcDataClient(object):
 
 
 def main_app():
-    pass
+    print('cadc-data has been deprecated in favour of cadcget, cadcput, '
+          'cadcinfo and cadcremove individual applications. Please consult their '
+          'helpers or the CADC documentation (https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca/en/doc/data/) '
+          'for details on how to use them.')
