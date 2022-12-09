@@ -88,8 +88,8 @@ CADC_LOGIN_CAPABILITY = 'ivo://ivoa.net/std/UMS#login-0.1'
 CADC_SSO_COOKIE_NAME = 'CADC_SSO'
 CADC_REALMS = ['.canfar.net', '.cadc-ccda.hia-iha.nrc-cnrc.gc.ca',
                '.cadc.dao.nrc.ca']
-SUPPORTED_SERVER_VERSIONS = {'storage-inventory/raven': '0.3',
-                             'storage-inventory/minoc': '0.8'}
+SUPPORTED_SERVER_VERSIONS = {'storage-inventory/raven': '0.7',
+                             'storage-inventory/minoc': '0.9'}
 
 MAGIC_WARN = None
 try:
