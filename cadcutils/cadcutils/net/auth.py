@@ -97,6 +97,8 @@ SECURITY_METHODS_IDS = {
     'basic': 'ivo://ivoa.net/sso#BasicAA',
     'cookie': 'ivo://ivoa.net/sso#cookie'}
 
+SUPPORTED_SERVER_VERSIONS = {'cred': '2.0'}
+
 logger = util.get_logger(__name__)
 
 
@@ -259,7 +261,7 @@ class Subject(object):
         return sms
 
 
-def get_cert(subject, days_valid=None, host=None):
+def get_cert(subject, days_valid=None, host=None, insecure=False):
     """Access the CADC Certificate Delegation Protocol (CDP) server and
        retrieve a X509 proxy certificate.
 
@@ -269,6 +271,8 @@ def get_cert(subject, days_valid=None, host=None):
     registry)
     :param: days_valid: number of days the proxy certificate is valid for
     :ptype daysValid: int
+    :param insecure: Allow insecure server connections over SSL (testing)
+    :ptype insecure: boolean
 
     :return content of the certificate
 
@@ -278,8 +282,9 @@ def get_cert(subject, days_valid=None, host=None):
         params['daysValid'] = int(days_valid)
     util.check_version(version=version.version)
     client = ws.BaseWsClient(CRED_RESOURCE_ID, subject,
-                             agent="cadc-get-cert/1.0.1", retry=True,
-                             host=host)
+                             agent="cadc-get-cert/" + version.version, retry=True,
+                             host=host, server_versions=SUPPORTED_SERVER_VERSIONS,
+                             insecure=insecure)
     response = client.get((CRED_PROXY_FEATURE_ID, None), params=params)
     return response.text
 
@@ -329,7 +334,8 @@ def get_cert_main():
 
     try:
         subject = Subject.from_cmd_line_args(args)
-        cert = get_cert(subject, days_valid=args.days_valid, host=args.host)
+        cert = get_cert(subject, days_valid=args.days_valid, host=args.host,
+                        insecure=args.insecure)
         with open(args.cert_filename, 'w') as w:
             w.write(cert)
         if not args.quiet:

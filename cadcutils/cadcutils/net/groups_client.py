@@ -4,7 +4,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2021.                            (c) 2021.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -102,6 +102,8 @@ GROUPS_PATH = 'groups'
 GROUP_MEMBER_PATH = 'groupMembers'
 USER_MEMBER_PATH = 'userMembers'
 
+SUPPORTED_SERVER_VERSIONS = {'ac': '1.3'}
+
 APP_NAME = 'cadc-group'
 
 __all__ = ['GroupsClient']
@@ -123,7 +125,7 @@ class GroupsClient():
         :param resource_id: the resource ID of the service (service ID)
         :param host: Host for the GMS service (use for testing mainly)
         :param agent: The name of the agent (to be used in server logging)
-        :param insecure Allow insecure server connections over SSL (testing)
+        :param insecure: Allow insecure server connections over SSL (testing)
         """
         self.resource_id = resource_id
         self.host = host
@@ -165,7 +167,8 @@ class GroupsClient():
 
         self._gms_client = BaseWsClient(resource_id, subject, self.agent,
                                         retry=True, host=self.host,
-                                        insecure=insecure)
+                                        insecure=insecure,
+                                        server_versions=SUPPORTED_SERVER_VERSIONS)
         # double check it is a GMS server
         try:
             self._search_ep = \
