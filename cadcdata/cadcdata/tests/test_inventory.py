@@ -171,7 +171,7 @@ def test_get():
 
 @pytest.mark.skipif(cadcdata.storageinv.MAGIC_WARN is not None,
                     reason='libmagic not available')
-@patch('cadcdata.core.net.BaseDataClient')
+@patch('cadcdata.storageinv.net.BaseDataClient')
 @patch('cadcdata.storageinv.net.extract_md5')
 @patch('cadcdata.storageinv.util.Md5File')
 def test_put(md5file_mock, extract_md5_mock, basews_mock):
@@ -323,7 +323,7 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
     assert upload_mock.call_count == 3
 
 
-@patch('cadcdata.core.net.BaseDataClient')
+@patch('cadcdata.storageinv.net.BaseDataClient')
 def test_remove(basews_mock):
     client = StorageInventoryClient(auth.Subject())
     # test a put
