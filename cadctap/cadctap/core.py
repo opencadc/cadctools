@@ -141,7 +141,6 @@ CADC_DOMAIN = 'cadc-ccda.hia-iha.nrc-cnrc.gc.ca'
 CANFAR_DOMAIN = 'canfar.net'
 
 
-
 class CadcTapClient(object):
     """Class to access CADC databases.
     Example of usage:
