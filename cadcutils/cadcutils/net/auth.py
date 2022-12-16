@@ -73,8 +73,6 @@ CADC Credential Delegation Protocol Web Service to return a proxy
 X509 certificate and Subject that incapsulates the credentials of
 a user.
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 
 import getpass
 import netrc as netrclib

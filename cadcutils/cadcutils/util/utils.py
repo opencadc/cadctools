@@ -64,15 +64,13 @@
 #
 #
 # ***********************************************************************
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 import logging
 import sys
 import inspect
 from argparse import ArgumentParser, RawDescriptionHelpFormatter, SUPPRESS, \
     Action
 from datetime import datetime
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 from operator import attrgetter
 import hashlib
 import os
@@ -582,7 +580,7 @@ def check_version(version):
         if package in check_version.checked:
             return
         check_version.checked.append(package)
-        cache_file = os.path.join(CADC_CACHE_DIR, package, 'caches/.pypi_versions.json'.format(package))
+        cache_file = os.path.join(CADC_CACHE_DIR, package, 'caches/.pypi_versions.json')
         content = get_url_content(
             url='https://pypi.org/pypi/{}/json'.format(package),
             cache_file=cache_file,

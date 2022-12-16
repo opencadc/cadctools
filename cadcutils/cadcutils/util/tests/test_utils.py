@@ -69,8 +69,8 @@ import unittest
 from argparse import ArgumentError
 
 from mock import Mock, patch
-from six import StringIO
-from six.moves.urllib.parse import urlparse
+from io import StringIO
+from urllib.parse import urlparse
 import tempfile
 import os
 import sys
@@ -423,7 +423,7 @@ def test_get_url_content():
                                               refresh_interval=0)
 
         # repeat but remove the cache file
-        os.remove(cache_file.name)
+        cache_file.close()  # temporary file deleted when closed
         msession = Mock()
         msession.get.side_effect = [exceptions.HttpException()]
         mock_session.return_value = msession
