@@ -65,16 +65,13 @@
 #
 # ***********************************************************************
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import os
 import unittest
 
 import requests
 from mock import Mock, patch, call, ANY
-from six import StringIO
-from six.moves.urllib.parse import urlparse
+from io import StringIO
+from urllib.parse import urlparse
 import tempfile
 import pytest
 import hashlib

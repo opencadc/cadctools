@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2018.                            (c) 2018.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -67,21 +67,16 @@
 # ***********************************************************************
 #
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import logging
 import traceback
 import sys
 from clint.textui import progress
 import datetime
 from cadcutils import net, util, exceptions
-from six.moves import input
 import netrc as netrclib
 import os
 from cadctap import version
-from six.moves.urllib.parse import urlparse, urlencode
-import six
+from urllib.parse import urlparse, urlencode
 import contextlib
 import cadcutils
 from xml.dom import minidom
@@ -736,7 +731,7 @@ def smart_open(filename=None, content_format=None):
     # handles writing to files and stdout uniformly. If filename is None,
     # it returns stdout to write to.
     close_file = False
-    if filename and filename != '-' and isinstance(filename, six.string_types):
+    if filename and filename != '-' and isinstance(filename, str):
         if content_format == 'VOTable':
             fh = open(filename, 'wb')
         else:

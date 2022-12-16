@@ -69,13 +69,11 @@
 """
 Module that contains functionality related to CADC groups.
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 
 import sys
 import traceback
 import logging
-from six.moves.urllib.parse import urlparse, urlencode
+from urllib.parse import urlparse, urlencode
 
 
 from cadcutils import version  # TODO should it be application version instead?

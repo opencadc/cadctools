@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2016.                            (c) 2016.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -65,16 +65,13 @@
 #
 # ***********************************************************************
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import os
 import sys
 import re
 import unittest
 
 from mock import Mock, patch, mock_open
-from six import StringIO
+from io import StringIO
 
 from cadcutils.net import auth
 from cadcutils.util import get_base_parser
@@ -106,7 +103,7 @@ class TestAuth(unittest.TestCase):
 
         # get certificate default location
         m = mock_open()
-        with patch('six.moves.builtins.open', m, create=True):
+        with patch('builtins.open', m, create=True):
             sys.argv = ["cadc-get-cert", "-u", "bob"]
             auth.get_cert_main()
         m.assert_called_with(
@@ -180,7 +177,7 @@ Expected /tmp/testcertfile to be a directory.
 
         # empty netrc subject
         m = mock_open()
-        with patch('six.moves.builtins.open', m, create=True):
+        with patch('builtins.open', m, create=True):
             subject = auth.Subject(netrc='somefile')
         self.assertFalse(subject.anon)
         self.assertEqual(None, subject.certificate)

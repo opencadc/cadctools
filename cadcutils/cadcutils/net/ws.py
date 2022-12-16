@@ -73,8 +73,6 @@ the webservices via one of the get, put, post, delete and head
 functions that the service supports.
 
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 
 import logging
 import sys
@@ -85,7 +83,7 @@ import hashlib
 
 import requests
 from requests import Session
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 import distro
 
 from cadcutils import exceptions, util, net
