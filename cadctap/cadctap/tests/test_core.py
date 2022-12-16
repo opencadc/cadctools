@@ -74,7 +74,7 @@ import sys
 import unittest
 from cadcutils import net, exceptions
 
-from six import StringIO, BytesIO
+from io import StringIO, BytesIO
 import cadctap
 from cadctap.core import main_app
 from mock import Mock, patch, call
