@@ -739,7 +739,7 @@ class TestListResources(unittest.TestCase):
             assert len(put_responses) == put_mock.put_num
 
             # permanent Transfer error
-            session.put = Mock(Mock(headers=start_txn_headers),
+            session.put = Mock(headers=start_txn_headers,
                                side_effect=[exceptions.TransferException] * 3)
             with pytest.raises(exceptions.TransferException):
                 client.upload_file(url=target_url, src=src.name)
