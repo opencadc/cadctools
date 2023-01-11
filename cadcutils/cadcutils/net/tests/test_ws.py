@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2022.                            (c) 2022.
+#  (c) 2023.                            (c) 2023.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -69,7 +69,7 @@ import os
 import unittest
 
 import requests
-from mock import Mock, patch, call, ANY
+from unittest.mock import Mock, patch, call, ANY
 from io import StringIO
 from urllib.parse import urlparse
 import tempfile
@@ -739,7 +739,7 @@ class TestListResources(unittest.TestCase):
             assert len(put_responses) == put_mock.put_num
 
             # permanent Transfer error
-            session.put = Mock(Mock(headers=start_txn_headers),
+            session.put = Mock(headers=start_txn_headers,
                                side_effect=[exceptions.TransferException] * 3)
             with pytest.raises(exceptions.TransferException):
                 client.upload_file(url=target_url, src=src.name)
