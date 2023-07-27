@@ -166,3 +166,42 @@ def test_maximal_group():
     assert(actual.user_members == expected.user_members)
     assert(actual.group_admins == expected.group_admins)
     assert(actual.user_admins == expected.user_admins)
+
+
+def test_external_users():
+    # external users are users that do not have a CADC internal Identity
+    owner = User()
+    owner.identities['HTTP'] = Identity('foo', 'HTTP')
+
+    expected = Group('groupID')
+    expected.owner = owner
+    expected.description = 'description'
+    expected.last_modified = datetime(2014, 1, 20, 19, 45, 37, 0)
+
+    member = User()
+    owner.identities['X500'] = Identity('cn=tom,c=ca', 'X500')
+    admin = User()
+    admin.identities['X500'] = Identity('cn=jerry,c=ca', 'X500')
+    expected.user_members.add(member)
+    expected.user_admins.add(admin)
+
+    writer = GroupWriter()
+    xml_string = writer.write(expected, True)
+
+    assert(xml_string)
+    assert(len(xml_string) > 0)
+
+    reader = GroupReader()
+    actual = reader.read(xml_string)
+
+    assert expected.group_id
+    assert actual.group_id
+    assert(actual.group_id == expected.group_id)
+
+    assert(actual.owner.internal_id == expected.owner.internal_id)
+    assert(actual.owner.identities == expected.owner.identities)
+    assert(actual.description == expected.description)
+    assert(actual.last_modified == expected.last_modified)
+
+    assert(actual.user_members == expected.user_members)
+    assert(actual.user_admins == expected.user_admins)

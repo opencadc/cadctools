@@ -84,9 +84,10 @@ class UserWriter(object):
 
     def get_user_element(self, user):
         user_element = etree.Element('user')
-        internalid_element = etree.SubElement(user_element, 'internalID')
-        uri_element = etree.SubElement(internalid_element, 'uri')
-        uri_element.text = user.internal_id
+        if user.internal_id:
+            internalid_element = etree.SubElement(user_element, 'internalID')
+            uri_element = etree.SubElement(internalid_element, 'uri')
+            uri_element.text = user.internal_id
         if user.identities:
             identities_element = etree.SubElement(user_element, 'identities')
             for identity in user.identities.values():

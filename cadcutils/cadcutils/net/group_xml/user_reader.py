@@ -85,18 +85,16 @@ class UserReader(object):
 
     def get_user(self, user_element):
         internal_id_element = user_element.find('internalID')
-        if internal_id_element is None:
-            raise UserParsingException(
-                'internalID element not found in user element')
+        uri = None
+        if internal_id_element is not None:
+            uri_element = internal_id_element.find('uri')
+            if uri_element is None:
+                raise UserParsingException(
+                    'uri element not found in internalID element')
 
-        uri_element = internal_id_element.find('uri')
-        if uri_element is None:
-            raise UserParsingException(
-                'uri element not found in internalID element')
-
-        uri = uri_element.text
-        if not uri:
-            raise UserParsingException('uri element has no text value')
+            uri = uri_element.text
+            if not uri:
+                raise UserParsingException('uri element has no text value')
 
         user = User(uri)
 
