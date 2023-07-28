@@ -3,7 +3,7 @@
 # *******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # **************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 # *
-# *  (c) 2021.                            (c) 2021.
+# *  (c) 2023.                            (c) 2023.
 # *  Government of Canada                 Gouvernement du Canada
 # *  National Research Council            Conseil national de recherches
 # *  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -68,7 +68,7 @@ import pytest
 import os
 import sys
 
-from cadcutils.net import Subject, GroupsClient, Group
+from cadcutils.net import Subject, GroupsClient
 from cadcutils.net.groups_client import main_app
 
 REG_HOST = 'ws.cadc-ccda.hia-iha.nrc-cnrc.gc.ca'
@@ -152,22 +152,28 @@ def test_group_client():
     assert not test_group.group_admins
     assert not test_group.user_admins
 
-    test_group.group_admins.add(Group(group_id=TEST_MEMBER_GROUP_ID))
-    # TODO currently not supported. Need to retrieve user info first
-    # test_group.user_admins.add(
-    #     User(internal_id=
-    #          'ivo://cadc.nrc.ca/gms?00000000-0000-0000-0000-000000000005'))
+    # test user and group administrators
+    sys.argv = 'cadc-groups admins --cert {} --add-user {} {}'.format(
+        CADC_TESTCERT, TEST_MEMBER_USER_ID, TEST_GROUP_ID).split()
+    main_app()
 
-    client.update_group(group=test_group)
+    sys.argv = 'cadc-groups admins --cert {} --add-group {} {}'.format(
+        CADC_TESTCERT, TEST_MEMBER_GROUP_ID, TEST_GROUP_ID).split()
+    main_app()
+
     test_group = client.get_group(TEST_GROUP_ID)
-    assert len(test_group.group_admins) == 1
-    # assert len(test_group.user_admins) == 1
 
-    test_group.user_admins.clear()
-    test_group.group_admins.clear()
-    client.update_group(group=test_group)
+    assert len(test_group.group_admins) == 1
+    assert len(test_group.user_admins) == 1
+    assert not test_group.group_members
+    assert not test_group.user_members
+
+    sys.argv = 'cadc-groups admins --cert {} --clear {}'.format(
+        CADC_TESTCERT, TEST_GROUP_ID).split()
+    main_app()
     test_group = client.get_group(TEST_GROUP_ID)
 
     assert not test_group.group_members
     assert not test_group.user_members
     assert not test_group.group_admins
+    assert not test_group.user_admins

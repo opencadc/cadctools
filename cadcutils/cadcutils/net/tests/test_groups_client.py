@@ -72,6 +72,8 @@ from unittest.mock import Mock, patch, call
 from cadcutils.net import Subject, GroupsClient, Group, Identity, Role
 from cadcutils.net.groups_client import main_app
 from cadcutils.net.group_xml import GroupWriter, GroupsWriter
+from cadcutils.net.groups_client import _add_admin_groups, _add_admin_user, \
+    _remove_admin_groups, _remove_admin_users
 
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -436,3 +438,77 @@ def test_mainapp_members(
     remove_user_member_mock.assert_called_with(
         group_id=target_grid,
         identity=Identity(name='CN=abc,OU=org', identity_type='X500'))
+
+
+def test_user_admins():
+    target_group = Group('target')
+    _add_admin_user(target_group, 'user1')
+    assert 1 == len(target_group.user_admins)
+    for admin in target_group.user_admins:
+        assert admin.internal_id is None
+        assert admin.identities['HTTP'].name == 'user1'
+    # mimic the server updating the internal_id
+    admin.internal_id = '007'
+    target_group.user_admins.clear()
+    target_group.user_admins.add(admin)
+
+    _add_admin_user(target_group, 'cn=user2')
+    assert 2 == len(target_group.user_admins)
+    for admin in target_group.user_admins:
+        if 'HTTP' in admin.identities:
+            assert admin.internal_id == '007'
+            assert admin.identities['HTTP'].name == 'user1'
+        if 'X500' in admin.identities:
+            assert None is admin.internal_id
+            assert admin.identities['X500'].name == 'cn=user2'
+
+    with pytest.raises(ValueError):
+        _add_admin_user(target_group, 'user1')
+
+    with pytest.raises(ValueError):
+        _add_admin_user(target_group, 'cn=user2')
+
+    with pytest.raises(ValueError):
+        _remove_admin_users(target_group, 'user_not_found')
+
+    _remove_admin_users(target_group, ['user1'])
+    assert 1 == len(target_group.user_admins)
+    for admin in target_group.user_admins:
+        assert admin.internal_id is None
+        assert admin.identities['X500'].name == 'cn=user2'
+
+    _remove_admin_users(target_group, ["cn=user2"])
+    assert 0 == len(target_group.user_admins)
+
+    with pytest.raises(ValueError):
+        _remove_admin_users(target_group, ['cn=user2'])
+
+
+def test_group_admins():
+    target_group = Group('target')
+    _add_admin_groups(target_group, ['group1'])
+    assert 1 == len(target_group.group_admins)
+    for admin in target_group.group_admins:
+        assert 'group1' == admin.group_id
+
+    _add_admin_groups(target_group, ['group2'])
+    assert 2 == len(target_group.group_admins)
+    for admin in target_group.group_admins:
+        assert admin.group_id in ['group1', 'group2']
+
+    with pytest.raises(ValueError):
+        _add_admin_groups(target_group, ['group1'])
+
+    with pytest.raises(ValueError):
+        _remove_admin_groups(target_group, ['group_not_found'])
+
+    _remove_admin_groups(target_group, ['group1'])
+    assert 1 == len(target_group.group_admins)
+    for admin in target_group.group_admins:
+        assert 'group2' == admin.group_id
+
+    _remove_admin_groups(target_group, ['group2'])
+    assert 0 == len(target_group.group_admins)
+
+    with pytest.raises(ValueError):
+        _remove_admin_groups(target_group, ['group2'])
