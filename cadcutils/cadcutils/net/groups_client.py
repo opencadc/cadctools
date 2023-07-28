@@ -509,8 +509,8 @@ def main_app():
 
     members_parser = subparsers.add_parser(
         'members',
-        description='Display, sets or deletes group membership information',
-        help='Display, sets or deletes group membership information')
+        description='Displays, sets or deletes group membership information',
+        help='Displays, sets or deletes group membership information')
     cmd_group = members_parser.add_mutually_exclusive_group()
     cmd_group.add_argument('-clear', '--clear', action='store_true',
                            help='Clear group and user membership')
@@ -531,8 +531,8 @@ def main_app():
 
     admins_parser = subparsers.add_parser(
         'admins',
-        description='Display, sets or deletes group adminstrator information',
-        help='Display, sets or deletes group adminstrators information')
+        description='Displays, sets or deletes group adminstrator information',
+        help='Displays, sets or deletes group adminstrators information')
     cmd_group = admins_parser.add_mutually_exclusive_group()
     cmd_group.add_argument('-clear', '--clear', action='store_true',
                            help='Clear group and user admins')
