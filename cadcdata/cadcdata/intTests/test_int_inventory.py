@@ -168,12 +168,12 @@ def test_client_public():
             # NAXIS2  =                   11 / size of the n'th axis
             with open(cutout_dest, 'rb') as f:
                 line = f.read(80).decode('ascii')
+                naxis_header_values = ['0', '2']
+                current_naxis = 0
                 while line:
                     if 'NAXIS ' in line:
-                        if 'number of data axes' in line:
-                            assert '0' in line
-                        else:
-                            assert '2' in line
+                        assert naxis_header_values[current_naxis] in line
+                        current_naxis += 1
                     if 'NAXIS1' in line:
                         assert '111' in line
                     if 'NAXIS2' in line:
