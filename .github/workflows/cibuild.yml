@@ -32,8 +32,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        #TODO 2.7 fails on GH Actions but cannot be reproduced locally. Disabled for now.
-        python-version: ["3.7","3.8","3.9","3.10", "3.11"]
+        python-version: ["3.7","3.8","3.9","3.10","3.11"]
         package: [cadcutils, cadcdata, cadctap]
     steps:
     - name: Checkout code
@@ -104,12 +103,12 @@ jobs:
       run: |
         cd ${{ env.repo_name }}
         python -m pip install --upgrade pip
-        pip install setuptools wheel twine
-    - name: Build and publish
-      env:
-        TWINE_USERNAME: ${{ secrets.PYPI_PUBLISH_USER }}
-        TWINE_PASSWORD: ${{ secrets.PYPI_PUBLISH_PWORD }}
+        pip install setuptools wheel
+    - name: Install package
       run: |
         cd ${{ env.repo_name }}
         python setup.py sdist bdist_wheel
-        twine upload --skip-existing dist/*
+    - name: Publish package distributions to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        packages-dir: ${{ env.repo_name }}/dist/
