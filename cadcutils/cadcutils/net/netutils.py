@@ -229,6 +229,7 @@ class Transfer(object):
                                                       "vos:protocol")
             protocol_element.attrib['uri'] = "{0}#{1}".format(
                 Transfer.IVOAURL, protocol[direction])
+
             if security_methods:
                 for sm in security_methods:
                     if sm not in SSO_SECURITY_METHODS.values():
@@ -238,6 +239,12 @@ class Transfer(object):
                     security_element = ElementTree.SubElement(
                         protocol_element, "vos:securityMethod")
                     security_element.attrib['uri'] = sm
+            if security_methods:
+                # add the default anon method
+                protocol_element = ElementTree.SubElement(transfer_xml,
+                                                          "vos:protocol")
+                protocol_element.attrib['uri'] = "{0}#{1}".format(
+                    Transfer.IVOAURL, protocol[direction])
 
         logging.debug(ElementTree.tostring(transfer_xml))
         logging.debug("Sending to : {}".format(endpoint_url))
