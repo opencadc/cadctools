@@ -73,7 +73,7 @@ jobs:
       - name: checkstyle & coverage cadctap
         run: cd cadctap &&  tox -e checkstyle && tox -e cov
       - name: Upload coverage to codecov
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v4
         with:
           files: ./cadcutils/coverage.xml,./cadcdata/coverage.xml,./cadctap/coverage.xml
        
