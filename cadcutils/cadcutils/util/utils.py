@@ -603,9 +603,15 @@ def check_version(version):
             'Unexpected exception in PyPI version checking: {}'.format(str(e)))
         pass
     if strict_versions and current_version < strict_versions[-1]:
+        current_warn_formatting = warnings.formatwarning
+        warnings.formatwarning = lambda message, *ignore: 'WARNING: {}\n'.format(message)
         warnings.warn('Current version {}. A newer version, {}, '
-                      'is available on PyPI'.format(version, strict_versions[-1]),
+                      'is available on PyPI'.format(version,
+                                                    strict_versions[-1]),
                       category=VersionWarning)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        warnings.formatwarning = current_warn_formatting
 
 
 check_version.checked = []  # packages already checked
