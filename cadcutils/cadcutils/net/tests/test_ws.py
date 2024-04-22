@@ -417,7 +417,7 @@ class TestListResources(unittest.TestCase):
     @patch('cadcutils.net.ws.WsCapabilities')
     def test_upload_file_no_put_txn(self, caps_mock, md5_file_mock):
         anon_subject = auth.Subject()
-        target_url = 'https://someurl'
+        target_url = 'https://someurl/path/file'
         cm = Mock()
         cm.get_access_url.return_value = "http://host/availability"
         caps_mock.return_value = cm
@@ -457,8 +457,9 @@ class TestListResources(unittest.TestCase):
 
         # pass the md5 in update small file
         session.put.reset_mock()
-        client.upload_file(url=target_url, src=src.name,
-                           md5_checksum=content_md5)
+        rsp = client.upload_file(url=target_url, src=src.name,
+                                 md5_checksum=content_md5)
+        assert ('file', content_md5) == rsp
         session.put.assert_called_once()
         session.put.assert_called_with(target_url, headers=put_headers,
                                        data=ANY, verify=True)
@@ -466,9 +467,10 @@ class TestListResources(unittest.TestCase):
         # make it fail the first attempt but succeed on the next
         session.put.reset_mock()
         session.put.side_effect = [exceptions.PreconditionFailedException,
-                                   Mock()]
-        client.upload_file(url=target_url, src=src.name,
-                           md5_checksum=content_md5)
+                                   response]
+        rsp = client.upload_file(url=target_url, src=src.name,
+                                 md5_checksum=content_md5)
+        assert ('file', content_md5) == rsp
         assert session.put.mock_calls == [
             call(target_url, headers=put_headers, data=ANY, verify=True),
             call(target_url, headers=put_headers, data=ANY, verify=True)]
@@ -491,7 +493,7 @@ class TestListResources(unittest.TestCase):
     @patch('cadcutils.net.ws.WsCapabilities')
     def test_upload_file_put_txn(self, caps_mock, md5_file_mock):
         anon_subject = auth.Subject()
-        target_url = 'https://someurl'
+        target_url = 'https://someurl/path/file'
         cm = Mock()
         cm.get_access_url.return_value = "http://host/availability"
         caps_mock.return_value = cm
@@ -529,8 +531,9 @@ class TestListResources(unittest.TestCase):
             # files becomes large
             ws.MAX_MD5_COMPUTE_SIZE = 10
             # PUT headers do not contain the md5 anymore
-            client.upload_file(url=target_url, src=src.name,
-                               headers=caller_header)
+            rsp = client.upload_file(url=target_url, src=src.name,
+                                     headers=caller_header)
+            assert ('file', content_md5) == rsp
             put_headers = {ws.HTTP_LENGTH: str(len(content)),
                            ws.PUT_TXN_OP: ws.PUT_TXN_START}
             commit_headers = {ws.PUT_TXN_ID: '123',
@@ -550,11 +553,22 @@ class TestListResources(unittest.TestCase):
             # no transaction is required
             del put_headers[ws.PUT_TXN_OP]
             session.put.reset_mock()
-            client.upload_file(url=target_url, src=src.name,
-                               md5_checksum=content_md5)
+            rsp = client.upload_file(
+                url=target_url, src=src.name, md5_checksum=content_md5)
             net.add_md5_header(headers=put_headers, md5_checksum=content_md5)
             session.put.assert_called_with(target_url, headers=put_headers,
                                            data=ANY, verify=True)
+            assert ('file', content_md5) == rsp
+
+            # mimic a replacement where source and destination are identical
+            session.put.reset_mock()
+            head_headers = {}
+            net.add_md5_header(head_headers, content_md5)
+            head_response = Mock(headers=head_headers)
+            session.head.return_value = head_response
+            rsp = client.upload_file(url=target_url, src=src.name, md5_checksum=content_md5)
+            session.put.assert_not_called()
+            assert ('file', content_md5) == rsp
 
             # mimic md5 mismatch
             session.put.reset_mock()
@@ -580,7 +594,7 @@ class TestListResources(unittest.TestCase):
     @patch('cadcutils.net.ws.WsCapabilities')
     def test_upload_file_put_txn_append(self, caps_mock):
         anon_subject = auth.Subject()
-        target_url = 'https://someurl'
+        target_url = 'https://someurl/path/file'
         cm = Mock()
         cm.get_access_url.return_value = "http://host/availability"
         caps_mock.return_value = cm
@@ -1287,21 +1301,43 @@ def test_download_file_method():
     temp_dir = TemporaryDirectory()
     # proxy _save_bytes through a mock to check when it's called
     client._save_bytes = Mock(side_effect=client._save_bytes)
-    client.download_file('https://dataservice', temp_dir.name)
+    rsp = client.download_file('https://dataservice/path/file', temp_dir.name)
     dest, temp_dest = client._resolve_destination_file(
         temp_dir.name, src_md5=md5, default_file_name=file_name)
     assert os.path.isfile(dest)
     assert not os.path.isfile(temp_dest)
     assert client._save_bytes.called
-    client.get.assert_called_once_with('https://dataservice', stream=True)
+    client.get.assert_called_once_with('https://dataservice/path/file', stream=True)
+    assert file_name == rsp[0]
+    assert md5 == rsp[1]
 
     # calling it the second time does not cause another get
     client.get.reset_mock()
     client._save_bytes.reset_mock()
     client.get = Mock(return_value=response)
-    client.download_file('https://dataservice', temp_dir.name)
+    rsp = client.download_file('https://dataservice/path/file', temp_dir.name)
     assert not client._save_bytes.called
-    client.get.assert_called_once_with('https://dataservice', stream=True)
+    client.get.assert_called_once_with('https://dataservice/path/file', stream=True)
+    assert file_name == rsp[0]
+    assert md5 == rsp[1]
+
+    # specify destination file name
+    client.get.reset_mock()
+    response.raw.read.side_effect = [b'abc', b'de']
+    client._save_bytes.reset_mock()
+    client.get = Mock(return_value=response)
+    # override file name
+    dest_file = 'myfile'
+    target_dest = os.path.join(temp_dir.name, dest_file)
+    rsp = client.download_file('https://dataservice/path/file', target_dest)
+    dest, temp_dest = client._resolve_destination_file(
+        target_dest, src_md5=md5, default_file_name=file_name)
+    assert os.path.isfile(dest)
+    assert not os.path.isfile(temp_dest)
+    assert client._save_bytes.called
+    client.get.assert_called_once_with('https://dataservice/path/file', stream=True)
+    assert dest_file == rsp[0]
+    assert md5 == rsp[1]
 
     # make temporary file larger (BUG case). Operation should succeed
     client.get.reset_mock()
@@ -1309,13 +1345,15 @@ def test_download_file_method():
     open(temp_dest, 'ab').write(b'ghi')
     assert 5 < os.stat(temp_dest).st_size
     response.raw.read.side_effect = [b'abc', b'de']
-    client.download_file('https://dataservice', temp_dir.name)
+    rsp = client.download_file('https://dataservice/path/file', temp_dir.name)
     dest, temp_dest = client._resolve_destination_file(
         temp_dir.name, src_md5=md5, default_file_name=file_name)
     assert os.path.isfile(dest)
     assert not os.path.isfile(temp_dest)
     assert client._save_bytes.called
-    client.get.assert_called_once_with('https://dataservice', stream=True)
+    client.get.assert_called_once_with('https://dataservice/path/file', stream=True)
+    assert file_name == rsp[0]
+    assert md5 == rsp[1]
 
     # calling it when incomplete temporary file exits
     # truncate the last 3 bytes but the service does not support
@@ -1328,11 +1366,13 @@ def test_download_file_method():
         f.truncate()
     response.raw.read.side_effect = [b'abc', b'de']
     client.get = Mock(return_value=response)
-    client.download_file('https://dataservice', temp_dir.name)
+    rsp = client.download_file('https://dataservice/path/file', temp_dir.name)
     assert os.path.isfile(dest)
     assert not os.path.isfile(temp_dest)
     assert client._save_bytes.called
-    client.get.assert_called_once_with('https://dataservice', stream=True)
+    client.get.assert_called_once_with('https://dataservice/path/file', stream=True)
+    assert file_name == rsp[0]
+    assert md5 == rsp[1]
 
     # repeat the test when the service supports ranges
     client.get.reset_mock()
@@ -1345,15 +1385,17 @@ def test_download_file_method():
     response.headers['Accept-Ranges'] = 'bytes '
     response.raw.read.side_effect = [b'cde']
     client.get = Mock(return_value=response)
-    client.download_file('https://dataservice', temp_dir.name)
+    rsp = client.download_file('https://dataservice/path/file', temp_dir.name)
     assert os.path.isfile(dest)
     assert not os.path.isfile(temp_dest)
     assert client._save_bytes.called
     assert 2 == client.get.call_count
     # second get call with Range header expected
-    assert [call('https://dataservice', stream=True),
-            call('https://dataservice', stream=True,
+    assert [call('https://dataservice/path/file', stream=True),
+            call('https://dataservice/path/file', stream=True,
                  headers={'Range': 'bytes=2-'})] in client.get.mock_calls
+    assert file_name == rsp[0]
+    assert md5 == rsp[1]
 
 
 def test_save_bytes():
