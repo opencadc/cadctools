@@ -112,7 +112,10 @@ def test_check_server_version():
 
     # client ahead
     _check_server_version({'server1': '1.5'},
-                          'OpenCADC/cadc-rest + cadc/server1-1.2')
+                          'OpenCADC/cadc-rest + cadc/server1-0.7')
+
+    _check_server_version({'server1': '1.5'},
+                          'OpenCADC/cadc-rest + cadc/server1-1.3.4')
 
     # client works with multiple server APIs
     _check_server_version({'server0': '0.1', 'server1': '1.2'},
