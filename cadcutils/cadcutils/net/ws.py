@@ -686,7 +686,7 @@ class BaseDataClient(BaseWsClient):
             PUT_TXN_OP: PUT_TXN_COMMIT,
             HTTP_LENGTH: '0'})
         self._get_session().put(url, verify=self.verify, **kwargs)
-        return (dest_name, dest_md5)
+        return dest_name, dest_md5
 
     @staticmethod
     def _get_segment_size(file_size, min_segment, max_segment):
@@ -750,7 +750,7 @@ class BaseDataClient(BaseWsClient):
                src_md5 == \
                     hashlib.md5(open(final_dest, 'rb').read()).hexdigest():
                 # nothing to be done
-                return (os.path.basename(final_dest), src_md5)
+                return os.path.basename(final_dest), src_md5
             if src_md5 and src_size and os.path.isfile(temp_dest):
                 stat_info = os.stat(temp_dest)
                 if not stat_info.st_size or stat_info.st_size >= src_size:
