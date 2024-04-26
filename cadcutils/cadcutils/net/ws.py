@@ -529,7 +529,7 @@ class BaseDataClient(BaseWsClient):
                         self.logger.debug('{} uploaded (HTTP {})'.format(
                             src, response.status_code))
                         dest_md5 = net.extract_md5(response.headers)
-                        self._log_download(src, start, stat_info.st_size)
+                        self._log_upload(src, start, stat_info.st_size)
                         return dest_name, dest_md5, stat_info.st_size
                     except exceptions.PreconditionFailedException as e:
                         # retry as this is likely caused by md5 mismatch
@@ -575,7 +575,7 @@ class BaseDataClient(BaseWsClient):
                     PUT_TXN_OP: PUT_TXN_COMMIT,
                     HTTP_LENGTH: '0'})
                 self._get_session().put(url, verify=self.verify, **kwargs)
-                self._log_download(src, start, stat_info.st_size)
+                self._log_up(src, start, stat_info.st_size)
                 return dest_name, dest_md5, stat_info.st_size
 
         # large file that requires multiple segments
@@ -691,10 +691,10 @@ class BaseDataClient(BaseWsClient):
             PUT_TXN_OP: PUT_TXN_COMMIT,
             HTTP_LENGTH: '0'})
         self._get_session().put(url, verify=self.verify, **kwargs)
-        self._log_download(src, start, stat_info.st_size)
+        self._log_upload(src, start, stat_info.st_size)
         return dest_name, dest_md5, stat_info.st_size
 
-    def _log_download(self, src, start, size):
+    def _log_upload(self, src, start, size):
         duration = time.time() - start
         self.logger.info(
             'Successfully uploaded file {} in {}s '
