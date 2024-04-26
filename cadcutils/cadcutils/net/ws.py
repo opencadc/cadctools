@@ -575,7 +575,7 @@ class BaseDataClient(BaseWsClient):
                     PUT_TXN_OP: PUT_TXN_COMMIT,
                     HTTP_LENGTH: '0'})
                 self._get_session().put(url, verify=self.verify, **kwargs)
-                self._log_up(src, start, stat_info.st_size)
+                self._log_upload(src, start, stat_info.st_size)
                 return dest_name, dest_md5, stat_info.st_size
 
         # large file that requires multiple segments
