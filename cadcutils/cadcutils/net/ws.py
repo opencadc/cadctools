@@ -911,7 +911,7 @@ def _check_server_version(supported_versions, server_header):
             if actual_version.count('.') < 1:
                 raise ValueError('Expected at least major.minor server version: ' + server_header)
             a_major, a_minor = [int(x) for x in actual_version.split('.')[:2]]
-            if a_major <= s_major and a_minor <= s_minor:
+            if a_major < s_major or a_minor <= s_minor:
                 return
             logging.debug(
                 'Version incompatibility for {} - Client({}.{}) vs Server({}.{})'.format(
