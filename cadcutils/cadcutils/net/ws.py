@@ -473,7 +473,7 @@ class BaseDataClient(BaseWsClient):
            available, the caller should set the attribute, otherwise the method
            might compute it (for small files) and introduce overhead.
            :param kwargs: other http attributes
-           :returns (name_of_uploaded_file, md5_checksum)
+           :returns (name_of_uploaded_file, md5_checksum, file_size)
            :throws: HttpExceptions
         """
         stat_info = os.stat(src)
@@ -508,9 +508,9 @@ class BaseDataClient(BaseWsClient):
                 response.raise_for_status()
                 dest_md5 = net.extract_md5(response.headers)
                 if dest_md5 and (dest_md5 == src_md5):
-                    self.logger.debug(
-                        'Source and destination identical for {}. Skip transfer'.format(src))
-                    return dest_name, dest_md5
+                    self.logger.info(
+                        'Source and destination identical for {}. Skip transfer!'.format(src))
+                    return dest_name, dest_md5, stat_info.st_size
             except Exception:
                 # continue
                 pass
@@ -518,6 +518,7 @@ class BaseDataClient(BaseWsClient):
             if stat_info.st_size < FILE_SEGMENT_THRESHOLD:
                 # no transactions needed.
                 retries = MD5_MISMATCH_RETRY
+                start = time.time()
                 while retries:
                     try:
                         with open(src, 'rb') as reader:
@@ -528,7 +529,8 @@ class BaseDataClient(BaseWsClient):
                         self.logger.debug('{} uploaded (HTTP {})'.format(
                             src, response.status_code))
                         dest_md5 = net.extract_md5(response.headers)
-                        return dest_name, dest_md5
+                        self._log_upload(src, start, stat_info.st_size)
+                        return dest_name, dest_md5, stat_info.st_size
                     except exceptions.PreconditionFailedException as e:
                         # retry as this is likely caused by md5 mismatch
                         if not retries:
@@ -538,6 +540,7 @@ class BaseDataClient(BaseWsClient):
         if stat_info.st_size < FILE_SEGMENT_THRESHOLD:
             # one go upload with transaction
             retries = MD5_MISMATCH_RETRY
+            start = time.time()
             while retries:
                 with util.Md5File(src, 'rb') as reader:
                     kwargs[HEADERS] = combine_headers(
@@ -572,7 +575,8 @@ class BaseDataClient(BaseWsClient):
                     PUT_TXN_OP: PUT_TXN_COMMIT,
                     HTTP_LENGTH: '0'})
                 self._get_session().put(url, verify=self.verify, **kwargs)
-                return dest_name, dest_md5
+                self._log_upload(src, start, stat_info.st_size)
+                return dest_name, dest_md5, stat_info.st_size
 
         # large file that requires multiple segments
         kwargs[HEADERS] = combine_headers({
@@ -592,6 +596,7 @@ class BaseDataClient(BaseWsClient):
                                           max_segment)
         current_size = 0
         last_digest = hashlib.md5()
+        start = time.time()
         try:
             # Obs -(-stat_info.st_size//seg_size) - ceiling division in PYTHON
             for segment in range(0, -(-stat_info.st_size//seg_size)):
@@ -686,7 +691,16 @@ class BaseDataClient(BaseWsClient):
             PUT_TXN_OP: PUT_TXN_COMMIT,
             HTTP_LENGTH: '0'})
         self._get_session().put(url, verify=self.verify, **kwargs)
-        return dest_name, dest_md5
+        self._log_upload(src, start, stat_info.st_size)
+        return dest_name, dest_md5, stat_info.st_size
+
+    def _log_upload(self, src, start, size):
+        duration = time.time() - start
+        self.logger.info(
+            'Successfully uploaded file {} in {}s '
+            '(avg. speed: {}MB/s)'.format(
+                src, round(duration, 2),
+                round(size / 1024 / 1024 / duration, 2)))
 
     @staticmethod
     def _get_segment_size(file_size, min_segment, max_segment):
@@ -731,7 +745,7 @@ class BaseDataClient(BaseWsClient):
            the file name. By default, it saves the file in the current
            directory.
            :param kwargs: other http attributes
-           :return: (file_name, md5_checksum)
+           :return: (file_name, md5_checksum, file_size)
            :throws: HttpExceptions
 
         """
@@ -741,7 +755,7 @@ class BaseDataClient(BaseWsClient):
         content_disp = net.get_header_filename(response.headers)
         if hasattr(dest, 'read'):
             dest.write(response.raw.read())
-            return content_disp, src_md5
+            return content_disp, src_md5, src_size
         else:
             final_dest, temp_dest = self._resolve_destination_file(
                 dest=dest, src_md5=src_md5, default_file_name=content_disp)
@@ -750,7 +764,9 @@ class BaseDataClient(BaseWsClient):
                src_md5 == \
                     hashlib.md5(open(final_dest, 'rb').read()).hexdigest():
                 # nothing to be done
-                return os.path.basename(final_dest), src_md5
+                self.logger.info(
+                    'Source and destination identical for {}. Skip transfer!'.format(final_dest))
+                return os.path.basename(final_dest), src_md5, src_size
             if src_md5 and src_size and os.path.isfile(temp_dest):
                 stat_info = os.stat(temp_dest)
                 if not stat_info.st_size or stat_info.st_size >= src_size:
@@ -784,9 +800,9 @@ class BaseDataClient(BaseWsClient):
                                 'received {}'.format(exp_cr, actual_cr))
             # need to send the original file content-length. The Range response
             # contains the content-length of the range.
-            dest_md5 = self._save_bytes(response, src_size, temp_dest, None)
+            dest_md5, dest_size = self._save_bytes(response, src_size, temp_dest, None)
             os.rename(temp_dest, final_dest)
-            return os.path.basename(final_dest), dest_md5
+            return os.path.basename(final_dest), dest_md5, dest_size
 
     def _save_bytes(self, response, src_length, dest_file, process_bytes=None):
         # requests automatically decompresses the data.
@@ -873,7 +889,7 @@ class BaseDataClient(BaseWsClient):
                 '(avg. speed: {}MB/s)'.format(
                     dest_file, round(duration, 2),
                     round(dest_downloaded / 1024 / 1024 / duration, 2)))
-            return dest_md5
+            return dest_md5, dest_length
         if not src_length or not src_md5:
             # clean up the temporary file
             os.remove(dest_file)

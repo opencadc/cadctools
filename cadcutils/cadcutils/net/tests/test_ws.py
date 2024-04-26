@@ -462,7 +462,7 @@ class TestListResources(unittest.TestCase):
         session.put.reset_mock()
         rsp = client.upload_file(url=target_url, src=src.name,
                                  md5_checksum=content_md5)
-        assert ('file', content_md5) == rsp
+        assert ('file', content_md5, len(content)) == rsp
         session.put.assert_called_once()
         session.put.assert_called_with(target_url, headers=put_headers,
                                        data=ANY, verify=True)
@@ -473,7 +473,7 @@ class TestListResources(unittest.TestCase):
                                    response]
         rsp = client.upload_file(url=target_url, src=src.name,
                                  md5_checksum=content_md5)
-        assert ('file', content_md5) == rsp
+        assert ('file', content_md5, len(content)) == rsp
         assert session.put.mock_calls == [
             call(target_url, headers=put_headers, data=ANY, verify=True),
             call(target_url, headers=put_headers, data=ANY, verify=True)]
@@ -536,7 +536,7 @@ class TestListResources(unittest.TestCase):
             # PUT headers do not contain the md5 anymore
             rsp = client.upload_file(url=target_url, src=src.name,
                                      headers=caller_header)
-            assert ('file', content_md5) == rsp
+            assert ('file', content_md5, len(content)) == rsp
             put_headers = {ws.HTTP_LENGTH: str(len(content)),
                            ws.PUT_TXN_OP: ws.PUT_TXN_START}
             commit_headers = {ws.PUT_TXN_ID: '123',
@@ -561,7 +561,7 @@ class TestListResources(unittest.TestCase):
             net.add_md5_header(headers=put_headers, md5_checksum=content_md5)
             session.put.assert_called_with(target_url, headers=put_headers,
                                            data=ANY, verify=True)
-            assert ('file', content_md5) == rsp
+            assert ('file', content_md5, len(content)) == rsp
 
             # mimic a replacement where source and destination are identical
             session.put.reset_mock()
@@ -571,7 +571,7 @@ class TestListResources(unittest.TestCase):
             session.head.return_value = head_response
             rsp = client.upload_file(url=target_url, src=src.name, md5_checksum=content_md5)
             session.put.assert_not_called()
-            assert ('file', content_md5) == rsp
+            assert ('file', content_md5, len(content)) == rsp
 
             # mimic md5 mismatch
             session.put.reset_mock()
