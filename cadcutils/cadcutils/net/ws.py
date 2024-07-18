@@ -593,7 +593,7 @@ class BaseDataClient(BaseWsClient):
                                            verify=self.verify,
                                            **kwargs)
         trans_id = response.headers.get(PUT_TXN_ID, None)
-        if not trans_id:
+        if trans_id is None:
             # transactions not supported. Try the upload in one go.
             kwargs[HEADERS] = combine_headers({HTTP_LENGTH: str(stat_info.st_size)})
             retries = MD5_MISMATCH_RETRY
