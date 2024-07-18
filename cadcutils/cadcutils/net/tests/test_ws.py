@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2023.                            (c) 2023.
+#  (c) 2024.                            (c) 2024.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -466,6 +466,47 @@ class TestListResources(unittest.TestCase):
         session.put.assert_called_once()
         session.put.assert_called_with(target_url, headers=put_headers,
                                        data=ANY, verify=True)
+
+        # force calculate md5 on the fly
+        orig_max_md5_compute_size = ws.MAX_MD5_COMPUTE_SIZE
+        session.put.reset_mock()
+        try:
+            ws.MAX_MD5_COMPUTE_SIZE = 3
+            rsp = client.upload_file(url=target_url, src=src.name)
+            assert ('file', content_md5, len(content)) == rsp
+            session.put.assert_called_once()
+            session.put.assert_called_with(
+                target_url,
+                headers={ws.HTTP_LENGTH: str(len(content)), ws.PUT_TXN_OP: ws.PUT_TXN_START},
+                data=ANY, verify=True)
+        except Exception as e:
+            ws.MAX_MD5_COMPUTE_SIZE = orig_max_md5_compute_size
+            raise e
+
+        # mimic large file that requires to be split in segments
+        # force calculate md5 on the fly
+        orig_max_md5_compute_size = ws.MAX_MD5_COMPUTE_SIZE
+        orig_file_segment_threshold = ws.FILE_SEGMENT_THRESHOLD
+        session.put.reset_mock()
+        try:
+            ws.MAX_MD5_COMPUTE_SIZE = 3
+            ws.FILE_SEGMENT_THRESHOLD = 3
+            rsp = client.upload_file(url=target_url, src=src.name)
+            assert ('file', content_md5, len(content)) == rsp
+            assert len(session.put.mock_calls) == 2
+            # 2 calls - one to start transaction and the other one to
+            # do the transfer since the response does not contain a
+            # transaction id (usually a sign that the server doesn't support it
+            assert [call(target_url, verify=True,
+                         headers={ws.HTTP_LENGTH: '0',
+                                  ws.PUT_TXN_TOTAL_LENGTH: str(len(content)),
+                                  ws.PUT_TXN_OP: ws.PUT_TXN_START}),
+                    call(target_url,
+                         headers={ws.HTTP_LENGTH: str(len(content))},
+                         data=ANY, verify=True)] == session.put.mock_calls
+        finally:
+            ws.MAX_MD5_COMPUTE_SIZE = orig_max_md5_compute_size
+            ws.FILE_SEGMENT_THRESHOLD = orig_file_segment_threshold
 
         # make it fail the first attempt but succeed on the next
         session.put.reset_mock()

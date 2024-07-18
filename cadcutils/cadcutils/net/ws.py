@@ -4,7 +4,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2022.                            (c) 2022.
+#  (c) 2024.                            (c) 2024.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -514,9 +514,10 @@ class BaseDataClient(BaseWsClient):
             except Exception:
                 # continue
                 pass
-            net.add_md5_header(headers=orig_headers, md5_checksum=src_md5)
             if stat_info.st_size < FILE_SEGMENT_THRESHOLD:
-                # no transactions needed.
+                net.add_md5_header(headers=orig_headers, md5_checksum=src_md5)
+                # no transactions needed. Also because the md5 of the source is sent
+                # with the request, the server is able to check the integrity of the file
                 retries = MD5_MISMATCH_RETRY
                 start = time.time()
                 while retries:
@@ -549,7 +550,7 @@ class BaseDataClient(BaseWsClient):
                         url,
                         data=reader,
                         verify=self.verify, **kwargs)
-                trans_id = response.headers[PUT_TXN_ID]
+                trans_id = response.headers.get(PUT_TXN_ID, None)
                 # check the file made it OK
                 dest_md5 = net.extract_md5(response.headers)
                 if dest_md5 != reader.md5_checksum:
@@ -557,24 +558,29 @@ class BaseDataClient(BaseWsClient):
                           'Mismatched md5 src vs dest: {} vs {}'.format(
                             src, reader.md5_checksum, dest_md5)
                     self.logger.warning(msg)
-                    # abort transaction
-                    kwargs[HEADERS] = combine_headers(
-                        {PUT_TXN_ID: trans_id,
-                         PUT_TXN_OP: PUT_TXN_ABORT,
-                         HTTP_LENGTH: '0'})
-                    self._get_session().post(url, verify=self.verify, **kwargs)
+                    if trans_id:
+                        # abort transaction
+                        kwargs[HEADERS] = combine_headers(
+                            {PUT_TXN_ID: trans_id,
+                             PUT_TXN_OP: PUT_TXN_ABORT,
+                             HTTP_LENGTH: '0'})
+                        self._get_session().post(url, verify=self.verify, **kwargs)
+                    else:
+                        # unfortunately, no way to remove the corrupted file on server
+                        pass
                     retries -= 1
                     if retries:
                         self.logger.warning('Retrying')
                         continue
                     else:
                         raise exceptions.TransferException(msg)
+                if trans_id:
                     # commit tran
-                kwargs[HEADERS] = combine_headers({
-                    PUT_TXN_ID: trans_id,
-                    PUT_TXN_OP: PUT_TXN_COMMIT,
-                    HTTP_LENGTH: '0'})
-                self._get_session().put(url, verify=self.verify, **kwargs)
+                    kwargs[HEADERS] = combine_headers({
+                        PUT_TXN_ID: trans_id,
+                        PUT_TXN_OP: PUT_TXN_COMMIT,
+                        HTTP_LENGTH: '0'})
+                    self._get_session().put(url, verify=self.verify, **kwargs)
                 self._log_upload(src, start, stat_info.st_size)
                 return dest_name, dest_md5, stat_info.st_size
 
@@ -586,8 +592,35 @@ class BaseDataClient(BaseWsClient):
         response = self._get_session().put(url,
                                            verify=self.verify,
                                            **kwargs)
-        trans_id = response.headers[PUT_TXN_ID]
-        self.logger.debug('Starting transaction {} on url {}'.format(
+        trans_id = response.headers.get(PUT_TXN_ID, None)
+        if trans_id is None:
+            # transactions not supported. Try the upload in one go.
+            kwargs[HEADERS] = combine_headers({HTTP_LENGTH: str(stat_info.st_size)})
+            retries = MD5_MISMATCH_RETRY
+            start = time.time()
+            while retries:
+                with util.Md5File(src, 'rb') as reader:
+                    response = self._get_session().put(
+                        url,
+                        data=reader,
+                        verify=self.verify, **kwargs)
+                # check the file made it OK
+                dest_md5 = net.extract_md5(response.headers)
+                if dest_md5 != reader.md5_checksum:
+                    msg = 'File {} not properly uploaded. ' \
+                          'Mismatched md5 src vs dest: {} vs {}'.format(
+                            src, reader.md5_checksum, dest_md5)
+                    # unfortunately, no way to remove the corrupted file on server
+                    self.logger.warning(msg)
+                    retries -= 1
+                    if retries:
+                        self.logger.warning('Retrying')
+                        continue
+                    else:
+                        raise exceptions.TransferException(msg)
+                self._log_upload(src, start, stat_info.st_size)
+                return dest_name, dest_md5, stat_info.st_size
+        print('Starting transaction {} on url {}'.format(
             trans_id, url))
         min_segment = response.headers.get(PUT_TXN_MIN_SEGMENT, None)
         max_segment = response.headers.get(PUT_TXN_MAX_SEGMENT, None)
