@@ -688,91 +688,88 @@ class TestCadcTapClient(unittest.TestCase):
                     main_app()
                 assert usage.strip('\n') == _fix_help(stderr_mock.getvalue())
 
-        #TODO - Remove?
-        # These are becoming increasingly difficult to maintain due to changes
-        # in format between Python versions.
         # schema -h
-        # with open(os.path.join(TESTDATA_DIR,
-        #                        'help_schema.txt'), 'r') as myfile:
-        #     usage = myfile.read()
-        #
-        # with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-        #     sys.argv = ['cadc-tap', 'schema', '--help']
-        #     with self.assertRaises(MyExitError):
-        #         main_app()
-        #     assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-        #
-        # # query -h
-        # with open(os.path.join(TESTDATA_DIR,
-        #                        'help_query.txt'), 'r') as myfile:
-        #     usage = myfile.read()
-        #
-        # with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-        #     sys.argv = ['cadc-tap', 'query', '--help']
-        #     with self.assertRaises(MyExitError):
-        #         main_app()
-        #     assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-        #
-        # # create -h
-        # with open(os.path.join(TESTDATA_DIR,
-        #                        'help_create.txt'), 'r') as myfile:
-        #     usage = myfile.read()
-        #
-        # with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-        #     sys.argv = ['cadc-tap', 'create', '--help']
-        #     with self.assertRaises(MyExitError):
-        #         main_app()
-        #     assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-        #
-        # # delete -h
-        # with open(os.path.join(TESTDATA_DIR,
-        #                        'help_delete.txt'), 'r') as myfile:
-        #     usage = myfile.read()
-        #
-        # with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-        #     sys.argv = ['cadc-tap', 'delete', '--help']
-        #     with self.assertRaises(MyExitError):
-        #         main_app()
-        #     assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-        #
-        # # index -h
-        # with open(os.path.join(TESTDATA_DIR,
-        #                        'help_index.txt'), 'r') as myfile:
-        #     usage = myfile.read()
-        #
-        # with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-        #     sys.argv = ['cadc-tap', 'index', '--help']
-        #     with self.assertRaises(MyExitError):
-        #         main_app()
-        #     assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-        #
-        # # load -h
-        # with open(os.path.join(TESTDATA_DIR,
-        #                        'help_load.txt'), 'r') as myfile:
-        #     usage = myfile.read()
-        #
-        # with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-        #     sys.argv = ['cadc-tap', 'load', '--help']
-        #     with self.assertRaises(MyExitError):
-        #         main_app()
-        #     assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-        #
-        # # permission -h
-        # # help is slightly different in python 3.9
-        # if sys.version_info >= (3, 9):
-        #     with open(os.path.join(TESTDATA_DIR,
-        #                            'help_permission_39.txt'), 'r') as myfile:
-        #         usage = myfile.read()
-        # else:
-        #     with open(os.path.join(TESTDATA_DIR,
-        #                            'help_permission.txt'), 'r') as myfile:
-        #         usage = myfile.read()
-        #
-        # with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-        #     sys.argv = ['cadc-tap', 'permission', '--help']
-        #     with self.assertRaises(MyExitError):
-        #         main_app()
-        #     assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
+        with open(os.path.join(TESTDATA_DIR,
+                               'help_schema.txt'), 'r') as myfile:
+            usage = myfile.read()
+
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            sys.argv = ['cadc-tap', 'schema', '--help']
+            with self.assertRaises(MyExitError):
+                main_app()
+            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
+
+        # query -h
+        with open(os.path.join(TESTDATA_DIR,
+                               'help_query.txt'), 'r') as myfile:
+            usage = myfile.read()
+
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            sys.argv = ['cadc-tap', 'query', '--help']
+            with self.assertRaises(MyExitError):
+                main_app()
+            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
+
+        # create -h
+        with open(os.path.join(TESTDATA_DIR,
+                               'help_create.txt'), 'r') as myfile:
+            usage = myfile.read()
+
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            sys.argv = ['cadc-tap', 'create', '--help']
+            with self.assertRaises(MyExitError):
+                main_app()
+            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
+
+        # delete -h
+        with open(os.path.join(TESTDATA_DIR,
+                               'help_delete.txt'), 'r') as myfile:
+            usage = myfile.read()
+
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            sys.argv = ['cadc-tap', 'delete', '--help']
+            with self.assertRaises(MyExitError):
+                main_app()
+            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
+
+        # index -h
+        with open(os.path.join(TESTDATA_DIR,
+                               'help_index.txt'), 'r') as myfile:
+            usage = myfile.read()
+
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            sys.argv = ['cadc-tap', 'index', '--help']
+            with self.assertRaises(MyExitError):
+                main_app()
+            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
+
+        # load -h
+        with open(os.path.join(TESTDATA_DIR,
+                               'help_load.txt'), 'r') as myfile:
+            usage = myfile.read()
+
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            sys.argv = ['cadc-tap', 'load', '--help']
+            with self.assertRaises(MyExitError):
+                main_app()
+            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
+
+        # permission -h
+        # help is slightly different in python 3.9
+        if sys.version_info >= (3, 9):
+            with open(os.path.join(TESTDATA_DIR,
+                                   'help_permission_39.txt'), 'r') as myfile:
+                usage = myfile.read()
+        else:
+            with open(os.path.join(TESTDATA_DIR,
+                                   'help_permission.txt'), 'r') as myfile:
+                usage = myfile.read()
+
+        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
+            sys.argv = ['cadc-tap', 'permission', '--help']
+            with self.assertRaises(MyExitError):
+                main_app()
+            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
     @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
                                          MyExitError, MyExitError, MyExitError,
