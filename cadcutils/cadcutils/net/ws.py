@@ -763,7 +763,6 @@ class BaseDataClient(BaseWsClient):
         else:
             return final_dest, final_dest
 
-
     def compute_file_md5(file_path):
         """Compute the md5 hash of a file.
         Args:
