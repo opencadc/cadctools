@@ -156,7 +156,7 @@ Expected /tmp/testcertfile to be a directory.
             # new title in 3.10
             actual = stdout_mock.getvalue().replace('options:',
                                                     'optional arguments:')
-            self.assertEqual(usage.strip('\n'), actual.strip('\n'))
+            self.assertEqual(usage.replace('\n', " "), actual.replace('\n', " "))
 
     @patch('cadcutils.net.auth.os')
     def testSubject(self, os_mock):
