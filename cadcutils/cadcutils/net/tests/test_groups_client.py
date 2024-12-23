@@ -324,7 +324,9 @@ def test_mainapp_get(get_group_mock, basews_mock):
     get_group_mock.reset_mock()
     sys.argv = 'cadc-groups get --cert cert.pem grID1 grID2'.split()
     main_app()
-    get_group_mock.has_calls([call(group_id='grID1'), call(group_id='grID2')])
+    assert 2 == get_group_mock.call_count
+    for ii in get_group_mock.calls:
+        assert ii in [call(group_id='grID1'), call(group_id='grID2')]
 
 
 @patch('cadcutils.net.groups_client.Subject.from_cmd_line_args',

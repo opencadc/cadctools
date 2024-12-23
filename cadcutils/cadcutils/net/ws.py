@@ -493,11 +493,7 @@ class BaseDataClient(BaseWsClient):
 
         src_md5 = md5_checksum
         if not src_md5 and stat_info.st_size <= MAX_MD5_COMPUTE_SIZE:
-            hash_md5 = hashlib.md5()
-            with open(src, "rb") as f:
-                for chunk in iter(lambda: f.read(4096), b""):
-                    hash_md5.update(chunk)
-            src_md5 = hash_md5.hexdigest()
+            src_md5 = BaseDataClient.compute_file_md5(src)
 
         dest_name = os.path.basename(urlparse(url).path)
 
@@ -767,6 +763,27 @@ class BaseDataClient(BaseWsClient):
         else:
             return final_dest, final_dest
 
+    def compute_file_md5(file_path, undigested=False):
+        """Compute the md5 hash of a file.
+        Args:
+            file_path (pathlib.Path): the path to the file.
+            undigested (bool): if True, returns the md5 hash object instead of
+            the hexdigest. Caller can continue to update the hash before calling
+            hexdigest
+
+        Returns:
+            str: the md5 hash of the file.
+        """
+        md5_hash = hashlib.md5()
+        buffer_size = 8 * 1024
+        with open(file_path, 'rb') as file:
+            while file_buffer := file.read(buffer_size):
+                md5_hash.update(file_buffer)
+        if undigested:
+            return md5_hash
+        else:
+            return md5_hash.hexdigest()
+
     def download_file(self, url, dest=None, **kwargs):
         """Method to download a file from CADC storage (archive or vospace).
            This method takes advantage of the HTTP Range feature available
@@ -794,8 +811,7 @@ class BaseDataClient(BaseWsClient):
                 dest=dest, src_md5=src_md5, default_file_name=content_disp)
             if os.path.isfile(final_dest) and \
                src_size == os.stat(final_dest).st_size and \
-               src_md5 == \
-                    hashlib.md5(open(final_dest, 'rb').read()).hexdigest():
+               src_md5 == BaseDataClient.compute_file_md5(final_dest):
                 # nothing to be done
                 self.logger.info(
                     'Source and destination identical for {}. Skip transfer!'.format(final_dest))
@@ -883,10 +899,8 @@ class BaseDataClient(BaseWsClient):
             if response.status_code == requests.codes.partial_content:
                 # Can resume download. Digest existing content on disk first
                 update_mode = 'ab'
+                hash_md5 = BaseDataClient.compute_file_md5(dest_file, undigested=True)
                 dest_length = os.stat(dest_file).st_size
-                with open(dest_file, 'rb') as f:
-                    for chunk in iter(lambda: f.read(4096), b""):
-                        hash_md5.update(chunk)
             else:
                 os.remove(dest_file)
 
