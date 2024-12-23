@@ -763,20 +763,26 @@ class BaseDataClient(BaseWsClient):
         else:
             return final_dest, final_dest
 
-    def compute_file_md5(file_path):
+    def compute_file_md5(file_path, undigested=False):
         """Compute the md5 hash of a file.
         Args:
             file_path (pathlib.Path): the path to the file.
+            undigested (bool): if True, returns the md5 hash object instead of
+            the hexdigest. Caller can continue to update the hash before calling
+            hexdigest
 
         Returns:
             str: the md5 hash of the file.
         """
         md5_hash = hashlib.md5()
-        buffer_size = 50 * 1024
+        buffer_size = 8 * 1024
         with open(file_path, 'rb') as file:
             while file_buffer := file.read(buffer_size):
                 md5_hash.update(file_buffer)
-        return md5_hash.hexdigest()
+        if undigested:
+            return md5_hash
+        else:
+            return md5_hash.hexdigest()
 
     def download_file(self, url, dest=None, **kwargs):
         """Method to download a file from CADC storage (archive or vospace).
@@ -893,10 +899,8 @@ class BaseDataClient(BaseWsClient):
             if response.status_code == requests.codes.partial_content:
                 # Can resume download. Digest existing content on disk first
                 update_mode = 'ab'
+                hash_md5 = BaseDataClient.compute_file_md5(dest_file, undigested=True)
                 dest_length = os.stat(dest_file).st_size
-                with open(dest_file, 'rb') as f:
-                    for chunk in iter(lambda: f.read(4096), b""):
-                        hash_md5.update(chunk)
             else:
                 os.remove(dest_file)
 
