@@ -701,14 +701,6 @@ class StorageInventoryClient(object):
             direction='pullFromVoSpace' if is_get else 'pushToVoSpace',
             with_uws_job=False, cutout=params)
 
-    def _get_md5sum(self, filename):
-        # return the md5sum of a file
-        hash_md5 = hashlib.md5()
-        with open(filename, 'rb') as f:
-            for chunk in iter(lambda: f.read(4096), b''):
-                hash_md5.update(chunk)
-        return hash_md5.hexdigest()
-
     def _get_uris(self, target):
         # takes a target URI and if the URI is not fully qualified (schema
         # is missing, returns a list of possible fully qualified
