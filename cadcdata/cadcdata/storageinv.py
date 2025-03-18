@@ -562,9 +562,10 @@ class StorageInventoryClient(object):
         if len(urls) == 0:
             raise exceptions.HttpException('No URLs available to put data to')
 
+        last_exception = None
         # get the list of transfer points
         for url in urls:
-            last_exception = None
+            last_exception = None  # reset the last exception
             if operation == 'post':
                 logger.debug('POST to URL {}'.format(url))
                 start = time.time()
