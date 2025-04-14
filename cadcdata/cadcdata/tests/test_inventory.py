@@ -82,7 +82,7 @@ import tempfile
 from cadcutils.net import auth
 from cadcutils import exceptions
 from cadcutils.util import str2ivoa
-from cadcdata import StorageInventoryClient, cadcget_cli, cadcput_cli,\
+from cadcdata import StorageInventoryClient, cadcget_cli, cadcput_cli, \
     cadcinfo_cli, cadcremove_cli
 from cadcdata import storageinv
 import cadcdata

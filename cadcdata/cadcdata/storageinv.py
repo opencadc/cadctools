@@ -501,11 +501,6 @@ class StorageInventoryClient(object):
 
         headers = {}
 
-        try:
-            file_info = self.cadcinfo(id)
-        except exceptions.NotFoundException:
-            file_info = None
-
         if file_type is not None:
             mtype = file_type
         elif MAGIC_WARN:
@@ -535,14 +530,20 @@ class StorageInventoryClient(object):
             net.add_md5_header(headers, md5_checksum=md5_checksum)
 
         operation = 'put'
-        if md5_checksum and file_info and (file_info.md5sum == md5_checksum):
-            if (file_info.file_type != headers['Content-Type']) or \
-               (file_info.encoding != headers['Content-Encoding']):
-                operation = 'post'
-            else:
-                logger.info(
-                    'Source {} already in the storage inventory'.format(src))
-                return
+        if md5_checksum:
+            try:
+                file_info = self.cadcinfo(id)
+            except exceptions.NotFoundException:
+                file_info = None
+
+            if file_info and (file_info.md5sum == md5_checksum):
+                if (file_info.file_type != headers['Content-Type']) or \
+                   (file_info.encoding != headers['Content-Encoding']):
+                    operation = 'post'
+                else:
+                    logger.info('Source {} already in the storage '
+                                'inventory'.format(src))
+                    return
 
         urls = self._get_transfer_urls(id, is_get=False)
         if len(urls) == 0:
