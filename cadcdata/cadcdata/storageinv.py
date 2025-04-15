@@ -485,7 +485,8 @@ class StorageInventoryClient(object):
         :param id: unique identifier (URI) for the file in the CADC inventory
         system. The URI must include the scheme.
         :param src: location of the source file
-        :param replace: remains for backwards-compatibility, value ignored.
+        :param replace: DEPRECATED - value ignored. It will be removed in
+        future versions.
         :param file_type: file MIME type
         :param file_encoding: file MIME encoding
         :param md5_checksum: md5 sum of the content. Bytes are always
@@ -752,6 +753,9 @@ def cadcput_cli():
                         help='MIME encoding to set in archive. If missing,'
                              ' the application will try to deduce it',
                         required=False)
+    parser.add_argument('-r', '--replace', action='store_true',
+                        help='DEPRECATED. A safeguard for accidental '
+                             'replacements.')
     parser.add_argument(
         'identifier', type=argparse_validate_uri_strict,
         help='unique identifier (URI) given to the file in the CADC '
