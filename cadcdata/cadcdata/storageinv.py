@@ -1,9 +1,8 @@
-# # -*- coding: utf-8 -*-
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2022.                            (c) 2022.
+#  (c) 2025.                            (c) 2025.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -72,7 +71,6 @@ import os.path
 import sys
 import time
 from clint.textui import progress
-import hashlib
 import datetime
 import traceback
 from urllib.parse import urlparse, urlencode
@@ -487,16 +485,12 @@ class StorageInventoryClient(object):
         :param id: unique identifier (URI) for the file in the CADC inventory
         system. The URI must include the scheme.
         :param src: location of the source file
-        :param replace: boolean indicated whether this is expected to be
-        a replacement of an existing file in the inventory system or not (file
-        is new). Wrong assumption results in an error. This is a safeguard
-        for accidental file replacements.
+        :param replace: DEPRECATED - value ignored. It will be removed in
+        future versions.
         :param file_type: file MIME type
         :param file_encoding: file MIME encoding
-        :param md5_checksum: md5 sum of the content. For replacements,
-        the content will not be sent over if the md5_checksum of a replaced
-        file matches the source one. Bytes are always transferred when this
-        argument is not provided.
+        :param md5_checksum: md5 sum of the content. Bytes are always
+        transferred when this argument is not provided.
         """
         validate_uri(id)
         # We actually raise an exception here since the web
@@ -507,18 +501,6 @@ class StorageInventoryClient(object):
                 'Must be authenticated to put data')
 
         headers = {}
-
-        try:
-            file_info = self.cadcinfo(id)
-        except exceptions.NotFoundException:
-            file_info = None
-
-        if file_info and not replace:
-            raise AttributeError('Attempting to override identifier {} '
-                                 'without using the replace flag'.format(id))
-        if not file_info and replace:
-            raise AttributeError('Attempting to put a new identifier {} '
-                                 'using the replace flag'.format(id))
 
         if file_type is not None:
             mtype = file_type
@@ -549,14 +531,20 @@ class StorageInventoryClient(object):
             net.add_md5_header(headers, md5_checksum=md5_checksum)
 
         operation = 'put'
-        if replace and md5_checksum and (file_info.md5sum == md5_checksum):
-            if (file_info.file_type != headers['Content-Type']) or \
-               (file_info.encoding != headers['Content-Encoding']):
-                operation = 'post'
-            else:
-                logger.info(
-                    'Source {} already in the storage inventory'.format(src))
-                return
+        if md5_checksum:
+            try:
+                file_info = self.cadcinfo(id)
+            except exceptions.NotFoundException:
+                file_info = None
+
+            if file_info and (file_info.md5sum == md5_checksum):
+                if (file_info.file_type != headers['Content-Type']) or \
+                   (file_info.encoding != headers['Content-Encoding']):
+                    operation = 'post'
+                else:
+                    logger.info('Source {} already in the storage '
+                                'inventory'.format(src))
+                    return
 
         urls = self._get_transfer_urls(id, is_get=False)
         if len(urls) == 0:
@@ -766,9 +754,8 @@ def cadcput_cli():
                              ' the application will try to deduce it',
                         required=False)
     parser.add_argument('-r', '--replace', action='store_true',
-                        help='replace existing files or fail if identifier '
-                             'is new. This is a safeguard for accidental '
-                             'file replacements')
+                        help='DEPRECATED. A safeguard for accidental '
+                             'replacements.')
     parser.add_argument(
         'identifier', type=argparse_validate_uri_strict,
         help='unique identifier (URI) given to the file in the CADC '
@@ -784,8 +771,8 @@ def cadcput_cli():
     parser.epilog = (
         'Examples:\n'
         '- Use user certificate to replace a file specify the type\n'
-        '      cadcput --cert ~/.ssl/cadcproxy.pem -t "application/fits" \n'
-        '              -r cadc:TEST/myfile.fits myfile.fits\n'
+        '      cadcput --cert ~/.ssl/cadcproxy.pem -t "application/fits"\n'
+        '              cadc:TEST/myfile.fits myfile.fits\n'
         '- Use default netrc file ($HOME/.netrc) to put two files files:\n'
         '      cadcput -v -n cadc:TEST/ myfile1.fits.gz myfile2.fits.gz\n'
         '- Use a different netrc file to put files from a directory to '
@@ -823,8 +810,7 @@ def cadcput_cli():
         execute_cmd(client.cadcput, {'id': file_id,
                                      'src': file,
                                      'file_type': args.type,
-                                     'file_encoding': args.encoding,
-                                     'replace': args.replace})
+                                     'file_encoding': args.encoding})
 
 
 def cadcget_cli():

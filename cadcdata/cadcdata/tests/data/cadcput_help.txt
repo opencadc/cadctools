@@ -25,8 +25,7 @@ optional arguments:
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
   -q, --quiet           run quietly
-  -r, --replace         replace existing files or fail if identifier is new.
-                        This is a safeguard for accidental file replacements
+  -r, --replace         DEPRECATED. A safeguard for accidental replacements.
   -s, --service SERVICE
                         service this command accesses. Both IDs in short form
                         (<service>) or the complete one
@@ -43,8 +42,8 @@ optional arguments:
 
 Examples:
 - Use user certificate to replace a file specify the type
-      cadcput --cert ~/.ssl/cadcproxy.pem -t "application/fits" 
-              -r cadc:TEST/myfile.fits myfile.fits
+      cadcput --cert ~/.ssl/cadcproxy.pem -t "application/fits"
+              cadc:TEST/myfile.fits myfile.fits
 - Use default netrc file ($HOME/.netrc) to put two files files:
       cadcput -v -n cadc:TEST/ myfile1.fits.gz myfile2.fits.gz
 - Use a different netrc file to put files from a directory to directory dir:

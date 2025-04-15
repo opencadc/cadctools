@@ -1,9 +1,8 @@
-# # -*- coding: utf-8 -*-
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2023.                            (c) 2023.
+#  (c) 2025.                            (c) 2025.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -83,7 +82,7 @@ import tempfile
 from cadcutils.net import auth
 from cadcutils import exceptions
 from cadcutils.util import str2ivoa
-from cadcdata import StorageInventoryClient, cadcget_cli, cadcput_cli,\
+from cadcdata import StorageInventoryClient, cadcget_cli, cadcput_cli, \
     cadcinfo_cli, cadcremove_cli
 from cadcdata import storageinv
 import cadcdata
@@ -262,18 +261,22 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
     post_mock.assert_not_called()
 
     # replace non existing file
+    upload_mock.reset_mock()
     client.cadcinfo.side_effect = [exceptions.NotFoundException()]
-    with pytest.raises(AttributeError):
-        client.cadcput('cadc:TEST/putfile', file_name, replace=True)
+    client.cadcput('cadc:TEST/putfile', file_name, replace=True)
+    assert upload_mock.call_count == 1
 
-    # put a new file that already exists
+    # put a file that already exists, with the same md5sum
+    upload_mock.reset_mock()
     client.cadcinfo = Mock(
         return_value=cadcdata.FileInfo('cadc:TEST/putfile',
                                        file_type='text/plain',
                                        encoding='us-ascii',
                                        md5sum='2debfdcf79f03e4a65a667d21ef9de14'))
-    with pytest.raises(AttributeError):
-        client.cadcput('cadc:TEST/putfile', file_name, replace=False)
+    client.cadcput('cadc:TEST/putfile', file_name, replace=False,
+                   md5_checksum='2debfdcf79f03e4a65a667d21ef9de14',
+                   file_encoding='us-ascii', file_type='text/plain')
+    assert upload_mock.call_count == 0
 
     # Transfer error on all urls
     upload_mock.reset_mock()
@@ -484,7 +487,7 @@ def test_help():
         # Make it Python 3.10 compatible
         actual = stdout_mock.getvalue().\
             replace('options:', 'optional arguments:').strip('\n')
-        assert usage.strip('\n') == actual
+        assert usage.strip('\n') == actual, cmd
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))
@@ -588,12 +591,12 @@ def test_cadcput_cli(putclient_mock):
     open(file3_path, 'w').write('TEST FILE3')
 
     # replace one file
-    sys.argv = ['cadcput', '-r', '--netrc-file', netrc,
+    sys.argv = ['cadcput', '--netrc-file', netrc,
                 'cadc:TEST/{}'.format(file1), file1_path]
     with patch('sys.stdout', new_callable=StringIO):
         cadcput_cli()
     calls = [call(id='cadc:TEST/file1', src=file1_path,
-                  file_type=None, file_encoding=None, replace=True)]
+                  file_type=None, file_encoding=None)]
     cadcput_mock.assert_has_calls(calls, any_order=True)
 
     # put multiple files in directory
@@ -603,9 +606,9 @@ def test_cadcput_cli(putclient_mock):
     with patch('sys.stdout', new_callable=StringIO):
         cadcput_cli()
     # file3 is in subdirectory and not part of the list
-    calls = [call(id='cadc:TEST/file2.txt', src=file2_path, replace=False,
+    calls = [call(id='cadc:TEST/file2.txt', src=file2_path,
                   file_type='application/text', file_encoding='encoded'),
-             call(id='cadc:TEST/file1.txt', src=file1_path, replace=False,
+             call(id='cadc:TEST/file1.txt', src=file1_path,
                   file_type='application/text', file_encoding='encoded')]
     cadcput_mock.assert_has_calls(calls, any_order=True)
 
@@ -615,11 +618,11 @@ def test_cadcput_cli(putclient_mock):
                 put_dir, file3_path]
     with patch('sys.stdout', new_callable=StringIO):
         cadcput_cli()
-    calls = [call(id='cadc:TEST/file2.txt', src=file2_path, replace=False,
+    calls = [call(id='cadc:TEST/file2.txt', src=file2_path,
                   file_type=None, file_encoding=None),
-             call(id='cadc:TEST/file3.txt', src=file3_path,  replace=False,
+             call(id='cadc:TEST/file3.txt', src=file3_path,
                   file_type=None, file_encoding=None),
-             call(id='cadc:TEST/file1.txt', src=file1_path,  replace=False,
+             call(id='cadc:TEST/file1.txt', src=file1_path,
                   file_type=None, file_encoding=None)]
     cadcput_mock.assert_has_calls(calls, any_order=True)
     # cleanup
