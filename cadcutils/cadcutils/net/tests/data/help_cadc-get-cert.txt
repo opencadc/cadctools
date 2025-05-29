@@ -1,5 +1,5 @@
 usage: cadc-get-cert [-h]
-                     (--cert CERT | -n | --netrc-file NETRC_FILE | -u USER)
+                     (--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | --token TOKEN)
                      [--resource-id RESOURCE_ID] [-q | -v] [-V]
                      [--cert-filename CERT_FILENAME] [--days-valid DAYS_VALID]
 
@@ -20,6 +20,7 @@ optional arguments:
   -q, --quiet           run quietly
   --resource-id RESOURCE_ID
                         resource identifier (default ivo://cadc.nrc.ca/cred)
+  --token TOKEN         authentication token to use.
   -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages

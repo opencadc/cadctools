@@ -4,7 +4,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2024.                            (c) 2024.
+#  (c) 2025.                            (c) 2025.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -430,7 +430,9 @@ class BaseWsClient(object):
                 self.retry, idempotent_posts=self.idempotent_posts)
             # prevent requests from using .netrc
             self._session.trust_env = False
-            if self.subject.certificate is not None:
+            if self.subject.token:
+                self._session.token = self.subject.token
+            elif self.subject.certificate is not None:
                 self._session.cert = (
                     self.subject.certificate, self.subject.certificate)
             elif self.subject.cookies:
@@ -1023,6 +1025,29 @@ class RetrySession(Session):
     @server_versions.setter
     def server_versions(self, versions):
         self._server_versions = versions
+
+    @property
+    def token(self):
+        if 'Authorization' in self.headers:
+            _ = self.headers['Authorization'].split(' ')
+            if len(_) == 2:
+                return _[1]
+            else:
+                return None
+        else:
+            return None
+
+    @token.setter
+    def token(self, token):
+        if token:
+            if token.strip().lower().startswith('bearer '):
+                bearer = ''
+            else:
+                bearer = 'Bearer '
+            self.headers['Authorization'] = bearer + token
+        else:
+            if 'Authorization' in self.headers:
+                del self.headers['Authorization']
 
     def send(self, request, **kwargs):
         """

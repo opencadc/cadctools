@@ -93,7 +93,8 @@ __all__ = ['get_cert', 'Subject']
 SECURITY_METHODS_IDS = {
     'certificate': 'ivo://ivoa.net/sso#tls-with-certificate',
     'basic': 'ivo://ivoa.net/sso#BasicAA',
-    'cookie': 'ivo://ivoa.net/sso#cookie'}
+    'cookie': 'ivo://ivoa.net/sso#cookie',
+    'token': 'ivo://ivoa.net/sso#token'}
 
 SUPPORTED_SERVER_VERSIONS = {'cred': '2.0'}
 
@@ -121,13 +122,14 @@ class Subject(object):
         password before connecting.
     """
 
-    def __init__(self, username=None, certificate=None, netrc=False):
+    def __init__(self, username=None, certificate=None, netrc=False, token=None):
         """
             The subject is anonymous if neither of this arguments is set
         :param username: user name
         :param certificate: name of the X509 certificate file
         :param netrc: use information from .netrc. Value can be True (use
         default $HOME/.netrc) or the name of the netrc file to use.
+        :param token: use the provided token
         """
         self.username = username
         self._hosts_auth = {}
@@ -136,6 +138,23 @@ class Subject(object):
         self._netrc = False
         self.netrc = netrc
         self._cookies = []
+        self._token = token
+
+    @property
+    def token(self):
+        """
+        Token used for authentication
+        :return: token string
+        """
+        return self._token
+
+    @token.setter
+    def token(self, value):
+        """
+        Token used for authentication
+        :param value: token string
+        """
+        self._token = value
 
     @property
     def certificate(self):
@@ -179,7 +198,7 @@ class Subject(object):
         :return:
         """
         return (self.certificate is None) and (self.netrc is False) and\
-               (self.username is None)
+               (self.username is None) and (self.token is None)
 
     @property
     def cookies(self):
@@ -195,12 +214,13 @@ class Subject(object):
             args.cert: x509 certificate location
             args.n: use netrc files for authentication info
             args.netrc_file: use this netrc file for authentication info
+            args.token: use this token for authentication
         :param args: argparse command line arguments
         :return: corresponding subject
         """
         return Subject(username=args.user, certificate=args.cert,
                        netrc=(args.netrc_file if args.netrc_file
-                              is not None else args.n))
+                              is not None else args.n), token=args.token)
 
     def get_auth(self, realm):
         """
@@ -256,6 +276,8 @@ class Subject(object):
             sms.append(SECURITY_METHODS_IDS['cookie'])
         if (self.netrc is not False) or (self.username is not None):
             sms.append(SECURITY_METHODS_IDS['basic'])
+        if self.token:
+            sms.append(SECURITY_METHODS_IDS['token'])
         return sms
 
 

@@ -166,6 +166,7 @@ Expected /tmp/testcertfile to be a directory.
         self.assertEqual(None, subject.certificate)
         self.assertEqual({}, subject._hosts_auth)
         self.assertEqual(None, subject.get_auth('realm1'))
+        self.assertEqual(None, subject.token)
 
         # cert subject
         cert = 'somecert'
@@ -174,6 +175,7 @@ Expected /tmp/testcertfile to be a directory.
         self.assertEqual(cert, subject.certificate)
         self.assertEqual({}, subject._hosts_auth)
         self.assertEqual(None, subject.get_auth('realm1'))
+        self.assertEqual(None, subject.token)
 
         # empty netrc subject
         m = mock_open()
@@ -183,6 +185,7 @@ Expected /tmp/testcertfile to be a directory.
         self.assertEqual(None, subject.certificate)
         self.assertEqual({}, subject._hosts_auth)
         self.assertEqual(None, subject.get_auth('realm1'))
+        self.assertEqual(None, subject.token)
 
         # netrc with content
         netrc_content = {'realm1': ('user1', None, 'pass1'),
@@ -200,17 +203,26 @@ Expected /tmp/testcertfile to be a directory.
         self.assertEqual(('user1', 'pass1'), subject.get_auth('realm1'))
         self.assertEqual(('user1', 'pass2'), subject.get_auth('realm2'))
         self.assertEqual(None, subject.get_auth('realm3'))
+        self.assertEqual(None, subject.token)
 
         # subject with username
         username = 'user1'
         passwd = 'passwd1'
         subject = auth.Subject(username=username)
         self.assertFalse(subject.anon)
+        self.assertEqual(None, subject.token)
         self.assertEqual(None, subject.certificate)
         self.assertEqual({}, subject._hosts_auth)
         with patch('cadcutils.net.auth.getpass') as getpass_mock:
             getpass_mock.getpass.return_value = passwd
             self.assertEqual((username, passwd), subject.get_auth('realm1'))
+
+        # subject with tokens
+        subject = auth.Subject(token='mytoken')
+        self.assertFalse(subject.anon)
+        self.assertEqual(None, subject.certificate)
+        self.assertEqual({}, subject._hosts_auth)
+        self.assertEqual('mytoken', subject.token)
 
         parser = get_base_parser(subparsers=False)
         args = parser.parse_args(['--resource-id', 'blah'])

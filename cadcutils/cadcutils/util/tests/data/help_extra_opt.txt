@@ -1,4 +1,5 @@
-usage: cadc-client [-h] [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER]
+usage: cadc-client [-h]
+                   [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | --token TOKEN]
                    --resource-id RESOURCE_ID [-q | -v] [-x]
                    fileID [fileID ...]
 
@@ -15,6 +16,7 @@ optional arguments:
   -q, --quiet           run quietly
   --resource-id RESOURCE_ID
                         resource identifier (e.g. ivo://cadc.nrc.ca/service)
+  --token TOKEN         authentication token to use.
   -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages
