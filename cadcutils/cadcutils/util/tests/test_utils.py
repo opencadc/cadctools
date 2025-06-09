@@ -263,6 +263,8 @@ class UtilTests(unittest.TestCase):
     @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
                                          MyExitError, MyExitError,
                                          MyExitError]))
+    @pytest.mark.skipif(sys.version_info > (3, 12),
+                        reason="Different help output in Python 3.12+")
     def test_base_parser_help(self):
         # help with a simple, no subparsers basic parser - these are
         # the default arguments

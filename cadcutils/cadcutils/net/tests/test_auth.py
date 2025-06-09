@@ -66,6 +66,7 @@
 # ***********************************************************************
 
 import os
+import pytest
 import sys
 import re
 import unittest
@@ -136,6 +137,8 @@ Expected /tmp/testcertfile to be a directory.
         os.remove(certfile)
 
     @patch('sys.exit', Mock(side_effect=[MyExitError]))
+    @pytest.mark.skipif(sys.version_info > (3, 12),
+                        reason="Different help output in Python 3.12+")
     def test_get_cert_main_help(self):
         """ Test the help option of the cadc-get-cert app """
         with open(os.path.join(TESTDATA_DIR, 'help_cadc-get-cert.txt'),
