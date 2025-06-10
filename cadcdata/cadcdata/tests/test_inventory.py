@@ -471,6 +471,8 @@ def test_get_uris(basews_mock):
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
                                      MyExitError, MyExitError,
                                      MyExitError]))
+@pytest.mark.skipif(sys.version_info > (3, 12),
+                        reason="Different help output in Python 3.13+")
 def test_help():
     """ Tests the helper displays for cadc* commands"""
     # help
