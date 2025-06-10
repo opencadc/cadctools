@@ -1,5 +1,5 @@
 usage: cadc-tap load [-h]
-                     [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a]
+                     [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | --token TOKEN | -a]
                      [-s SERVICE] [-q | -v] [-f {FITSTable,csv,tsv}]
                      TABLENAME SOURCE [SOURCE ...]
 
@@ -36,6 +36,7 @@ optional arguments:
                         (ivo://cadc.nrc.ca/<service>) as well as actual URLs
                         to the root of the service (https://someurl/service)
                         are accepted. Default is: ivo://cadc.nrc.ca/youcat
+  --token TOKEN         authentication token to use.
   -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages

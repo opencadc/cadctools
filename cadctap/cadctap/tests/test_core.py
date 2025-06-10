@@ -654,7 +654,6 @@ def _fix_help(help_txt):
     :param help_txt:
     :return:
     """
-    # Different title in python 3.10
     return help_txt.replace('options:', 'optional arguments:').strip('\n')
 
 
