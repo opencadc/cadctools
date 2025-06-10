@@ -79,6 +79,8 @@ import netrc as netrclib
 import os
 import signal
 import sys
+from typing import Optional, Union
+
 import html2text
 
 from cadcutils.net import ws
@@ -122,7 +124,10 @@ class Subject(object):
         password before connecting.
     """
 
-    def __init__(self, username=None, certificate=None, netrc=False, token=None):
+    def __init__(self, username: Optional[str] = None,
+                 certificate: Optional[str] = None,
+                 netrc: Union[bool, str] = False,
+                 token: Optional[str] = None):
         """
             The subject is anonymous if neither of this arguments is set
         :param username: user name
@@ -279,6 +284,13 @@ class Subject(object):
         if self.token:
             sms.append(SECURITY_METHODS_IDS['token'])
         return sms
+
+    def __repr__(self):
+        return (f"<Subject(username={self.username}, "
+                f"token={'******' if self._token else '<not set>'}, "
+                f"netrc={self.netrc})>, "
+                f"certificate={self.certificate}, "
+                f"cookies={self.cookies})>")
 
 
 def get_cert(subject, days_valid=None, host=None, insecure=False):

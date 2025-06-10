@@ -221,11 +221,21 @@ Expected /tmp/testcertfile to be a directory.
             self.assertEqual((username, passwd), subject.get_auth('realm1'))
 
         # subject with tokens
-        subject = auth.Subject(token='mytoken')
+        token = 'mytoken'
+        subject = auth.Subject(token=token)
         self.assertFalse(subject.anon)
         self.assertEqual(None, subject.certificate)
         self.assertEqual({}, subject._hosts_auth)
-        self.assertEqual('mytoken', subject.token)
+        self.assertEqual(token, subject.token)
+
+        # subject with all credentials
+        subject = auth.Subject(certificate=cert, netrc=True, token=token)
+        self.assertFalse(subject.anon)
+        self.assertEqual(cert, subject.certificate)
+        self.assertEqual(token, subject.token)
+        self.assertEqual(('<Subject(username=None, token=******, '
+                         'netrc=/home/myhome/.netrc)>, certificate=somecert, '
+                         'cookies=[])>'), repr(subject))
 
         parser = get_base_parser(subparsers=False)
         args = parser.parse_args(['--resource-id', 'blah'])
