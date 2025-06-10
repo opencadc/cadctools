@@ -22,7 +22,7 @@ positional arguments:
                         around it, for example "SELECT observationURI FROM
                         caom2.Observation"
 
-optional arguments:
+options:
   -a, --anon            use the service anonymously
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)

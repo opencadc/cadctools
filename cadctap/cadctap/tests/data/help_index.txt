@@ -20,7 +20,7 @@ positional arguments:
                         index for
   COLUMN                name of the column to create the index for
 
-optional arguments:
+options:
   -a, --anon            use the service anonymously
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)

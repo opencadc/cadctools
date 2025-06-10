@@ -19,7 +19,7 @@ positional arguments:
   TABLENAME             name of the table (<schema.table>) to load data to
   SOURCE                source of the data. It can be files or "-" for stdin.
 
-optional arguments:
+options:
   -a, --anon            use the service anonymously
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)

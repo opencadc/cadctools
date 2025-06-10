@@ -20,7 +20,7 @@ positional arguments:
   TABLEDEFINITION       file containing the definition of the table or "-" if
                         definition in stdin
 
-optional arguments:
+options:
   -a, --anon            use the service anonymously
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)

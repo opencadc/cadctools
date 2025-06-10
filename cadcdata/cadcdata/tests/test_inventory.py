@@ -485,9 +485,9 @@ def test_help():
                 getattr(cadcdata, '{}_cli'.format(cmd))()
 
         # Make it Python 3.10 compatible
-        actual = stdout_mock.getvalue().\
-            replace('options:', 'optional arguments:').strip('\n')
-        assert usage.strip('\n') == actual, cmd
+        actual = stdout_mock.getvalue().strip('\n')
+        assert (usage.replace('optional arguments:', 'options:')
+                .strip('\n') == actual), cmd
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))
@@ -634,7 +634,7 @@ def test_cadcput_cli(putclient_mock):
         with pytest.raises(MyExitError):
             cadcremove_cli()
         assert 'cadcput: error: one of the arguments --cert -n ' \
-               '--netrc-file -u/--user is' in stderr_mock.getvalue()
+               '--netrc-file -u/--user --token is' in stderr_mock.getvalue()
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))
@@ -659,7 +659,7 @@ def test_cadcremove_cli(removeclient_mock):
         with pytest.raises(MyExitError):
             cadcremove_cli()
         assert 'cadcremove: error: one of the arguments --cert -n ' \
-               '--netrc-file -u/--user is' in stderr_mock.getvalue()
+               '--netrc-file -u/--user --token is' in stderr_mock.getvalue()
 
 
 def test_validate_uri():

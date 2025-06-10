@@ -72,7 +72,7 @@ setup(name=PACKAGENAME,
       use_2to3=False,
       setup_requires=['pytest-runner'],
       entry_points=entry_points,
-      python_requires='>=3.7, <4',
+      python_requires='>=3.9, <4',
       packages=find_packages(),
       package_data={PACKAGENAME: ['data/*']},
       classifiers=[

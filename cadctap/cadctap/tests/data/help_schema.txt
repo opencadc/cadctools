@@ -18,7 +18,7 @@ option. If not, cadc-tap will use the --anon option.
 positional arguments:
   SCHEMA.TABLENAME      table to get the schema for
 
-optional arguments:
+options:
   -a, --anon            use the service anonymously
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
