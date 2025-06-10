@@ -487,9 +487,8 @@ def test_help():
                 getattr(cadcdata, '{}_cli'.format(cmd))()
 
         # Make it Python 3.10 compatible
-        actual = stdout_mock.getvalue().strip('\n')
-        assert (usage.replace('optional arguments:', 'options:')
-                .strip('\n') == actual), cmd
+        actual = stdout_mock.getvalue().replace('optional arguments:', 'options:').strip('\n')
+        assert (usage.strip('\n') == actual), cmd
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))
