@@ -1280,16 +1280,16 @@ class TestWsOutsideCalls(unittest.TestCase):
 
     @patch('time.sleep')
     def testCalls(self, time_mock):
-        client = ws.BaseWsClient('https://httpbin.org', net.Subject(), 'FOO')
-        response = client.get('https://httpbin.org')
+        client = ws.BaseWsClient('https://httpbun.com', net.Subject(), 'FOO')
+        response = client.get('https://httpbun.com')
         self.assertEqual(response.status_code, requests.codes.ok)
 
         with self.assertRaises(exceptions.InternalServerException):
-            client.get('https://httpbin.org/status/500')
+            client.get('https://httpbun.com/status/500')
 
         time_mock.reset_mock()
         with self.assertRaises(exceptions.HttpException):
-            client.get('https://httpbin.org/status/503')
+            client.get('https://httpbun.com/status/503')
 
         calls = [call(DEFAULT_RETRY_DELAY),
                  call(min(DEFAULT_RETRY_DELAY*2, MAX_RETRY_DELAY)),
