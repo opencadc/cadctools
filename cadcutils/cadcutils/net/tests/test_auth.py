@@ -229,12 +229,13 @@ Expected /tmp/testcertfile to be a directory.
         self.assertEqual(token, subject.token)
 
         # subject with all credentials
-        subject = auth.Subject(certificate=cert, netrc=True, token=token)
+        with patch('builtins.open', m, create=True):
+            subject = auth.Subject(certificate=cert, netrc='/home/.netrc', token=token)
         self.assertFalse(subject.anon)
         self.assertEqual(cert, subject.certificate)
         self.assertEqual(token, subject.token)
         self.assertEqual(('<Subject(username=None, token=******, '
-                         'netrc=/home/myhome/.netrc)>, certificate=somecert, '
+                         'netrc=/home/.netrc)>, certificate=somecert, '
                          'cookies=[])>'), repr(subject))
 
         parser = get_base_parser(subparsers=False)
