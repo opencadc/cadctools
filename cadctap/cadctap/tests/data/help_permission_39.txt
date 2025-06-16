@@ -1,5 +1,5 @@
 usage: cadc-tap permission [-h]
-                           [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a]
+                           [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | --token TOKEN | -a]
                            [-s SERVICE] [-q | -v]
                            MODE TARGET [GROUPS ...]
 
@@ -12,7 +12,7 @@ positional arguments:
   GROUPS                name(s) of group(s) to assign read/write permission
                         to. One group per r or w permission.
 
-optional arguments:
+options:
   -a, --anon            use the service anonymously
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
@@ -27,6 +27,7 @@ optional arguments:
                         (ivo://cadc.nrc.ca/<service>) as well as actual URLs
                         to the root of the service (https://someurl/service)
                         are accepted. Default is: ivo://cadc.nrc.ca/youcat
+  --token TOKEN         authentication token to use.
   -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages

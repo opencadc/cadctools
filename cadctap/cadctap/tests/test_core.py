@@ -654,14 +654,15 @@ def _fix_help(help_txt):
     :param help_txt:
     :return:
     """
-    # Different title in python 3.10
-    return help_txt.replace('options:', 'optional arguments:').strip('\n')
+    return help_txt.replace('optional arguments:', 'options:').strip('\n')
 
 
 class TestCadcTapClient(unittest.TestCase):
     """Test the CadcTapClient class"""
 
     @patch('sys.exit', Mock(side_effect=[MyExitError for x in range(25)]))
+    @pytest.mark.skipif(sys.version_info > (3, 12),
+                        reason="Different help output in Python 3.13+")
     def test_help(self):
         """ Tests the helper displays for commands and subcommands in main"""
         self.maxDiff = None

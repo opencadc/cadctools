@@ -1,5 +1,5 @@
 usage: cadc-tap query [-h]
-                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a]
+                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | --token TOKEN | -a]
                       [-s SERVICE] [-q | -v] [-o OUTPUT_FILE] [-m MAXREC]
                       [-i INPUT_FILE] [--timeout TIMEOUT]
                       [-f {VOTable,csv,tsv}] [-t TMPTABLE]
@@ -22,7 +22,7 @@ positional arguments:
                         around it, for example "SELECT observationURI FROM
                         caom2.Observation"
 
-optional arguments:
+options:
   -a, --anon            use the service anonymously
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
@@ -51,6 +51,7 @@ optional arguments:
                         temp table upload, the value is in format:
                         "tablename:/path/to/table". In query to reference the
                         table use tap_upload.tablename
+  --token TOKEN         authentication token to use.
   -u, --user USER       name of user to authenticate. Note: application
                         prompts for the corresponding password!
   -v, --verbose         verbose messages

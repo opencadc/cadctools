@@ -358,6 +358,8 @@ def get_base_parser(subparsers=True, version=None, usecert=True,
                             help='name of user to authenticate. ' +
                                  'Note: application prompts for the '
                                  'corresponding password!')
+    auth_group.add_argument('--token', type=str,
+                            help='authentication token to use.')
     cparser.add_argument('--host', help=SUPPRESS)
     cparser.add_argument('-k', '--insecure', action='store_true',
                          help=SUPPRESS)

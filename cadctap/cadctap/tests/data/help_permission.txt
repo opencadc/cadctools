@@ -12,7 +12,7 @@ positional arguments:
   GROUPS                name(s) of group(s) to assign read/write permission
                         to. One group per r or w permission.
 
-optional arguments:
+options:
   -a, --anon            use the service anonymously
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)

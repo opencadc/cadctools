@@ -471,6 +471,8 @@ def test_get_uris(basews_mock):
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
                                      MyExitError, MyExitError,
                                      MyExitError]))
+@pytest.mark.skipif(sys.version_info > (3, 12),
+                        reason="Different help output in Python 3.13+")
 def test_help():
     """ Tests the helper displays for cadc* commands"""
     # help
@@ -485,9 +487,8 @@ def test_help():
                 getattr(cadcdata, '{}_cli'.format(cmd))()
 
         # Make it Python 3.10 compatible
-        actual = stdout_mock.getvalue().\
-            replace('options:', 'optional arguments:').strip('\n')
-        assert usage.strip('\n') == actual, cmd
+        actual = stdout_mock.getvalue().replace('optional arguments:', 'options:').strip('\n')
+        assert (usage.strip('\n') == actual), cmd
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))
@@ -634,7 +635,7 @@ def test_cadcput_cli(putclient_mock):
         with pytest.raises(MyExitError):
             cadcremove_cli()
         assert 'cadcput: error: one of the arguments --cert -n ' \
-               '--netrc-file -u/--user is' in stderr_mock.getvalue()
+               '--netrc-file -u/--user --token is' in stderr_mock.getvalue()
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))
@@ -659,7 +660,7 @@ def test_cadcremove_cli(removeclient_mock):
         with pytest.raises(MyExitError):
             cadcremove_cli()
         assert 'cadcremove: error: one of the arguments --cert -n ' \
-               '--netrc-file -u/--user is' in stderr_mock.getvalue()
+               '--netrc-file -u/--user --token is' in stderr_mock.getvalue()
 
 
 def test_validate_uri():
