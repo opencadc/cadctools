@@ -15,6 +15,7 @@ __pycache__
 */cython_version.py
 htmlcov
 .coverage
+*/coverage.xml
 MANIFEST
 .ipynb_checkpoints
 
@@ -51,6 +52,7 @@ distribute-*.tar.gz
 
 # Other
 .cache
+.ci-venv
 .tox
 .*.sw[op]
 *~
