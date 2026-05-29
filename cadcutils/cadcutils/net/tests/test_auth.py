@@ -136,6 +136,17 @@ Expected /tmp/testcertfile to be a directory.
         self.assertEqual(errmsg, stderr_mock.getvalue())
         os.remove(certfile)
 
+    def test_get_cert_main_rejects_cert_option(self):
+        """--cert is not an authentication option for cadc-get-cert"""
+        with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
+            with self.assertRaises(SystemExit) as cm:
+                sys.argv = ["cadc-get-cert", "--cert", "foo.pem"]
+                auth.get_cert_main()
+            self.assertEqual(2, cm.exception.code)
+        self.assertIn(
+            'one of the arguments -n --netrc-file -u/--user --token',
+            stderr_mock.getvalue())
+
     @patch('sys.exit', Mock(side_effect=[MyExitError]))
     @pytest.mark.skipif(sys.version_info > (3, 12),
                         reason="Different help output in Python 3.12+")

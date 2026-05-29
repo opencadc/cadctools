@@ -1,13 +1,11 @@
 usage: cadc-get-cert [-h]
-                     (--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | --token TOKEN)
+                     (-n | --netrc-file NETRC_FILE | -u USER | --token TOKEN)
                      [--resource-id RESOURCE_ID] [-q | -v] [-V]
                      [--cert-filename CERT_FILENAME] [--days-valid DAYS_VALID]
 
 Retrieve a security certificate for interaction with a Web service such as VOSpace. Certificate will be valid for days-valid and stored as local file cert_filename.
 
 optional arguments:
-  --cert CERT           location of your X509 certificate to use for
-                        authentication (unencrypted, in PEM format)
   --cert-filename CERT_FILENAME
                         filesystem location to store the proxy certificate.
                         (default: $HOME/.ssl/cadcproxy.pem)

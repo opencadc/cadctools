@@ -216,14 +216,15 @@ class Subject(object):
         works with the base parser in cadcutils and uses the following command
         line arguments:
             args.user: username
-            args.cert: x509 certificate location
+            args.cert: x509 certificate location (only if parser usecert=True)
             args.n: use netrc files for authentication info
             args.netrc_file: use this netrc file for authentication info
             args.token: use this token for authentication
         :param args: argparse command line arguments
         :return: corresponding subject
         """
-        return Subject(username=args.user, certificate=args.cert,
+        return Subject(username=args.user,
+                       certificate=getattr(args, 'cert', None),
                        netrc=(args.netrc_file if args.netrc_file
                               is not None else args.n), token=args.token)
 
@@ -333,7 +334,7 @@ def get_cert_main():
 
     parser = util.get_base_parser(subparsers=False, version=version.version,
                                   default_resource_id=CRED_RESOURCE_ID,
-                                  auth_required=True)
+                                  auth_required=True, usecert=False)
     parser.description = ('Retrieve a security certificate for interaction '
                           'with a Web service such as VOSpace. Certificate '
                           'will be valid for days-valid and stored as local '
