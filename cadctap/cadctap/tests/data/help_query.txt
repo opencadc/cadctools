@@ -1,6 +1,6 @@
 usage: cadc-tap query [-h]
                       [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | --token TOKEN | -a]
-                      [-s SERVICE] [-q | -v] [-o OUTPUT_FILE] [-m MAXREC]
+                      [-k] [-s SERVICE] [-q | -v] [-o OUTPUT_FILE] [-m MAXREC]
                       [-i INPUT_FILE] [--timeout TIMEOUT]
                       [-f {VOTable,csv,tsv}] [-t TMPTABLE]
                       [QUERY]
@@ -33,6 +33,8 @@ options:
   -i, --input-file INPUT_FILE
                         read query string from file (default is from STDIN),
                         location of file
+  -k, --insecure        skip SSL server certificate verification (for testing
+                        only; not recommended)
   -m, --maxrec MAXREC   limit the number of returned records to this maximum
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE

@@ -756,15 +756,9 @@ class TestCadcTapClient(unittest.TestCase):
             assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
         # permission -h
-        # help is slightly different in python 3.9
-        if sys.version_info >= (3, 9):
-            with open(os.path.join(TESTDATA_DIR,
-                                   'help_permission_39.txt'), 'r') as myfile:
-                usage = myfile.read()
-        else:
-            with open(os.path.join(TESTDATA_DIR,
-                                   'help_permission.txt'), 'r') as myfile:
-                usage = myfile.read()
+        with open(os.path.join(TESTDATA_DIR,
+                               'help_permission.txt'), 'r') as myfile:
+            usage = myfile.read()
 
         with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
             sys.argv = ['cadc-tap', 'permission', '--help']

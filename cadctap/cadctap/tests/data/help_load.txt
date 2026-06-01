@@ -1,6 +1,6 @@
 usage: cadc-tap load [-h]
                      [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | --token TOKEN | -a]
-                     [-s SERVICE] [-q | -v] [-f {FITSTable,csv,tsv}]
+                     [-k] [-s SERVICE] [-q | -v] [-f {FITSTable,csv,tsv}]
                      TABLENAME SOURCE [SOURCE ...]
 
 load data to a table
@@ -26,6 +26,8 @@ options:
   -f, --format {FITSTable,csv,tsv}
                         format of the data file
   -h, --help            show this help message and exit
+  -k, --insecure        skip SSL server certificate verification (for testing
+                        only; not recommended)
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication

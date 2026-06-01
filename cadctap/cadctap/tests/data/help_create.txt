@@ -1,6 +1,6 @@
 usage: cadc-tap create [-h]
                        [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | --token TOKEN | -a]
-                       [-s SERVICE] [-q | -v] [-f {VOSITable,VOTable}]
+                       [-k] [-s SERVICE] [-q | -v] [-f {VOSITable,VOTable}]
                        TABLENAME TABLEDEFINITION
 
 Create a table
@@ -28,6 +28,8 @@ options:
                         format of the table definition file. Default VOSITable
                         format
   -h, --help            show this help message and exit
+  -k, --insecure        skip SSL server certificate verification (for testing
+                        only; not recommended)
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication

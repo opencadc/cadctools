@@ -1,6 +1,6 @@
 usage: cadc-tap permission [-h]
                            [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | -a]
-                           [-s SERVICE] [-q | -v]
+                           [-k] [-s SERVICE] [-q | -v]
                            MODE TARGET [GROUPS [GROUPS ...]]
 
 Update access permissions of a table or a schema. Use schema command to display the existing permissions
@@ -17,6 +17,8 @@ options:
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -h, --help            show this help message and exit
+  -k, --insecure        skip SSL server certificate verification (for testing
+                        only; not recommended)
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication

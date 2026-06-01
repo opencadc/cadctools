@@ -1,6 +1,6 @@
 usage: cadcget [-h]
                [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | --token TOKEN]
-               [-s SERVICE] [-q | -v] [-V] [-o OUTPUT] [--fhead]
+               [-k] [-s SERVICE] [-q | -v] [-V] [-o OUTPUT] [--fhead]
                identifier
 
 Download files from the CADC Storage Inventory into the current
@@ -21,6 +21,8 @@ options:
                         authentication (unencrypted, in PEM format)
   --fhead               return the FITS header information (for all extensions
   -h, --help            show this help message and exit
+  -k, --insecure        skip SSL server certificate verification (for testing
+                        only; not recommended)
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication

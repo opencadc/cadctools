@@ -1,6 +1,6 @@
 usage: cadcput [-h]
                (--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | --token TOKEN)
-               [-s SERVICE] [-q | -v] [-V] [-t TYPE] [-e ENCODING] [-r]
+               [-k] [-s SERVICE] [-q | -v] [-V] [-t TYPE] [-e ENCODING] [-r]
                identifier src [src ...]
 
 Upload files into the CADC Storage Inventory
@@ -22,6 +22,8 @@ options:
                         MIME encoding to set in archive. If missing, the
                         application will try to deduce it
   -h, --help            show this help message and exit
+  -k, --insecure        skip SSL server certificate verification (for testing
+                        only; not recommended)
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
