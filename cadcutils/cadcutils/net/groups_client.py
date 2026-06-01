@@ -4,7 +4,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2023.                            (c) 2023.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -78,6 +78,7 @@ from urllib.parse import urlparse, urlencode
 
 from cadcutils import version  # TODO should it be application version instead?
 from cadcutils import util, exceptions
+from cadcutils.util.cli_errors import format_user_error
 from . import BaseWsClient, Subject, User
 from .auth import SECURITY_METHODS_IDS, CookieInfo
 from . import Role, Group, Identity
@@ -123,7 +124,8 @@ class GroupsClient():
         :param resource_id: the resource ID of the service (service ID)
         :param host: Host for the GMS service (use for testing mainly)
         :param agent: The name of the agent (to be used in server logging)
-        :param insecure: Allow insecure server connections over SSL (testing)
+        :param insecure: skip SSL server certificate verification (for testing
+        only; not recommended)
         """
         self.resource_id = resource_id
         self.host = host
@@ -578,10 +580,12 @@ def main_app():
             print('ERROR: Not found: {}'.format(str(exception)))
         elif isinstance(exception, exceptions.ForbiddenException):
             print('ERROR: Unauthorized to perform operation')
+        elif isinstance(exception, exceptions.SslException):
+            print('ERROR: {}'.format(format_user_error(exception)))
         elif isinstance(exception, exceptions.UnexpectedException):
             print('ERROR: Unexpected server error: {}'.format(str(exception)))
         else:
-            print('ERROR: {}'.format(exception))
+            print('ERROR: {}'.format(format_user_error(exception)))
 
         # if logger.isEnabledFor(logging.DEBUG):
         #     traceback.print_stack()

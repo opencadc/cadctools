@@ -253,6 +253,7 @@ Expected /tmp/testcertfile to be a directory.
         args = parser.parse_args(['--resource-id', 'blah'])
         subject = auth.Subject.from_cmd_line_args(args)
         self.assertTrue(subject.anon)
+        self.assertTrue(subject.validate_certificate)
 
         sys.argv = ['cadc-client', '--resource-id', 'blah', '--cert',
                     'mycert.pem']
@@ -260,6 +261,11 @@ Expected /tmp/testcertfile to be a directory.
         subject = auth.Subject.from_cmd_line_args(args)
         self.assertFalse(subject.anon)
         self.assertEqual('mycert.pem', subject.certificate)
+        self.assertTrue(subject.validate_certificate)
+
+        # library callers opt in to certificate validation
+        subject = auth.Subject(certificate='somecert')
+        self.assertFalse(subject.validate_certificate)
 
         # subject with cookies
         cookie = auth.CookieInfo('some.domain', 'MyCookie', 'somevalue')

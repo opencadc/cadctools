@@ -1,6 +1,6 @@
 usage: cadc-get-cert [-h]
                      (-n | --netrc-file NETRC_FILE | -u USER | --token TOKEN)
-                     [--resource-id RESOURCE_ID] [-q | -v] [-V]
+                     [--resource-id RESOURCE_ID] [-k] [-q | -v] [-V]
                      [--cert-filename CERT_FILENAME] [--days-valid DAYS_VALID]
 
 Retrieve a security certificate for interaction with a Web service such as VOSpace. Certificate will be valid for days-valid and stored as local file cert_filename.
@@ -12,6 +12,8 @@ optional arguments:
   --days-valid DAYS_VALID
                         number of days the certificate should be valid.
   -h, --help            show this help message and exit
+  -k, --insecure        skip SSL server certificate verification (for testing
+                        only; not recommended)
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication

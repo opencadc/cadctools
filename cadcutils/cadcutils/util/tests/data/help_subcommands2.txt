@@ -1,6 +1,6 @@
 usage: cadc-client cmd2 [-h]
                         [--cert CERT | -n | --netrc-file NETRC_FILE | -u USER | --token TOKEN]
-                        --resource-id RESOURCE_ID [-q | -v]
+                        [-k] --resource-id RESOURCE_ID [-q | -v]
                         fileID [fileID ...]
 
 positional arguments:
@@ -10,6 +10,8 @@ optional arguments:
   --cert CERT           location of your X509 certificate to use for
                         authentication (unencrypted, in PEM format)
   -h, --help            show this help message and exit
+  -k, --insecure        skip SSL server certificate verification (for testing
+                        only; not recommended)
   -n                    use .netrc in $HOME for authentication
   --netrc-file NETRC_FILE
                         netrc file to use for authentication
