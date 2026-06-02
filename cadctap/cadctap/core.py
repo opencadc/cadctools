@@ -963,7 +963,10 @@ def _get_permission_modes(opt):
     return props
 
 
-def main_app(command='cadc-tap query'):
+def build_parser(command='cadc-tap query'):
+    """
+    Build the ArgumentParser for cadc-tap (without parsing argv).
+    """
     parser = util.get_base_parser(version=version.version,
                                   service=DEFAULT_SERVICE_ID)
 
@@ -1137,6 +1140,11 @@ def main_app(command='cadc-tap query'):
         help="name(s) of group(s) to assign read/write permission to. "
              "One group per r or w permission.")
 
+    return parser
+
+
+def main_app(command='cadc-tap query'):
+    parser = build_parser(command)
     args = parser.parse_args()
     if len(sys.argv) < 2:
         parser.print_usage(file=sys.stderr)
@@ -1196,7 +1204,11 @@ def main_app(command='cadc-tap query'):
             try:
                 perms = _get_permission_modes(args)
             except ArgumentError as e:
-                permission_parser.print_usage(file=sys.stderr)
+                for action in parser._actions:
+                    choices = getattr(action, 'choices', None)
+                    if choices and 'permission' in choices:
+                        choices['permission'].print_usage(file=sys.stderr)
+                        break
                 raise e
             client.set_permissions(args.TARGET, read_anon=perms['read_anon'],
                                    read_only=perms['read_only'],

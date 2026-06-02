@@ -184,8 +184,8 @@ class GroupProperty:
         self.read_only = read_only
 
     def __eq__(self, other):
-        return self.key, self.value, self.read_only == other.key, other.value,\
-               other.read_only
+        return (self.key, self.value, self.read_only) == (
+            other.key, other.value, other.read_only)
 
     def __hash__(self):
         return hash((self.key, self.value))

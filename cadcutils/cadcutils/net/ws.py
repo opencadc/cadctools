@@ -1132,7 +1132,7 @@ class RetrySession(Session):
                 response = super(RetrySession, self).send(request, **kwargs)
             except requests.ConnectionError as ce:
                 if isinstance(ce, (requests.exceptions.ConnectTimeout,
-                                     requests.exceptions.ReadTimeout)):
+                                   requests.exceptions.ReadTimeout)):
                     raise
                 raise ssl_errors.connection_error_to_exception(
                     ce, url=request.url,

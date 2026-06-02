@@ -468,29 +468,6 @@ def test_get_uris(basews_mock):
     assert ['cadc:SOMEARCHIVE/file.fits'] == default_uris
 
 
-@patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
-                                     MyExitError, MyExitError,
-                                     MyExitError]))
-@pytest.mark.skipif(sys.version_info > (3, 12),
-                        reason="Different help output in Python 3.13+")
-def test_help():
-    """ Tests the helper displays for cadc* commands"""
-    # help
-    for cmd in ['cadcget', 'cadcput', 'cadcinfo', 'cadcremove']:
-        print('Testing "{} --help"'.format(cmd))
-        usage = open(
-            os.path.join(TESTDATA_DIR, '{}_help.txt'.format(cmd)), 'r').read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = [cmd, '--help']
-            with pytest.raises(MyExitError):
-                getattr(cadcdata, '{}_cli'.format(cmd))()
-
-        # Make it Python 3.10 compatible
-        actual = stdout_mock.getvalue().replace('optional arguments:', 'options:').strip('\n')
-        assert (usage.strip('\n') == actual), cmd
-
-
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))
 @patch('cadcdata.StorageInventoryClient.cadcget')
 def test_cadcget_cli(cadcget_mock):

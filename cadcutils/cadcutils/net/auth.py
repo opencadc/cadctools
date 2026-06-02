@@ -81,9 +81,6 @@ import signal
 import sys
 from typing import Optional, Union
 
-import sys
-import signal
-
 from cadcutils.net import ws
 from cadcutils import util, exceptions, version
 from cadcutils.util.cli_errors import format_user_error
@@ -330,16 +327,10 @@ def get_cert(subject, days_valid=None, host=None, insecure=False):
     return response.text
 
 
-def get_cert_main():
-    """ Client to download an X509 certificate and save it in users home
-    directory"""
-
-    def _signal_handler(signal, frame):
-        sys.stderr.write("\n")
-        sys.exit(-1)
-
-    signal.signal(signal.SIGINT, _signal_handler)
-
+def build_get_cert_parser():
+    """
+    Build the ArgumentParser for cadc-get-cert (without parsing argv).
+    """
     parser = util.get_base_parser(subparsers=False, version=version.version,
                                   default_resource_id=CRED_RESOURCE_ID,
                                   auth_required=True, usecert=False)
@@ -356,8 +347,20 @@ def get_cert_main():
                                                   '.ssl/cadcproxy.pem'))))
     parser.add_argument('--days-valid', type=int, default=10,
                         help='number of days the certificate should be valid.')
+    return parser
 
-    args = parser.parse_args()
+
+def get_cert_main():
+    """ Client to download an X509 certificate and save it in users home
+    directory"""
+
+    def _signal_handler(signal, frame):
+        sys.stderr.write("\n")
+        sys.exit(-1)
+
+    signal.signal(signal.SIGINT, _signal_handler)
+
+    args = build_get_cert_parser().parse_args()
 
     dirname = os.path.dirname(args.cert_filename)
     if dirname:

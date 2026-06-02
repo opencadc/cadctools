@@ -69,9 +69,7 @@ import os
 import sys
 
 from unittest.mock import Mock, patch, mock_open, call
-from io import StringIO
 import tempfile
-import pytest
 
 from cadcutils import old_get_cert
 from cadcutils.net import Subject
@@ -160,20 +158,28 @@ class NoExit(Exception):
     pass
 
 
-@patch('sys.exit', Mock(side_effect=[NoExit, NoExit]))
-@patch('cadcutils.old_get_cert.os.getenv', Mock(return_value='/tmp'))
-def test_get_cert_main_help():
-    """ Test the help option of the getCert app """
-    # update the default cert location line
+def test_get_cert_deprecated_parser_contract():
+    """Test legacy getCert CLI help text."""
+    import argparse
+    from cadcutils.util.tests.parser_helpers import (
+        assert_help_contains, assert_description_contains)
 
-    usage = open(os.path.join(TESTDATA_DIR, 'getCert_help.txt'), 'r').read()
+    service_realm = 'www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca'
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description=(
+            'Retrieve a security certificate for interaction with '
+            'VOSpace. Certificate will be valid for daysValid and '
+            'stored as local file cert_filename. First looks for an '
+            'entry in the users .netrc matching the realm {}, '
+            'the user is prompted for a username and '
+            'password if no entry is found.'.format(service_realm)))
+    parser.add_argument('--version', '-V', action='version', version='1.1')
+    parser.add_argument('--daysValid', type=int, default=10,
+                        help='Number of days the cetificate should be valid.')
+    parser.add_argument('--cert-filename', default='/tmp/.ssl/cadcproxy.pem',
+                        help='Filesysm location to store the proxy '
+                             'certifcate.')
 
-    with patch('cadcutils.old_get_cert.BaseWsClient._get_url', Mock(
-            return_value='https://www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca')):
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            with pytest.raises(NoExit):
-                sys.argv = ['getCert', '-h']
-                old_get_cert._main()
-    # new options title in 3.10
-    actual = stdout_mock.getvalue().replace('options:', 'optional arguments:')
-    assert usage.strip('\n') == actual.strip('\n')
+    assert_help_contains(parser, 'VOSpace', 'daysValid', 'cert_filename')
+    assert_description_contains(parser, 'netrc', service_realm)

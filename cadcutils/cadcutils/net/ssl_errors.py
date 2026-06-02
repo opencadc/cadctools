@@ -154,7 +154,7 @@ def _ssl_message(ssl_text, host, cert=None):
 
 
 def ssl_exception_from_error(ssl_error, url=None, cert=None,
-                           orig_exception=None):
+                             orig_exception=None):
     """
     Build an SslException from an SSLError with a user-friendly message.
     """
