@@ -784,6 +784,16 @@ class TestCadcTapClient(unittest.TestCase):
                       read_write=None)]
         client_mock.return_value.set_permissions.assert_has_calls(calls)
 
+    def test_main_too_few_arguments(self):
+        sys.argv = ['cadc-tap']
+        with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
+            with self.assertRaises(SystemExit) as cm:
+                main_app()
+            self.assertEqual(-1, cm.exception.code)
+            stderr = stderr_mock.getvalue()
+            self.assertIn('cadc-tap: error: too few arguments\n', stderr)
+            self.assertIn('usage:', stderr.lower())
+
     @patch('cadctap.CadcTapClient.query')
     @patch('cadcutils.net.ws.WsCapabilities.get_access_url')
     def test_keyboard_interrupt(self, caps_get_mock, query_mock):

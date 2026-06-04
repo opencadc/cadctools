@@ -86,7 +86,6 @@ _AUTH_SNIPPETS = (
     '--anon',
 )
 
-
 @pytest.fixture
 def root_parser():
     return build_parser()
@@ -121,6 +120,23 @@ def test_subcommand_parser_contract(root_parser, subcmd, extra_dests):
             assert snippet in (parser.description or '')
 
 
+def test_subcommand_descriptions(root_parser):
+    for subcmd, expected in (
+        ('schema', ('Print the tables available for querying',)),
+        ('query', ('Run an adql query',)),
+        ('create', ('Create a table',)),
+        ('delete', ('Delete a table',)),
+        ('index', ('create a table index',)),
+        ('load', ('load data to a table',)),
+        ('permission', (
+            'Update access permissions',
+            'schema command to display the existing permissions',
+        )),
+    ):
+        parser = get_subparser(root_parser, subcmd)
+        assert_description_contains(parser, *expected)
+
+
 def test_query_epilog(root_parser):
     parser = get_subparser(root_parser, 'query')
     assert_epilog_contains(
@@ -138,11 +154,6 @@ def test_query_epilog(root_parser):
     )
 
 
-def test_permission_description(root_parser):
+def test_permission_parser_dests(root_parser):
     parser = get_subparser(root_parser, 'permission')
-    assert_description_contains(
-        parser,
-        'Update access permissions',
-        'schema command to display the existing permissions',
-    )
     assert_has_dests(parser, 'anon')

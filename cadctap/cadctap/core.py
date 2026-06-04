@@ -841,7 +841,7 @@ def _get_subject_from_certificate():
     # if ~/.ssl/cadcproxy.pem exists, use certificate and return a subject
     cert_path = os.path.join(os.environ['HOME'], ".ssl/cadcproxy.pem")
     if os.path.isfile(cert_path):
-        return net.Subject(certificate=cert_path)
+        return net.Subject(certificate=cert_path, validate_certificate=True)
     else:
         return None
 

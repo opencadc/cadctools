@@ -151,17 +151,6 @@ def assert_epilog_contains(parser, *strings):
             missing, epilog, help_text))
 
 
-# Dest names added by get_base_parser() for typical CADC CLIs.
-BASE_PARSER_DESTS = (
-    'cert', 'n', 'netrc_file', 'user', 'token', 'host', 'insecure',
-    'service', 'debug', 'quiet', 'verbose',
-)
-
-BASE_PARSER_DESTS_NO_CERT = (
-    'n', 'netrc_file', 'user', 'token', 'host', 'insecure',
-    'resource_id', 'debug', 'quiet', 'verbose',
-)
-
 _INSECURE_HELP_SNIPPET = 'skip SSL server certificate verification'
 
 

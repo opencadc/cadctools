@@ -103,6 +103,14 @@ def _host_from_url(url):
     return urlparse(url).hostname
 
 
+def _ca_trust_message(host_part):
+    return ('SSL certificate verification failed{}: unable to verify '
+            'the server certificate. Your system may be missing CA '
+            'certificates or a proxy may be intercepting HTTPS. '
+            'Check network/proxy settings or run with --debug for '
+            'details.'.format(host_part))
+
+
 def _ssl_message(ssl_text, host, cert=None):
     """
     Map common SSL error text to a short, actionable message.
@@ -120,14 +128,12 @@ def _ssl_message(ssl_text, host, cert=None):
                 'If using a client certificate, run: cadc-get-cert'.
                 format(host_part))
 
+    if ('unknown ca' in text or 'sslv3_alert_unknown_ca' in text or
+            'unable to get local issuer certificate' in text):
+        return _ca_trust_message(host_part)
+
     if ('certificate_verify_failed' in text or
             'certificate verify failed' in text):
-        if 'unable to get local issuer certificate' in text:
-            return ('SSL certificate verification failed{}: unable to verify '
-                    'the server certificate. Your system may be missing CA '
-                    'certificates or a proxy may be intercepting HTTPS. '
-                    'Check network/proxy settings or run with --debug for '
-                    'details.'.format(host_part))
         if 'self signed certificate' in text:
             return ('SSL certificate verification failed{}: the server '
                     'certificate is not trusted (self-signed). '
@@ -149,8 +155,8 @@ def _ssl_message(ssl_text, host, cert=None):
                 'exists, is readable, and is a valid PEM-encoded certificate.'.
                 format(cert_part))
 
-    return ('SSL/TLS error connecting to{}. Run with --debug for details.'.
-            format(host_part or ' the server'))
+    return ('SSL/TLS error connecting to {}. Run with --debug for details.'.
+            format(host or 'the server'))
 
 
 def ssl_exception_from_error(ssl_error, url=None, cert=None,

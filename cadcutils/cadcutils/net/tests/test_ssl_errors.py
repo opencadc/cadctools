@@ -100,6 +100,25 @@ class TestSslErrors(unittest.TestCase):
         self.assertIsInstance(exc, exceptions.SslException)
         self.assertIn('unable to verify the server certificate', str(exc))
         self.assertIn('example.com', str(exc))
+        self.assertNotIn('connecting to for', str(exc))
+
+    def test_unknown_ca_message(self):
+        ssl_err = requests.exceptions.SSLError(
+            '[SSL: SSLV3_ALERT_UNKNOWN_CA] tlsv1 alert unknown ca')
+        exc = ssl_errors.ssl_exception_from_error(
+            ssl_err, url='https://www.example.com/tap')
+        self.assertIsInstance(exc, exceptions.SslException)
+        self.assertIn('unable to verify the server certificate', str(exc))
+        self.assertIn('www.example.com', str(exc))
+        self.assertNotIn('connecting to for', str(exc))
+
+    def test_generic_ssl_fallback_message(self):
+        ssl_err = requests.exceptions.SSLError('unexpected ssl failure')
+        exc = ssl_errors.ssl_exception_from_error(
+            ssl_err, url='https://www.example.com/')
+        self.assertIsInstance(exc, exceptions.SslException)
+        self.assertIn('SSL/TLS error connecting to www.example.com', str(exc))
+        self.assertNotIn('connecting to for', str(exc))
 
     def test_expired_client_cert_message(self):
         ssl_err = requests.exceptions.SSLError(
