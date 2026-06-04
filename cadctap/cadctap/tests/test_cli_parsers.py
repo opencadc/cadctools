@@ -86,6 +86,7 @@ _AUTH_SNIPPETS = (
     '--anon',
 )
 
+
 @pytest.fixture
 def root_parser():
     return build_parser()
