@@ -4,7 +4,7 @@
 # *******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # **************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 # *
-# *  (c) 2022.                            (c) 2022.
+# *  (c) 2026.                            (c) 2026.
 # *  Government of Canada                 Gouvernement du Canada
 # *  National Research Council            Conseil national de recherches
 # *  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -76,7 +76,7 @@ import requests
 
 __all__ = ['UnauthorizedException', 'ForbiddenException', 'NotFoundException',
            'BadRequestException', 'ByteLimitException',
-           'InternalServerException', 'UnexpectedException']
+           'InternalServerException', 'UnexpectedException', 'SslException']
 
 
 class HttpException(Exception):
@@ -200,3 +200,13 @@ class TransferException(HttpException):
     """
     def __init__(self, msg=None, orig_exception=None):
         HttpException.__init__(self, msg, orig_exception)
+
+
+class SslException(HttpException):
+    """SSL/TLS connection or certificate error.
+    Attributes:
+        msg  -- user-friendly explanation with suggested remediation
+    """
+    def __init__(self, msg=None, orig_exception=None):
+        HttpException.__init__(self, msg, orig_exception)
+        self.errno = errno.EIO

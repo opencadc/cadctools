@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-# (c) 2021.                            (c) 2021.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -62,26 +62,86 @@
 #  <http://www.gnu.org/licenses/>.      pas le cas, consultez :
 #                                       <http://www.gnu.org/licenses/>.
 #
+#
 # ***********************************************************************
 
+import tempfile
+import unittest
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
 
-from cadcutils.net.group_xml.user_reader import UserReader
-from cadcutils.net.group_xml.user_writer import UserWriter
-from cadcutils.net import User, Identity
+from OpenSSL import crypto
+
+from cadcutils.net import cert_validation
 
 
-def test_read_write():
-    expected = User('ivo://bar.com/user?00000000-0000-0000-0000-000000000f00')
-    expected.identities['OpenID'] = Identity('foo@bar.com', 'OpenID')
-    expected.identities['HTTP'] = Identity('foo', 'HTTP')
-    expected.identities['CADC'] = Identity(
-        '00000000-0000-0000-0000-000000000004', 'CADC')
-    expected.identities['X500'] = Identity('cn=foo,c=bar', 'X500')
-    writer = UserWriter()
-    xml_string = writer.write(expected)
-    assert xml_string
-    reader = UserReader()
-    actual = reader.read(xml_string)
-    assert actual
-    assert (actual.internal_id == expected.internal_id)
-    assert (expected.identities == actual.identities)
+def _make_pem_cert(not_after=None):
+    """Create a self-signed PEM certificate for testing."""
+    key = crypto.PKey()
+    key.generate_key(crypto.TYPE_RSA, 2048)
+    cert = crypto.X509()
+    cert.set_pubkey(key)
+    cert.get_subject().CN = 'test'
+    if not_after is None:
+        not_after = datetime.now(timezone.utc) + timedelta(days=30)
+    cert.set_notAfter(not_after.strftime('%Y%m%d%H%M%SZ').encode('ascii'))
+    cert.set_notBefore(
+        (datetime.now(timezone.utc) - timedelta(days=1)).strftime(
+            '%Y%m%d%H%M%SZ').encode('ascii'))
+    cert.set_serial_number(1)
+    cert.set_issuer(cert.get_subject())
+    cert.sign(key, 'sha256')
+    return crypto.dump_certificate(crypto.FILETYPE_PEM, cert)
+
+
+class TestCertValidation(unittest.TestCase):
+    """Tests for client certificate validation."""
+
+    def test_valid_certificate(self):
+        with tempfile.NamedTemporaryFile(suffix='.pem', delete=False) as f:
+            f.write(_make_pem_cert())
+            cert_path = f.name
+        cert_validation.validate_client_certificate(cert_path)
+
+    def test_expired_certificate(self):
+        expired = datetime.now(timezone.utc) - timedelta(days=1)
+        with tempfile.NamedTemporaryFile(suffix='.pem', delete=False) as f:
+            f.write(_make_pem_cert(not_after=expired))
+            cert_path = f.name
+        with self.assertRaises(ValueError) as ctx:
+            cert_validation.validate_client_certificate(cert_path)
+        self.assertIn('expired', str(ctx.exception))
+        self.assertIn('cadc-get-cert', str(ctx.exception))
+
+    def test_invalid_pem(self):
+        with tempfile.NamedTemporaryFile(suffix='.pem', delete=False) as f:
+            f.write(b'not a certificate')
+            cert_path = f.name
+        with self.assertRaises(ValueError) as ctx:
+            cert_validation.validate_client_certificate(cert_path)
+        self.assertIn('invalid PEM format', str(ctx.exception))
+
+    def test_missing_file(self):
+        with self.assertRaises(ValueError) as ctx:
+            cert_validation.validate_client_certificate('/no/such/cert.pem')
+        self.assertIn('Cannot read certificate file', str(ctx.exception))
+
+    @patch('cadcutils.net.cert_validation.logger')
+    def test_expiring_soon_warning(self, logger_mock):
+        soon = datetime.now(timezone.utc) + timedelta(days=3)
+        with tempfile.NamedTemporaryFile(suffix='.pem', delete=False) as f:
+            f.write(_make_pem_cert(not_after=soon))
+            cert_path = f.name
+        cert_validation.validate_client_certificate(cert_path, warn_days=3)
+        logger_mock.warning.assert_called_once()
+        self.assertIn('expires in', logger_mock.warning.call_args[0][0])
+
+    @patch('cadcutils.net.cert_validation.crypto.load_certificate')
+    def test_no_expiry_date(self, load_mock):
+        cert = MagicMock()
+        cert.get_notAfter.return_value = None
+        load_mock.return_value = cert
+        with tempfile.NamedTemporaryFile(suffix='.pem', delete=False) as f:
+            f.write(b'placeholder')
+            cert_path = f.name
+        cert_validation.validate_client_certificate(cert_path)

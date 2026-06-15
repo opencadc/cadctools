@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-# (c) 2021.                            (c) 2021.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -62,26 +62,38 @@
 #  <http://www.gnu.org/licenses/>.      pas le cas, consultez :
 #                                       <http://www.gnu.org/licenses/>.
 #
+#
 # ***********************************************************************
 
+import unittest
 
-from cadcutils.net.group_xml.user_reader import UserReader
-from cadcutils.net.group_xml.user_writer import UserWriter
-from cadcutils.net import User, Identity
+import requests
+
+from cadcutils import exceptions
+from cadcutils.net import ssl_errors
+from cadcutils.util.cli_errors import format_user_error
 
 
-def test_read_write():
-    expected = User('ivo://bar.com/user?00000000-0000-0000-0000-000000000f00')
-    expected.identities['OpenID'] = Identity('foo@bar.com', 'OpenID')
-    expected.identities['HTTP'] = Identity('foo', 'HTTP')
-    expected.identities['CADC'] = Identity(
-        '00000000-0000-0000-0000-000000000004', 'CADC')
-    expected.identities['X500'] = Identity('cn=foo,c=bar', 'X500')
-    writer = UserWriter()
-    xml_string = writer.write(expected)
-    assert xml_string
-    reader = UserReader()
-    actual = reader.read(xml_string)
-    assert actual
-    assert (actual.internal_id == expected.internal_id)
-    assert (expected.identities == actual.identities)
+class TestCliErrors(unittest.TestCase):
+    """Tests for CLI error formatting."""
+
+    def test_ssl_exception(self):
+        ssl_err = requests.exceptions.SSLError('certificate verify failed')
+        exc = ssl_errors.ssl_exception_from_error(ssl_err)
+        msg = format_user_error(exc)
+        self.assertIn('SSL', msg)
+        self.assertNotIn('Traceback', msg)
+
+    def test_unauthorized_exception(self):
+        msg = format_user_error(exceptions.UnauthorizedException())
+        self.assertIn('invalid username/password', msg)
+
+    def test_certificate_value_error(self):
+        msg = format_user_error(
+            ValueError('Client certificate (x.pem) expired on 2020-01-01'))
+        self.assertIn('expired', msg)
+        self.assertIn('x.pem', msg)
+
+    def test_generic_exception(self):
+        msg = format_user_error(RuntimeError('something broke'))
+        self.assertEqual('something broke', msg)

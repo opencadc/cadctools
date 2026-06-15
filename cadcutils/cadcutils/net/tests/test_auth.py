@@ -66,9 +66,7 @@
 # ***********************************************************************
 
 import os
-import pytest
 import sys
-import re
 import unittest
 
 from unittest.mock import Mock, patch, mock_open
@@ -136,30 +134,38 @@ Expected /tmp/testcertfile to be a directory.
         self.assertEqual(errmsg, stderr_mock.getvalue())
         os.remove(certfile)
 
-    @patch('sys.exit', Mock(side_effect=[MyExitError]))
-    @pytest.mark.skipif(sys.version_info > (3, 12),
-                        reason="Different help output in Python 3.12+")
-    def test_get_cert_main_help(self):
-        """ Test the help option of the cadc-get-cert app """
-        with open(os.path.join(TESTDATA_DIR, 'help_cadc-get-cert.txt'),
-                  'r') as f:
-            usage = f.read()
-        # update the default cert location line
-        usage = re.sub(
-            r'default: .*cadcproxy.pem',
-            'default: {}/.ssl/cadcproxy.pem'.format(os.getenv("HOME")),
-            usage)
-
-        # --help
-        self.maxDiff = None  # Display the entire difference
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ["cadc-get-cert", "--help"]
-            with self.assertRaises(MyExitError):
+    def test_get_cert_main_rejects_cert_option(self):
+        """--cert is not an authentication option for cadc-get-cert"""
+        with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
+            with self.assertRaises(SystemExit) as cm:
+                sys.argv = ["cadc-get-cert", "--cert", "foo.pem"]
                 auth.get_cert_main()
-            # new title in 3.10
-            actual = stdout_mock.getvalue().replace('options:',
-                                                    'optional arguments:')
-            self.assertEqual(usage.strip('\n'), actual.strip('\n'))
+            self.assertEqual(2, cm.exception.code)
+        self.assertIn(
+            'one of the arguments -n --netrc-file -u/--user --token',
+            stderr_mock.getvalue())
+
+    def test_get_cert_parser_contract(self):
+        """Test cadc-get-cert CLI options and help text."""
+        from cadcutils.util.tests.parser_helpers import (
+            assert_has_base_dests, assert_has_dests, assert_help_contains,
+            assert_description_contains)
+
+        parser = auth.build_get_cert_parser()
+        assert_has_base_dests(parser, usecert=False)
+        assert_has_dests(parser, 'cert_filename', 'days_valid')
+        assert_help_contains(
+            parser,
+            'cadcproxy.pem',
+            os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'),
+        )
+        assert_description_contains(
+            parser,
+            'Retrieve a security certificate',
+            'VOSpace',
+            'days-valid',
+            'cert_filename',
+        )
 
     @patch('cadcutils.net.auth.os')
     def testSubject(self, os_mock):
@@ -234,14 +240,17 @@ Expected /tmp/testcertfile to be a directory.
         self.assertFalse(subject.anon)
         self.assertEqual(cert, subject.certificate)
         self.assertEqual(token, subject.token)
-        self.assertEqual(('<Subject(username=None, token=******, '
-                         'netrc=/home/.netrc)>, certificate=somecert, '
-                         'cookies=[])>'), repr(subject))
+        self.assertEqual(
+            '<Subject(username=None, token=******, '
+            'netrc=/home/.netrc)>, certificate=somecert, '
+            'cookies=[])>',
+            repr(subject))
 
         parser = get_base_parser(subparsers=False)
         args = parser.parse_args(['--resource-id', 'blah'])
         subject = auth.Subject.from_cmd_line_args(args)
         self.assertTrue(subject.anon)
+        self.assertTrue(subject.validate_certificate)
 
         sys.argv = ['cadc-client', '--resource-id', 'blah', '--cert',
                     'mycert.pem']
@@ -249,6 +258,11 @@ Expected /tmp/testcertfile to be a directory.
         subject = auth.Subject.from_cmd_line_args(args)
         self.assertFalse(subject.anon)
         self.assertEqual('mycert.pem', subject.certificate)
+        self.assertTrue(subject.validate_certificate)
+
+        # library callers opt in to certificate validation
+        subject = auth.Subject(certificate='somecert')
+        self.assertFalse(subject.validate_certificate)
 
         # subject with cookies
         cookie = auth.CookieInfo('some.domain', 'MyCookie', 'somevalue')

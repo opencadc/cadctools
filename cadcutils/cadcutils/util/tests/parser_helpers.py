@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-# (c) 2021.                            (c) 2021.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -52,36 +52,120 @@
 #  warranty of MERCHANTABILITY          implicite de COMMERCIALISABILITÉ
 #  or FITNESS FOR A PARTICULAR          ni d’ADÉQUATION À UN OBJECTIF
 #  PURPOSE.  See the GNU Affero         PARTICULIER. Consultez la Licence
-#  General Public License for           Générale Publique GNU Affero
-#  more details.                        pour plus de détails.
+#  General Public License for           Générale Publique GNU Affero pour
+#  more details.                        plus de détails.
 #
 #  You should have received             Vous devriez avoir reçu une
 #  a copy of the GNU Affero             copie de la Licence Générale
 #  General Public License along         Publique GNU Affero avec
-#  with OpenCADC.  If not, see          OpenCADC ; si ce n’est
-#  <http://www.gnu.org/licenses/>.      pas le cas, consultez :
+#  with OpenCADC.  If not, see          OpenCADC ; si ce n’est pas le cas,
+#  <http://www.gnu.org/licenses/>.      consultez :
 #                                       <http://www.gnu.org/licenses/>.
 #
 # ***********************************************************************
 
+"""Helpers for testing argparse CLI contracts without golden help files."""
 
-from cadcutils.net.group_xml.user_reader import UserReader
-from cadcutils.net.group_xml.user_writer import UserWriter
-from cadcutils.net import User, Identity
+from __future__ import annotations
+
+import argparse
 
 
-def test_read_write():
-    expected = User('ivo://bar.com/user?00000000-0000-0000-0000-000000000f00')
-    expected.identities['OpenID'] = Identity('foo@bar.com', 'OpenID')
-    expected.identities['HTTP'] = Identity('foo', 'HTTP')
-    expected.identities['CADC'] = Identity(
-        '00000000-0000-0000-0000-000000000004', 'CADC')
-    expected.identities['X500'] = Identity('cn=foo,c=bar', 'X500')
-    writer = UserWriter()
-    xml_string = writer.write(expected)
-    assert xml_string
-    reader = UserReader()
-    actual = reader.read(xml_string)
-    assert actual
-    assert (actual.internal_id == expected.internal_id)
-    assert (expected.identities == actual.identities)
+def option_dests(parser):
+    """
+    Return ``dest`` names for user-facing parser actions.
+    """
+    return {
+        action.dest
+        for action in parser._actions
+        if action.dest not in (None, argparse.SUPPRESS, 'help')
+    }
+
+
+def get_subparser(root_parser, name):
+    """
+    Return a named subparser from a root parser built with subcommands.
+    """
+    for action in root_parser._actions:
+        choices = getattr(action, 'choices', None)
+        if choices is not None and name in choices:
+            return choices[name]
+    raise KeyError('No subparser named {!r}'.format(name))
+
+
+def subparser_names(root_parser):
+    """
+    Return sorted subcommand names registered on the root parser.
+    """
+    for action in root_parser._actions:
+        choices = getattr(action, 'choices', None)
+        if choices is not None:
+            return sorted(choices.keys())
+    return []
+
+
+def assert_has_dests(parser, *dests):
+    """
+    Assert that the parser exposes all expected option/positional dests.
+    """
+    available = option_dests(parser)
+    missing = [dest for dest in dests if dest not in available]
+    assert not missing, (
+        'Missing parser dest(s) {} (have {})'.format(missing, sorted(available)))
+
+
+def assert_help_contains(parser, *strings):
+    """
+    Assert that formatted help includes each expected substring.
+    """
+    help_text = parser.format_help()
+    missing = [text for text in strings if text not in help_text]
+    assert not missing, (
+        'Help text missing: {}\n--- help ---\n{}'.format(
+            missing, help_text))
+
+
+def assert_description_contains(parser, *strings):
+    """
+    Assert that the parser description includes each expected substring.
+    """
+    description = parser.description or ''
+    missing = [text for text in strings if text not in description]
+    assert not missing, (
+        'Description missing: {}\n--- description ---\n{}'.format(
+            missing, description))
+
+
+def assert_epilog_contains(parser, *strings):
+    """
+    Assert that the parser epilog (via format_help) includes each substring.
+    """
+    epilog = parser.epilog or ''
+    help_text = parser.format_help()
+    missing = [
+        text for text in strings
+        if text not in epilog and text not in help_text
+    ]
+    assert not missing, (
+        'Epilog/help missing: {}\n--- epilog ---\n{}\n--- help ---\n{}'.format(
+            missing, epilog, help_text))
+
+
+_INSECURE_HELP_SNIPPET = 'skip SSL server certificate verification'
+
+
+def assert_has_base_dests(parser, *, use_service=False, usecert=True):
+    """
+    Assert dests and -k/--insecure help from :func:`cadcutils.util.utils.get_base_parser`.
+    """
+    expected = ['n', 'netrc_file', 'user', 'token', 'host', 'insecure',
+                'debug', 'quiet', 'verbose']
+    if usecert:
+        expected.append('cert')
+    if use_service:
+        expected.append('service')
+    else:
+        expected.append('resource_id')
+    assert_has_dests(parser, *expected)
+    assert_help_contains(
+        parser, _INSECURE_HELP_SNIPPET, 'not recommended')

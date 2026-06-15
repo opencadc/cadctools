@@ -4,7 +4,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2022.                            (c) 2022.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -81,10 +81,9 @@ import signal
 import sys
 from typing import Optional, Union
 
-import html2text
-
 from cadcutils.net import ws
 from cadcutils import util, exceptions, version
+from cadcutils.util.cli_errors import format_user_error
 
 CRED_RESOURCE_ID = 'ivo://cadc.nrc.ca/cred'
 CRED_PROXY_FEATURE_ID = 'ivo://ivoa.net/std/CDP#proxy-1.0'
@@ -127,7 +126,8 @@ class Subject(object):
     def __init__(self, username: Optional[str] = None,
                  certificate: Optional[str] = None,
                  netrc: Union[bool, str] = False,
-                 token: Optional[str] = None):
+                 token: Optional[str] = None,
+                 validate_certificate: bool = False):
         """
             The subject is anonymous if neither of this arguments is set
         :param username: user name
@@ -135,6 +135,9 @@ class Subject(object):
         :param netrc: use information from .netrc. Value can be True (use
         default $HOME/.netrc) or the name of the netrc file to use.
         :param token: use the provided token
+        :param validate_certificate: when True, validate client certificate
+        PEM format and expiry before first use (enabled by default for CLIs
+        via from_cmd_line_args)
         """
         self.username = username
         self._hosts_auth = {}
@@ -144,6 +147,7 @@ class Subject(object):
         self.netrc = netrc
         self._cookies = []
         self._token = token
+        self.validate_certificate = validate_certificate
 
     @property
     def token(self):
@@ -216,16 +220,18 @@ class Subject(object):
         works with the base parser in cadcutils and uses the following command
         line arguments:
             args.user: username
-            args.cert: x509 certificate location
+            args.cert: x509 certificate location (only if parser usecert=True)
             args.n: use netrc files for authentication info
             args.netrc_file: use this netrc file for authentication info
             args.token: use this token for authentication
         :param args: argparse command line arguments
         :return: corresponding subject
         """
-        return Subject(username=args.user, certificate=args.cert,
+        return Subject(username=args.user,
+                       certificate=getattr(args, 'cert', None),
                        netrc=(args.netrc_file if args.netrc_file
-                              is not None else args.n), token=args.token)
+                              is not None else args.n), token=args.token,
+                       validate_certificate=True)
 
     def get_auth(self, realm):
         """
@@ -303,8 +309,8 @@ def get_cert(subject, days_valid=None, host=None, insecure=False):
     registry)
     :param: days_valid: number of days the proxy certificate is valid for
     :ptype daysValid: int
-    :param insecure: Allow insecure server connections over SSL (testing)
-    :ptype insecure: boolean
+    :param insecure: skip SSL server certificate verification (for testing
+    only; not recommended)
 
     :return content of the certificate
 
@@ -321,19 +327,13 @@ def get_cert(subject, days_valid=None, host=None, insecure=False):
     return response.text
 
 
-def get_cert_main():
-    """ Client to download an X509 certificate and save it in users home
-    directory"""
-
-    def _signal_handler(signal, frame):
-        sys.stderr.write("\n")
-        sys.exit(-1)
-
-    signal.signal(signal.SIGINT, _signal_handler)
-
+def build_get_cert_parser():
+    """
+    Build the ArgumentParser for cadc-get-cert (without parsing argv).
+    """
     parser = util.get_base_parser(subparsers=False, version=version.version,
                                   default_resource_id=CRED_RESOURCE_ID,
-                                  auth_required=True)
+                                  auth_required=True, usecert=False)
     parser.description = ('Retrieve a security certificate for interaction '
                           'with a Web service such as VOSpace. Certificate '
                           'will be valid for days-valid and stored as local '
@@ -347,8 +347,20 @@ def get_cert_main():
                                                   '.ssl/cadcproxy.pem'))))
     parser.add_argument('--days-valid', type=int, default=10,
                         help='number of days the certificate should be valid.')
+    return parser
 
-    args = parser.parse_args()
+
+def get_cert_main():
+    """ Client to download an X509 certificate and save it in users home
+    directory"""
+
+    def _signal_handler(signal, frame):
+        sys.stderr.write("\n")
+        sys.exit(-1)
+
+    signal.signal(signal.SIGINT, _signal_handler)
+
+    args = build_get_cert_parser().parse_args()
 
     dirname = os.path.dirname(args.cert_filename)
     if dirname:
@@ -379,5 +391,5 @@ def get_cert_main():
     except Exception as ex:
         sys.stderr.write("FAILED to retrieve {} day certificate\n".format(
             args.days_valid))
-        sys.stderr.write('{}'.format(html2text.html2text(str(ex))))
+        sys.stderr.write('{}\n'.format(format_user_error(ex)))
         return getattr(ex, 'errno', 1)

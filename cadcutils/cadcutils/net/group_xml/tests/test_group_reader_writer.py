@@ -82,16 +82,16 @@ def test_minimal_group():
     actual = reader.read(xml_string)
     assert expected.group_id
     assert actual.group_id
-    assert(actual.group_id == expected.group_id)
+    assert (actual.group_id == expected.group_id)
 
     assert expected.owner == actual.owner
     assert expected.description == actual.description
     assert expected.last_modified == actual.last_modified
 
-    assert(actual.group_members == expected.group_members)
-    assert(actual.user_members == expected.user_members)
-    assert(actual.group_admins == expected.group_admins)
-    assert(actual.user_admins == expected.user_admins)
+    assert (actual.group_members == expected.group_members)
+    assert (actual.user_members == expected.user_members)
+    assert (actual.group_admins == expected.group_admins)
+    assert (actual.user_admins == expected.user_admins)
 
 
 def test_maximal_group():
@@ -146,26 +146,26 @@ def test_maximal_group():
     writer = GroupWriter()
     xml_string = writer.write(expected, True)
 
-    assert(xml_string)
-    assert(len(xml_string) > 0)
+    assert (xml_string)
+    assert (len(xml_string) > 0)
 
     reader = GroupReader()
     actual = reader.read(xml_string)
 
     assert expected.group_id
     assert actual.group_id
-    assert(actual.group_id == expected.group_id)
+    assert (actual.group_id == expected.group_id)
 
-    assert(actual.owner.internal_id == expected.owner.internal_id)
-    assert(actual.owner.identities == expected.owner.identities)
-    assert(actual.description == expected.description)
-    assert(actual.last_modified == expected.last_modified)
+    assert (actual.owner.internal_id == expected.owner.internal_id)
+    assert (actual.owner.identities == expected.owner.identities)
+    assert (actual.description == expected.description)
+    assert (actual.last_modified == expected.last_modified)
 
-    assert(actual.properties == expected.properties)
-    assert(actual.group_members == expected.group_members)
-    assert(actual.user_members == expected.user_members)
-    assert(actual.group_admins == expected.group_admins)
-    assert(actual.user_admins == expected.user_admins)
+    assert (actual.properties == expected.properties)
+    assert (actual.group_members == expected.group_members)
+    assert (actual.user_members == expected.user_members)
+    assert (actual.group_admins == expected.group_admins)
+    assert (actual.user_admins == expected.user_admins)
 
 
 def test_external_users():
@@ -188,20 +188,20 @@ def test_external_users():
     writer = GroupWriter()
     xml_string = writer.write(expected, True)
 
-    assert(xml_string)
-    assert(len(xml_string) > 0)
+    assert (xml_string)
+    assert (len(xml_string) > 0)
 
     reader = GroupReader()
     actual = reader.read(xml_string)
 
     assert expected.group_id
     assert actual.group_id
-    assert(actual.group_id == expected.group_id)
+    assert (actual.group_id == expected.group_id)
 
-    assert(actual.owner.internal_id == expected.owner.internal_id)
-    assert(actual.owner.identities == expected.owner.identities)
-    assert(actual.description == expected.description)
-    assert(actual.last_modified == expected.last_modified)
+    assert (actual.owner.internal_id == expected.owner.internal_id)
+    assert (actual.owner.identities == expected.owner.identities)
+    assert (actual.description == expected.description)
+    assert (actual.last_modified == expected.last_modified)
 
-    assert(actual.user_members == expected.user_members)
-    assert(actual.user_admins == expected.user_admins)
+    assert (actual.user_members == expected.user_members)
+    assert (actual.user_admins == expected.user_admins)
