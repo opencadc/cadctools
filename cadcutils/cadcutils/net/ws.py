@@ -4,7 +4,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2025.                            (c) 2025.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -88,7 +88,7 @@ import distro
 
 from cadcutils import exceptions, util, net
 from cadcutils import version as cadctools_version
-from . import wscapabilities
+from . import wscapabilities, ssl_errors, cert_validation
 
 __all__ = ['BaseWsClient', 'BaseDataClient', 'get_resources', 'list_resources',
            'DEFAULT_REGISTRY']
@@ -433,6 +433,9 @@ class BaseWsClient(object):
             if self.subject.token:
                 self._session.token = self.subject.token
             elif self.subject.certificate is not None:
+                if self.subject.validate_certificate:
+                    cert_validation.validate_client_certificate(
+                        self.subject.certificate)
                 self._session.cert = (
                     self.subject.certificate, self.subject.certificate)
             elif self.subject.cookies:
@@ -1112,13 +1115,9 @@ class RetrySession(Session):
                         except Exception:
                             pass
                 except requests.ConnectionError as ce:
-                    if 'Connection reset by peer' in str(ce):
-                        # Likely a network error that the caller can re-try
-                        raise exceptions.TransferException(
-                            'Transfer error on URL: {}'.format(request.url))
-                    else:
-                        # Can't recover (bad url, etc)
-                        raise exceptions.HttpException(orig_exception=ce)
+                    raise ssl_errors.connection_error_to_exception(
+                        ce, url=request.url,
+                        cert=kwargs.get('cert') or getattr(self, 'cert', None))
                 if num_retries == MAX_NUM_RETRIES:
                     break
                 self.logger.debug(
@@ -1129,7 +1128,14 @@ class RetrySession(Session):
                 current_delay = min(current_delay * 2, MAX_RETRY_DELAY)
             raise exceptions.HttpException(current_error)
         else:
-            response = super(RetrySession, self).send(request, **kwargs)
+            try:
+                response = super(RetrySession, self).send(request, **kwargs)
+            except requests.ConnectionError as ce:
+                if isinstance(ce, requests.exceptions.ConnectTimeout):
+                    raise
+                raise ssl_errors.connection_error_to_exception(
+                    ce, url=request.url,
+                    cert=kwargs.get('cert') or getattr(self, 'cert', None))
             self.check_status(response, retry=False)
             return response
 

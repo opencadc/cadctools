@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-# (c) 2021.                            (c) 2021.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -52,36 +52,60 @@
 #  warranty of MERCHANTABILITY          implicite de COMMERCIALISABILITÉ
 #  or FITNESS FOR A PARTICULAR          ni d’ADÉQUATION À UN OBJECTIF
 #  PURPOSE.  See the GNU Affero         PARTICULIER. Consultez la Licence
-#  General Public License for           Générale Publique GNU Affero
-#  more details.                        pour plus de détails.
+#  General Public License for           Générale Publique GNU Affero pour
+#  more details.                        plus de détails.
 #
 #  You should have received             Vous devriez avoir reçu une
 #  a copy of the GNU Affero             copie de la Licence Générale
 #  General Public License along         Publique GNU Affero avec
-#  with OpenCADC.  If not, see          OpenCADC ; si ce n’est
-#  <http://www.gnu.org/licenses/>.      pas le cas, consultez :
+#  with OpenCADC.  If not, see          OpenCADC ; si ce n’est pas le cas,
+#  <http://www.gnu.org/licenses/>.      consultez :
 #                                       <http://www.gnu.org/licenses/>.
 #
 # ***********************************************************************
 
+"""Contract tests for cadcdata CLI parsers."""
 
-from cadcutils.net.group_xml.user_reader import UserReader
-from cadcutils.net.group_xml.user_writer import UserWriter
-from cadcutils.net import User, Identity
+import pytest
+
+from cadcdata.storageinv import (
+    build_cadcget_parser, build_cadcput_parser,
+    build_cadcinfo_parser, build_cadcremove_parser,
+    DEFAULT_RESOURCE_ID,
+)
+from cadcutils.util.tests.parser_helpers import (
+    assert_has_base_dests, assert_has_dests, assert_epilog_contains,
+    assert_help_contains,
+)
 
 
-def test_read_write():
-    expected = User('ivo://bar.com/user?00000000-0000-0000-0000-000000000f00')
-    expected.identities['OpenID'] = Identity('foo@bar.com', 'OpenID')
-    expected.identities['HTTP'] = Identity('foo', 'HTTP')
-    expected.identities['CADC'] = Identity(
-        '00000000-0000-0000-0000-000000000004', 'CADC')
-    expected.identities['X500'] = Identity('cn=foo,c=bar', 'X500')
-    writer = UserWriter()
-    xml_string = writer.write(expected)
-    assert xml_string
-    reader = UserReader()
-    actual = reader.read(xml_string)
-    assert actual
-    assert (actual.internal_id == expected.internal_id)
-    assert (expected.identities == actual.identities)
+@pytest.mark.parametrize('build_parser,extra_dests,epilog_snippets', [
+    (build_cadcget_parser, ('output', 'identifier', 'fhead'), (
+        'Examples:',
+        'cadcget GEMINI/N20220825S0383.fits',
+        'cadcget --cert ~/.ssl/cadcproxy.pem',
+        'cutout=[1][10:120,20:30]',
+    )),
+    (build_cadcput_parser, ('type', 'encoding', 'replace', 'identifier', 'src'), (
+        'Examples:',
+        'cadcput --cert ~/.ssl/cadcproxy.pem',
+        'cadcput -v -n cadc:TEST/',
+        'cadcput -v -u auser cadc:TEST/',
+    )),
+    (build_cadcinfo_parser, ('identifier',), (
+        'Examples:',
+        'cadcinfo CFHT/1000003f.fits.fz',
+        'cadcinfo cadc:CFHT/1000003f.fits.fz',
+    )),
+    (build_cadcremove_parser, ('identifier',), (
+        'Examples:',
+        'cadcremove --cert ~/.ssl/cadcproxy.pem',
+        'cadc:CFHT/700000o.fz',
+    )),
+])
+def test_storage_cli_parser_contract(build_parser, extra_dests, epilog_snippets):
+    parser = build_parser()
+    assert_has_base_dests(parser, use_service=True)
+    assert_has_dests(parser, *extra_dests)
+    assert_help_contains(parser, DEFAULT_RESOURCE_ID)
+    assert_epilog_contains(parser, *epilog_snippets)

@@ -260,96 +260,34 @@ class UtilTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             parser.add_subparsers(dest='cmd')
 
-    @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
-                                         MyExitError, MyExitError,
-                                         MyExitError]))
-    @pytest.mark.skipif(sys.version_info > (3, 12),
-                        reason="Different help output in Python 3.13+")
-    def test_base_parser_help(self):
-        # help with a simple, no subparsers basic parser - these are
-        # the default arguments
-        self.maxDiff = None
+    def test_base_parser_contract(self):
+        from cadcutils.util.tests.parser_helpers import (
+            assert_has_dests, assert_has_base_dests, get_subparser,
+            subparser_names, option_dests)
 
-        with open(os.path.join(TESTDATA_DIR, 'help.txt'), 'r') as f:
-            expected_stdout = f.read()
+        parser = get_base_parser(subparsers=False, version=3.3)
+        assert_has_base_dests(parser)
 
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            with self.assertRaises(MyExitError):
-                sys.argv = ["cadc-client", "--help"]
-                parser = get_base_parser(subparsers=False, version=3.3)
-                parser.parse_args()
-            assert expected_stdout.strip('\n') == \
-                _fix_help(stdout_mock.getvalue())
+        parser = get_base_parser(subparsers=False)
+        assert_has_base_dests(parser)
+        assert 'version' not in option_dests(parser)
 
-        # same test but no version this time
-        with open(os.path.join(TESTDATA_DIR, 'help_no_version.txt'), 'r') as f:
-            expected_stdout = f.read()
+        parser = get_base_parser(subparsers=False)
+        parser.add_argument('-x', action='store_true', help='test argument')
+        parser.add_argument('fileID', help='the ID of the file in the archive',
+                            nargs='+')
+        assert_has_dests(parser, 'x', 'fileID')
 
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            with self.assertRaises(MyExitError):
-                sys.argv = ["cadc-client", "--help"]
-                parser = get_base_parser(subparsers=False)
-                parser.parse_args()
-            assert expected_stdout.strip('\n') == \
-                _fix_help(stdout_mock.getvalue())
-
-        # --help with a simple parser with a few extra command line options
-        with open(os.path.join(TESTDATA_DIR, 'help_extra_opt.txt'), 'r') as f:
-            expected_stdout = f.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            with self.assertRaises(MyExitError):
-                sys.argv = ["cadc-client", "--help"]
-                parser = get_base_parser(subparsers=False)
-                parser.add_argument('-x', action='store_true',
-                                    help='test argument')
-                parser.add_argument('fileID',
-                                    help='the ID of the file in the archive',
-                                    nargs='+')
-                parser.parse_args()
-            assert expected_stdout.strip() == _fix_help(stdout_mock.getvalue())
-
-        # help with a parser with 2 subcommands
         parser = get_base_parser()
         subparsers = parser.add_subparsers(dest='cmd', help='My subcommands')
-        parser_cmd1 = subparsers.add_parser('cmd1')
-        parser_cmd1.add_argument('-x', action='store_true',
-                                 help='test argument')
-        parser_cmd2 = subparsers.add_parser('cmd2')
-        parser_cmd2.add_argument('fileID',
-                                 help='the ID of the file in the archive',
-                                 nargs='+')
-
-        with open(os.path.join(TESTDATA_DIR, 'help_subcommands.txt'),
-                  'r') as f:
-            expected_stdout = f.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            with self.assertRaises(MyExitError):
-                sys.argv = ["cadc-client", "-h"]
-                parser.parse_args()
-        assert expected_stdout.strip('\n') == _fix_help(stdout_mock.getvalue())
-
-        with open(os.path.join(TESTDATA_DIR, 'help_subcommands1.txt'),
-                  'r') as f:
-            expected_stdout = f.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            with self.assertRaises(MyExitError):
-                sys.argv = ['cadc-client', 'cmd1', '-h']
-                parser.parse_args()
-        assert expected_stdout.strip('\n') == _fix_help(stdout_mock.getvalue())
-
-        with open(os.path.join(TESTDATA_DIR, 'help_subcommands2.txt'),
-                  'r') as f:
-            expected_stdout = f.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            with self.assertRaises(MyExitError):
-                sys.argv = ['cadc-client', 'cmd2', '-h']
-                parser.parse_args()
-            assert expected_stdout.strip('\n') == \
-                _fix_help(stdout_mock.getvalue())
+        subparsers.add_parser('cmd1')
+        cmd2 = subparsers.add_parser('cmd2')
+        cmd2.add_argument('fileID', help='the ID of the file in the archive',
+                          nargs='+')
+        assert subparser_names(parser) == ['cmd1', 'cmd2']
+        assert_has_base_dests(get_subparser(parser, 'cmd1'))
+        assert_has_base_dests(get_subparser(parser, 'cmd2'))
+        assert_has_dests(get_subparser(parser, 'cmd2'), 'fileID')
 
     def test_check_version(self):
         # mock pypi returns version ['1.0.1', '1.0.2a1', '1.0.1.1', '0.9.9', '1.0.2dev20190219']
@@ -434,16 +372,6 @@ def test_get_url_content():
             assert new_content == get_url_content('https://some.site',
                                                   cache_file=cache_file.name,
                                                   refresh_interval=0)
-
-
-def _fix_help(help_txt):
-    """
-    Deals with incompatibilities between versions
-    :param help_txt:
-    :return:
-    """
-    # Different title in python 3.10
-    return help_txt.replace('options:', 'optional arguments:').strip('\n')
 
 
 class TestMd5File(unittest.TestCase):

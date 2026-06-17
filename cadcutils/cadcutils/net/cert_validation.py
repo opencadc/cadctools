@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
+
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-# (c) 2021.                            (c) 2021.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -62,26 +63,64 @@
 #  <http://www.gnu.org/licenses/>.      pas le cas, consultez :
 #                                       <http://www.gnu.org/licenses/>.
 #
+#
 # ***********************************************************************
 
+"""
+Validation of client X509 certificates before use.
+"""
 
-from cadcutils.net.group_xml.user_reader import UserReader
-from cadcutils.net.group_xml.user_writer import UserWriter
-from cadcutils.net import User, Identity
+from datetime import datetime, timezone
+
+from OpenSSL import crypto
+
+import logging
+
+__all__ = ['validate_client_certificate']
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_WARN_DAYS = 3
 
 
-def test_read_write():
-    expected = User('ivo://bar.com/user?00000000-0000-0000-0000-000000000f00')
-    expected.identities['OpenID'] = Identity('foo@bar.com', 'OpenID')
-    expected.identities['HTTP'] = Identity('foo', 'HTTP')
-    expected.identities['CADC'] = Identity(
-        '00000000-0000-0000-0000-000000000004', 'CADC')
-    expected.identities['X500'] = Identity('cn=foo,c=bar', 'X500')
-    writer = UserWriter()
-    xml_string = writer.write(expected)
-    assert xml_string
-    reader = UserReader()
-    actual = reader.read(xml_string)
-    assert actual
-    assert (actual.internal_id == expected.internal_id)
-    assert (expected.identities == actual.identities)
+def validate_client_certificate(cert_path, warn_days=DEFAULT_WARN_DAYS):
+    """
+    Validate a PEM client certificate file.
+
+    :param cert_path: path to the certificate (may also contain the private key)
+    :param warn_days: log a warning when expiry is within this many days
+    :raises ValueError: if the file cannot be read, is not valid PEM, or is
+        expired
+    """
+    try:
+        with open(cert_path, 'rb') as cert_file:
+            pem_data = cert_file.read()
+        cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_data)
+    except OSError as oex:
+        raise ValueError(
+            'Cannot read certificate file {}: {}'.format(cert_path, oex))
+    except crypto.Error:
+        raise ValueError(
+            'Could not load client certificate ({}): invalid PEM format. '
+            'Check that the file contains a valid PEM-encoded certificate.'.
+            format(cert_path))
+
+    not_after_bytes = cert.get_notAfter()
+    if not_after_bytes is None:
+        return
+
+    not_after = datetime.strptime(
+        not_after_bytes.decode('ascii'), '%Y%m%d%H%M%SZ').replace(
+            tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    if not_after < now:
+        raise ValueError(
+            'Client certificate ({}) expired on {}. Run: cadc-get-cert'.
+            format(cert_path, not_after.strftime('%Y-%m-%d')))
+
+    days_left = (not_after - now).days
+    if days_left <= warn_days:
+        logger.warning(
+            'Client certificate (%s) expires in %d day(s) on %s. '
+            'Run cadc-get-cert to renew.',
+            cert_path, days_left, not_after.strftime('%Y-%m-%d'))

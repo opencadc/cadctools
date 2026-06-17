@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-# (c) 2021.                            (c) 2021.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -62,26 +62,50 @@
 #  <http://www.gnu.org/licenses/>.      pas le cas, consultez :
 #                                       <http://www.gnu.org/licenses/>.
 #
+#
 # ***********************************************************************
 
+"""
+User-facing error messages for command-line tools.
+"""
 
-from cadcutils.net.group_xml.user_reader import UserReader
-from cadcutils.net.group_xml.user_writer import UserWriter
-from cadcutils.net import User, Identity
+from cadcutils import exceptions
+
+__all__ = ['format_user_error']
 
 
-def test_read_write():
-    expected = User('ivo://bar.com/user?00000000-0000-0000-0000-000000000f00')
-    expected.identities['OpenID'] = Identity('foo@bar.com', 'OpenID')
-    expected.identities['HTTP'] = Identity('foo', 'HTTP')
-    expected.identities['CADC'] = Identity(
-        '00000000-0000-0000-0000-000000000004', 'CADC')
-    expected.identities['X500'] = Identity('cn=foo,c=bar', 'X500')
-    writer = UserWriter()
-    xml_string = writer.write(expected)
-    assert xml_string
-    reader = UserReader()
-    actual = reader.read(xml_string)
-    assert actual
-    assert (actual.internal_id == expected.internal_id)
-    assert (expected.identities == actual.identities)
+def format_user_error(exception):
+    """
+    Return a concise, actionable error message suitable for CLI output.
+
+    :param exception: the caught exception
+    :return: formatted message string (no stack trace)
+    """
+    if isinstance(exception, exceptions.SslException):
+        return str(exception)
+
+    if isinstance(exception, exceptions.UnauthorizedException):
+        return ('Authentication failed: invalid username/password '
+                'combination')
+
+    if isinstance(exception, exceptions.NotFoundException):
+        return 'Not found: {}'.format(exception)
+
+    if isinstance(exception, exceptions.ForbiddenException):
+        return 'Unauthorized to perform operation'
+
+    if isinstance(exception, exceptions.UnexpectedException):
+        return 'Unexpected server error: {}'.format(exception)
+
+    if isinstance(exception, ValueError):
+        msg = str(exception)
+        if 'certificate' in msg.lower():
+            return msg
+
+    if isinstance(exception, exceptions.HttpException):
+        msg = str(exception)
+        if msg:
+            return msg
+        return 'HTTP request failed'
+
+    return str(exception)

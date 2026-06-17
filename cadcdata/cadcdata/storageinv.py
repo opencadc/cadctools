@@ -736,7 +736,7 @@ class StorageInventoryClient(object):
         return result
 
 
-def cadcput_cli():
+def build_cadcput_parser():
     parser = util.get_base_parser(subparsers=False,
                                   version=version.version,
                                   service=DEFAULT_RESOURCE_ID,
@@ -782,8 +782,11 @@ def cadcput_cli():
         '- Connect as user to put files from multiple sources (prompt for\n'
         '  password if user not in $HOME/.netrc):\n'
         '      cadcput -v -u auser cadc:TEST/ myfile.fits.gz dir1 dir2')
+    return parser
 
-    args = parser.parse_args()
+
+def cadcput_cli():
+    args = build_cadcput_parser().parse_args()
     client = _create_client(args)
 
     files = []
@@ -813,7 +816,7 @@ def cadcput_cli():
                                      'file_encoding': args.encoding})
 
 
-def cadcget_cli():
+def build_cadcget_parser():
     parser = util.get_base_parser(subparsers=False,
                                   version=version.version,
                                   service=DEFAULT_RESOURCE_ID)
@@ -846,8 +849,11 @@ def cadcget_cli():
         'it to a file in the current directory (service provided file name):\n'
         '      cadcget --cert ~/.ssl/cadcproxy.pem '
         '"CFHT/806045o.fits.fz?cutout=[1][10:120,20:30]&cutout=[2][10:120,20:30]"\n')
+    return parser
 
-    args = parser.parse_args()
+
+def cadcget_cli():
+    args = build_cadcget_parser().parse_args()
     client = _create_client(args)
     logger.info('GET id {} -> {}'.format(
         args.identifier, args.output if args.output else 'stdout'))
@@ -855,7 +861,7 @@ def cadcget_cli():
                                  'fhead': args.fhead})
 
 
-def cadcinfo_cli():
+def build_cadcinfo_parser():
     parser = util.get_base_parser(subparsers=False,
                                   version=version.version,
                                   service=DEFAULT_RESOURCE_ID)
@@ -876,8 +882,11 @@ def cadcinfo_cli():
         '- Anonymously getting the information for the same public file '
         '  using a full URI:\n'
         '        cadcinfo cadc:CFHT/1000003f.fits.fz\n')
+    return parser
 
-    args = parser.parse_args()
+
+def cadcinfo_cli():
+    args = build_cadcinfo_parser().parse_args()
     client = _create_client(args)
     for id in args.identifier:
         logger.info('INFO for id {}'.format(id))
@@ -899,7 +908,7 @@ def cadcinfo_cli():
     logger.info('DONE')
 
 
-def cadcremove_cli():
+def build_cadcremove_parser():
     parser = util.get_base_parser(subparsers=False,
                                   version=version.version,
                                   service=DEFAULT_RESOURCE_ID,
@@ -915,8 +924,11 @@ def cadcremove_cli():
         'Examples:\n'
         '- Use certificate to remove a file from the storage inventory:\n'
         '       cadcremove --cert ~/.ssl/cadcproxy.pem cadc:CFHT/700000o.fz\n')
+    return parser
 
-    args = parser.parse_args()
+
+def cadcremove_cli():
+    args = build_cadcremove_parser().parse_args()
     client = _create_client(args)
     for id in args.identifier:
         logger.info('REMOVE id {}'.format(id))

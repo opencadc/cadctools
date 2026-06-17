@@ -78,13 +78,13 @@ from cadctap.core import main_app
 from unittest.mock import Mock, patch, call
 import pytest
 from cadctap import CadcTapClient
-from cadctap.core import _get_subject_from_netrc,\
+from cadctap.core import _get_subject_from_netrc, \
     _get_subject_from_certificate, _get_subject, exit_on_exception
 import tempfile
 import argparse
 
-from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
-    ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID,\
+from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES, \
+    ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID, \
     TABLE_LOAD_CAPABILITY_ID, PERMISSIONS_CAPABILITY_ID, _get_permission_modes
 
 # The following is a temporary workaround for Python issue
@@ -135,12 +135,12 @@ def test_get_subject_from_certificate():
         # has no certificate
         os.environ['HOME'] = '/tmp'
         subject = _get_subject_from_certificate()
-        assert(subject is None)
+        assert (subject is None)
         # has certificate
         os.environ['HOME'] = TESTDATA_DIR
         subject = _get_subject_from_certificate()
-        assert(subject is not None)
-        assert(isinstance(subject, net.Subject))
+        assert (subject is not None)
+        assert (isinstance(subject, net.Subject))
     finally:
         os.environ['HOME'] = orig_home
 
@@ -159,15 +159,15 @@ def test_get_subject_from_netrc(netrc_mock, client_mock, base_client_mock):
     args.service = 'tap'
     args.host = None
     subject = _get_subject_from_netrc('tap')
-    assert(subject is None)
+    assert (subject is None)
     # matches domain
     netrc_instance.hosts = {'no_such_host': 'my.host.ca',
                             'www.some.tap.service.com':
                             'machine some.tap.service.com \
                                 login auser password passwd'}
     subject = _get_subject_from_netrc(args)
-    assert(subject is not None)
-    assert(isinstance(subject, net.Subject))
+    assert (subject is not None)
+    assert (isinstance(subject, net.Subject))
 
     # CADC services
     args.service = 'ivo://cadc.nrc.ca/tap'
@@ -187,8 +187,8 @@ def test_get_subject_from_netrc(netrc_mock, client_mock, base_client_mock):
                             'sc2.canfar.net': 'machine www.canfar.net \
                                 login auser password passwd'}
     subject = _get_subject_from_netrc(args)
-    assert(subject is not None)
-    assert(isinstance(subject, net.Subject))
+    assert (subject is not None)
+    assert (isinstance(subject, net.Subject))
 
 
 @patch('cadctap.core.CadcTapClient')
@@ -202,8 +202,8 @@ def test_get_subject(from_cmd_line_mock, netrc_mock, client_mock):
     netrc_subject = net.Subject(netrc=True)
     from_cmd_line_mock.return_value = netrc_subject
     ret_subject = _get_subject(args)
-    assert(ret_subject is not None)
-    assert(ret_subject == netrc_subject)
+    assert (ret_subject is not None)
+    assert (ret_subject == netrc_subject)
 
     # no authentication options, pick -n option
     anon_subject = net.Subject()
@@ -214,10 +214,10 @@ def test_get_subject(from_cmd_line_mock, netrc_mock, client_mock):
     client_instance = client_mock.return_value
     client_instance._tap_client._host = 'netrc.host'
     ret_subject = _get_subject(args)
-    assert(ret_subject is not None)
-    assert(ret_subject.anon is False)
-    assert(ret_subject.certificate is None)
-    assert(ret_subject.netrc is not None)
+    assert (ret_subject is not None)
+    assert (ret_subject.anon is False)
+    assert (ret_subject.certificate is None)
+    assert (ret_subject.netrc is not None)
 
     # no authentication options, pick --cert option
     orig_home = os.environ['HOME']
@@ -232,10 +232,10 @@ def test_get_subject(from_cmd_line_mock, netrc_mock, client_mock):
         client_instance = client_mock.return_value
         client_instance._tap_client._host = 'no.such.host'
         ret_subject = _get_subject(args)
-        assert(ret_subject is not None)
-        assert(ret_subject.anon is False)
-        assert(ret_subject.certificate is not None)
-        assert(ret_subject.netrc is False)
+        assert (ret_subject is not None)
+        assert (ret_subject.anon is False)
+        assert (ret_subject.certificate is not None)
+        assert (ret_subject.netrc is False)
     finally:
         os.environ['HOME'] = orig_home
 
@@ -252,8 +252,8 @@ def test_get_subject(from_cmd_line_mock, netrc_mock, client_mock):
         client_instance = client_mock.return_value
         client_instance._tap_client._host = 'no.such.host'
         ret_subject = _get_subject(args)
-        assert(ret_subject is not None)
-        assert(ret_subject == anon_subject)
+        assert (ret_subject is not None)
+        assert (ret_subject == anon_subject)
     finally:
         os.environ['HOME'] = orig_home
 
@@ -648,129 +648,8 @@ def test_error_cases():
         assert not client.permissions_support
 
 
-def _fix_help(help_txt):
-    """
-    Deals with incompatibilities between versions
-    :param help_txt:
-    :return:
-    """
-    return help_txt.replace('optional arguments:', 'options:').strip('\n')
-
-
 class TestCadcTapClient(unittest.TestCase):
     """Test the CadcTapClient class"""
-
-    @patch('sys.exit', Mock(side_effect=[MyExitError for x in range(25)]))
-    @pytest.mark.skipif(sys.version_info > (3, 12),
-                        reason="Different help output in Python 3.13+")
-    def test_help(self):
-        """ Tests the helper displays for commands and subcommands in main"""
-        self.maxDiff = None
-
-        # help
-        with open(os.path.join(TESTDATA_DIR, 'help.txt'), 'r') as myfile:
-            usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-
-        usage = ('usage: cadc-tap [-h] [-V]\n'
-                 '                {schema,query,create,delete,index,'
-                 'load,permission} ...'
-                 '\ncadc-tap: error: too few arguments\n')
-
-        with patch('sys.stdout', new_callable=StringIO):
-            with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
-                sys.argv = ['cadc-tap']
-                with self.assertRaises(MyExitError):
-                    main_app()
-                assert usage.strip('\n') == _fix_help(stderr_mock.getvalue())
-
-        # schema -h
-        with open(os.path.join(TESTDATA_DIR,
-                               'help_schema.txt'), 'r') as myfile:
-            usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'schema', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-
-        # query -h
-        with open(os.path.join(TESTDATA_DIR,
-                               'help_query.txt'), 'r') as myfile:
-            usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'query', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-
-        # create -h
-        with open(os.path.join(TESTDATA_DIR,
-                               'help_create.txt'), 'r') as myfile:
-            usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'create', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-
-        # delete -h
-        with open(os.path.join(TESTDATA_DIR,
-                               'help_delete.txt'), 'r') as myfile:
-            usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'delete', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-
-        # index -h
-        with open(os.path.join(TESTDATA_DIR,
-                               'help_index.txt'), 'r') as myfile:
-            usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'index', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-
-        # load -h
-        with open(os.path.join(TESTDATA_DIR,
-                               'help_load.txt'), 'r') as myfile:
-            usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'load', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-
-        # permission -h
-        # help is slightly different in python 3.9
-        if sys.version_info >= (3, 9):
-            with open(os.path.join(TESTDATA_DIR,
-                                   'help_permission_39.txt'), 'r') as myfile:
-                usage = myfile.read()
-        else:
-            with open(os.path.join(TESTDATA_DIR,
-                                   'help_permission.txt'), 'r') as myfile:
-                usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'permission', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
     @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
                                          MyExitError, MyExitError, MyExitError,
@@ -904,6 +783,16 @@ class TestCadcTapClient(unittest.TestCase):
         calls = [call('table', read_anon=False, read_only='',
                       read_write=None)]
         client_mock.return_value.set_permissions.assert_has_calls(calls)
+
+    def test_main_too_few_arguments(self):
+        sys.argv = ['cadc-tap']
+        with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
+            with self.assertRaises(SystemExit) as cm:
+                main_app()
+            self.assertEqual(-1, cm.exception.code)
+            stderr = stderr_mock.getvalue()
+            self.assertIn('cadc-tap: error: too few arguments\n', stderr)
+            self.assertIn('usage:', stderr.lower())
 
     @patch('cadctap.CadcTapClient.query')
     @patch('cadcutils.net.ws.WsCapabilities.get_access_url')

@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2022.                            (c) 2022.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -362,7 +362,8 @@ def get_base_parser(subparsers=True, version=None, usecert=True,
                             help='authentication token to use.')
     cparser.add_argument('--host', help=SUPPRESS)
     cparser.add_argument('-k', '--insecure', action='store_true',
-                         help=SUPPRESS)
+                         help='skip SSL server certificate verification '
+                              '(for testing only; not recommended)')
     if service is None:
         if default_resource_id is None:
             cparser.add_argument('--resource-id',

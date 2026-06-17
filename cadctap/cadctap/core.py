@@ -384,63 +384,69 @@ class CadcTapClient(object):
         if maxrec:
             fields['MAXREC'] = str(maxrec)
 
+        upload_fh = None
         if tmptable is not None:
             tmp = tmptable.split(':')
             tablename = tmp[0]
             tablepath = tmp[1]
             tablefile = os.path.basename(tablepath)
             fields['UPLOAD'] = '{},param:{}'.format(tablename, tablefile)
-            fields[tablefile] = (tablepath, open(tablepath, 'rb'))
+            upload_fh = open(tablepath, 'rb')
+            fields[tablefile] = (tablepath, upload_fh)
 
-        logger.debug('QUERY fileds: {}'.format(fields))
-        m = MultipartEncoder(fields=fields)
-        # TODO the following if/else is temporary to support both TAP1.0 and
-        # TAP1.1 capabilities. For TAP1.1 the resource argument in the post
-        # should be the (QUERY_CAPABILITY_ID, None) tuple
-        url = self._tap_client._get_url((QUERY_CAPABILITY_ID, None))
-        if url.endswith('async'):
-            resource = url.replace('async', 'sync')
-        else:
-            resource = self._tap_client._get_url((QUERY_CAPABILITY_ID, 'sync'))
+        try:
+            logger.debug('QUERY fileds: {}'.format(fields))
+            m = MultipartEncoder(fields=fields)
+            # TODO the following if/else is temporary to support both TAP1.0 and
+            # TAP1.1 capabilities. For TAP1.1 the resource argument in the post
+            # should be the (QUERY_CAPABILITY_ID, None) tuple
+            url = self._tap_client._get_url((QUERY_CAPABILITY_ID, None))
+            if url.endswith('async'):
+                resource = url.replace('async', 'sync')
+            else:
+                resource = self._tap_client._get_url((QUERY_CAPABILITY_ID, 'sync'))
 
-        rows = 0
-        with self._tap_client.post(resource, params=fields,
-                                   data=m, headers={
-                                       'Content-Type': m.content_type},
-                                   stream=True, timeout=timeout*60) as result:
-            with smart_open(output_file, response_format) as f:
-                header = True
-                if data_only or no_column_names or \
-                        response_format == 'VOTable':
+            rows = 0
+            with self._tap_client.post(resource, params=fields,
+                                       data=m, headers={
+                                           'Content-Type': m.content_type},
+                                       stream=True, timeout=timeout*60) as result:
+                with smart_open(output_file, response_format) as f:
+                    header = True
+                    if data_only or no_column_names or \
+                            response_format == 'VOTable':
+                        for chunk in result.iter_content(chunk_size=8192):
+                            if chunk:  # filter out keep-alive new chunks
+                                if response_format != 'VOTable':
+                                    chunk = chunk.decode('utf-8')
+                                    if header and no_column_names and \
+                                            '\n' in chunk:
+                                        chunk = chunk[chunk.index('\n')+1:]
+                                        header = False
+                                f.write(chunk)
+                        return
+                    header = True
                     for chunk in result.iter_content(chunk_size=8192):
                         if chunk:  # filter out keep-alive new chunks
-                            if response_format != 'VOTable':
-                                chunk = chunk.decode('utf-8')
-                                if header and no_column_names and \
-                                        '\n' in chunk:
-                                    chunk = chunk[chunk.index('\n')+1:]
-                                    header = False
-                            f.write(chunk)
-                    return
-                header = True
-                for chunk in result.iter_content(chunk_size=8192):
-                    if chunk:  # filter out keep-alive new chunks
-                        chunk = chunk.decode('utf-8')
-                        if header and '\n' in chunk:
-                            index = chunk.index('\n')
-                            f.write(chunk[:index])
-                            f.write('\n-----------------------')
-                            f.write(chunk[index:])
-                            header = False
-                            rows = chunk.count('\n') - 1
-                        else:
-                            f.write(chunk)
-                            rows += chunk.count('\n')
-                if rows == 1:
-                    footer = '\n(1 row affected)\n'
-                else:
-                    footer = '\n({} rows affected)\n'.format(rows)
-                f.write(footer)
+                            chunk = chunk.decode('utf-8')
+                            if header and '\n' in chunk:
+                                index = chunk.index('\n')
+                                f.write(chunk[:index])
+                                f.write('\n-----------------------')
+                                f.write(chunk[index:])
+                                header = False
+                                rows = chunk.count('\n') - 1
+                            else:
+                                f.write(chunk)
+                                rows += chunk.count('\n')
+                    if rows == 1:
+                        footer = '\n(1 row affected)\n'
+                    else:
+                        footer = '\n({} rows affected)\n'.format(rows)
+                    f.write(footer)
+        finally:
+            if upload_fh is not None:
+                upload_fh.close()
 
     def schema(self, name=None):
         """
@@ -835,7 +841,7 @@ def _get_subject_from_certificate():
     # if ~/.ssl/cadcproxy.pem exists, use certificate and return a subject
     cert_path = os.path.join(os.environ['HOME'], ".ssl/cadcproxy.pem")
     if os.path.isfile(cert_path):
-        return net.Subject(certificate=cert_path)
+        return net.Subject(certificate=cert_path, validate_certificate=True)
     else:
         return None
 
@@ -957,7 +963,10 @@ def _get_permission_modes(opt):
     return props
 
 
-def main_app(command='cadc-tap query'):
+def build_parser(command='cadc-tap query'):
+    """
+    Build the ArgumentParser for cadc-tap (without parsing argv).
+    """
     parser = util.get_base_parser(version=version.version,
                                   service=DEFAULT_SERVICE_ID)
 
@@ -1131,6 +1140,11 @@ def main_app(command='cadc-tap query'):
         help="name(s) of group(s) to assign read/write permission to. "
              "One group per r or w permission.")
 
+    return parser
+
+
+def main_app(command='cadc-tap query'):
+    parser = build_parser(command)
     args = parser.parse_args()
     if len(sys.argv) < 2:
         parser.print_usage(file=sys.stderr)
@@ -1190,7 +1204,11 @@ def main_app(command='cadc-tap query'):
             try:
                 perms = _get_permission_modes(args)
             except ArgumentError as e:
-                permission_parser.print_usage(file=sys.stderr)
+                for action in parser._actions:
+                    choices = getattr(action, 'choices', None)
+                    if choices and 'permission' in choices:
+                        choices['permission'].print_usage(file=sys.stderr)
+                        break
                 raise e
             client.set_permissions(args.TARGET, read_anon=perms['read_anon'],
                                    read_only=perms['read_only'],

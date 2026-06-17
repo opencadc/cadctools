@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2024.                            (c) 2024.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -202,6 +202,7 @@ class TestListResources(unittest.TestCase):
             self.assertEqual(usage, stdout_mock.getvalue().strip())
 
     @patch('cadcutils.net.ws.WsCapabilities')
+    @patch('cadcutils.net.cert_validation.validate_client_certificate')
     @patch('cadcutils.net.auth.os.path.isfile', Mock())
     @patch('cadcutils.net.auth.netrclib')
     @patch('cadcutils.net.ws.RetrySession.put')
@@ -210,7 +211,7 @@ class TestListResources(unittest.TestCase):
     @patch('cadcutils.net.ws.RetrySession.get')
     @patch('cadcutils.net.ws.RetrySession.post')
     def test_ops(self, post_mock, get_mock, delete_mock, head_mock, put_mock,
-                 netrclib_mock, caps_mock):
+                 netrclib_mock, validate_cert_mock, caps_mock):
         anon_subject = auth.Subject()
         with self.assertRaises(ValueError):
             ws.BaseWsClient(None, anon_subject, "TestApp")
@@ -879,6 +880,18 @@ class TestRetrySession(unittest.TestCase):
         send_mock.side_effect = [ce]
         with self.assertRaises(exceptions.HttpException):
             rs.send(request)
+
+        # SSL connection error
+        send_mock.reset_mock()
+        rs = ws.RetrySession()
+        ssl_err = requests.exceptions.SSLError(
+            '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed')
+        ce = requests.exceptions.ConnectionError('HTTPSConnectionPool failed')
+        ce.__cause__ = ssl_err
+        send_mock.side_effect = [ce]
+        with self.assertRaises(exceptions.SslException) as ctx:
+            rs.send(request)
+        self.assertIn('certificate verification failed', str(ctx.exception))
 
         # mock reset by peer error
         # mock Connection errors
