@@ -70,7 +70,6 @@
 import logging
 import traceback
 import sys
-import warnings
 from clint.textui import progress
 import datetime
 from cadcutils import net, util, exceptions
@@ -102,7 +101,7 @@ CADC_AC_SERVICE = 'ivo://cadc.nrc.ca/gms'
 CADC_LOGIN_CAPABILITY = 'ivo://ivoa.net/std/UMS#login-0.1'
 CADC_SSO_COOKIE_NAME = 'CADC_SSO'
 CADC_REALMS = ['.canfar.net', '.cadc-ccda.hia-iha.nrc-cnrc.gc.ca',
-               '.cadc.dao.nrc.ca', '.canfar.phys.uvic.ca']
+               '.cadc.dao.nrc.ca']
 
 # allowed file formats for load
 ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values',
@@ -110,7 +109,9 @@ ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values',
                          'FITSTable': 'application/fits'}
 ALLOWED_TB_DEF_TYPES = {'VOSITable': 'text/xml',
                         'VOTable': 'application/x-votable+xml'}
-ALLOWED_QUERY_FORMATS = frozenset(('votable', 'csv', 'tsv'))
+ALLOWED_QUERY_FORMATS = {'VOTable': 'votable',
+                         'tsv': 'tsv',
+                         'csv': 'csv'}
 AUTH_OPTION_EXPLANATION = \
     '\nTo obtain the host associated with a service, execute a subcommand\n'\
     'with the service in verbose mode without specifying any authentication\n'\
@@ -138,33 +139,37 @@ CADC_DOMAIN = 'cadc-ccda.hia-iha.nrc-cnrc.gc.ca'
 CANFAR_DOMAIN = 'canfar.net'
 
 
-def normalize_query_format(value, warn_deprecated=True):
+def _format_choice_list(allowed_formats):
+    return ', '.join(sorted(allowed_formats))
+
+
+def resolve_app_format(value, allowed_formats, label='format'):
     """
-    Normalize a TAP query response format to lowercase.
+    Resolve user input to a canonical application format name.
 
-    Accepts case-insensitive values and maps the deprecated ``VOTable``
-    spelling to ``votable``.
+    Accepts case-insensitive spellings of the format keys in
+    ``allowed_formats``.
     """
-    if warn_deprecated and value == 'VOTable':
-        warnings.warn(
-            "Query format 'VOTable' is deprecated; use 'votable'",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-    normalized = value.lower()
-    if normalized not in ALLOWED_QUERY_FORMATS:
-        raise ValueError(
-            'invalid query format: {!r} (choose from {})'.format(
-                value, ', '.join(sorted(ALLOWED_QUERY_FORMATS))))
-    return normalized
+    if value in allowed_formats:
+        return value
+    matches = [key for key in allowed_formats if key.lower() == value.lower()]
+    if len(matches) == 1:
+        return matches[0]
+    raise ValueError(
+        'invalid {}: {!r} (choose from {})'.format(
+            label, value, _format_choice_list(allowed_formats)))
 
 
-def parse_query_format(value):
-    """Argparse type converter for query --format."""
-    try:
-        return normalize_query_format(value)
-    except ValueError as ex:
-        raise ArgumentTypeError(str(ex)) from ex
+def parse_app_format(allowed_formats, label='format'):
+    """Return an argparse type converter for application format names."""
+
+    def _parse(value):
+        try:
+            return resolve_app_format(value, allowed_formats, label)
+        except ValueError as ex:
+            raise ArgumentTypeError(str(ex)) from ex
+
+    return _parse
 
 
 class CadcTapClient(object):
@@ -268,12 +273,8 @@ class CadcTapClient(object):
                 'table name and definition required in create: {}/{}'.
                 format(table_name, table_definition))
 
-        if type not in ALLOWED_TB_DEF_TYPES.keys():
-            raise AttributeError(
-                'Table definition file type {} not supported ({})'.
-                format(type, ' '.join(ALLOWED_TB_DEF_TYPES.keys)))
-        else:
-            file_type = type
+        file_type = resolve_app_format(
+            type, ALLOWED_TB_DEF_TYPES, 'table definition format')
         logger.debug('Creating {} from file {} of type {}'.
                      format(table_name, table_definition, file_type))
         headers = {'Content-Type': ALLOWED_TB_DEF_TYPES[file_type]}
@@ -365,6 +366,9 @@ class CadcTapClient(object):
                 'table name and source requiered in upload: {}/{}'.
                 format(table_name, source))
 
+        fformat = resolve_app_format(
+            fformat, ALLOWED_CONTENT_TYPES, 'data format')
+
         if source == '-':
             source = ["/dev/stdin"]
 
@@ -385,13 +389,13 @@ class CadcTapClient(object):
             else:
                 logger.info('Done uploading file {}'.format(fh.name))
 
-    def query(self, query, output_file=None, response_format='votable',
+    def query(self, query, output_file=None, response_format='VOTable',
               tmptable=None, lang='ADQL', timeout=2, data_only=False,
               no_column_names=False, maxrec=None):
         """
         Send query to database and output or save results
         :param query: the query to send to the database
-        :param response_format: (votable, csv, tsv) format of returned result
+        :param response_format: (VOTable, csv, tsv) format of returned result
         :param tmptable: tablename:/path/to/table, tmp table to upload
         :param output_file: name of the file or a buffer (BytesIO) to save
         results to.
@@ -408,11 +412,14 @@ class CadcTapClient(object):
         if maxrec is not None and maxrec < 0:
             raise ValueError('maxrec cannot be negative: {}'.format(maxrec))
 
-        response_format = normalize_query_format(response_format)
+        response_format = resolve_app_format(
+            response_format, ALLOWED_QUERY_FORMATS, 'query format')
+        server_format = ALLOWED_QUERY_FORMATS[response_format]
+        is_votable = response_format == 'VOTable'
 
         fields = {'LANG': lang,
                   'QUERY': query,
-                  'FORMAT': response_format}
+                  'FORMAT': server_format}
 
         if maxrec:
             fields['MAXREC'] = str(maxrec)
@@ -446,11 +453,10 @@ class CadcTapClient(object):
                                        stream=True, timeout=timeout*60) as result:
                 with smart_open(output_file, response_format) as f:
                     header = True
-                    if data_only or no_column_names or \
-                            response_format == 'votable':
+                    if data_only or no_column_names or is_votable:
                         for chunk in result.iter_content(chunk_size=8192):
                             if chunk:  # filter out keep-alive new chunks
-                                if response_format != 'votable':
+                                if not is_votable:
                                     chunk = chunk.decode('utf-8')
                                     if header and no_column_names and \
                                             '\n' in chunk:
@@ -771,7 +777,7 @@ def smart_open(filename=None, content_format=None):
     # it returns stdout to write to.
     close_file = False
     if filename and filename != '-' and isinstance(filename, str):
-        if content_format == 'votable':
+        if content_format == 'VOTable':
             fh = open(filename, 'wb')
         else:
             fh = open(filename, 'w')
@@ -780,7 +786,7 @@ def smart_open(filename=None, content_format=None):
         if filename and filename != '-':
             fh = filename
         else:
-            if content_format == 'votable' and hasattr(sys.stdout, 'buffer'):
+            if content_format == 'VOTable' and hasattr(sys.stdout, 'buffer'):
                 fh = sys.stdout.buffer
             else:
                 fh = sys.stdout
@@ -1061,8 +1067,9 @@ def build_parser(command='cadc-tap query'):
     query_parser.add_argument(
         '-f', '--format',
         default='tsv',
-        type=parse_query_format,
-        help='output format: tsv (default), csv, or votable',
+        type=parse_app_format(ALLOWED_QUERY_FORMATS, 'query format'),
+        help='output format of query results ({}). Default tsv format'.format(
+            _format_choice_list(ALLOWED_QUERY_FORMATS)),
         required=False)
     query_parser.add_argument(
         '-t', '--tmptable',
@@ -1093,9 +1100,12 @@ def build_parser(command='cadc-tap query'):
         description='Create a table\n' + AUTH_OPTION_EXPLANATION,
         help='create a table')
     create_parser.add_argument(
-        '-f', '--format', choices=sorted(ALLOWED_TB_DEF_TYPES.keys()),
+        '-f', '--format',
+        type=parse_app_format(ALLOWED_TB_DEF_TYPES, 'table definition format'),
         required=False, default='VOSITable',
-        help='format of the table definition file. Default VOSITable format')
+        help='format of the table definition file ({}). '
+             'Default VOSITable format'.format(
+                 _format_choice_list(ALLOWED_TB_DEF_TYPES)))
     create_parser.add_argument(
         'TABLENAME',
         help='name of the table (<schema.table>) in the tap service')
@@ -1132,9 +1142,11 @@ def build_parser(command='cadc-tap query'):
         description='load data to a table\n' + AUTH_OPTION_EXPLANATION,
         help='load data to a table')
     load_parser.add_argument(
-        '-f', '--format', choices=sorted(ALLOWED_CONTENT_TYPES.keys()),
+        '-f', '--format',
+        type=parse_app_format(ALLOWED_CONTENT_TYPES, 'data format'),
         required=False, default='tsv',
-        help='format of the data file')
+        help='format of the data file ({})'.format(
+            _format_choice_list(ALLOWED_CONTENT_TYPES)))
     load_parser.add_argument(
         'TABLENAME',
         help='name of the table (<schema.table>) to load data to')
