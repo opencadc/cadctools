@@ -70,6 +70,7 @@
 import os
 import sys
 import unittest
+import warnings
 from cadcutils import net, exceptions
 
 from io import StringIO, BytesIO
@@ -593,7 +594,7 @@ def test_query(caps_get_mock, base_post_mock):
 
     fields = {'LANG': 'ADQL',
               'QUERY': 'query',
-              'FORMAT': 'VOTable'}
+              'FORMAT': 'votable'}
     tablefile = os.path.basename(def_table)
     fields['UPLOAD'] = '{},param:{}'.format(def_name, tablefile)
     fields[tablefile] = (def_table, open(def_table, 'rb'))
@@ -634,6 +635,27 @@ def test_query(caps_get_mock, base_post_mock):
 
     with pytest.raises(ValueError):
         client.query('query', maxrec=-1)
+
+
+@patch('cadcutils.net.ws.BaseWsClient.post')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_query_format_normalized(caps_get_mock, base_post_mock):
+    caps_get_mock.return_value = BASE_URL
+    response = Mock()
+    response.status_code = 200
+    response.iter_content.return_value = [b'<VOTable format>']
+    base_post_mock.return_value.__enter__.return_value = response
+    client = CadcTapClient(net.Subject())
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        with patch('cadctap.core.sys.stdout', new_callable=BytesIO):
+            client.query('query', response_format='VOTable')
+    assert len(caught) == 1
+    assert issubclass(caught[0].category, DeprecationWarning)
+
+    post_params = base_post_mock.call_args_list[0][1]['params']
+    assert post_params['FORMAT'] == 'votable'
 
 
 def test_error_cases():

@@ -66,6 +66,8 @@
 
 """Contract tests for cadc-tap CLI parsers."""
 
+import warnings
+
 import pytest
 
 from cadctap.core import DEFAULT_SERVICE_ID, build_parser
@@ -158,3 +160,13 @@ def test_query_epilog(root_parser):
 def test_permission_parser_dests(root_parser):
     parser = get_subparser(root_parser, 'permission')
     assert_has_dests(parser, 'anon')
+
+def test_query_format_deprecated_votable_warns(root_parser):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        args = root_parser.parse_args(
+            ['query', '-a', 'SELECT 1', '-f', 'VOTable'])
+    assert args.format == 'votable'
+    assert len(caught) == 1
+    assert issubclass(caught[0].category, DeprecationWarning)
+    assert 'VOTable' in str(caught[0].message)

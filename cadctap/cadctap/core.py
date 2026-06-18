@@ -70,6 +70,7 @@
 import logging
 import traceback
 import sys
+import warnings
 from clint.textui import progress
 import datetime
 from cadcutils import net, util, exceptions
@@ -81,7 +82,7 @@ import contextlib
 import cadcutils
 from xml.dom import minidom
 import re
-from argparse import ArgumentError
+from argparse import ArgumentError, ArgumentTypeError
 
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
@@ -109,6 +110,7 @@ ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values',
                          'FITSTable': 'application/fits'}
 ALLOWED_TB_DEF_TYPES = {'VOSITable': 'text/xml',
                         'VOTable': 'application/x-votable+xml'}
+ALLOWED_QUERY_FORMATS = frozenset(('votable', 'csv', 'tsv'))
 AUTH_OPTION_EXPLANATION = \
     '\nTo obtain the host associated with a service, execute a subcommand\n'\
     'with the service in verbose mode without specifying any authentication\n'\
@@ -134,6 +136,35 @@ APP_NAME = 'cadc-tap'
 # for default authentication
 CADC_DOMAIN = 'cadc-ccda.hia-iha.nrc-cnrc.gc.ca'
 CANFAR_DOMAIN = 'canfar.net'
+
+
+def normalize_query_format(value, warn_deprecated=True):
+    """
+    Normalize a TAP query response format to lowercase.
+
+    Accepts case-insensitive values and maps the deprecated ``VOTable``
+    spelling to ``votable``.
+    """
+    if warn_deprecated and value == 'VOTable':
+        warnings.warn(
+            "Query format 'VOTable' is deprecated; use 'votable'",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+    normalized = value.lower()
+    if normalized not in ALLOWED_QUERY_FORMATS:
+        raise ValueError(
+            'invalid query format: {!r} (choose from {})'.format(
+                value, ', '.join(sorted(ALLOWED_QUERY_FORMATS))))
+    return normalized
+
+
+def parse_query_format(value):
+    """Argparse type converter for query --format."""
+    try:
+        return normalize_query_format(value)
+    except ValueError as ex:
+        raise ArgumentTypeError(str(ex)) from ex
 
 
 class CadcTapClient(object):
@@ -354,13 +385,13 @@ class CadcTapClient(object):
             else:
                 logger.info('Done uploading file {}'.format(fh.name))
 
-    def query(self, query, output_file=None, response_format='VOTable',
+    def query(self, query, output_file=None, response_format='votable',
               tmptable=None, lang='ADQL', timeout=2, data_only=False,
               no_column_names=False, maxrec=None):
         """
         Send query to database and output or save results
         :param query: the query to send to the database
-        :param response_format: (VOTable, csv, tsv) format of returned result
+        :param response_format: (votable, csv, tsv) format of returned result
         :param tmptable: tablename:/path/to/table, tmp table to upload
         :param output_file: name of the file or a buffer (BytesIO) to save
         results to.
@@ -376,6 +407,8 @@ class CadcTapClient(object):
 
         if maxrec is not None and maxrec < 0:
             raise ValueError('maxrec cannot be negative: {}'.format(maxrec))
+
+        response_format = normalize_query_format(response_format)
 
         fields = {'LANG': lang,
                   'QUERY': query,
@@ -414,10 +447,10 @@ class CadcTapClient(object):
                 with smart_open(output_file, response_format) as f:
                     header = True
                     if data_only or no_column_names or \
-                            response_format == 'VOTable':
+                            response_format == 'votable':
                         for chunk in result.iter_content(chunk_size=8192):
                             if chunk:  # filter out keep-alive new chunks
-                                if response_format != 'VOTable':
+                                if response_format != 'votable':
                                     chunk = chunk.decode('utf-8')
                                     if header and no_column_names and \
                                             '\n' in chunk:
@@ -738,7 +771,7 @@ def smart_open(filename=None, content_format=None):
     # it returns stdout to write to.
     close_file = False
     if filename and filename != '-' and isinstance(filename, str):
-        if content_format == 'VOTable':
+        if content_format == 'votable':
             fh = open(filename, 'wb')
         else:
             fh = open(filename, 'w')
@@ -747,7 +780,7 @@ def smart_open(filename=None, content_format=None):
         if filename and filename != '-':
             fh = filename
         else:
-            if content_format == 'VOTable' and hasattr(sys.stdout, 'buffer'):
+            if content_format == 'votable' and hasattr(sys.stdout, 'buffer'):
                 fh = sys.stdout.buffer
             else:
                 fh = sys.stdout
@@ -892,10 +925,10 @@ def exit_on_exception(ex):
         else:
             message = str(ex)
     if message:
-        # could be VOTable format
+        # could be votable format
         try:
             doc = minidom.parseString(message)
-            # in the absence of a VOTable parser, try a simple w
+            # in the absence of a votable parser, try a simple w
             for el in doc.getElementsByTagName('INFO'):
                 if el.attributes['name'].value == 'QUERY_STATUS' and \
                         el.attributes['value'].value == 'ERROR':
@@ -1028,8 +1061,8 @@ def build_parser(command='cadc-tap query'):
     query_parser.add_argument(
         '-f', '--format',
         default='tsv',
-        choices=['VOTable', 'csv', 'tsv'],
-        help='output format, either tsv(default), csv, fits (TBD), or VOTable',
+        type=parse_query_format,
+        help='output format: tsv (default), csv, or votable',
         required=False)
     query_parser.add_argument(
         '-t', '--tmptable',
