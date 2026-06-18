@@ -75,7 +75,7 @@ from cadcutils import net, exceptions
 from io import StringIO, BytesIO
 import cadctap
 from cadctap.core import main_app
-from unittest.mock import Mock, patch, call
+from unittest.mock import Mock, patch, call, mock_open
 import pytest
 from cadctap import CadcTapClient
 from cadctap.core import _get_subject_from_netrc, \
@@ -593,7 +593,7 @@ def test_query(caps_get_mock, base_post_mock):
 
     fields = {'LANG': 'ADQL',
               'QUERY': 'query',
-              'FORMAT': 'VOTable'}
+              'FORMAT': 'votable'}
     tablefile = os.path.basename(def_table)
     fields['UPLOAD'] = '{},param:{}'.format(def_name, tablefile)
     fields[tablefile] = (def_table, open(def_table, 'rb'))
@@ -634,6 +634,47 @@ def test_query(caps_get_mock, base_post_mock):
 
     with pytest.raises(ValueError):
         client.query('query', maxrec=-1)
+
+
+@patch('cadcutils.net.ws.BaseWsClient.post')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_query_format_server_mapping(caps_get_mock, base_post_mock):
+    caps_get_mock.return_value = BASE_URL
+    response = Mock()
+    response.status_code = 200
+    response.iter_content.return_value = [b'<VOTable format>']
+    base_post_mock.return_value.__enter__.return_value = response
+    client = CadcTapClient(net.Subject())
+
+    with patch('cadctap.core.sys.stdout', new_callable=BytesIO):
+        client.query('query', response_format='VOTABLE')
+
+    post_params = base_post_mock.call_args_list[0][1]['params']
+    assert post_params['FORMAT'] == 'votable'
+
+
+@patch('cadcutils.net.ws.BaseWsClient.put')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_create_table_case_insensitive_type(caps_get_mock, base_put_mock):
+    caps_get_mock.return_value = BASE_URL
+    client = CadcTapClient(net.Subject())
+    def_table = os.path.join(TESTDATA_DIR, 'createTable.vosi')
+    client.create_table('sometable', def_table, 'vositable')
+    base_put_mock.assert_called_once()
+    headers = base_put_mock.call_args_list[0][1]['headers']
+    assert headers['Content-Type'] == ALLOWED_TB_DEF_TYPES['VOSITable']
+
+
+@patch('cadcutils.net.ws.BaseWsClient.post')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_load_case_insensitive_format(caps_get_mock, base_post_mock):
+    caps_get_mock.return_value = BASE_URL
+    client = CadcTapClient(net.Subject())
+    test_load_tb = os.path.join(TESTDATA_DIR, 'loadTable.txt')
+    with patch('cadctap.core.open', mock_open(read_data=b'data')):
+        client.load('schema.sometable', [test_load_tb], fformat='fitstable')
+    headers = base_post_mock.call_args_list[0][1]['headers']
+    assert headers['Content-Type'] == ALLOWED_CONTENT_TYPES['FITSTable']
 
 
 def test_error_cases():

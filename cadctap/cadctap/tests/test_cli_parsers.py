@@ -26,8 +26,7 @@
 #  of the National Research             le nom du Conseil National de
 #  Council of Canada nor the            Recherches du Canada ni les noms
 #  names of its contributors may        de ses  participants ne peuvent
-#  be used to endorse or promote        être utilisés pour approuver ou
-#  products derived from this           promouvoir les produits dérivés
+#  be used to endorse or promote        products derived from this
 #  software without specific prior      de ce logiciel sans autorisation
 #  written permission.                  préalable et particulière
 #                                       par écrit.
@@ -158,3 +157,53 @@ def test_query_epilog(root_parser):
 def test_permission_parser_dests(root_parser):
     parser = get_subparser(root_parser, 'permission')
     assert_has_dests(parser, 'anon')
+
+
+@pytest.mark.parametrize('fmt,expected', [
+    ('VOTable', 'VOTable'),
+    ('votable', 'VOTable'),
+    ('VOTABLE', 'VOTable'),
+    ('CSV', 'csv'),
+])
+def test_query_format_case_variants(root_parser, fmt, expected):
+    args = root_parser.parse_args(['query', '-a', 'SELECT 1', '-f', fmt])
+    assert args.format == expected
+
+
+@pytest.mark.parametrize('fmt,expected', [
+    ('VOSITable', 'VOSITable'),
+    ('vositable', 'VOSITable'),
+    ('VOSITABLE', 'VOSITable'),
+    ('VOTable', 'VOTable'),
+    ('votable', 'VOTable'),
+])
+def test_create_format_case_variants(root_parser, fmt, expected):
+    args = root_parser.parse_args(
+        ['create', '-a', 'schema.table', 'table.def', '-f', fmt])
+    assert args.format == expected
+
+
+@pytest.mark.parametrize('fmt,expected', [
+    ('FITSTable', 'FITSTable'),
+    ('fitstable', 'FITSTable'),
+    ('FITSTABLE', 'FITSTable'),
+    ('TSV', 'tsv'),
+])
+def test_load_format_case_variants(root_parser, fmt, expected):
+    args = root_parser.parse_args(
+        ['load', '-a', 'schema.table', 'data.tsv', '-f', fmt])
+    assert args.format == expected
+
+
+def test_format_help_lists_canonical_names(root_parser):
+    query = get_subparser(root_parser, 'query')
+    create = get_subparser(root_parser, 'create')
+    load = get_subparser(root_parser, 'load')
+    assert_help_contains(query, 'VOTable', 'csv', 'tsv')
+    assert_help_contains(create, 'VOSITable', 'VOTable')
+    assert_help_contains(load, 'FITSTable', 'csv', 'tsv')
+    for parser in (query, create, load):
+        help_text = parser.format_help()
+        assert 'VOTABLE' not in help_text
+        assert 'FITSTABLE' not in help_text
+        assert 'VOSITABLE' not in help_text
