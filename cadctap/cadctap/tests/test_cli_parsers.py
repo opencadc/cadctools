@@ -161,6 +161,7 @@ def test_permission_parser_dests(root_parser):
     parser = get_subparser(root_parser, 'permission')
     assert_has_dests(parser, 'anon')
 
+
 def test_query_format_deprecated_votable_warns(root_parser):
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter('always')
