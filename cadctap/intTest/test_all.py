@@ -3,14 +3,13 @@
 import sys
 import os
 import logging
-from six import StringIO
+from io import StringIO, BytesIO
 from mock import patch
 from astropy.io import fits
 import tempfile
 import numpy as np
 import cadctap
 from cadcutils.net import Subject
-from six import BytesIO
 from astropy.io.votable import parse_single_table
 import random
 

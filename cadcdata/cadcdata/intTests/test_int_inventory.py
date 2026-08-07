@@ -102,50 +102,88 @@ def check_file(file_name, size, md5):
 def test_client_public():
     # file info - NOTE: Test relies on an existing file not to be updated.
     client = StorageInventoryClient(Subject())
-    file_info = client.cadcinfo('cadc:IRIS/I429B4H0.fits')
-    assert 'cadc:IRIS/I429B4H0.fits' == file_info.id
-    assert 1008000 == file_info.size
-    assert 'I429B4H0.fits' == file_info.name
-    assert 'e3922d47243563529f387ebdf00b66da' == file_info.md5sum
-    timestamp = str2ivoa('2012-06-20T12:31:00.000')
-    assert timestamp == file_info.lastmod
-    assert 'application/fits' == file_info.file_type
-    assert file_info.encoding is None
+    for file_id in ['cadc:IRIS/I429B4H0.fits', 'IRIS/I429B4H0.fits']:
+        file_info = client.cadcinfo(file_id)
+        assert 'cadc:IRIS/I429B4H0.fits' == file_info.id
+        assert 1008000 == file_info.size
+        assert 'I429B4H0.fits' == file_info.name
+        assert 'e3922d47243563529f387ebdf00b66da' == file_info.md5sum
+        timestamp = str2ivoa('2012-06-20T12:31:00.000')
+        assert timestamp == file_info.lastmod
+        assert 'application/fits' == file_info.file_type
+        assert file_info.encoding is None
 
-    # download file
-    dest = '/tmp/inttest_I429B4H0.fits'
-    if os.path.isfile(dest):
-        os.remove(dest)
-    try:
-        client.cadcget('cadc:IRIS/I429B4H0.fits', dest=dest)
-        check_file(dest, file_info.size, file_info.md5sum)
-    finally:
-        # clean up
+        # download file
+        dest = '/tmp/inttest_I429B4H0.fits'
         if os.path.isfile(dest):
             os.remove(dest)
+        try:
+            client.cadcget(file_id, dest=dest)
+            check_file(dest, file_info.size, file_info.md5sum)
+        finally:
+            # clean up
+            if os.path.isfile(dest):
+                os.remove(dest)
 
-    # download just the headers
-    fhead_dest = '/tmp/inttest_I429B4H0.fits.txt'
-    if os.path.isfile(fhead_dest):
-        os.remove(fhead_dest)
-    try:
-        client.cadcget('cadc:IRIS/I429B4H0.fits', dest=fhead_dest, fhead=True)
-        assert os.path.isfile(fhead_dest)
-        assert filecmp.cmp(fhead_dest,
-                           os.path.join(TESTDATA_DIR, 'I429B4H0.fits.txt'),
-                           shallow=False)
-
-        # read in a memory buffer
-        header_content = BytesIO()
-        client.cadcget('cadc:IRIS/I429B4H0.fits',
-                       dest=header_content, fhead=True)
-        expected = open(fhead_dest, 'rb').read()
-        assert expected == header_content.getvalue()
-
-    finally:
-        # clean up
+        # download just the headers
+        fhead_dest = '/tmp/inttest_I429B4H0.fits.txt'
         if os.path.isfile(fhead_dest):
             os.remove(fhead_dest)
+        try:
+            client.cadcget(file_id, dest=fhead_dest, fhead=True)
+            assert os.path.isfile(fhead_dest)
+            assert filecmp.cmp(fhead_dest,
+                               os.path.join(TESTDATA_DIR, 'I429B4H0.fits.txt'),
+                               shallow=False)
+
+            # read in a memory buffer
+            header_content = BytesIO()
+            client.cadcget(file_id,
+                           dest=header_content, fhead=True)
+            expected = open(fhead_dest, 'rb').read()
+            assert expected == header_content.getvalue()
+
+        finally:
+            # clean up
+            if os.path.isfile(fhead_dest):
+                os.remove(fhead_dest)
+
+        # cutout
+        # file name as in the returned Content-Disposition
+        file_id = 'CFHT/806045o.fits.fz'
+        cutout_dest = '/tmp/806045o.fits.1__10_120_20_30___2__10_120_20_30.fz'
+        if os.path.isfile(cutout_dest):
+            os.remove(cutout_dest)
+        try:
+            client.cadcget(file_id + '?cutOUT=[1][10:120,20:30]&cuTout=[2][10:120,20:30]',
+                           dest='/tmp')
+            assert os.path.isfile(cutout_dest)
+            # check if the header of the cutout file contains the appropriate NAXIS:
+            # NAXIS   =                    0 / number of data axes
+            # NAXIS   =                    2 / dimension of original image
+            # NAXIS1  =                  111 / size of the n'th axis
+            # NAXIS2  =                   11 / size of the n'th axis
+            # NAXIS   =                    2 / dimension of original image
+            # NAXIS1  =                  111 / size of the n'th axis
+            # NAXIS2  =                   11 / size of the n'th axis
+            with open(cutout_dest, 'rb') as f:
+                line = f.read(80).decode('ascii')
+                naxis_header_values = ['0', '2']
+                current_naxis = 0
+                while line:
+                    if 'NAXIS ' in line:
+                        assert naxis_header_values[current_naxis] in line
+                        current_naxis += 1
+                    if 'NAXIS1' in line:
+                        assert '111' in line
+                    if 'NAXIS2' in line:
+                        assert '11' in line
+                    line = f.read(80).decode('ascii')
+            # not sure how to check the content of the file
+        finally:
+            # clean up
+            if os.path.isfile(cutout_dest):
+                os.remove(cutout_dest)
 
 
 @pytest.mark.intTests
@@ -224,7 +262,7 @@ def test_client_authenticated():
     # create a random root for file IDs
     # Note: "+" in the file name is testing the special character in URI
     test_file = '/tmp/cadcdata+inttest.txt'
-    id_root = 'cadc:TEST/cadcdata+intttest-{}'.format(random.randrange(100000))
+    id_root = 'test:CADC/cadcdata+intttest-{}'.format(random.randrange(100000))
     global_id = id_root + '/global'
     file_name = global_id.split('/')[-1]
     dest_file = os.path.join('/tmp', file_name)
@@ -267,6 +305,10 @@ def test_client_authenticated():
 
         client.cadcput(id=global_id, src=test_file)
 
+        # new - raven now finds the location immediately after the put
+        # and hides the eventual consistency effects
+        client.cadcinfo(global_id)
+
         file_info = None
         for resource_id in \
                 [id for id in location_resource_ids if 'minoc' in id]:
@@ -286,6 +328,7 @@ def test_client_authenticated():
         if os.path.isfile(dest_file):
             os.remove(dest_file)
         location_client.cadcget(global_id, dest=dest_file)
+
         assert filecmp.cmp(test_file, dest_file)
 
         # remove the file
@@ -319,7 +362,7 @@ def test_put_transactions():
         # create a random root for file IDs
         # Note: "+" in the file name is testing the special character in URI
         test_file = '/tmp/cadcdata+inttest.txt'
-        id_root = 'cadc:TEST/cadcdata+intttest-{}'.format(
+        id_root = 'test:CADC/cadcdata+intttest-{}'.format(
             random.randrange(100000))
         global_id = id_root + '/global'
         file_name = global_id.split('/')[-1]
@@ -345,7 +388,7 @@ def test_put_transactions():
             for line in reg.split('\n'):
                 line.strip()
                 if not line.startswith('#') and ('minoc' in line) and (
-                        '/ad/minoc' not in line):
+                        '/ad/minoc' not in line and 'site' not in line):
                     location_resource_ids.append(line.split('=')[0].strip())
 
             # test all operations on a location
@@ -414,7 +457,7 @@ def test_put_transaction_append():
         # create a random root for file IDs
         # Note: "+" in the file name is testing the special character in URI
         test_file = '/tmp/cadcdata+inttest.txt'
-        id_root = 'cadc:TEST/cadcdata+intttest-{}'.format(
+        id_root = 'test:CADC/cadcdata+intttest-{}'.format(
             random.randrange(100000))
         global_id = id_root + '/global'
         file_name = global_id.split('/')[-1]
@@ -440,7 +483,7 @@ def test_put_transaction_append():
             for line in reg.split('\n'):
                 line.strip()
                 if not line.startswith('#') and ('minoc' in line) and (
-                        '/ad/minoc' not in line):
+                        '/ad/minoc' not in line and 'site' not in line):
                     location_resource_ids.append(line.split('=')[0].strip())
 
             # test all operations on a location
@@ -472,9 +515,11 @@ def test_put_transaction_append():
                 return response
 
             client._cadc_client._get_session().put = tamper_md5
-            with pytest.raises(exceptions.TransferException) as te:
-                client.cadcput(id=id_root, src=test_file)
-            assert 'Mismatched md5 src vs dest:' in str(te)
+            # TODO re-activate when prod minoc is fixed
+            # https://github.com/opencadc/storage-inventory/issues/432
+            # with pytest.raises(exceptions.TransferException) as te:
+            #     client.cadcput(id=id_root, src=test_file)
+            # assert 'Mismatched md5 src vs dest:' in str(te)
 
             # transaction should be rolled back at this point so the file
             # should not be there

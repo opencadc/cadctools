@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2018.                            (c) 2018.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -67,26 +67,21 @@
 # ***********************************************************************
 #
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import logging
 import traceback
 import sys
 from clint.textui import progress
 import datetime
 from cadcutils import net, util, exceptions
-from six.moves import input
 import netrc as netrclib
 import os
 from cadctap import version
-from six.moves.urllib.parse import urlparse, urlencode
-import six
+from urllib.parse import urlparse, urlencode
 import contextlib
 import cadcutils
 from xml.dom import minidom
 import re
-from argparse import ArgumentError
+from argparse import ArgumentError, ArgumentTypeError
 
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 
@@ -106,7 +101,7 @@ CADC_AC_SERVICE = 'ivo://cadc.nrc.ca/gms'
 CADC_LOGIN_CAPABILITY = 'ivo://ivoa.net/std/UMS#login-0.1'
 CADC_SSO_COOKIE_NAME = 'CADC_SSO'
 CADC_REALMS = ['.canfar.net', '.cadc-ccda.hia-iha.nrc-cnrc.gc.ca',
-               '.cadc.dao.nrc.ca', '.canfar.phys.uvic.ca']
+               '.cadc.dao.nrc.ca']
 
 # allowed file formats for load
 ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values',
@@ -114,6 +109,9 @@ ALLOWED_CONTENT_TYPES = {'tsv': 'text/tab-separated-values',
                          'FITSTable': 'application/fits'}
 ALLOWED_TB_DEF_TYPES = {'VOSITable': 'text/xml',
                         'VOTable': 'application/x-votable+xml'}
+ALLOWED_QUERY_FORMATS = {'VOTable': 'votable',
+                         'tsv': 'tsv',
+                         'csv': 'csv'}
 AUTH_OPTION_EXPLANATION = \
     '\nTo obtain the host associated with a service, execute a subcommand\n'\
     'with the service in verbose mode without specifying any authentication\n'\
@@ -139,6 +137,39 @@ APP_NAME = 'cadc-tap'
 # for default authentication
 CADC_DOMAIN = 'cadc-ccda.hia-iha.nrc-cnrc.gc.ca'
 CANFAR_DOMAIN = 'canfar.net'
+
+
+def _format_choice_list(allowed_formats):
+    return ', '.join(sorted(allowed_formats))
+
+
+def resolve_app_format(value, allowed_formats, label='format'):
+    """
+    Resolve user input to a canonical application format name.
+
+    Accepts case-insensitive spellings of the format keys in
+    ``allowed_formats``.
+    """
+    if value in allowed_formats:
+        return value
+    matches = [key for key in allowed_formats if key.lower() == value.lower()]
+    if len(matches) == 1:
+        return matches[0]
+    raise ValueError(
+        'invalid {}: {!r} (choose from {})'.format(
+            label, value, _format_choice_list(allowed_formats)))
+
+
+def parse_app_format(allowed_formats, label='format'):
+    """Return an argparse type converter for application format names."""
+
+    def _parse(value):
+        try:
+            return resolve_app_format(value, allowed_formats, label)
+        except ValueError as ex:
+            raise ArgumentTypeError(str(ex)) from ex
+
+    return _parse
 
 
 class CadcTapClient(object):
@@ -179,6 +210,7 @@ class CadcTapClient(object):
         """
         self.resource_id = resource_id
         self.host = host
+        util.check_version(version=version.version)
         # cache schema info for multiple calls
         self._db_schemas = {}
 
@@ -241,12 +273,8 @@ class CadcTapClient(object):
                 'table name and definition required in create: {}/{}'.
                 format(table_name, table_definition))
 
-        if type not in ALLOWED_TB_DEF_TYPES.keys():
-            raise AttributeError(
-                'Table definition file type {} not supported ({})'.
-                format(type, ' '.join(ALLOWED_TB_DEF_TYPES.keys)))
-        else:
-            file_type = type
+        file_type = resolve_app_format(
+            type, ALLOWED_TB_DEF_TYPES, 'table definition format')
         logger.debug('Creating {} from file {} of type {}'.
                      format(table_name, table_definition, file_type))
         headers = {'Content-Type': ALLOWED_TB_DEF_TYPES[file_type]}
@@ -338,6 +366,9 @@ class CadcTapClient(object):
                 'table name and source requiered in upload: {}/{}'.
                 format(table_name, source))
 
+        fformat = resolve_app_format(
+            fformat, ALLOWED_CONTENT_TYPES, 'data format')
+
         if source == '-':
             source = ["/dev/stdin"]
 
@@ -360,7 +391,7 @@ class CadcTapClient(object):
 
     def query(self, query, output_file=None, response_format='VOTable',
               tmptable=None, lang='ADQL', timeout=2, data_only=False,
-              no_column_names=False):
+              no_column_names=False, maxrec=None):
         """
         Send query to database and output or save results
         :param query: the query to send to the database
@@ -373,71 +404,88 @@ class CadcTapClient(object):
         response receive from server.
         :param data_only: print only data with name of columns
         :param no_column_name: print just data with no column names
+        :param maxrec: maximum number of records to return (minimum 0)
         """
-        pass
         if not query:
             raise AttributeError('missing query')
 
+        if maxrec is not None and maxrec < 0:
+            raise ValueError('maxrec cannot be negative: {}'.format(maxrec))
+
+        response_format = resolve_app_format(
+            response_format, ALLOWED_QUERY_FORMATS, 'query format')
+        server_format = ALLOWED_QUERY_FORMATS[response_format]
+        is_votable = response_format == 'VOTable'
+
         fields = {'LANG': lang,
                   'QUERY': query,
-                  'FORMAT': response_format}
+                  'FORMAT': server_format}
+
+        if maxrec:
+            fields['MAXREC'] = str(maxrec)
+
+        upload_fh = None
         if tmptable is not None:
             tmp = tmptable.split(':')
             tablename = tmp[0]
             tablepath = tmp[1]
             tablefile = os.path.basename(tablepath)
             fields['UPLOAD'] = '{},param:{}'.format(tablename, tablefile)
-            fields[tablefile] = (tablepath, open(tablepath, 'rb'))
+            upload_fh = open(tablepath, 'rb')
+            fields[tablefile] = (tablepath, upload_fh)
 
-        logger.debug('QUERY fileds: {}'.format(fields))
-        m = MultipartEncoder(fields=fields)
-        # TODO the following if/else is temporary to support both TAP1.0 and
-        # TAP1.1 capabilities. For TAP1.1 the resource argument in the post
-        # should be the (QUERY_CAPABILITY_ID, None) tuple
-        url = self._tap_client._get_url((QUERY_CAPABILITY_ID, None))
-        if url.endswith('async'):
-            resource = url.replace('async', 'sync')
-        else:
-            resource = self._tap_client._get_url((QUERY_CAPABILITY_ID, 'sync'))
+        try:
+            logger.debug('QUERY fileds: {}'.format(fields))
+            m = MultipartEncoder(fields=fields)
+            # TODO the following if/else is temporary to support both TAP1.0 and
+            # TAP1.1 capabilities. For TAP1.1 the resource argument in the post
+            # should be the (QUERY_CAPABILITY_ID, None) tuple
+            url = self._tap_client._get_url((QUERY_CAPABILITY_ID, None))
+            if url.endswith('async'):
+                resource = url.replace('async', 'sync')
+            else:
+                resource = self._tap_client._get_url((QUERY_CAPABILITY_ID, 'sync'))
 
-        rows = 0
-        with self._tap_client.post(resource, params=fields,
-                                   data=m, headers={
-                                       'Content-Type': m.content_type},
-                                   stream=True, timeout=timeout*60) as result:
-            with smart_open(output_file, response_format) as f:
-                header = True
-                if data_only or no_column_names or \
-                        response_format == 'VOTable':
+            rows = 0
+            with self._tap_client.post(resource, params=fields,
+                                       data=m, headers={
+                                           'Content-Type': m.content_type},
+                                       stream=True, timeout=timeout*60) as result:
+                with smart_open(output_file, response_format) as f:
+                    header = True
+                    if data_only or no_column_names or is_votable:
+                        for chunk in result.iter_content(chunk_size=8192):
+                            if chunk:  # filter out keep-alive new chunks
+                                if not is_votable:
+                                    chunk = chunk.decode('utf-8')
+                                    if header and no_column_names and \
+                                            '\n' in chunk:
+                                        chunk = chunk[chunk.index('\n')+1:]
+                                        header = False
+                                f.write(chunk)
+                        return
+                    header = True
                     for chunk in result.iter_content(chunk_size=8192):
                         if chunk:  # filter out keep-alive new chunks
-                            if response_format != 'VOTable':
-                                chunk = chunk.decode('utf-8')
-                                if header and no_column_names and \
-                                        '\n' in chunk:
-                                    chunk = chunk[chunk.index('\n')+1:]
-                                    header = False
-                            f.write(chunk)
-                    return
-                header = True
-                for chunk in result.iter_content(chunk_size=8192):
-                    if chunk:  # filter out keep-alive new chunks
-                        chunk = chunk.decode('utf-8')
-                        if header and '\n' in chunk:
-                            index = chunk.index('\n')
-                            f.write(chunk[:index])
-                            f.write('\n-----------------------')
-                            f.write(chunk[index:])
-                            header = False
-                            rows = chunk.count('\n') - 1
-                        else:
-                            f.write(chunk)
-                            rows += chunk.count('\n')
-                if rows == 1:
-                    footer = '\n(1 row affected)\n'
-                else:
-                    footer = '\n({} rows affected)\n'.format(rows)
-                f.write(footer)
+                            chunk = chunk.decode('utf-8')
+                            if header and '\n' in chunk:
+                                index = chunk.index('\n')
+                                f.write(chunk[:index])
+                                f.write('\n-----------------------')
+                                f.write(chunk[index:])
+                                header = False
+                                rows = chunk.count('\n') - 1
+                            else:
+                                f.write(chunk)
+                                rows += chunk.count('\n')
+                    if rows == 1:
+                        footer = '\n(1 row affected)\n'
+                    else:
+                        footer = '\n({} rows affected)\n'.format(rows)
+                    f.write(footer)
+        finally:
+            if upload_fh is not None:
+                upload_fh.close()
 
     def schema(self, name=None):
         """
@@ -728,7 +776,7 @@ def smart_open(filename=None, content_format=None):
     # handles writing to files and stdout uniformly. If filename is None,
     # it returns stdout to write to.
     close_file = False
-    if filename and filename != '-' and isinstance(filename, six.string_types):
+    if filename and filename != '-' and isinstance(filename, str):
         if content_format == 'VOTable':
             fh = open(filename, 'wb')
         else:
@@ -832,7 +880,7 @@ def _get_subject_from_certificate():
     # if ~/.ssl/cadcproxy.pem exists, use certificate and return a subject
     cert_path = os.path.join(os.environ['HOME'], ".ssl/cadcproxy.pem")
     if os.path.isfile(cert_path):
-        return net.Subject(certificate=cert_path)
+        return net.Subject(certificate=cert_path, validate_certificate=True)
     else:
         return None
 
@@ -883,10 +931,10 @@ def exit_on_exception(ex):
         else:
             message = str(ex)
     if message:
-        # could be VOTable format
+        # could be votable format
         try:
             doc = minidom.parseString(message)
-            # in the absence of a VOTable parser, try a simple w
+            # in the absence of a votable parser, try a simple w
             for el in doc.getElementsByTagName('INFO'):
                 if el.attributes['name'].value == 'QUERY_STATUS' and \
                         el.attributes['value'].value == 'ERROR':
@@ -954,7 +1002,10 @@ def _get_permission_modes(opt):
     return props
 
 
-def main_app(command='cadc-tap query'):
+def build_parser(command='cadc-tap query'):
+    """
+    Build the ArgumentParser for cadc-tap (without parsing argv).
+    """
     parser = util.get_base_parser(version=version.version,
                                   service=DEFAULT_SERVICE_ID)
 
@@ -971,19 +1022,24 @@ def main_app(command='cadc-tap query'):
         'schema',
         description=('Print the tables available for querying.\n') +
         AUTH_OPTION_EXPLANATION,
-        help='Print the tables available for querying.')
+        help='print the tables available for querying.')
     schema_parser.add_argument(
         'tablename', metavar='SCHEMA.TABLENAME',
-        help='Table to get the schema for', nargs='?')
+        help='table to get the schema for', nargs='?')
     query_parser = subparsers.add_parser(
         'query',
         description=('Run an adql query\n') + AUTH_OPTION_EXPLANATION,
-        help='Run an adql query')
+        help='run an adql query')
     query_parser.add_argument(
         '-o', '--output-file',
         default=None,
         help='write query results to file (default is to STDOUT)',
         required=False)
+    query_parser.add_argument(
+        '-m', '--maxrec', type=int,
+        help='limit the number of returned records to this maximum',
+        required=False
+    )
     options_parser = query_parser.add_mutually_exclusive_group(required=True)
     options_parser.add_argument(
         'QUERY',
@@ -1011,13 +1067,14 @@ def main_app(command='cadc-tap query'):
     query_parser.add_argument(
         '-f', '--format',
         default='tsv',
-        choices=['VOTable', 'csv', 'tsv'],
-        help='output format, either tsv(default), csv, fits (TBD), or VOTable',
+        type=parse_app_format(ALLOWED_QUERY_FORMATS, 'query format'),
+        help='output format of query results ({}). Default tsv format'.format(
+            _format_choice_list(ALLOWED_QUERY_FORMATS)),
         required=False)
     query_parser.add_argument(
         '-t', '--tmptable',
         default=None,
-        help='Temp table upload, the value is in format: '
+        help='temp table upload, the value is in format: '
              '"tablename:/path/to/table". In query to reference the table'
              ' use tap_upload.tablename',
         required=False)
@@ -1041,11 +1098,14 @@ def main_app(command='cadc-tap query'):
     create_parser = subparsers.add_parser(
         'create',
         description='Create a table\n' + AUTH_OPTION_EXPLANATION,
-        help='Create a table')
+        help='create a table')
     create_parser.add_argument(
-        '-f', '--format', choices=sorted(ALLOWED_TB_DEF_TYPES.keys()),
+        '-f', '--format',
+        type=parse_app_format(ALLOWED_TB_DEF_TYPES, 'table definition format'),
         required=False, default='VOSITable',
-        help='Format of the table definition file. Default VOSITable format')
+        help='format of the table definition file ({}). '
+             'Default VOSITable format'.format(
+                 _format_choice_list(ALLOWED_TB_DEF_TYPES)))
     create_parser.add_argument(
         'TABLENAME',
         help='name of the table (<schema.table>) in the tap service')
@@ -1057,7 +1117,7 @@ def main_app(command='cadc-tap query'):
     delete_parser = subparsers.add_parser(
         'delete',
         description='Delete a table\n' + AUTH_OPTION_EXPLANATION,
-        help='Delete a table')
+        help='delete a table')
     delete_parser.add_argument(
         'TABLENAME',
         help='name of the table (<schema.table)'
@@ -1065,8 +1125,8 @@ def main_app(command='cadc-tap query'):
 
     index_parser = subparsers.add_parser(
         'index',
-        description='Create a table index\n' + AUTH_OPTION_EXPLANATION,
-        help='Create a table index')
+        description='create a table index\n' + AUTH_OPTION_EXPLANATION,
+        help='create a table index')
     index_parser.add_argument(
         '-U', '--unique', action='store_true',
         help='index is unique')
@@ -1079,12 +1139,14 @@ def main_app(command='cadc-tap query'):
 
     load_parser = subparsers.add_parser(
         'load',
-        description='Load data to a table\n' + AUTH_OPTION_EXPLANATION,
-        help='Load data to a table')
+        description='load data to a table\n' + AUTH_OPTION_EXPLANATION,
+        help='load data to a table')
     load_parser.add_argument(
-        '-f', '--format', choices=sorted(ALLOWED_CONTENT_TYPES.keys()),
+        '-f', '--format',
+        type=parse_app_format(ALLOWED_CONTENT_TYPES, 'data format'),
         required=False, default='tsv',
-        help='Format of the data file')
+        help='format of the data file ({})'.format(
+            _format_choice_list(ALLOWED_CONTENT_TYPES)))
     load_parser.add_argument(
         'TABLENAME',
         help='name of the table (<schema.table>) to load data to')
@@ -1097,7 +1159,7 @@ def main_app(command='cadc-tap query'):
         'permission',
         description='Update access permissions of a table or a schema. '
                     'Use schema command to display the existing permissions',
-        help='Control table access'
+        help='control table access'
     )
 
     def check_mode(mode):
@@ -1123,6 +1185,11 @@ def main_app(command='cadc-tap query'):
         help="name(s) of group(s) to assign read/write permission to. "
              "One group per r or w permission.")
 
+    return parser
+
+
+def main_app(command='cadc-tap query'):
+    parser = build_parser(command)
     args = parser.parse_args()
     if len(sys.argv) < 2:
         parser.print_usage(file=sys.stderr)
@@ -1174,14 +1241,19 @@ def main_app(command='cadc-tap query'):
             else:
                 query = args.QUERY
             client.query(query, args.output_file, args.format, args.tmptable,
-                         timeout=args.timeout, no_column_names=args.quiet)
+                         timeout=args.timeout, no_column_names=args.quiet,
+                         maxrec=args.maxrec)
         elif args.cmd == 'schema':
             client.schema(args.tablename)
         elif args.cmd == 'permission':
             try:
                 perms = _get_permission_modes(args)
             except ArgumentError as e:
-                permission_parser.print_usage(file=sys.stderr)
+                for action in parser._actions:
+                    choices = getattr(action, 'choices', None)
+                    if choices and 'permission' in choices:
+                        choices['permission'].print_usage(file=sys.stderr)
+                        break
                 raise e
             client.set_permissions(args.TARGET, read_anon=perms['read_anon'],
                                    read_only=perms['read_only'],

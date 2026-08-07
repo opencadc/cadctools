@@ -5,7 +5,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2016.                            (c) 2016.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -67,19 +67,17 @@
 #
 # ***********************************************************************
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import netrc
 import argparse
 import os
 import signal
 import sys
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 
 from .net.auth import get_cert, CRED_RESOURCE_ID, Subject
 from .net.ws import BaseWsClient, SERVICE_AVAILABILITY_ID
 from cadcutils import exceptions
+from cadcutils.util.cli_errors import format_user_error
 
 # CADC realms current and old
 CADC_REALMS = ['www.cadc-ccda.hia-iha.nrc-cnrc.gc.ca',
@@ -178,7 +176,7 @@ def _main():
             else:
                 sys.stderr.write("Access denied\n")
         except Exception as ex:
-            sys.stderr.write(str(ex))
+            sys.stderr.write('{}\n'.format(format_user_error(ex)))
             return getattr(ex, 'errno', 1)
 
 

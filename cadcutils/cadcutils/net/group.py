@@ -4,7 +4,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2021.                            (c) 2021.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -69,8 +69,6 @@
 """
 Module that contains functionality related to CADC groups.
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 
 import re
 
@@ -186,8 +184,8 @@ class GroupProperty:
         self.read_only = read_only
 
     def __eq__(self, other):
-        return self.key, self.value, self.read_only == other.key, other.value,\
-               other.read_only
+        return (self.key, self.value, self.read_only) == (
+            other.key, other.value, other.read_only)
 
     def __hash__(self):
         return hash((self.key, self.value))

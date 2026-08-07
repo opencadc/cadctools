@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2022.                            (c) 2022.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -65,119 +65,47 @@
 #
 # ***********************************************************************
 
-import errno
-import logging
-import os
-import sys
-import configparser
-from shutil import copyfile
+"""
+User-facing error messages for command-line tools.
+"""
+
+from cadcutils import exceptions
+
+__all__ = ['format_user_error']
 
 
-logger = logging.getLogger('config')
-logger.setLevel(logging.INFO)
+def format_user_error(exception):
+    """
+    Return a concise, actionable error message suitable for CLI output.
 
-if sys.version_info[1] > 6:
-    logger.addHandler(logging.NullHandler())
+    :param exception: the caught exception
+    :return: formatted message string (no stack trace)
+    """
+    if isinstance(exception, exceptions.SslException):
+        return str(exception)
 
+    if isinstance(exception, exceptions.UnauthorizedException):
+        return ('Authentication failed: invalid username/password '
+                'combination')
 
-def mkdir_p(path):
-    try:
-        os.makedirs(path)
-    except OSError as exc:
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
-            raise
+    if isinstance(exception, exceptions.NotFoundException):
+        return 'Not found: {}'.format(exception)
 
+    if isinstance(exception, exceptions.ForbiddenException):
+        return 'Unauthorized to perform operation'
 
-class Config(object):
+    if isinstance(exception, exceptions.UnexpectedException):
+        return 'Unexpected server error: {}'.format(exception)
 
-    def __init__(self, config_path, default_config_path=None):
-        logger.info("Using config file {0}.".format(config_path))
+    if isinstance(exception, ValueError):
+        msg = str(exception)
+        if 'certificate' in msg.lower():
+            return msg
 
-        # check config file exists and can be read
-        if not os.path.isfile(config_path) and not os.access(config_path,
-                                                             os.R_OK):
-            error = "Can not read {0}.".format(config_path)
-            logger.debug(error)
-            raise IOError(error)
+    if isinstance(exception, exceptions.HttpException):
+        msg = str(exception)
+        if msg:
+            return msg
+        return 'HTTP request failed'
 
-        self.parser = configparser.ConfigParser()
-        if default_config_path:
-            try:
-                self.parser.read_file(open(default_config_path))
-            except configparser.Error as exc:
-                logger.debug("Error opening {0} because {1}.".format(
-                    default_config_path, exc.message))
-
-        try:
-            self.parser.read(config_path)
-        except configparser.Error as exc:
-            logger.debug("Error opening {0} because {1}.".format(
-                config_path, exc.message))
-
-    def get(self, section, option):
-        try:
-            return self.parser.get(section, option)
-        except (configparser.NoOptionError, configparser.NoSectionError):
-            pass
-        return None
-
-    @staticmethod
-    def write_config(config_path, default_config_path):
-        """
-        :param config_path:
-        :param default_config_path:
-        :return:
-        """
-
-        # if not local config file then write the default config file
-        if not os.path.isfile(config_path):
-            mkdir_p(os.path.dirname(config_path))
-            copyfile(default_config_path, config_path)
-            return
-
-        # read local config file
-        parser = configparser.ConfigParser()
-        try:
-            parser.read(config_path)
-        except configparser.Error as exc:
-            logger.debug("Error opening {0} because {1}.".format(config_path,
-                                                                 exc.message))
-            return
-
-        # read default config file
-        default_parser = configparser.RawConfigParser()
-        try:
-            default_parser.read(default_config_path)
-        except configparser.Error as exc:
-            logger.debug("Error opening {0} because {1}.".format(
-                default_config_path, exc.message))
-            return
-
-        # update config file with new options from the default config
-        updated = False
-        for section in default_parser.sections():
-            default_items = default_parser.items(section)
-            for option, value in default_items:
-                if not parser.has_section(section):
-                    parser.add_section(section)
-                if not parser.has_option(section, option):
-                    parser.set(section, option, value)
-                    updated = True
-
-        # remove old options not in the default config file?
-        # for section in default_parser.sections():
-        #     options = parser.options(section)
-        #     for option in options:
-        #         if not default_parser.has_option(section, option):
-        #             parser.remove_option(section, option)
-
-        # write updated config file
-        if updated:
-            try:
-                config_file = open(config_path, 'w')
-                parser.write(config_file)
-                config_file.close()
-            except Exception as exc:
-                print(exc.message)
+    return str(exception)

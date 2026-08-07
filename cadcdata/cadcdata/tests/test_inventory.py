@@ -1,9 +1,8 @@
-# # -*- coding: utf-8 -*-
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2022.                            (c) 2022.
+#  (c) 2025.                            (c) 2025.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -71,18 +70,19 @@ import sys
 import shutil
 
 from io import StringIO
-from mock import Mock, patch, call
+from unittest.mock import Mock, patch, call
 import pytest
 import hashlib
 import base64
 import datetime
 from requests.structures import CaseInsensitiveDict
 import argparse
+import tempfile
 
 from cadcutils.net import auth
 from cadcutils import exceptions
 from cadcutils.util import str2ivoa
-from cadcdata import StorageInventoryClient, cadcget_cli, cadcput_cli,\
+from cadcdata import StorageInventoryClient, cadcget_cli, cadcput_cli, \
     cadcinfo_cli, cadcremove_cli
 from cadcdata import storageinv
 import cadcdata
@@ -110,7 +110,7 @@ def test_get():
     download_file_mock = Mock()
     client._cadc_client.download_file = download_file_mock
     client.cadcget('cadc:COLLECTION/file', dest='/tmp')
-    download_file_mock.assert_called_once_with(url='https://url1', dest='/tmp')
+    download_file_mock.assert_called_once_with(url='https://url1', dest='/tmp', params={})
 
     # raise error on the first url
     client._get_transfer_urls.reset_mock()
@@ -118,9 +118,9 @@ def test_get():
     download_file_mock.side_effect = [exceptions.TransferException(), None]
     client.cadcget('cadc:COLLECTION/file', dest='/tmp')
     assert 2 == download_file_mock.call_count
-    assert call(url='https://url1', dest='/tmp') in \
+    assert call(url='https://url1', dest='/tmp', params={}) in \
         download_file_mock.mock_calls
-    assert call(url='https://url2', dest='/tmp') in \
+    assert call(url='https://url2', dest='/tmp', params={}) in \
         download_file_mock.mock_calls
 
     # fhead call
@@ -128,8 +128,17 @@ def test_get():
     download_file_mock.reset_mock()
     download_file_mock.side_effect = None
     client.cadcget('cadc:COLLECTION/file', dest='/tmp', fhead=True)
-    download_file_mock.assert_called_once_with(url='https://url1?META=true',
-                                               dest='/tmp')
+    download_file_mock.assert_called_once_with(
+        url='https://url1', dest='/tmp', params={'META': 'true'})
+
+    # cutout call
+    client._get_transfer_urls.reset_mock()
+    download_file_mock.reset_mock()
+    download_file_mock.side_effect = None
+    client.cadcget('COLLECTION/file?cutOUT=[1][1:1]&Cutout=[2][2:2]', dest='/tmp')
+    download_file_mock.assert_called_once_with(
+        url='https://url1', dest='/tmp',
+        params={'SUB': ['[1][1:1]', '[2][2:2]']})
 
     # no urls after transfer negotiation
     client._get_transfer_urls.reset_mock()
@@ -153,10 +162,15 @@ def test_get():
     with pytest.raises(exceptions.TransferException):
         client.cadcget('cadc:COLLECTION/file', dest='/tmp')
 
+    # no cutouts and fhead at the same time
+    with pytest.raises(AttributeError):
+        client.cadcget('cadc:COLLECTION/file?CUTOUT=[1]',
+                       dest='/tmp', fhead=True)
+
 
 @pytest.mark.skipif(cadcdata.storageinv.MAGIC_WARN is not None,
                     reason='libmagic not available')
-@patch('cadcdata.core.net.BaseDataClient')
+@patch('cadcdata.storageinv.net.BaseDataClient')
 @patch('cadcdata.storageinv.net.extract_md5')
 @patch('cadcdata.storageinv.util.Md5File')
 def test_put(md5file_mock, extract_md5_mock, basews_mock):
@@ -220,15 +234,15 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
     client.cadcinfo = Mock(
         return_value=cadcdata.FileInfo('cadc:TEST/putfile',
                                        file_type='application/file',
-                                       encoding='none', md5sum='0x123456789'))
+                                       encoding='none', md5sum='2debfdcf79f03e4a65a667d21ef9de14'))
     client.cadcput('cadc:TEST/putfile', file_name, replace=True,
                    file_type='text/plain', file_encoding='us-ascii',
-                   md5_checksum='0x123456789')
+                   md5_checksum='2debfdcf79f03e4a65a667d21ef9de14')
     upload_mock.assert_not_called()
     post_mock.assert_called_with('https://url1/minoc/files',
                                  headers={'Content-Type': 'text/plain',
                                           'Content-Encoding': 'us-ascii',
-                                          'digest': 'md5=MHgxMjM0NTY3ODk='})
+                                          'digest': 'md5=Lev9z3nwPkplpmfSHvneFA=='})
 
     # no update required - data and metadata identical
     upload_mock.reset_mock()
@@ -239,26 +253,30 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
         return_value=cadcdata.FileInfo('cadc:TEST/putfile',
                                        file_type='text/plain',
                                        encoding='us-ascii',
-                                       md5sum='0x123456789'))
+                                       md5sum='2debfdcf79f03e4a65a667d21ef9de14'))
     client.cadcput('cadc:TEST/putfile', file_name, replace=True,
                    file_type='text/plain', file_encoding='us-ascii',
-                   md5_checksum='0x123456789')
+                   md5_checksum='2debfdcf79f03e4a65a667d21ef9de14')
     upload_mock.assert_not_called()
     post_mock.assert_not_called()
 
     # replace non existing file
+    upload_mock.reset_mock()
     client.cadcinfo.side_effect = [exceptions.NotFoundException()]
-    with pytest.raises(AttributeError):
-        client.cadcput('cadc:TEST/putfile', file_name, replace=True)
+    client.cadcput('cadc:TEST/putfile', file_name, replace=True)
+    assert upload_mock.call_count == 1
 
-    # put a new file that already exists
+    # put a file that already exists, with the same md5sum
+    upload_mock.reset_mock()
     client.cadcinfo = Mock(
         return_value=cadcdata.FileInfo('cadc:TEST/putfile',
                                        file_type='text/plain',
                                        encoding='us-ascii',
-                                       md5sum='0x123456789'))
-    with pytest.raises(AttributeError):
-        client.cadcput('cadc:TEST/putfile', file_name, replace=False)
+                                       md5sum='2debfdcf79f03e4a65a667d21ef9de14'))
+    client.cadcput('cadc:TEST/putfile', file_name, replace=False,
+                   md5_checksum='2debfdcf79f03e4a65a667d21ef9de14',
+                   file_encoding='us-ascii', file_type='text/plain')
+    assert upload_mock.call_count == 0
 
     # Transfer error on all urls
     upload_mock.reset_mock()
@@ -271,7 +289,7 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
     with pytest.raises(exceptions.HttpException):
         client.cadcput('cadc:TEST/putfile', file_name,
                        file_type='text/plain', file_encoding='us-ascii',
-                       md5_checksum='0x1234567890')
+                       md5_checksum='2debfdcf79f03e4a65a667d21ef9de14')
     assert upload_mock.call_count == \
         len(url_list) * cadcdata.storageinv.MAX_TRANSIENT_TRIES
 
@@ -288,7 +306,7 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
     with pytest.raises(exceptions.HttpException):
         client.cadcput('cadc:TEST/putfile', file_name,
                        file_type='text/plain', file_encoding='us-ascii',
-                       md5_checksum='0x1234567890')
+                       md5_checksum='2debfdcf79f03e4a65a667d21ef9de14')
     assert \
         upload_mock.call_count == 1 + cadcdata.storageinv.MAX_TRANSIENT_TRIES
 
@@ -304,11 +322,11 @@ def test_put(md5file_mock, extract_md5_mock, basews_mock):
     with pytest.raises(exceptions.HttpException):
         client.cadcput('cadc:TEST/putfile', file_name,
                        file_type='text/plain', file_encoding='us-ascii',
-                       md5_checksum='0x1234567890')
+                       md5_checksum='2debfdcf79f03e4a65a667d21ef9de14')
     assert upload_mock.call_count == 3
 
 
-@patch('cadcdata.core.net.BaseDataClient')
+@patch('cadcdata.storageinv.net.BaseDataClient')
 def test_remove(basews_mock):
     client = StorageInventoryClient(auth.Subject())
     # test a put
@@ -330,7 +348,7 @@ def test_remove(basews_mock):
         client.cadcremove('cadc:TEST/removefile')
     with pytest.raises(AttributeError):
         client.cadcremove(None)
-    with pytest.raises(AttributeError):
+    with pytest.raises(ValueError):
         client.cadcremove('invalid-uri')
 
     # file not found in "global"
@@ -391,26 +409,63 @@ def test_info(basews_mock):
         client.cadcinfo(id)
 
 
-@patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
-                                     MyExitError, MyExitError,
-                                     MyExitError]))
-def test_help():
-    """ Tests the helper displays for cadc* commands"""
-    # help
-    for cmd in ['cadcget', 'cadcput', 'cadcinfo', 'cadcremove']:
-        print('Testing "{} --help"'.format(cmd))
-        usage = open(
-            os.path.join(TESTDATA_DIR, '{}_help.txt'.format(cmd)), 'r').read()
+@patch('cadcdata.storageinv.net.BaseDataClient')
+def test_get_uris(basews_mock):
+    client = StorageInventoryClient(auth.Subject())
+    schemes = client._parse_scheme_config('')
+    assert len(schemes) == 1
+    assert schemes['default'] == ['cadc']
+    content = 'TEST: abc def:'
+    schemes = client._parse_scheme_config(content)
+    assert len(schemes) == 2
+    assert 'TEST' in schemes
+    assert len(schemes['TEST']) == 2
+    assert schemes['TEST'][0] == 'abc'
+    assert schemes['TEST'][1] == 'def'
+    assert schemes['default'] == ['cadc']
 
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = [cmd, '--help']
-            with pytest.raises(MyExitError):
-                getattr(cadcdata, '{}_cli'.format(cmd))()
+    content = ' TEST : abc def\n #default follows\ndefault: foo'
+    schemes = client._parse_scheme_config(content)
+    assert len(schemes) == 2
+    assert 'TEST' in schemes
+    assert len(schemes['TEST']) == 2
+    assert schemes['TEST'][0] == 'abc'
+    assert schemes['TEST'][1] == 'def'
+    assert 'default' in schemes
+    assert schemes['default'] == ['foo']
 
-        # Make it Python 3.10 compatible
-        actual = stdout_mock.getvalue().\
-            replace('options:', 'optional arguments:').strip('\n')
-        assert usage.strip('\n') == actual
+    with pytest.raises(ValueError):
+        client._parse_scheme_config('TEST')
+    with pytest.raises(ValueError):
+        client._parse_scheme_config('TEST:      ')
+    with pytest.raises(ValueError):
+        client._parse_scheme_config(':TEST abc')
+
+    uri = 'cadc:TEST/testfile.txt'
+    fixed_uris = client._get_uris(uri)
+    assert 1 == len(fixed_uris)
+    assert uri == fixed_uris[0]
+
+    # test _get_uris
+    tmpdirname = tempfile.mkdtemp()
+    # fool client to use a test .data_uri_scheme_map file
+    bogus_caps_file = os.path.join(tmpdirname, '.caps')
+    uri_map_file = os.path.join(tmpdirname, '.data_uri_scheme_map')
+    with open(uri_map_file, 'w') as f:
+        f.write('default: cadc\nMYARCHIVE: scheme1 scheme2')
+    orig_caps_file = client._data_client.caps.caps_file
+    try:
+        client._data_client.caps.caps_file = bogus_caps_file
+        myarchive_uris = client._get_uris('MYARCHIVE/file.fits')
+        default_uris = client._get_uris('SOMEARCHIVE/file.fits')
+    finally:
+        client._data_client.caps.caps_file = orig_caps_file
+
+    assert len(myarchive_uris) == 2
+    assert 'scheme1:MYARCHIVE/file.fits' == myarchive_uris[0]
+    assert 'scheme2:MYARCHIVE/file.fits' == myarchive_uris[1]
+
+    assert ['cadc:SOMEARCHIVE/file.fits'] == default_uris
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))
@@ -441,7 +496,8 @@ def test_cadcinfo_cli(cadcinfo_mock):
     sys.argv = ['cadcinfo', 'cadc:TEST/file1.txt.gz']
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         cadcinfo_cli()
-    expected = ('CADC Storage Inventory identifier cadc:TEST/file1.txt.gz:\n'
+    expected = ('CADC Storage Inventory artifact cadc:TEST/file1.txt.gz:\n'
+                '\t              id: cadc:TEST/file1.txt.gz\n'
                 '\t            name: file1.txt.gz\n'
                 '\t            size: 5\n'
                 '\t            type: text\n'
@@ -461,17 +517,19 @@ def test_cadcinfo_cli(cadcinfo_mock):
                           size='5000', md5sum='0x123456', file_type='text',
                           lastmod=str2ivoa('2021-12-22T10:00:00.000'))]
 
-    sys.argv = ['cadcinfo', 'cadc:TEST/file1.txt.gz', 'cadc:TEST/file2.txt']
+    sys.argv = ['cadcinfo', 'cadc:TEST/file1.txt.gz', 'TEST/file2.txt']
     with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
         cadcinfo_cli()
-    expected = ('CADC Storage Inventory identifier cadc:TEST/file1.txt.gz:\n'
+    expected = ('CADC Storage Inventory artifact cadc:TEST/file1.txt.gz:\n'
+                '\t              id: cadc:TEST/file1.txt.gz\n'
                 '\t            name: file1.txt.gz\n'
                 '\t            size: 5\n'
                 '\t            type: text\n'
                 '\t        encoding: gzip\n'
                 '\t   last modified: 2021-11-11T10:00:00.000\n'
                 '\t          md5sum: 0x33\n'
-                'CADC Storage Inventory identifier cadc:TEST/file2.txt:\n'
+                'CADC Storage Inventory artifact TEST/file2.txt:\n'
+                '\t              id: cadc:TEST/file2.txt\n'
                 '\t            name: file2.txt\n'
                 '\t            size: 5000\n'
                 '\t            type: text\n'
@@ -511,12 +569,12 @@ def test_cadcput_cli(putclient_mock):
     open(file3_path, 'w').write('TEST FILE3')
 
     # replace one file
-    sys.argv = ['cadcput', '-r', '--netrc-file', netrc,
+    sys.argv = ['cadcput', '--netrc-file', netrc,
                 'cadc:TEST/{}'.format(file1), file1_path]
     with patch('sys.stdout', new_callable=StringIO):
         cadcput_cli()
     calls = [call(id='cadc:TEST/file1', src=file1_path,
-                  file_type=None, file_encoding=None, replace=True)]
+                  file_type=None, file_encoding=None)]
     cadcput_mock.assert_has_calls(calls, any_order=True)
 
     # put multiple files in directory
@@ -526,9 +584,9 @@ def test_cadcput_cli(putclient_mock):
     with patch('sys.stdout', new_callable=StringIO):
         cadcput_cli()
     # file3 is in subdirectory and not part of the list
-    calls = [call(id='cadc:TEST/file2.txt', src=file2_path, replace=False,
+    calls = [call(id='cadc:TEST/file2.txt', src=file2_path,
                   file_type='application/text', file_encoding='encoded'),
-             call(id='cadc:TEST/file1.txt', src=file1_path, replace=False,
+             call(id='cadc:TEST/file1.txt', src=file1_path,
                   file_type='application/text', file_encoding='encoded')]
     cadcput_mock.assert_has_calls(calls, any_order=True)
 
@@ -538,11 +596,11 @@ def test_cadcput_cli(putclient_mock):
                 put_dir, file3_path]
     with patch('sys.stdout', new_callable=StringIO):
         cadcput_cli()
-    calls = [call(id='cadc:TEST/file2.txt', src=file2_path, replace=False,
+    calls = [call(id='cadc:TEST/file2.txt', src=file2_path,
                   file_type=None, file_encoding=None),
-             call(id='cadc:TEST/file3.txt', src=file3_path,  replace=False,
+             call(id='cadc:TEST/file3.txt', src=file3_path,
                   file_type=None, file_encoding=None),
-             call(id='cadc:TEST/file1.txt', src=file1_path,  replace=False,
+             call(id='cadc:TEST/file1.txt', src=file1_path,
                   file_type=None, file_encoding=None)]
     cadcput_mock.assert_has_calls(calls, any_order=True)
     # cleanup
@@ -554,7 +612,7 @@ def test_cadcput_cli(putclient_mock):
         with pytest.raises(MyExitError):
             cadcremove_cli()
         assert 'cadcput: error: one of the arguments --cert -n ' \
-               '--netrc-file -u/--user is' in stderr_mock.getvalue()
+               '--netrc-file -u/--user --token is' in stderr_mock.getvalue()
 
 
 @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))
@@ -579,7 +637,7 @@ def test_cadcremove_cli(removeclient_mock):
         with pytest.raises(MyExitError):
             cadcremove_cli()
         assert 'cadcremove: error: one of the arguments --cert -n ' \
-               '--netrc-file -u/--user is' in stderr_mock.getvalue()
+               '--netrc-file -u/--user --token is' in stderr_mock.getvalue()
 
 
 def test_validate_uri():
@@ -595,8 +653,38 @@ def test_validate_uri():
         storageinv.argparse_validate_uri(None)
 
     # no scheme
-    with pytest.raises(AttributeError):
-        storageinv.validate_uri('/tmp/somefile.txt')
+    storageinv.validate_uri('/tmp/somefile.txt', strict=False)
+    with pytest.raises(ValueError):
+        storageinv.validate_uri('/tmp/somefile.txt', strict=True)
 
+    storageinv.argparse_validate_uri('/tmp/somefile.txt')
     with pytest.raises(argparse.ArgumentTypeError):
-        storageinv.argparse_validate_uri('/tmp/somefile.txt')
+        storageinv.argparse_validate_uri_strict('/tmp/somefile.txt')
+
+
+def test_validate_get_uri():
+    valid_uri = 'cadc:TEST/somefile.txt?CutOUT=[1]'
+    assert None is storageinv.validate_get_uri(valid_uri)
+    assert valid_uri == storageinv.argparse_validate_get_uri(valid_uri)
+
+    valid_uri += '&cutout=[2]'
+    assert None is storageinv.validate_get_uri(valid_uri)
+    assert valid_uri == storageinv.argparse_validate_get_uri(valid_uri)
+
+    valid_uri = 'cadc:TEST/comefile.txt?PARAM=val'
+    assert None is storageinv.validate_get_uri(valid_uri)
+    assert valid_uri == storageinv.argparse_validate_get_uri(valid_uri)
+
+    # various typos
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txt[1]')
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txtCUTOUT=[1]')
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txt?[1]')
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txt?CUTOUT[1]')
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txt[1]?CUTOUT=[1]&CUTOUT[2]')
+    with pytest.raises(ValueError):
+        storageinv.validate_get_uri('cadc:TEST/somefile.txt?CUTOUT=[1]&CUTUOT=[2]')

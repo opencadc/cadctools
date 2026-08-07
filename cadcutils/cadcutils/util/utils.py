@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2022.                            (c) 2022.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -64,28 +64,39 @@
 #
 #
 # ***********************************************************************
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 import logging
 import sys
 import inspect
 from argparse import ArgumentParser, RawDescriptionHelpFormatter, SUPPRESS, \
     Action
 from datetime import datetime
-from six.moves.urllib.parse import urlparse
+from urllib.parse import urlparse
 from operator import attrgetter
 import hashlib
 import os
+from packaging.version import Version
+import requests
+import time
+import json
+import warnings
+from pathlib import Path
+from cadcutils import exceptions
 
-__all__ = ['IVOA_DATE_FORMAT', 'date2ivoa', 'str2ivoa',
-           'get_logger', 'get_log_level', 'get_base_parser', 'Md5File']
+__all__ = ['IVOA_DATE_FORMAT', 'date2ivoa', 'str2ivoa', 'get_url_content',
+           'get_logger', 'get_log_level', 'get_base_parser', 'Md5File',
+           'check_version', 'VersionWarning']
 
 # TODO both these are very bad, implement more sensibly
 IVOA_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S.%f"
 
+CADC_CACHE_DIR = os.path.join(os.path.expanduser("~"), '.config')
+VERSION_REFRESH_INTERVAL = 24 * 60 * 60  # 24h
+
 DEFAULT_LOG_FORMAT = "%(levelname)s: %(name)s %(message)s"
 DEBUG_LOG_FORMAT = "%(levelname)s: @(%(asctime)s) %(name)s " \
                    "%(module)s.%(funcName)s:%(lineno)d - %(message)s"
+
+logger = logging.getLogger(__name__)
 
 
 def date2ivoa(d):
@@ -259,6 +270,7 @@ class _CustomArgParser(ArgumentParser):
         self.subparsers = subparsers
         self._subparsers_added = False
         self.kwargs = kwargs
+        self._version = version
         kwargs['formatter_class'] = SingleMetavarHelpFormatter
         if not self.subparsers:
             super(_CustomArgParser, self).__init__(parents=[common_parser],
@@ -280,8 +292,31 @@ class _CustomArgParser(ArgumentParser):
     def parse_args(self, args=None, namespace=None):
         if self.subparsers and not self._subparsers_added:
             raise RuntimeError('No subparsers added. Change the parsers flag?')
-        return super(_CustomArgParser, self).parse_args(args=args,
-                                                        namespace=namespace)
+        result = super(_CustomArgParser, self).parse_args(args=args,
+                                                          namespace=namespace)
+        if hasattr(result, 'verbose') and result.verbose:
+            logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+            logger.setLevel(logging.INFO)
+        elif hasattr(result, 'debug') and result.debug:
+            logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
+            logger.setLevel(logging.DEBUG)
+        elif hasattr(result, 'quiet') and result.quiet:
+            logging.basicConfig(level=logging.FATAL, stream=sys.stdout)
+            logger.setLevel(logging.FATAL)
+        else:
+            logging.basicConfig(level=logging.WARNING, stream=sys.stdout)
+
+        # print package version info
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", category=VersionWarning)
+            try:
+                check_version(self._version)
+            except VersionWarning as e:
+                logger.warning('{}'.format(str(e)))
+            except Exception as e:
+                logger.debug('Unexpected exception in check_version: {}'.format(str(e)))
+                pass
+        return result
 
 
 def get_base_parser(subparsers=True, version=None, usecert=True,
@@ -323,9 +358,12 @@ def get_base_parser(subparsers=True, version=None, usecert=True,
                             help='name of user to authenticate. ' +
                                  'Note: application prompts for the '
                                  'corresponding password!')
+    auth_group.add_argument('--token', type=str,
+                            help='authentication token to use.')
     cparser.add_argument('--host', help=SUPPRESS)
     cparser.add_argument('-k', '--insecure', action='store_true',
-                         help=SUPPRESS)
+                         help='skip SSL server certificate verification '
+                              '(for testing only; not recommended)')
     if service is None:
         if default_resource_id is None:
             cparser.add_argument('--resource-id',
@@ -455,3 +493,128 @@ class Md5File(object):
     @property
     def md5_checksum(self):
         return self._md5_checksum.hexdigest()
+
+
+def get_url_content(url, cache_file, refresh_interval, verify=True):
+    """
+     Return content of a url from a cache file or directly from source if the
+     cache is stale (file is older than refresh_interval). For now, the access
+     to the url is anonymous.
+     :param url: URL of the source
+     :param cache_file: cache file location
+     :param refresh_interval: how long (in sec) to consider the cache stale
+     :param verify: verify the HTTPS server certificate. This should be
+     set to False only for testing purposes
+
+     :returns content of the url from source or cache
+    """
+    content = None
+    if os.path.exists(cache_file):
+        last_accessed = os.path.getmtime(cache_file)
+    else:
+        last_accessed = None
+    if (last_accessed and (time.time() - last_accessed) < refresh_interval):
+        # get content from the cached file
+        logger.debug(
+            'Read cached content of {}'.format(cache_file))
+        try:
+            with open(cache_file, 'r') as f:
+                content = f.read()
+        except Exception:
+            # will download it
+            pass
+    # config dirs if they don't exist yet
+    if not os.path.exists(os.path.dirname(cache_file)):
+        os.makedirs(os.path.dirname(cache_file))
+
+    if not content:
+        # get content from source URL
+        try:
+            session = requests.Session()
+            # do not allow requests to use .netrc file
+            session.trust_env = False
+            rsp = session.get(url, verify=verify)
+            rsp.raise_for_status()
+            content = rsp.text
+            if content is None or len(content.strip(' ')) == 0:
+                # workaround for a problem with CADC servers
+                raise exceptions.HttpException('Received empty content')
+            with open(cache_file, 'w') as f:
+                f.write(content)
+        except Exception as e:
+            # problems with the source. Try to use the old
+            # local one regardless of how old it is
+            logger.debug("Cannot read content from {}: {}".format(url, str(e)))
+            if os.path.exists(cache_file):
+                with open(cache_file, 'r') as f:
+                    content = f.read()
+                # touch the cache file to reduce the remote calls to the frequency dictated
+                # by the refresh_interval even if errors are later encountered.
+                Path(cache_file).touch()
+    if content is None:
+        raise RuntimeError('Cannot get content from {}'.format(url))
+    return content
+
+
+class VersionWarning(Warning):
+    # category of warnings when current version falls behind the released version
+    pass
+
+
+def check_version(version):
+    """
+    Function to test the version of a package against PyPI and issue
+    a warning when a newer version exists on PyPI. It will check only against
+    versions of format "major.minor.micro" and ignore the others including pre-releases
+    or dev releases.
+
+    Note: Only the first check of a package is performed. Subsequent calls
+    for the same package are ignored.
+
+    :param version: package version of the form "<package_name> <version>
+    e.g. "cadcutils 1.2.3"
+
+    :return: raises a VersionWarning when PyPI version is ahead.
+    """
+    strict_versions = None
+    current_version = None
+    try:
+        package, pkg_version = version.split(' ')
+        if package in check_version.checked:
+            return
+        check_version.checked.append(package)
+        cache_file = os.path.join(CADC_CACHE_DIR, package, 'caches/.pypi_versions.json')
+        content = get_url_content(
+            url='https://pypi.org/pypi/{}/json'.format(package),
+            cache_file=cache_file,
+            refresh_interval=VERSION_REFRESH_INTERVAL)
+        data = json.loads(content)
+        versions = list(data['releases'].keys())
+        current_version = Version(pkg_version)
+        strict_versions = []
+        for v in versions:
+            try:
+                tempv = Version(v)  # version
+                if not tempv.is_devrelease and not tempv.is_prerelease:
+                    strict_versions.append(
+                        Version('{}.{}.{}'.format(tempv.major, tempv.minor, tempv.micro)))
+            except ValueError:
+                continue
+        strict_versions.sort()
+    except Exception as e:
+        logger.debug(
+            'Unexpected exception in PyPI version checking: {}'.format(str(e)))
+        pass
+    if strict_versions and current_version < strict_versions[-1]:
+        current_warn_formatting = warnings.formatwarning
+        warnings.formatwarning = lambda message, *ignore: 'WARNING: {}\n'.format(message)
+        warnings.warn('Current version {}. A newer version, {}, '
+                      'is available on PyPI'.format(version,
+                                                    strict_versions[-1]),
+                      category=VersionWarning)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        warnings.formatwarning = current_warn_formatting
+
+
+check_version.checked = []  # packages already checked

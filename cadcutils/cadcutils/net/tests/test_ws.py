@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2022.                            (c) 2022.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -65,17 +65,13 @@
 #
 # ***********************************************************************
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import os
-import time
 import unittest
 
 import requests
-from mock import Mock, patch, call, mock_open, ANY
-from six import StringIO
-from six.moves.urllib.parse import urlparse
+from unittest.mock import Mock, patch, call, ANY
+from io import StringIO
+from urllib.parse import urlparse
 import tempfile
 import pytest
 import hashlib
@@ -85,11 +81,61 @@ from cadcutils import exceptions
 from cadcutils import net
 from cadcutils.net import ws, auth
 from cadcutils.net.ws import DEFAULT_RETRY_DELAY, MAX_RETRY_DELAY, \
-    MAX_NUM_RETRIES, SERVICE_RETRY
+    MAX_NUM_RETRIES, SERVICE_RETRY, _check_server_version
 
 # The following is a temporary workaround for Python issue
 # 25532 (https://bugs.python.org/issue25532)
 call.__wrapped__ = None
+
+# Content type header
+CONTENT_TYPE = 'Content-Type'
+TEXT_TYPE = 'text/plain'
+
+
+def test_check_server_version():
+    assert _check_server_version(None, None) is None
+    assert _check_server_version({}, None) is None
+    assert _check_server_version({'server1': '1.3'}, None) is None
+    assert _check_server_version(None, 'OpenCADC/cadc-rest + cadc/server1-1.2.3') is None
+
+    with pytest.raises(RuntimeError):
+        _check_server_version({'server1': '1.1'},
+                              'OpenCADC/cadc-rest + cadc/server1-1.2.3')
+
+    # not trigger cases
+    # same version
+    _check_server_version({'server1': '1.2'},
+                          'OpenCADC/cadc-rest + cadc/server1-1.2')
+
+    # patch version
+    _check_server_version({'server1': '1.2'}, 'OpenCADC/cadc-rest + cadc/server1-1.2.3')
+
+    # client ahead
+    _check_server_version({'server1': '1.5'},
+                          'OpenCADC/cadc-rest + cadc/server1-0.7')
+
+    _check_server_version({'server1': '1.5'},
+                          'OpenCADC/cadc-rest + cadc/server1-1.3.4')
+
+    # client works with multiple server APIs
+    _check_server_version({'server0': '0.1', 'server1': '1.2'},
+                          'OpenCADC/cadc-rest + cadc/server1-1.2.3')
+
+    with pytest.raises(RuntimeError):
+        _check_server_version({'server0': '2.3', 'server1': '1.1'},
+                              'OpenCADC/cadc-rest + cadc/server1-1.2.3')
+
+    # error cases
+    with pytest.raises(ValueError):
+        _check_server_version({'server1': '1.1.1'},
+                              'OpenCADC/cadc-rest + cadc/server1-1.2.3')
+
+    with pytest.raises(ValueError):
+        _check_server_version({'server1': '1.1a'},
+                              'OpenCADC/cadc-rest + cadc/server1-1.2.3')
+    with pytest.raises(ValueError):
+        _check_server_version({'server1': '1.1'},
+                              'OpenCADC/cadc-rest + cadc/server1-1.2a')
 
 
 class TestListResources(unittest.TestCase):
@@ -155,11 +201,8 @@ class TestListResources(unittest.TestCase):
             ws.list_resources()
             self.assertEqual(usage, stdout_mock.getvalue().strip())
 
-
-class TestWs(unittest.TestCase):
-    """Class for testing the webservie client"""
-
     @patch('cadcutils.net.ws.WsCapabilities')
+    @patch('cadcutils.net.cert_validation.validate_client_certificate')
     @patch('cadcutils.net.auth.os.path.isfile', Mock())
     @patch('cadcutils.net.auth.netrclib')
     @patch('cadcutils.net.ws.RetrySession.put')
@@ -168,7 +211,7 @@ class TestWs(unittest.TestCase):
     @patch('cadcutils.net.ws.RetrySession.get')
     @patch('cadcutils.net.ws.RetrySession.post')
     def test_ops(self, post_mock, get_mock, delete_mock, head_mock, put_mock,
-                 netrclib_mock, caps_mock):
+                 netrclib_mock, validate_cert_mock, caps_mock):
         anon_subject = auth.Subject()
         with self.assertRaises(ValueError):
             ws.BaseWsClient(None, anon_subject, "TestApp")
@@ -378,7 +421,7 @@ class TestWs(unittest.TestCase):
     @patch('cadcutils.net.ws.WsCapabilities')
     def test_upload_file_no_put_txn(self, caps_mock, md5_file_mock):
         anon_subject = auth.Subject()
-        target_url = 'https://someurl'
+        target_url = 'https://someurl/path/file'
         cm = Mock()
         cm.get_access_url.return_value = "http://host/availability"
         caps_mock.return_value = cm
@@ -403,29 +446,76 @@ class TestWs(unittest.TestCase):
         md5_file_mock_obj.md5_checksum = content_md5
         net.add_md5_header(headers=response.headers, md5_checksum=content_md5)
         md5_file_mock_obj.md5_checksum = content_md5
-        client.upload_file(url=target_url, src=src.name)
+        # add caller headers and test they are passed through
+        caller_header = {CONTENT_TYPE: TEXT_TYPE}
+        client.upload_file(url=target_url, src=src.name, headers=caller_header)
         session.put.assert_called_once()
         put_headers = {}
         net.add_md5_header(headers=put_headers, md5_checksum=content_md5)
         put_headers[ws.HTTP_LENGTH] = str(len(content))
         net.add_md5_header(headers=put_headers, md5_checksum=content_md5)
-        session.put.assert_called_with(target_url, headers=put_headers,
+        expected_headers = caller_header
+        expected_headers.update(put_headers)
+        session.put.assert_called_with(target_url, headers=expected_headers,
                                        data=ANY, verify=True)
 
         # pass the md5 in update small file
         session.put.reset_mock()
-        client.upload_file(url=target_url, src=src.name,
-                           md5_checksum=content_md5)
+        rsp = client.upload_file(url=target_url, src=src.name,
+                                 md5_checksum=content_md5)
+        assert ('file', content_md5, len(content)) == rsp
         session.put.assert_called_once()
         session.put.assert_called_with(target_url, headers=put_headers,
                                        data=ANY, verify=True)
 
+        # force calculate md5 on the fly
+        orig_max_md5_compute_size = ws.MAX_MD5_COMPUTE_SIZE
+        session.put.reset_mock()
+        try:
+            ws.MAX_MD5_COMPUTE_SIZE = 3
+            rsp = client.upload_file(url=target_url, src=src.name)
+            assert ('file', content_md5, len(content)) == rsp
+            session.put.assert_called_once()
+            session.put.assert_called_with(
+                target_url,
+                headers={ws.HTTP_LENGTH: str(len(content)), ws.PUT_TXN_OP: ws.PUT_TXN_START},
+                data=ANY, verify=True)
+        except Exception as e:
+            ws.MAX_MD5_COMPUTE_SIZE = orig_max_md5_compute_size
+            raise e
+
+        # mimic large file that requires to be split in segments
+        # force calculate md5 on the fly
+        orig_max_md5_compute_size = ws.MAX_MD5_COMPUTE_SIZE
+        orig_file_segment_threshold = ws.FILE_SEGMENT_THRESHOLD
+        session.put.reset_mock()
+        try:
+            ws.MAX_MD5_COMPUTE_SIZE = 3
+            ws.FILE_SEGMENT_THRESHOLD = 3
+            rsp = client.upload_file(url=target_url, src=src.name)
+            assert ('file', content_md5, len(content)) == rsp
+            assert len(session.put.mock_calls) == 2
+            # 2 calls - one to start transaction and the other one to
+            # do the transfer since the response does not contain a
+            # transaction id (usually a sign that the server doesn't support it
+            assert [call(target_url, verify=True,
+                         headers={ws.HTTP_LENGTH: '0',
+                                  ws.PUT_TXN_TOTAL_LENGTH: str(len(content)),
+                                  ws.PUT_TXN_OP: ws.PUT_TXN_START}),
+                    call(target_url,
+                         headers={ws.HTTP_LENGTH: str(len(content))},
+                         data=ANY, verify=True)] == session.put.mock_calls
+        finally:
+            ws.MAX_MD5_COMPUTE_SIZE = orig_max_md5_compute_size
+            ws.FILE_SEGMENT_THRESHOLD = orig_file_segment_threshold
+
         # make it fail the first attempt but succeed on the next
         session.put.reset_mock()
         session.put.side_effect = [exceptions.PreconditionFailedException,
-                                   Mock()]
-        client.upload_file(url=target_url, src=src.name,
-                           md5_checksum=content_md5)
+                                   response]
+        rsp = client.upload_file(url=target_url, src=src.name,
+                                 md5_checksum=content_md5)
+        assert ('file', content_md5, len(content)) == rsp
         assert session.put.mock_calls == [
             call(target_url, headers=put_headers, data=ANY, verify=True),
             call(target_url, headers=put_headers, data=ANY, verify=True)]
@@ -448,7 +538,7 @@ class TestWs(unittest.TestCase):
     @patch('cadcutils.net.ws.WsCapabilities')
     def test_upload_file_put_txn(self, caps_mock, md5_file_mock):
         anon_subject = auth.Subject()
-        target_url = 'https://someurl'
+        target_url = 'https://someurl/path/file'
         cm = Mock()
         cm.get_access_url.return_value = "http://host/availability"
         caps_mock.return_value = cm
@@ -480,35 +570,56 @@ class TestWs(unittest.TestCase):
                                 ws.HTTP_LENGTH: str(len(content))}
             net.add_md5_header(response_headers, content_md5)
             session.put.return_value = Mock(headers=response_headers)
+            # add caller headers and test they are passed through
+            caller_header = {CONTENT_TYPE: TEXT_TYPE}
             # lower the threshold for "large" files so that the current test
             # files becomes large
             ws.MAX_MD5_COMPUTE_SIZE = 10
             # PUT headers do not contain the md5 anymore
-            client.upload_file(url=target_url, src=src.name)
+            rsp = client.upload_file(url=target_url, src=src.name,
+                                     headers=caller_header)
+            assert ('file', content_md5, len(content)) == rsp
             put_headers = {ws.HTTP_LENGTH: str(len(content)),
                            ws.PUT_TXN_OP: ws.PUT_TXN_START}
             commit_headers = {ws.PUT_TXN_ID: '123',
                               ws.PUT_TXN_OP: ws.PUT_TXN_COMMIT,
                               ws.HTTP_LENGTH: '0'}
+            expected_put_headers = dict(caller_header)
+            expected_put_headers.update(put_headers)
+            expected_commit_headers = dict(caller_header)
+            expected_commit_headers.update(commit_headers)
             assert session.put.mock_calls == \
-                [call(target_url, data=ANY, verify=True, headers=put_headers),
-                 call(target_url, headers=commit_headers, verify=True)]
+                [call(target_url, data=ANY, verify=True,
+                      headers=expected_put_headers),
+                 call(target_url, verify=True,
+                      headers=expected_commit_headers)]
 
             # repeat but provide the checksum as argument to upload_file so
             # no transaction is required
             del put_headers[ws.PUT_TXN_OP]
             session.put.reset_mock()
-            client.upload_file(url=target_url, src=src.name,
-                               md5_checksum=content_md5)
+            rsp = client.upload_file(
+                url=target_url, src=src.name, md5_checksum=content_md5)
             net.add_md5_header(headers=put_headers, md5_checksum=content_md5)
             session.put.assert_called_with(target_url, headers=put_headers,
                                            data=ANY, verify=True)
+            assert ('file', content_md5, len(content)) == rsp
+
+            # mimic a replacement where source and destination are identical
+            session.put.reset_mock()
+            head_headers = {}
+            net.add_md5_header(head_headers, content_md5)
+            head_response = Mock(headers=head_headers)
+            session.head.return_value = head_response
+            rsp = client.upload_file(url=target_url, src=src.name, md5_checksum=content_md5)
+            session.put.assert_not_called()
+            assert ('file', content_md5, len(content)) == rsp
 
             # mimic md5 mismatch
             session.put.reset_mock()
             response_headers = {ws.PUT_TXN_ID: '123',
                                 ws.HTTP_LENGTH: str(len(content))}
-            net.add_md5_header(response_headers, 'beef')
+            net.add_md5_header(response_headers, 'd41d8cd98f00b204e9800998ecf8427e')
             session.put.return_value = Mock(headers=response_headers)
 
             with pytest.raises(exceptions.TransferException):
@@ -528,7 +639,7 @@ class TestWs(unittest.TestCase):
     @patch('cadcutils.net.ws.WsCapabilities')
     def test_upload_file_put_txn_append(self, caps_mock):
         anon_subject = auth.Subject()
-        target_url = 'https://someurl'
+        target_url = 'https://someurl/path/file'
         cm = Mock()
         cm.get_access_url.return_value = "http://host/availability"
         caps_mock.return_value = cm
@@ -613,7 +724,7 @@ class TestWs(unittest.TestCase):
                                 # return a mismatch md5 response
                                 tmp_hd = {ws.PUT_TXN_ID: '123',
                                           ws.HTTP_LENGTH: '0'}
-                                net.add_md5_header(tmp_hd, 'beef')
+                                net.add_md5_header(tmp_hd, 'beef'*8)
                                 rsp = Mock(headers=tmp_hd)
                             put_mock.wrong_md5 = None
                             return rsp
@@ -621,13 +732,16 @@ class TestWs(unittest.TestCase):
                         # check length of segments
                         assert headers[ws.HTTP_LENGTH] == \
                             str(len(segments[put_mock.put_num-1]))
+                        assert headers[CONTENT_TYPE] == TEXT_TYPE
                     else:
                         assert headers[ws.PUT_TXN_OP] == ws.PUT_TXN_COMMIT
                         assert headers[ws.HTTP_LENGTH] == '0'
+                        assert headers[CONTENT_TYPE] == TEXT_TYPE
                 else:
                     assert headers[ws.PUT_TXN_OP] == ws.PUT_TXN_START
                     assert headers[ws.HTTP_LENGTH] == '0'
                     assert headers[ws.PUT_TXN_TOTAL_LENGTH] == str(file_size)
+                    assert headers[CONTENT_TYPE] == TEXT_TYPE
                 if data:
                     data.read(100)
                 rsp = put_responses[put_mock.put_num]
@@ -637,7 +751,10 @@ class TestWs(unittest.TestCase):
             put_mock.put_num = 0
             put_mock.wrong_md5 = None
             session.put = put_mock
-            client.upload_file(url=target_url, src=src.name)
+            # add caller headers and test they are passed through
+            caller_header = {CONTENT_TYPE: TEXT_TYPE}
+            client.upload_file(url=target_url, src=src.name,
+                               headers=caller_header)
             # check all puts were called
             assert len(put_responses) == put_mock.put_num
 
@@ -651,33 +768,37 @@ class TestWs(unittest.TestCase):
             put_responses = _create_put_responses()
             file_size = os.stat(src.name).st_size
 
-            client.upload_file(url=target_url, src=src.name)
+            client.upload_file(url=target_url, src=src.name,
+                               headers=caller_header)
             # check all puts were called
             assert len(put_responses) == put_mock.put_num
 
             # redo the test but have an exception thrown in PUT for segment 2
             put_mock.exception = 2
             put_mock.put_num = 0
-            client.upload_file(url=target_url, src=src.name)
+            client.upload_file(url=target_url, src=src.name,
+                               headers=caller_header)
             # check all puts were called
             assert len(put_responses) == put_mock.put_num
 
             # redo the test but have a md5 mismatch for segment 1
             put_mock.wrong_md5 = 1
             put_mock.put_num = 0
-            client.upload_file(url=target_url, src=src.name)
+            client.upload_file(url=target_url, src=src.name,
+                               headers=caller_header)
             # check all puts were called
             assert len(put_responses) == put_mock.put_num
 
             # repeat the test but have a md5 mismatch for segment 2
             put_mock.wrong_md5 = 2
             put_mock.put_num = 0
-            client.upload_file(url=target_url, src=src.name)
+            client.upload_file(url=target_url, src=src.name,
+                               headers=caller_header)
             # check all puts were called
             assert len(put_responses) == put_mock.put_num
 
             # permanent Transfer error
-            session.put = Mock(Mock(headers=start_txn_headers),
+            session.put = Mock(headers=start_txn_headers,
                                side_effect=[exceptions.TransferException] * 3)
             with pytest.raises(exceptions.TransferException):
                 client.upload_file(url=target_url, src=src.name)
@@ -759,6 +880,18 @@ class TestRetrySession(unittest.TestCase):
         send_mock.side_effect = [ce]
         with self.assertRaises(exceptions.HttpException):
             rs.send(request)
+
+        # SSL connection error
+        send_mock.reset_mock()
+        rs = ws.RetrySession()
+        ssl_err = requests.exceptions.SSLError(
+            '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed')
+        ce = requests.exceptions.ConnectionError('HTTPSConnectionPool failed')
+        ce.__cause__ = ssl_err
+        send_mock.side_effect = [ce]
+        with self.assertRaises(exceptions.SslException) as ctx:
+            rs.send(request)
+        self.assertIn('certificate verification failed', str(ctx.exception))
 
         # mock reset by peer error
         # mock Connection errors
@@ -1020,7 +1153,7 @@ class TestRetrySession(unittest.TestCase):
         time_mock.assert_called_with(DEFAULT_RETRY_DELAY)
 
 
-capabilities__content = \
+capabilities_content = \
     """
     <vosi:capabilities
     xmlns:vosi="http://www.ivoa.net/xml/VOSICapabilities/v1.0"
@@ -1069,27 +1202,8 @@ capabilities__content = \
 class TestWsCapabilities(unittest.TestCase):
     """Class for testing the webservie client"""
 
-    def test_get_content(self):
-        """
-        Sometimes servers return empty capabilities documents and
-        the client is expected to re-use the cached document
-        :return:
-        """
-        ws_client = Mock(resource_id='SOME_RESOURCE')
-        caps = ws.WsCapabilities(ws_client)
-        now = time.time()
-        resource_file = tempfile.NamedTemporaryFile()
-        open(resource_file.name, 'w').write('OLD CONTENT')
-        with patch('cadcutils.net.ws.requests.Session.get') as mock_get:
-            mock_get.return_value = Mock(text='')
-            assert 'OLD CONTENT' == \
-                   caps._get_content(resource_file.name, 'some/url',
-                                     now-ws.CACHE_REFRESH_INTERVAL-1)
-
-    @patch('cadcutils.net.ws.os.path.getmtime')
-    @patch('cadcutils.net.ws.open', mock=mock_open())
-    @patch('cadcutils.net.ws.requests.Session.get')
-    def test_get_reg(self, get_mock, file_mock, file_modtime_mock):
+    @patch('cadcutils.net.ws.util.get_url_content')
+    def test_get_reg(self, get_content_mock):
         """
         Tests the registry part of WsCapabilities
         """
@@ -1102,14 +1216,7 @@ class TestWsCapabilities(unittest.TestCase):
                            'ivo://some.provider/service = '
                            'http://providerurl.test/service'). \
             format(resource_id, resource_cap_url)
-        response = Mock(text=cadcreg_content)
-        get_mock.return_value = response
-        # set the modified time of the cache file to 0 to make sure the info
-        # is retrieved from server
-        file_modtime_mock.return_value = 0
-        # test anonymous access
-        fh_mock = Mock()
-        file_mock.write = fh_mock
+        get_content_mock.return_value = cadcreg_content
         client = Mock(resource_id=resource_id)
         caps = ws.WsCapabilities(client)
         self.assertEqual(os.path.join(ws.CACHE_LOCATION, ws.REGISTRY_FILE),
@@ -1119,43 +1226,9 @@ class TestWsCapabilities(unittest.TestCase):
                          'canfar.phys.uvic.ca', '.{}'.format(service)),
             caps.caps_file)
         self.assertEqual(resource_cap_url, caps._get_capability_url())
-        file_mock.assert_called_once_with(
-            os.path.join(ws.CACHE_LOCATION, ws.REGISTRY_FILE), 'w')
-        # TODO not sure why need to access write this way
-        file_mock().__enter__.return_value.write.assert_called_once_with(
-            cadcreg_content)
 
-        # test when registry information is retrieved from the cache file
-        get_mock.reset_mock()
-        get_mock.return_value = None
-        file_modtime_mock.reset_mock()
-        file_mock.reset_mock()
-        resource_cap_url2 = 'http://www.canfar.net/myservice2'
-        cache_content2 = ('#test content\n {} = {} \n'
-                          'ivo://some.provider/service = '
-                          'http://providerurl.test/service'). \
-            format(resource_id, resource_cap_url2)
-        file_modtime_mock.return_value = time.time()
-        file_mock().__enter__.return_value.read.return_value = cache_content2
-        caps = ws.WsCapabilities(client)
-        self.assertEqual(resource_cap_url2, caps._get_capability_url())
-
-        # test when registry information is outdated but there are
-        # errors retrieving it from the CADC registry
-        # so in the end go back and use the cache version
-        file_modtime_mock.reset_mock()
-        file_mock.reset_mock()
-        file_modtime_mock.return_value = 0
-        file_mock().__enter__.return_value.read.return_value = cache_content2
-        get_mock.side_effect = [exceptions.HttpException()]
-        client.get.side_effect = [exceptions.HttpException]
-        caps = ws.WsCapabilities(client)
-        with patch('os.path.exists', Mock()):
-            self.assertEqual(resource_cap_url2, caps._get_capability_url())
-
-    @patch('cadcutils.net.ws.os.path.getmtime')
-    @patch('cadcutils.net.ws.requests.Session.get')
-    def test_get_caps(self, get_mock, file_modtime_mock):
+    @patch('cadcutils.net.ws.util.get_url_content')
+    def test_get_caps(self, get_content_mock):
         """
         Tests the capabilities part of WsCapabilities
         """
@@ -1164,21 +1237,16 @@ class TestWsCapabilities(unittest.TestCase):
         service = 'myservice'
         resource_id = 'ivo://canfar.phys.uvic.ca/{}'.format(service)
         resource_cap_url = 'www.canfar.net/myservice'
-        # set the modified time of the cache file to 0 to make sure the
-        # info is retrieved from server
-        file_modtime_mock.return_value = 0
-        # test anonymous access
-        expected_content = capabilities__content.replace('WS_URL',
-                                                         resource_cap_url)
-        response = Mock(text=expected_content)
-        get_mock.return_value = response
+        expected_content = capabilities_content.replace('WS_URL',
+                                                        resource_cap_url)
+        get_content_mock.return_value = expected_content
         caps = ws.WsCapabilities(Mock(resource_id=resource_id,
                                       subject=auth.Subject()))
 
         # mock _get_capability_url to return some url without attempting
         # to access the server
         def get_url():
-            return 'http://some.url/capabilities'
+            return 'https://some.url/capabilities'
 
         caps._get_capability_url = get_url
         # remove the cached file if exists
@@ -1194,21 +1262,14 @@ class TestWsCapabilities(unittest.TestCase):
         self.assertEqual('http://{}/pub'.format(resource_cap_url),
                          caps.get_access_url(
                              'vos://cadc.nrc.ca~service/CADC/mystnd01'))
-        actual_content = open(caps.caps_file, 'r').read()
-        self.assertEqual(expected_content, actual_content)
 
         # mock _get_capability_url to return a subservice
         service = 'myservice/mysubservice'
         resource_id = 'ivo://canfar.phys.uvic.ca/{}'.format(service)
         resource_cap_url = 'www.canfar.net/myservice/mysubservice'
-        # set the modified time of the cache file to 0 to make sure the
-        # info is retrieved from server
-        file_modtime_mock.return_value = 0
-        expected_content = capabilities__content.replace('WS_URL',
-                                                         resource_cap_url)
-        # test anonymous access
-        response = Mock(text=expected_content)
-        get_mock.return_value = response
+        expected_content = capabilities_content.replace('WS_URL',
+                                                        resource_cap_url)
+        get_content_mock.return_value = expected_content
         caps = ws.WsCapabilities(Mock(resource_id=resource_id,
                                       subject=auth.Subject()))
         # remove the cached file if exists
@@ -1223,108 +1284,6 @@ class TestWsCapabilities(unittest.TestCase):
                          caps.get_access_url(
                              'ivo://ivoa.net/std/VOSI#availability'))
         self.assertEqual('http://{}/pub'.format(resource_cap_url),
-                         caps.get_access_url(
-                             'vos://cadc.nrc.ca~service/CADC/mystnd01'))
-        actual_content = open(caps.caps_file, 'r').read()
-        self.assertEqual(expected_content, actual_content)
-
-        # repeat for basic auth subject. Mock the netrc library to
-        # prevent a lookup for $HOME/.netrc
-        with patch('cadcutils.net.auth.netrclib'):
-            client = Mock(resource_id=resource_id,
-                          subject=auth.Subject(netrc=True))
-        client.get.return_value = response
-        caps = ws.WsCapabilities(client)
-        caps._get_capability_url = get_url
-        # capabilities works even if it has only one anonymous interface
-        self.assertEqual('http://{}/capabilities'.format(resource_cap_url),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#capabilities'))
-        # same for availability
-        self.assertEqual('http://{}/availability'.format(resource_cap_url),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#availability'))
-
-        # repeat for https
-        with patch('os.path.isfile'):
-            client = Mock(resource_id=resource_id,
-                          subject=auth.Subject(certificate='somecert.pem'))
-        client.get.return_value = response
-        caps = ws.WsCapabilities(client)
-        caps._get_capability_url = get_url
-        # capabilities works even if it has only one anonymous interface
-        self.assertEqual('http://{}/capabilities'.format(resource_cap_url),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#capabilities'))
-        # same for availability
-        self.assertEqual('http://{}/availability'.format(resource_cap_url),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#availability'))
-        self.assertEqual('https://{}'.format(resource_cap_url),
-                         caps.get_access_url(
-                             'vos://cadc.nrc.ca~service/CADC/mystnd01'))
-
-        # test when capabilities information is retrieved from the cache file
-        get_mock.reset_mock()
-        get_mock.return_value = None
-        file_modtime_mock.reset_mock()
-        service = 'myservice2'
-        resource_id = 'ivo://canfar.phys.uvic.ca/{}'.format(service)
-        resource_cap_url2 = 'canfar.phys.uvic.ca/myservice2'
-        expected_content = capabilities__content.replace('WS_URL',
-                                                         resource_cap_url2)
-        file_modtime_mock.return_value = time.time()
-        client = Mock(resource_id=resource_cap_url2, subject=auth.Subject())
-        caps = ws.WsCapabilities(client)
-        caps._get_capability_url = get_url
-        caps.caps_urls[service] = '{}/capabilities'.format(resource_cap_url2)
-        # manually write the content
-        with open(caps.caps_file, 'w') as f:
-            f.write(expected_content)
-        self.assertEqual('http://{}/capabilities'.format(resource_cap_url2),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#capabilities'))
-        self.assertEqual('http://{}/availability'.format(resource_cap_url2),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#availability'))
-        self.assertEqual('http://{}/pub'.format(resource_cap_url2),
-                         caps.get_access_url(
-                             'vos://cadc.nrc.ca~service/CADC/mystnd01'))
-        actual_content = open(caps.caps_file, 'r').read()
-        self.assertEqual(expected_content, actual_content)
-
-        # repeat for basic auth subject. Mock the netrc library to prevent a
-        # lookup for $HOME/.netrc
-        with patch('cadcutils.net.auth.netrclib'):
-            client = Mock(resource_id=resource_id,
-                          subject=auth.Subject(netrc=True))
-        caps = ws.WsCapabilities(client)
-        caps._get_capability_url = get_url
-        # does not work with user-password of the subject set above
-        self.assertEqual('http://{}/capabilities'.format(resource_cap_url2),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#capabilities'))
-        self.assertEqual('http://{}/availability'.format(resource_cap_url2),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#availability'))
-        self.assertEqual('http://{}/auth'.format(resource_cap_url2),
-                         caps.get_access_url(
-                             'vos://cadc.nrc.ca~service/CADC/mystnd01'))
-
-        # repeat for https
-        with patch('os.path.isfile'):
-            client = Mock(resource_id=resource_id,
-                          subject=auth.Subject(certificate='somecert.pem'))
-        caps = ws.WsCapabilities(client)
-        caps._get_capability_url = get_url
-        # does not work with user-password of the subject set above
-        self.assertEqual('http://{}/capabilities'.format(resource_cap_url2),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#capabilities'))
-        self.assertEqual('http://{}/availability'.format(resource_cap_url2),
-                         caps.get_access_url(
-                             'ivo://ivoa.net/std/VOSI#availability'))
-        self.assertEqual('https://{}'.format(resource_cap_url2),
                          caps.get_access_url(
                              'vos://cadc.nrc.ca~service/CADC/mystnd01'))
 
@@ -1334,16 +1293,16 @@ class TestWsOutsideCalls(unittest.TestCase):
 
     @patch('time.sleep')
     def testCalls(self, time_mock):
-        client = ws.BaseWsClient('https://httpbin.org', net.Subject(), 'FOO')
-        response = client.get('https://httpbin.org')
+        client = ws.BaseWsClient('https://httpbun.com', net.Subject(), 'FOO')
+        response = client.get('https://httpbun.com')
         self.assertEqual(response.status_code, requests.codes.ok)
 
         with self.assertRaises(exceptions.InternalServerException):
-            client.get('https://httpbin.org/status/500')
+            client.get('https://httpbun.com/status/500')
 
         time_mock.reset_mock()
         with self.assertRaises(exceptions.HttpException):
-            client.get('https://httpbin.org/status/503')
+            client.get('https://httpbun.com/status/503')
 
         calls = [call(DEFAULT_RETRY_DELAY),
                  call(min(DEFAULT_RETRY_DELAY*2, MAX_RETRY_DELAY)),
@@ -1399,21 +1358,43 @@ def test_download_file_method():
     temp_dir = TemporaryDirectory()
     # proxy _save_bytes through a mock to check when it's called
     client._save_bytes = Mock(side_effect=client._save_bytes)
-    client.download_file('https://dataservice', temp_dir.name)
+    rsp = client.download_file('https://dataservice/path/file', temp_dir.name)
     dest, temp_dest = client._resolve_destination_file(
         temp_dir.name, src_md5=md5, default_file_name=file_name)
     assert os.path.isfile(dest)
     assert not os.path.isfile(temp_dest)
     assert client._save_bytes.called
-    client.get.assert_called_once_with('https://dataservice', stream=True)
+    client.get.assert_called_once_with('https://dataservice/path/file', stream=True)
+    assert file_name == rsp[0]
+    assert md5 == rsp[1]
 
     # calling it the second time does not cause another get
     client.get.reset_mock()
     client._save_bytes.reset_mock()
     client.get = Mock(return_value=response)
-    client.download_file('https://dataservice', temp_dir.name)
+    rsp = client.download_file('https://dataservice/path/file', temp_dir.name)
     assert not client._save_bytes.called
-    client.get.assert_called_once_with('https://dataservice', stream=True)
+    client.get.assert_called_once_with('https://dataservice/path/file', stream=True)
+    assert file_name == rsp[0]
+    assert md5 == rsp[1]
+
+    # specify destination file name
+    client.get.reset_mock()
+    response.raw.read.side_effect = [b'abc', b'de']
+    client._save_bytes.reset_mock()
+    client.get = Mock(return_value=response)
+    # override file name
+    dest_file = 'myfile'
+    target_dest = os.path.join(temp_dir.name, dest_file)
+    rsp = client.download_file('https://dataservice/path/file', target_dest)
+    dest, temp_dest = client._resolve_destination_file(
+        target_dest, src_md5=md5, default_file_name=file_name)
+    assert os.path.isfile(dest)
+    assert not os.path.isfile(temp_dest)
+    assert client._save_bytes.called
+    client.get.assert_called_once_with('https://dataservice/path/file', stream=True)
+    assert dest_file == rsp[0]
+    assert md5 == rsp[1]
 
     # make temporary file larger (BUG case). Operation should succeed
     client.get.reset_mock()
@@ -1421,13 +1402,15 @@ def test_download_file_method():
     open(temp_dest, 'ab').write(b'ghi')
     assert 5 < os.stat(temp_dest).st_size
     response.raw.read.side_effect = [b'abc', b'de']
-    client.download_file('https://dataservice', temp_dir.name)
+    rsp = client.download_file('https://dataservice/path/file', temp_dir.name)
     dest, temp_dest = client._resolve_destination_file(
         temp_dir.name, src_md5=md5, default_file_name=file_name)
     assert os.path.isfile(dest)
     assert not os.path.isfile(temp_dest)
     assert client._save_bytes.called
-    client.get.assert_called_once_with('https://dataservice', stream=True)
+    client.get.assert_called_once_with('https://dataservice/path/file', stream=True)
+    assert file_name == rsp[0]
+    assert md5 == rsp[1]
 
     # calling it when incomplete temporary file exits
     # truncate the last 3 bytes but the service does not support
@@ -1440,11 +1423,13 @@ def test_download_file_method():
         f.truncate()
     response.raw.read.side_effect = [b'abc', b'de']
     client.get = Mock(return_value=response)
-    client.download_file('https://dataservice', temp_dir.name)
+    rsp = client.download_file('https://dataservice/path/file', temp_dir.name)
     assert os.path.isfile(dest)
     assert not os.path.isfile(temp_dest)
     assert client._save_bytes.called
-    client.get.assert_called_once_with('https://dataservice', stream=True)
+    client.get.assert_called_once_with('https://dataservice/path/file', stream=True)
+    assert file_name == rsp[0]
+    assert md5 == rsp[1]
 
     # repeat the test when the service supports ranges
     client.get.reset_mock()
@@ -1457,15 +1442,17 @@ def test_download_file_method():
     response.headers['Accept-Ranges'] = 'bytes '
     response.raw.read.side_effect = [b'cde']
     client.get = Mock(return_value=response)
-    client.download_file('https://dataservice', temp_dir.name)
+    rsp = client.download_file('https://dataservice/path/file', temp_dir.name)
     assert os.path.isfile(dest)
     assert not os.path.isfile(temp_dest)
     assert client._save_bytes.called
     assert 2 == client.get.call_count
     # second get call with Range header expected
-    assert [call('https://dataservice', stream=True),
-            call('https://dataservice', stream=True,
+    assert [call('https://dataservice/path/file', stream=True),
+            call('https://dataservice/path/file', stream=True,
                  headers={'Range': 'bytes=2-'})] in client.get.mock_calls
+    assert file_name == rsp[0]
+    assert md5 == rsp[1]
 
 
 def test_save_bytes():

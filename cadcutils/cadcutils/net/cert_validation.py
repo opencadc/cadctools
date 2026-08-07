@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
+
 # ***********************************************************************
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2022.                            (c) 2022.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -65,119 +66,61 @@
 #
 # ***********************************************************************
 
-import errno
+"""
+Validation of client X509 certificates before use.
+"""
+
+from datetime import datetime, timezone
+
+from OpenSSL import crypto
+
 import logging
-import os
-import sys
-import configparser
-from shutil import copyfile
+
+__all__ = ['validate_client_certificate']
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_WARN_DAYS = 3
 
 
-logger = logging.getLogger('config')
-logger.setLevel(logging.INFO)
+def validate_client_certificate(cert_path, warn_days=DEFAULT_WARN_DAYS):
+    """
+    Validate a PEM client certificate file.
 
-if sys.version_info[1] > 6:
-    logger.addHandler(logging.NullHandler())
-
-
-def mkdir_p(path):
+    :param cert_path: path to the certificate (may also contain the private key)
+    :param warn_days: log a warning when expiry is within this many days
+    :raises ValueError: if the file cannot be read, is not valid PEM, or is
+        expired
+    """
     try:
-        os.makedirs(path)
-    except OSError as exc:
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
-            raise
+        with open(cert_path, 'rb') as cert_file:
+            pem_data = cert_file.read()
+        cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_data)
+    except OSError as oex:
+        raise ValueError(
+            'Cannot read certificate file {}: {}'.format(cert_path, oex))
+    except crypto.Error:
+        raise ValueError(
+            'Could not load client certificate ({}): invalid PEM format. '
+            'Check that the file contains a valid PEM-encoded certificate.'.
+            format(cert_path))
 
+    not_after_bytes = cert.get_notAfter()
+    if not_after_bytes is None:
+        return
 
-class Config(object):
+    not_after = datetime.strptime(
+        not_after_bytes.decode('ascii'), '%Y%m%d%H%M%SZ').replace(
+            tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    if not_after < now:
+        raise ValueError(
+            'Client certificate ({}) expired on {}. Run: cadc-get-cert'.
+            format(cert_path, not_after.strftime('%Y-%m-%d')))
 
-    def __init__(self, config_path, default_config_path=None):
-        logger.info("Using config file {0}.".format(config_path))
-
-        # check config file exists and can be read
-        if not os.path.isfile(config_path) and not os.access(config_path,
-                                                             os.R_OK):
-            error = "Can not read {0}.".format(config_path)
-            logger.debug(error)
-            raise IOError(error)
-
-        self.parser = configparser.ConfigParser()
-        if default_config_path:
-            try:
-                self.parser.read_file(open(default_config_path))
-            except configparser.Error as exc:
-                logger.debug("Error opening {0} because {1}.".format(
-                    default_config_path, exc.message))
-
-        try:
-            self.parser.read(config_path)
-        except configparser.Error as exc:
-            logger.debug("Error opening {0} because {1}.".format(
-                config_path, exc.message))
-
-    def get(self, section, option):
-        try:
-            return self.parser.get(section, option)
-        except (configparser.NoOptionError, configparser.NoSectionError):
-            pass
-        return None
-
-    @staticmethod
-    def write_config(config_path, default_config_path):
-        """
-        :param config_path:
-        :param default_config_path:
-        :return:
-        """
-
-        # if not local config file then write the default config file
-        if not os.path.isfile(config_path):
-            mkdir_p(os.path.dirname(config_path))
-            copyfile(default_config_path, config_path)
-            return
-
-        # read local config file
-        parser = configparser.ConfigParser()
-        try:
-            parser.read(config_path)
-        except configparser.Error as exc:
-            logger.debug("Error opening {0} because {1}.".format(config_path,
-                                                                 exc.message))
-            return
-
-        # read default config file
-        default_parser = configparser.RawConfigParser()
-        try:
-            default_parser.read(default_config_path)
-        except configparser.Error as exc:
-            logger.debug("Error opening {0} because {1}.".format(
-                default_config_path, exc.message))
-            return
-
-        # update config file with new options from the default config
-        updated = False
-        for section in default_parser.sections():
-            default_items = default_parser.items(section)
-            for option, value in default_items:
-                if not parser.has_section(section):
-                    parser.add_section(section)
-                if not parser.has_option(section, option):
-                    parser.set(section, option, value)
-                    updated = True
-
-        # remove old options not in the default config file?
-        # for section in default_parser.sections():
-        #     options = parser.options(section)
-        #     for option in options:
-        #         if not default_parser.has_option(section, option):
-        #             parser.remove_option(section, option)
-
-        # write updated config file
-        if updated:
-            try:
-                config_file = open(config_path, 'w')
-                parser.write(config_file)
-                config_file.close()
-            except Exception as exc:
-                print(exc.message)
+    days_left = (not_after - now).days
+    if days_left <= warn_days:
+        logger.warning(
+            'Client certificate (%s) expires in %d day(s) on %s. '
+            'Run cadc-get-cert to renew.',
+            cert_path, days_left, not_after.strftime('%Y-%m-%d'))

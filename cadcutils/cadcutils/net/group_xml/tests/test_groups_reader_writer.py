@@ -96,6 +96,6 @@ def test_minimal_read_write():
     reader = GroupsReader()
     actual = reader.read(xml_string)
     assert actual
-    assert(len(actual) == 2)
-    assert(group1 in actual)
-    assert(group2 in actual)
+    assert (len(actual) == 2)
+    assert (group1 in actual)
+    assert (group2 in actual)

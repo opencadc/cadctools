@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2016.                            (c) 2016.
+#  (c) 2023.                            (c) 2023.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -65,16 +65,12 @@
 #
 # ***********************************************************************
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import os
 import sys
-import re
 import unittest
 
-from mock import Mock, patch, mock_open
-from six import StringIO
+from unittest.mock import Mock, patch, mock_open
+from io import StringIO
 
 from cadcutils.net import auth
 from cadcutils.util import get_base_parser
@@ -91,6 +87,8 @@ class TestAuth(unittest.TestCase):
     """ Class for testing networking authorization functionality """
 
     @patch('cadcutils.net.auth.get_cert', Mock(return_value='CERTVALUE'))
+    @patch('cadcutils.net.auth.util.check_version', Mock())  # mock from get_cert function
+    @patch('cadcutils.util.utils.check_version', Mock())  # mock from parse args
     @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError]))
     def test_get_cert_main(self):
         """ Test the cert_main function """
@@ -104,7 +102,7 @@ class TestAuth(unittest.TestCase):
 
         # get certificate default location
         m = mock_open()
-        with patch('six.moves.builtins.open', m, create=True):
+        with patch('builtins.open', m, create=True):
             sys.argv = ["cadc-get-cert", "-u", "bob"]
             auth.get_cert_main()
         m.assert_called_with(
@@ -136,28 +134,38 @@ Expected /tmp/testcertfile to be a directory.
         self.assertEqual(errmsg, stderr_mock.getvalue())
         os.remove(certfile)
 
-    @patch('sys.exit', Mock(side_effect=[MyExitError]))
-    def test_get_cert_main_help(self):
-        """ Test the help option of the cadc-get-cert app """
-        with open(os.path.join(TESTDATA_DIR, 'help_cadc-get-cert.txt'),
-                  'r') as f:
-            usage = f.read()
-        # update the default cert location line
-        usage = re.sub(
-            r'default: .*cadcproxy.pem',
-            'default: {}/.ssl/cadcproxy.pem'.format(os.getenv("HOME")),
-            usage)
-
-        # --help
-        self.maxDiff = None  # Display the entire difference
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ["cadc-get-cert", "--help"]
-            with self.assertRaises(MyExitError):
+    def test_get_cert_main_rejects_cert_option(self):
+        """--cert is not an authentication option for cadc-get-cert"""
+        with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
+            with self.assertRaises(SystemExit) as cm:
+                sys.argv = ["cadc-get-cert", "--cert", "foo.pem"]
                 auth.get_cert_main()
-            # new title in 3.10
-            actual = stdout_mock.getvalue().replace('options:',
-                                                    'optional arguments:')
-            self.assertEqual(usage.strip('\n'), actual.strip('\n'))
+            self.assertEqual(2, cm.exception.code)
+        self.assertIn(
+            'one of the arguments -n --netrc-file -u/--user --token',
+            stderr_mock.getvalue())
+
+    def test_get_cert_parser_contract(self):
+        """Test cadc-get-cert CLI options and help text."""
+        from cadcutils.util.tests.parser_helpers import (
+            assert_has_base_dests, assert_has_dests, assert_help_contains,
+            assert_description_contains)
+
+        parser = auth.build_get_cert_parser()
+        assert_has_base_dests(parser, usecert=False)
+        assert_has_dests(parser, 'cert_filename', 'days_valid')
+        assert_help_contains(
+            parser,
+            'cadcproxy.pem',
+            os.path.join(os.getenv('HOME', '/tmp'), '.ssl/cadcproxy.pem'),
+        )
+        assert_description_contains(
+            parser,
+            'Retrieve a security certificate',
+            'VOSpace',
+            'days-valid',
+            'cert_filename',
+        )
 
     @patch('cadcutils.net.auth.os')
     def testSubject(self, os_mock):
@@ -167,6 +175,7 @@ Expected /tmp/testcertfile to be a directory.
         self.assertEqual(None, subject.certificate)
         self.assertEqual({}, subject._hosts_auth)
         self.assertEqual(None, subject.get_auth('realm1'))
+        self.assertEqual(None, subject.token)
 
         # cert subject
         cert = 'somecert'
@@ -175,15 +184,17 @@ Expected /tmp/testcertfile to be a directory.
         self.assertEqual(cert, subject.certificate)
         self.assertEqual({}, subject._hosts_auth)
         self.assertEqual(None, subject.get_auth('realm1'))
+        self.assertEqual(None, subject.token)
 
         # empty netrc subject
         m = mock_open()
-        with patch('six.moves.builtins.open', m, create=True):
+        with patch('builtins.open', m, create=True):
             subject = auth.Subject(netrc='somefile')
         self.assertFalse(subject.anon)
         self.assertEqual(None, subject.certificate)
         self.assertEqual({}, subject._hosts_auth)
         self.assertEqual(None, subject.get_auth('realm1'))
+        self.assertEqual(None, subject.token)
 
         # netrc with content
         netrc_content = {'realm1': ('user1', None, 'pass1'),
@@ -201,22 +212,45 @@ Expected /tmp/testcertfile to be a directory.
         self.assertEqual(('user1', 'pass1'), subject.get_auth('realm1'))
         self.assertEqual(('user1', 'pass2'), subject.get_auth('realm2'))
         self.assertEqual(None, subject.get_auth('realm3'))
+        self.assertEqual(None, subject.token)
 
         # subject with username
         username = 'user1'
         passwd = 'passwd1'
         subject = auth.Subject(username=username)
         self.assertFalse(subject.anon)
+        self.assertEqual(None, subject.token)
         self.assertEqual(None, subject.certificate)
         self.assertEqual({}, subject._hosts_auth)
         with patch('cadcutils.net.auth.getpass') as getpass_mock:
             getpass_mock.getpass.return_value = passwd
             self.assertEqual((username, passwd), subject.get_auth('realm1'))
 
+        # subject with tokens
+        token = 'mytoken'
+        subject = auth.Subject(token=token)
+        self.assertFalse(subject.anon)
+        self.assertEqual(None, subject.certificate)
+        self.assertEqual({}, subject._hosts_auth)
+        self.assertEqual(token, subject.token)
+
+        # subject with all credentials
+        with patch('builtins.open', m, create=True):
+            subject = auth.Subject(certificate=cert, netrc='/home/.netrc', token=token)
+        self.assertFalse(subject.anon)
+        self.assertEqual(cert, subject.certificate)
+        self.assertEqual(token, subject.token)
+        self.assertEqual(
+            '<Subject(username=None, token=******, '
+            'netrc=/home/.netrc)>, certificate=somecert, '
+            'cookies=[])>',
+            repr(subject))
+
         parser = get_base_parser(subparsers=False)
         args = parser.parse_args(['--resource-id', 'blah'])
         subject = auth.Subject.from_cmd_line_args(args)
         self.assertTrue(subject.anon)
+        self.assertTrue(subject.validate_certificate)
 
         sys.argv = ['cadc-client', '--resource-id', 'blah', '--cert',
                     'mycert.pem']
@@ -224,6 +258,11 @@ Expected /tmp/testcertfile to be a directory.
         subject = auth.Subject.from_cmd_line_args(args)
         self.assertFalse(subject.anon)
         self.assertEqual('mycert.pem', subject.certificate)
+        self.assertTrue(subject.validate_certificate)
+
+        # library callers opt in to certificate validation
+        subject = auth.Subject(certificate='somecert')
+        self.assertFalse(subject.validate_certificate)
 
         # subject with cookies
         cookie = auth.CookieInfo('some.domain', 'MyCookie', 'somevalue')

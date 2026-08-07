@@ -5,7 +5,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2020.                            (c) 2020.
+#  (c) 2022.                            (c) 2022.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -66,11 +66,9 @@
 #
 #
 # ***********************************************************************
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 
 import re
-from six.moves.urllib.parse import unquote
+from urllib.parse import unquote
 import logging
 from xml.etree import ElementTree
 import sys
@@ -125,16 +123,28 @@ def get_header_filename(headers):
 
 
 def extract_md5(headers):
-    # extracts the md5checksum from the digest header
+    """ Extracts the md5checksum from the digest header
+        :param headers: existing request headers
+
+        :returns string with hex md5 representation if present or None otherwise
+    """
     if ('digest' in headers) and (headers['digest'].startswith('md5')):
-        return base64.b64decode(headers['digest'][4:]).decode('ascii')
+        value = base64.b64decode(headers['digest'][4:])
+        if len(value) == 16:
+            return value.hex()
+        else:
+            #  TODO this is wrong and will be removed eventually after AD is gone
+            return value.decode('ascii')
     return None
 
 
 def add_md5_header(headers, md5_checksum):
-    # adds the digest header with md5 information to the request headers
+    """ Adds the digest header with md5 information to the request headers
+        :param headers: existing request headers
+        :param md5_checksum: string with hex representation
+    """
     headers['digest'] = 'md5={}'.format(
-        base64.b64encode(md5_checksum.encode('ascii')).decode('ascii'))
+        base64.b64encode(bytes.fromhex(md5_checksum)).decode('ascii'))
 
 
 class Transfer(object):
@@ -219,6 +229,7 @@ class Transfer(object):
                                                       "vos:protocol")
             protocol_element.attrib['uri'] = "{0}#{1}".format(
                 Transfer.IVOAURL, protocol[direction])
+
             if security_methods:
                 for sm in security_methods:
                     if sm not in SSO_SECURITY_METHODS.values():
@@ -228,6 +239,12 @@ class Transfer(object):
                     security_element = ElementTree.SubElement(
                         protocol_element, "vos:securityMethod")
                     security_element.attrib['uri'] = sm
+            if security_methods:
+                # add the default anon method
+                protocol_element = ElementTree.SubElement(transfer_xml,
+                                                          "vos:protocol")
+                protocol_element.attrib['uri'] = "{0}#{1}".format(
+                    Transfer.IVOAURL, protocol[direction])
 
         logging.debug(ElementTree.tostring(transfer_xml))
         logging.debug("Sending to : {}".format(endpoint_url))
@@ -238,7 +255,7 @@ class Transfer(object):
             headers={'Content-Type': 'text/xml'})
 
         logging.debug("{0}".format(resp))
-        logging.debug("{0}".format(resp.text))
+        logging.debug("{0}".format(resp.content))
         while resp.status_code == 303:
             goto_url = resp.headers.get('Location', None)
 
@@ -259,7 +276,7 @@ class Transfer(object):
                 self.check_job_error(
                     str.replace(transfer_url, 'xfer', 'transfers'),
                     str(uri), True)
-            xml_string = resp.text
+            xml_string = resp.content
             logging.debug('Transfer Document:{}'.format(xml_string))
             transfer_document = ElementTree.fromstring(xml_string)
             logging.debug(

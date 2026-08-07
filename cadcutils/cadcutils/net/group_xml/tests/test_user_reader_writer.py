@@ -83,5 +83,5 @@ def test_read_write():
     reader = UserReader()
     actual = reader.read(xml_string)
     assert actual
-    assert(actual.internal_id == expected.internal_id)
-    assert(expected.identities == actual.identities)
+    assert (actual.internal_id == expected.internal_id)
+    assert (expected.identities == actual.identities)

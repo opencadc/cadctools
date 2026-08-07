@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2022.                            (c) 2022.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -52,99 +52,120 @@
 #  warranty of MERCHANTABILITY          implicite de COMMERCIALISABILITÉ
 #  or FITNESS FOR A PARTICULAR          ni d’ADÉQUATION À UN OBJECTIF
 #  PURPOSE.  See the GNU Affero         PARTICULIER. Consultez la Licence
-#  General Public License for           Générale Publique GNU Affero
-#  more details.                        pour plus de détails.
+#  General Public License for           Générale Publique GNU Affero pour
+#  more details.                        plus de détails.
 #
 #  You should have received             Vous devriez avoir reçu une
 #  a copy of the GNU Affero             copie de la Licence Générale
 #  General Public License along         Publique GNU Affero avec
-#  with OpenCADC.  If not, see          OpenCADC ; si ce n’est
-#  <http://www.gnu.org/licenses/>.      pas le cas, consultez :
+#  with OpenCADC.  If not, see          OpenCADC ; si ce n’est pas le cas,
+#  <http://www.gnu.org/licenses/>.      consultez :
 #                                       <http://www.gnu.org/licenses/>.
-#
 #
 # ***********************************************************************
 
-import configparser
-import os
-import tempfile
-import shutil
-import uuid
-import unittest
-from cadcutils.util import config
+"""Helpers for testing argparse CLI contracts without golden help files."""
 
-_ROOT = os.path.abspath(os.path.dirname(__file__))
+from __future__ import annotations
+
+import argparse
 
 
-def get_test_data_file_path(filename):
-    return os.path.join(_ROOT, 'data', filename)
-
-
-class TestConfig(unittest.TestCase):
-    """Test the vos Config class.
+def option_dests(parser):
     """
+    Return ``dest`` names for user-facing parser actions.
+    """
+    return {
+        action.dest
+        for action in parser._actions
+        if action.dest not in (None, argparse.SUPPRESS, 'help')
+    }
 
-    def test_single_section_config(self):
 
-        self.do_test('single-section-config', 'single-section-default-config')
+def get_subparser(root_parser, name):
+    """
+    Return a named subparser from a root parser built with subcommands.
+    """
+    for action in root_parser._actions:
+        choices = getattr(action, 'choices', None)
+        if choices is not None and name in choices:
+            return choices[name]
+    raise KeyError('No subparser named {!r}'.format(name))
 
-    def test_multi_section_config(self):
 
-        self.do_test('multi-section-config', 'multi-section-default-config')
+def subparser_names(root_parser):
+    """
+    Return sorted subcommand names registered on the root parser.
+    """
+    for action in root_parser._actions:
+        choices = getattr(action, 'choices', None)
+        if choices is not None:
+            return sorted(choices.keys())
+    return []
 
-    def do_test(self, config_filename, default_config_filename):
 
-        default_config_path = tempfile.gettempdir() + '/' + str(uuid.uuid4())
-        test_default_config = get_test_data_file_path(default_config_filename)
-        shutil.copy(test_default_config, default_config_path)
+def assert_has_dests(parser, *dests):
+    """
+    Assert that the parser exposes all expected option/positional dests.
+    """
+    available = option_dests(parser)
+    missing = [dest for dest in dests if dest not in available]
+    assert not missing, (
+        'Missing parser dest(s) {} (have {})'.format(missing, sorted(available)))
 
-        # no existing config file
-        config_path = tempfile.gettempdir() + '/' + str(uuid.uuid4())
 
-        config.Config.write_config(config_path, default_config_path)
+def assert_help_contains(parser, *strings):
+    """
+    Assert that formatted help includes each expected substring.
+    """
+    help_text = parser.format_help()
+    missing = [text for text in strings if text not in help_text]
+    assert not missing, (
+        'Help text missing: {}\n--- help ---\n{}'.format(
+            missing, help_text))
 
-        self.assertTrue(os.path.isfile(config_path))
-        self.cmp_configs(config_path, default_config_path)
 
-        # existing config file same as default config file
-        config_path = tempfile.gettempdir() + '/' + str(uuid.uuid4())
-        shutil.copy(test_default_config, config_path)
+def assert_description_contains(parser, *strings):
+    """
+    Assert that the parser description includes each expected substring.
+    """
+    description = parser.description or ''
+    missing = [text for text in strings if text not in description]
+    assert not missing, (
+        'Description missing: {}\n--- description ---\n{}'.format(
+            missing, description))
 
-        config.Config.write_config(config_path, default_config_path)
 
-        self.cmp_configs(config_path, default_config_path)
+def assert_epilog_contains(parser, *strings):
+    """
+    Assert that the parser epilog (via format_help) includes each substring.
+    """
+    epilog = parser.epilog or ''
+    help_text = parser.format_help()
+    missing = [
+        text for text in strings
+        if text not in epilog and text not in help_text
+    ]
+    assert not missing, (
+        'Epilog/help missing: {}\n--- epilog ---\n{}\n--- help ---\n{}'.format(
+            missing, epilog, help_text))
 
-        # merge default and existing config files
-        config_path = tempfile.gettempdir() + '/' + str(uuid.uuid4())
 
-        test_config = get_test_data_file_path(config_filename)
-        shutil.copy(test_config, config_path)
+_INSECURE_HELP_SNIPPET = 'skip SSL server certificate verification'
 
-        config.Config.write_config(config_path, default_config_path)
 
-        self.cmp_configs(config_path, default_config_path)
-
-        # test get non-existing option
-        self.assertEqual(None,
-                         config.Config(config_path, default_config_path).
-                         get('blah', 'blah'))
-
-        # test error paths
-        with self.assertRaises(IOError):
-            config.Config('/non/existent/path')
-        with self.assertRaises(IOError):
-            config.Config(test_default_config,
-                          default_config_path='/non/existen/path')
-
-    def cmp_configs(self, config_path, default_config_path):
-
-        parser = configparser.ConfigParser()
-        parser.read(config_path)
-
-        default_parser = configparser.ConfigParser()
-        default_parser.read(default_config_path)
-
-        for section in default_parser.sections():
-            self.assertTrue(parser.has_section(section))
-            for option in default_parser.options(section):
-                self.assertTrue(parser.has_option(section, option))
+def assert_has_base_dests(parser, *, use_service=False, usecert=True):
+    """
+    Assert dests and -k/--insecure help from :func:`cadcutils.util.utils.get_base_parser`.
+    """
+    expected = ['n', 'netrc_file', 'user', 'token', 'host', 'insecure',
+                'debug', 'quiet', 'verbose']
+    if usecert:
+        expected.append('cert')
+    if use_service:
+        expected.append('service')
+    else:
+        expected.append('resource_id')
+    assert_has_dests(parser, *expected)
+    assert_help_contains(
+        parser, _INSECURE_HELP_SNIPPET, 'not recommended')

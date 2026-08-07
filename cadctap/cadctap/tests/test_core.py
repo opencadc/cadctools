@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2017.                            (c) 2017.
+#  (c) 2023.                            (c) 2023.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -66,27 +66,25 @@
 #
 # ***********************************************************************
 #
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 
 import os
 import sys
 import unittest
 from cadcutils import net, exceptions
 
-from six import StringIO, BytesIO
+from io import StringIO, BytesIO
 import cadctap
 from cadctap.core import main_app
-from mock import Mock, patch, call
+from unittest.mock import Mock, patch, call, mock_open
 import pytest
 from cadctap import CadcTapClient
-from cadctap.core import _get_subject_from_netrc,\
+from cadctap.core import _get_subject_from_netrc, \
     _get_subject_from_certificate, _get_subject, exit_on_exception
 import tempfile
 import argparse
 
-from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES,\
-    ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID,\
+from cadctap.core import TABLES_CAPABILITY_ID, ALLOWED_TB_DEF_TYPES, \
+    ALLOWED_CONTENT_TYPES, TABLE_UPDATE_CAPABILITY_ID, \
     TABLE_LOAD_CAPABILITY_ID, PERMISSIONS_CAPABILITY_ID, _get_permission_modes
 
 # The following is a temporary workaround for Python issue
@@ -137,12 +135,12 @@ def test_get_subject_from_certificate():
         # has no certificate
         os.environ['HOME'] = '/tmp'
         subject = _get_subject_from_certificate()
-        assert(subject is None)
+        assert (subject is None)
         # has certificate
         os.environ['HOME'] = TESTDATA_DIR
         subject = _get_subject_from_certificate()
-        assert(subject is not None)
-        assert(isinstance(subject, net.Subject))
+        assert (subject is not None)
+        assert (isinstance(subject, net.Subject))
     finally:
         os.environ['HOME'] = orig_home
 
@@ -161,15 +159,15 @@ def test_get_subject_from_netrc(netrc_mock, client_mock, base_client_mock):
     args.service = 'tap'
     args.host = None
     subject = _get_subject_from_netrc('tap')
-    assert(subject is None)
+    assert (subject is None)
     # matches domain
     netrc_instance.hosts = {'no_such_host': 'my.host.ca',
                             'www.some.tap.service.com':
                             'machine some.tap.service.com \
                                 login auser password passwd'}
     subject = _get_subject_from_netrc(args)
-    assert(subject is not None)
-    assert(isinstance(subject, net.Subject))
+    assert (subject is not None)
+    assert (isinstance(subject, net.Subject))
 
     # CADC services
     args.service = 'ivo://cadc.nrc.ca/tap'
@@ -189,8 +187,8 @@ def test_get_subject_from_netrc(netrc_mock, client_mock, base_client_mock):
                             'sc2.canfar.net': 'machine www.canfar.net \
                                 login auser password passwd'}
     subject = _get_subject_from_netrc(args)
-    assert(subject is not None)
-    assert(isinstance(subject, net.Subject))
+    assert (subject is not None)
+    assert (isinstance(subject, net.Subject))
 
 
 @patch('cadctap.core.CadcTapClient')
@@ -204,8 +202,8 @@ def test_get_subject(from_cmd_line_mock, netrc_mock, client_mock):
     netrc_subject = net.Subject(netrc=True)
     from_cmd_line_mock.return_value = netrc_subject
     ret_subject = _get_subject(args)
-    assert(ret_subject is not None)
-    assert(ret_subject == netrc_subject)
+    assert (ret_subject is not None)
+    assert (ret_subject == netrc_subject)
 
     # no authentication options, pick -n option
     anon_subject = net.Subject()
@@ -216,10 +214,10 @@ def test_get_subject(from_cmd_line_mock, netrc_mock, client_mock):
     client_instance = client_mock.return_value
     client_instance._tap_client._host = 'netrc.host'
     ret_subject = _get_subject(args)
-    assert(ret_subject is not None)
-    assert(ret_subject.anon is False)
-    assert(ret_subject.certificate is None)
-    assert(ret_subject.netrc is not None)
+    assert (ret_subject is not None)
+    assert (ret_subject.anon is False)
+    assert (ret_subject.certificate is None)
+    assert (ret_subject.netrc is not None)
 
     # no authentication options, pick --cert option
     orig_home = os.environ['HOME']
@@ -234,10 +232,10 @@ def test_get_subject(from_cmd_line_mock, netrc_mock, client_mock):
         client_instance = client_mock.return_value
         client_instance._tap_client._host = 'no.such.host'
         ret_subject = _get_subject(args)
-        assert(ret_subject is not None)
-        assert(ret_subject.anon is False)
-        assert(ret_subject.certificate is not None)
-        assert(ret_subject.netrc is False)
+        assert (ret_subject is not None)
+        assert (ret_subject.anon is False)
+        assert (ret_subject.certificate is not None)
+        assert (ret_subject.netrc is False)
     finally:
         os.environ['HOME'] = orig_home
 
@@ -254,8 +252,8 @@ def test_get_subject(from_cmd_line_mock, netrc_mock, client_mock):
         client_instance = client_mock.return_value
         client_instance._tap_client._host = 'no.such.host'
         ret_subject = _get_subject(args)
-        assert(ret_subject is not None)
-        assert(ret_subject == anon_subject)
+        assert (ret_subject is not None)
+        assert (ret_subject == anon_subject)
     finally:
         os.environ['HOME'] = orig_home
 
@@ -595,7 +593,7 @@ def test_query(caps_get_mock, base_post_mock):
 
     fields = {'LANG': 'ADQL',
               'QUERY': 'query',
-              'FORMAT': 'VOTable'}
+              'FORMAT': 'votable'}
     tablefile = os.path.basename(def_table)
     fields['UPLOAD'] = '{},param:{}'.format(def_name, tablefile)
     fields[tablefile] = (def_table, open(def_table, 'rb'))
@@ -634,6 +632,50 @@ def test_query(caps_get_mock, base_post_mock):
         client.query('query')
     assert stdout_mock.getvalue() == response.iter_content.return_value[0]
 
+    with pytest.raises(ValueError):
+        client.query('query', maxrec=-1)
+
+
+@patch('cadcutils.net.ws.BaseWsClient.post')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_query_format_server_mapping(caps_get_mock, base_post_mock):
+    caps_get_mock.return_value = BASE_URL
+    response = Mock()
+    response.status_code = 200
+    response.iter_content.return_value = [b'<VOTable format>']
+    base_post_mock.return_value.__enter__.return_value = response
+    client = CadcTapClient(net.Subject())
+
+    with patch('cadctap.core.sys.stdout', new_callable=BytesIO):
+        client.query('query', response_format='VOTABLE')
+
+    post_params = base_post_mock.call_args_list[0][1]['params']
+    assert post_params['FORMAT'] == 'votable'
+
+
+@patch('cadcutils.net.ws.BaseWsClient.put')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_create_table_case_insensitive_type(caps_get_mock, base_put_mock):
+    caps_get_mock.return_value = BASE_URL
+    client = CadcTapClient(net.Subject())
+    def_table = os.path.join(TESTDATA_DIR, 'createTable.vosi')
+    client.create_table('sometable', def_table, 'vositable')
+    base_put_mock.assert_called_once()
+    headers = base_put_mock.call_args_list[0][1]['headers']
+    assert headers['Content-Type'] == ALLOWED_TB_DEF_TYPES['VOSITable']
+
+
+@patch('cadcutils.net.ws.BaseWsClient.post')
+@patch('cadcutils.net.ws.WsCapabilities.get_access_url')
+def test_load_case_insensitive_format(caps_get_mock, base_post_mock):
+    caps_get_mock.return_value = BASE_URL
+    client = CadcTapClient(net.Subject())
+    test_load_tb = os.path.join(TESTDATA_DIR, 'loadTable.txt')
+    with patch('cadctap.core.open', mock_open(read_data=b'data')):
+        client.load('schema.sometable', [test_load_tb], fformat='fitstable')
+    headers = base_post_mock.call_args_list[0][1]['headers']
+    assert headers['Content-Type'] == ALLOWED_CONTENT_TYPES['FITSTable']
+
 
 def test_error_cases():
     def get_my_access_url(service):
@@ -647,128 +689,8 @@ def test_error_cases():
         assert not client.permissions_support
 
 
-def _fix_help(help_txt):
-    """
-    Deals with incompatibilities between versions
-    :param help_txt:
-    :return:
-    """
-    # Different title in python 3.10
-    return help_txt.replace('options:', 'optional arguments:').strip('\n')
-
-
 class TestCadcTapClient(unittest.TestCase):
     """Test the CadcTapClient class"""
-
-    @patch('sys.exit', Mock(side_effect=[MyExitError for x in range(25)]))
-    def test_help(self):
-        """ Tests the helper displays for commands and subcommands in main"""
-        self.maxDiff = None
-
-        # help
-        with open(os.path.join(TESTDATA_DIR, 'help.txt'), 'r') as myfile:
-            usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-
-        usage = ('usage: cadc-tap [-h] [-V]\n'
-                 '                {schema,query,create,delete,index,'
-                 'load,permission} ...'
-                 '\ncadc-tap: error: too few arguments\n')
-
-        with patch('sys.stdout', new_callable=StringIO):
-            with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
-                sys.argv = ['cadc-tap']
-                with self.assertRaises(MyExitError):
-                    main_app()
-                assert usage.strip('\n') == _fix_help(stderr_mock.getvalue())
-
-        # schema -h
-        with open(os.path.join(TESTDATA_DIR,
-                               'help_schema.txt'), 'r') as myfile:
-            usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'schema', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-
-        # query -h
-        with open(os.path.join(TESTDATA_DIR,
-                               'help_query.txt'), 'r') as myfile:
-            usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'query', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-
-        # create -h
-        with open(os.path.join(TESTDATA_DIR,
-                               'help_create.txt'), 'r') as myfile:
-            usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'create', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-
-        # delete -h
-        with open(os.path.join(TESTDATA_DIR,
-                               'help_delete.txt'), 'r') as myfile:
-            usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'delete', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-
-        # index -h
-        with open(os.path.join(TESTDATA_DIR,
-                               'help_index.txt'), 'r') as myfile:
-            usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'index', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-
-        # load -h
-        with open(os.path.join(TESTDATA_DIR,
-                               'help_load.txt'), 'r') as myfile:
-            usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'load', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
-
-        # permission -h
-        # help is slightly different in python 3.9
-        if sys.version_info >= (3, 9):
-            with open(os.path.join(TESTDATA_DIR,
-                                   'help_permission_39.txt'), 'r') as myfile:
-                usage = myfile.read()
-        else:
-            with open(os.path.join(TESTDATA_DIR,
-                                   'help_permission.txt'), 'r') as myfile:
-                usage = myfile.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            sys.argv = ['cadc-tap', 'permission', '--help']
-            with self.assertRaises(MyExitError):
-                main_app()
-            assert usage.strip('\n') == _fix_help(stdout_mock.getvalue())
 
     @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
                                          MyExitError, MyExitError, MyExitError,
@@ -851,17 +773,17 @@ class TestCadcTapClient(unittest.TestCase):
         calls = [call('tablename', ['path/to/file'], 'tsv')]
         client_mock.return_value.load.assert_has_calls(calls)
 
-        sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice', 'QUERY']
+        sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice', '-m', '33', 'QUERY']
         main_app()
-        calls = [call('QUERY', None, 'tsv', None, no_column_names=False,
-                      timeout=2)]
+        calls = [call('QUERY', None, 'tsv', None, maxrec=33, no_column_names=False,
+                      timeout=2, )]
         client_mock.return_value.query.assert_has_calls(calls)
 
         client_mock.reset_mock()
         sys.argv = ['cadc-tap', 'query', '-q', '-s', 'http://someservice',
                     'QUERY']
         main_app()
-        calls = [call('QUERY', None, 'tsv', None, no_column_names=True,
+        calls = [call('QUERY', None, 'tsv', None, maxrec=None, no_column_names=True,
                       timeout=2)]
         client_mock.return_value.query.assert_has_calls(calls)
 
@@ -869,7 +791,7 @@ class TestCadcTapClient(unittest.TestCase):
         sys.argv = ['cadc-tap', 'query', '-s', 'http://someservice',
                     '--timeout', '7', 'QUERY']
         main_app()
-        calls = [call('QUERY', None, 'tsv', None, no_column_names=False,
+        calls = [call('QUERY', None, 'tsv', None, maxrec=None, no_column_names=False,
                       timeout=7)]
         client_mock.return_value.query.assert_has_calls(calls)
 
@@ -878,7 +800,7 @@ class TestCadcTapClient(unittest.TestCase):
         sys.argv = ['cadc-tap', 'query', '-i', query_file, '-s', 'tap']
         main_app()
         calls = [call('SELECT TOP 10 target_name FROM caom2.Observation', None,
-                      'tsv', None, no_column_names=False, timeout=2)]
+                      'tsv', None, maxrec=None, no_column_names=False, timeout=2)]
         client_mock.return_value.query.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'permission', 'o+r', 'table']
@@ -902,6 +824,16 @@ class TestCadcTapClient(unittest.TestCase):
         calls = [call('table', read_anon=False, read_only='',
                       read_write=None)]
         client_mock.return_value.set_permissions.assert_has_calls(calls)
+
+    def test_main_too_few_arguments(self):
+        sys.argv = ['cadc-tap']
+        with patch('sys.stderr', new_callable=StringIO) as stderr_mock:
+            with self.assertRaises(SystemExit) as cm:
+                main_app()
+            self.assertEqual(-1, cm.exception.code)
+            stderr = stderr_mock.getvalue()
+            self.assertIn('cadc-tap: error: too few arguments\n', stderr)
+            self.assertIn('usage:', stderr.lower())
 
     @patch('cadctap.CadcTapClient.query')
     @patch('cadcutils.net.ws.WsCapabilities.get_access_url')

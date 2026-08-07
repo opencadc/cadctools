@@ -65,12 +65,8 @@
 #
 # ***********************************************************************
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import unittest
 import pytest
-from six import assertRaisesRegex
 
 from cadcutils.net import wscapabilities
 
@@ -82,36 +78,36 @@ class TestWsCapabilities(unittest.TestCase):
         with self.assertRaises(ValueError):
             cr.parsexml('blah')
 
-        with assertRaisesRegex(
-                self, ValueError,
+        with self.assertRaisesRegex(
+                ValueError,
                 'BUG reading remote service info '
                 r'\(capabilities\) - No actual capabilities found'):
             cr.parsexml('<capabilities></capabilities>')
 
-        with assertRaisesRegex(self, ValueError,
-                               r'Cannot read service info \(capabilities\). '
-                               'Capability standard ID is invalid URL: None'):
+        with self.assertRaisesRegex(ValueError,
+                                    r'Cannot read service info \(capabilities\). '
+                                    'Capability standard ID is invalid URL: None'):
             cr.parsexml(
                 '<capabilities><capability></capability></capabilities>')
 
-        with assertRaisesRegex(self, ValueError,
-                               r'Cannot read service info \(capabilities\). '
-                               'Capability standard ID is invalid URL: abc'):
+        with self.assertRaisesRegex(ValueError,
+                                    r'Cannot read service info \(capabilities\). '
+                                    'Capability standard ID is invalid URL: abc'):
             cr.parsexml(
                 '<capabilities><capability '
                 'standardID="abc"></capability></capabilities>')
 
-        with assertRaisesRegex(self, ValueError,
-                               r'BUG reading service info \(capabilities\). '
-                               'No interfaces found for capability '
-                               'ivo://provider/service'):
+        with self.assertRaisesRegex(ValueError,
+                                    r'BUG reading service info \(capabilities\). '
+                                    'No interfaces found for capability '
+                                    'ivo://provider/service'):
             cr.parsexml(
                 '<capabilities><capability '
                 'standardID="ivo://provider/service">'
                 '</capability></capabilities>')
 
-        with assertRaisesRegex(
-            self, ValueError,
+        with self.assertRaisesRegex(
+                ValueError,
                 r'Cannot read service info \(capabilities\). '
                 'No accessURL for ivo://provider/service'):
             cr.parsexml(
@@ -121,8 +117,8 @@ class TestWsCapabilities(unittest.TestCase):
                 '<interface xsi:type="vs:ParamHTTP">'
                 '</interface></capability></capabilities>')
 
-        with assertRaisesRegex(
-                self, ValueError,
+        with self.assertRaisesRegex(
+                ValueError,
                 r'Cannot read service info \(capabilities\). '
                 'No accessURL for ivo://provider/service'):
             cr.parsexml(
@@ -131,9 +127,9 @@ class TestWsCapabilities(unittest.TestCase):
                 '<interface></interface><accessURL>'
                 '</accessURL></capability></capabilities>')
 
-        with assertRaisesRegex(self, ValueError,
-                               r'Cannot read service info \(capabilities\). '
-                               'No accessURL for ivo://provider/service'):
+        with self.assertRaisesRegex(ValueError,
+                                    r'Cannot read service info \(capabilities\). '
+                                    'No accessURL for ivo://provider/service'):
             cr.parsexml(
                 '<capabilities '
                 'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'

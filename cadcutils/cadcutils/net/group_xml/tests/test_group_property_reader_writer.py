@@ -115,9 +115,9 @@ def test_read_only_true():
     actual = reader.read(xml_string)
 
     assert actual
-    assert(actual.key == expected.key)
-    assert(actual.value == expected.value)
-    assert(actual.read_only == expected.read_only)
+    assert (actual.key == expected.key)
+    assert (actual.value == expected.value)
+    assert (actual.read_only == expected.read_only)
 
 
 def test_read_only_false():
@@ -133,6 +133,6 @@ def test_read_only_false():
     actual = reader.read(xml_string)
 
     assert actual
-    assert(actual.key == expected.key)
-    assert(actual.value == expected.value)
-    assert(actual.read_only == expected.read_only)
+    assert (actual.key == expected.key)
+    assert (actual.value == expected.value)
+    assert (actual.read_only == expected.read_only)

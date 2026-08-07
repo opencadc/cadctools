@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2022.                            (c) 2022.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -65,86 +65,83 @@
 #
 # ***********************************************************************
 
-import configparser
-import os
 import tempfile
-import shutil
-import uuid
 import unittest
-from cadcutils.util import config
+from datetime import datetime, timedelta, timezone
+from unittest.mock import MagicMock, patch
 
-_ROOT = os.path.abspath(os.path.dirname(__file__))
+from OpenSSL import crypto
+
+from cadcutils.net import cert_validation
 
 
-def get_test_data_file_path(filename):
-    return os.path.join(_ROOT, 'data', filename)
+def _make_pem_cert(not_after=None):
+    """Create a self-signed PEM certificate for testing."""
+    key = crypto.PKey()
+    key.generate_key(crypto.TYPE_RSA, 2048)
+    cert = crypto.X509()
+    cert.set_pubkey(key)
+    cert.get_subject().CN = 'test'
+    if not_after is None:
+        not_after = datetime.now(timezone.utc) + timedelta(days=30)
+    cert.set_notAfter(not_after.strftime('%Y%m%d%H%M%SZ').encode('ascii'))
+    cert.set_notBefore(
+        (datetime.now(timezone.utc) - timedelta(days=1)).strftime(
+            '%Y%m%d%H%M%SZ').encode('ascii'))
+    cert.set_serial_number(1)
+    cert.set_issuer(cert.get_subject())
+    cert.sign(key, 'sha256')
+    return crypto.dump_certificate(crypto.FILETYPE_PEM, cert)
 
 
-class TestConfig(unittest.TestCase):
-    """Test the vos Config class.
-    """
+class TestCertValidation(unittest.TestCase):
+    """Tests for client certificate validation."""
 
-    def test_single_section_config(self):
+    def test_valid_certificate(self):
+        with tempfile.NamedTemporaryFile(suffix='.pem', delete=False) as f:
+            f.write(_make_pem_cert())
+            cert_path = f.name
+        cert_validation.validate_client_certificate(cert_path)
 
-        self.do_test('single-section-config', 'single-section-default-config')
+    def test_expired_certificate(self):
+        expired = datetime.now(timezone.utc) - timedelta(days=1)
+        with tempfile.NamedTemporaryFile(suffix='.pem', delete=False) as f:
+            f.write(_make_pem_cert(not_after=expired))
+            cert_path = f.name
+        with self.assertRaises(ValueError) as ctx:
+            cert_validation.validate_client_certificate(cert_path)
+        self.assertIn('expired', str(ctx.exception))
+        self.assertIn('cadc-get-cert', str(ctx.exception))
 
-    def test_multi_section_config(self):
+    def test_invalid_pem(self):
+        with tempfile.NamedTemporaryFile(suffix='.pem', delete=False) as f:
+            f.write(b'not a certificate')
+            cert_path = f.name
+        with self.assertRaises(ValueError) as ctx:
+            cert_validation.validate_client_certificate(cert_path)
+        self.assertIn('invalid PEM format', str(ctx.exception))
 
-        self.do_test('multi-section-config', 'multi-section-default-config')
+    def test_missing_file(self):
+        with self.assertRaises(ValueError) as ctx:
+            cert_validation.validate_client_certificate('/no/such/cert.pem')
+        self.assertIn('Cannot read certificate file', str(ctx.exception))
 
-    def do_test(self, config_filename, default_config_filename):
+    @patch('cadcutils.net.cert_validation.logger')
+    def test_expiring_soon_warning(self, logger_mock):
+        soon = datetime.now(timezone.utc) + timedelta(days=3)
+        with tempfile.NamedTemporaryFile(suffix='.pem', delete=False) as f:
+            f.write(_make_pem_cert(not_after=soon))
+            cert_path = f.name
+        cert_validation.validate_client_certificate(cert_path, warn_days=3)
+        logger_mock.warning.assert_called_once()
+        self.assertIn('expires in', logger_mock.warning.call_args[0][0])
 
-        default_config_path = tempfile.gettempdir() + '/' + str(uuid.uuid4())
-        test_default_config = get_test_data_file_path(default_config_filename)
-        shutil.copy(test_default_config, default_config_path)
-
-        # no existing config file
-        config_path = tempfile.gettempdir() + '/' + str(uuid.uuid4())
-
-        config.Config.write_config(config_path, default_config_path)
-
-        self.assertTrue(os.path.isfile(config_path))
-        self.cmp_configs(config_path, default_config_path)
-
-        # existing config file same as default config file
-        config_path = tempfile.gettempdir() + '/' + str(uuid.uuid4())
-        shutil.copy(test_default_config, config_path)
-
-        config.Config.write_config(config_path, default_config_path)
-
-        self.cmp_configs(config_path, default_config_path)
-
-        # merge default and existing config files
-        config_path = tempfile.gettempdir() + '/' + str(uuid.uuid4())
-
-        test_config = get_test_data_file_path(config_filename)
-        shutil.copy(test_config, config_path)
-
-        config.Config.write_config(config_path, default_config_path)
-
-        self.cmp_configs(config_path, default_config_path)
-
-        # test get non-existing option
-        self.assertEqual(None,
-                         config.Config(config_path, default_config_path).
-                         get('blah', 'blah'))
-
-        # test error paths
-        with self.assertRaises(IOError):
-            config.Config('/non/existent/path')
-        with self.assertRaises(IOError):
-            config.Config(test_default_config,
-                          default_config_path='/non/existen/path')
-
-    def cmp_configs(self, config_path, default_config_path):
-
-        parser = configparser.ConfigParser()
-        parser.read(config_path)
-
-        default_parser = configparser.ConfigParser()
-        default_parser.read(default_config_path)
-
-        for section in default_parser.sections():
-            self.assertTrue(parser.has_section(section))
-            for option in default_parser.options(section):
-                self.assertTrue(parser.has_option(section, option))
+    @patch('cadcutils.net.cert_validation.crypto.load_certificate')
+    def test_no_expiry_date(self, load_mock):
+        cert = MagicMock()
+        cert.get_notAfter.return_value = None
+        load_mock.return_value = cert
+        with tempfile.NamedTemporaryFile(suffix='.pem', delete=False) as f:
+            f.write(b'placeholder')
+            cert_path = f.name
+        cert_validation.validate_client_certificate(cert_path)

@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2022.                            (c) 2022.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -52,99 +52,60 @@
 #  warranty of MERCHANTABILITY          implicite de COMMERCIALISABILITÉ
 #  or FITNESS FOR A PARTICULAR          ni d’ADÉQUATION À UN OBJECTIF
 #  PURPOSE.  See the GNU Affero         PARTICULIER. Consultez la Licence
-#  General Public License for           Générale Publique GNU Affero
-#  more details.                        pour plus de détails.
+#  General Public License for           Générale Publique GNU Affero pour
+#  more details.                        plus de détails.
 #
 #  You should have received             Vous devriez avoir reçu une
 #  a copy of the GNU Affero             copie de la Licence Générale
 #  General Public License along         Publique GNU Affero avec
-#  with OpenCADC.  If not, see          OpenCADC ; si ce n’est
-#  <http://www.gnu.org/licenses/>.      pas le cas, consultez :
+#  with OpenCADC.  If not, see          OpenCADC ; si ce n’est pas le cas,
+#  <http://www.gnu.org/licenses/>.      consultez :
 #                                       <http://www.gnu.org/licenses/>.
-#
 #
 # ***********************************************************************
 
-import configparser
-import os
-import tempfile
-import shutil
-import uuid
-import unittest
-from cadcutils.util import config
+"""Contract tests for cadcdata CLI parsers."""
 
-_ROOT = os.path.abspath(os.path.dirname(__file__))
+import pytest
+
+from cadcdata.storageinv import (
+    build_cadcget_parser, build_cadcput_parser,
+    build_cadcinfo_parser, build_cadcremove_parser,
+    DEFAULT_RESOURCE_ID,
+)
+from cadcutils.util.tests.parser_helpers import (
+    assert_has_base_dests, assert_has_dests, assert_epilog_contains,
+    assert_help_contains,
+)
 
 
-def get_test_data_file_path(filename):
-    return os.path.join(_ROOT, 'data', filename)
-
-
-class TestConfig(unittest.TestCase):
-    """Test the vos Config class.
-    """
-
-    def test_single_section_config(self):
-
-        self.do_test('single-section-config', 'single-section-default-config')
-
-    def test_multi_section_config(self):
-
-        self.do_test('multi-section-config', 'multi-section-default-config')
-
-    def do_test(self, config_filename, default_config_filename):
-
-        default_config_path = tempfile.gettempdir() + '/' + str(uuid.uuid4())
-        test_default_config = get_test_data_file_path(default_config_filename)
-        shutil.copy(test_default_config, default_config_path)
-
-        # no existing config file
-        config_path = tempfile.gettempdir() + '/' + str(uuid.uuid4())
-
-        config.Config.write_config(config_path, default_config_path)
-
-        self.assertTrue(os.path.isfile(config_path))
-        self.cmp_configs(config_path, default_config_path)
-
-        # existing config file same as default config file
-        config_path = tempfile.gettempdir() + '/' + str(uuid.uuid4())
-        shutil.copy(test_default_config, config_path)
-
-        config.Config.write_config(config_path, default_config_path)
-
-        self.cmp_configs(config_path, default_config_path)
-
-        # merge default and existing config files
-        config_path = tempfile.gettempdir() + '/' + str(uuid.uuid4())
-
-        test_config = get_test_data_file_path(config_filename)
-        shutil.copy(test_config, config_path)
-
-        config.Config.write_config(config_path, default_config_path)
-
-        self.cmp_configs(config_path, default_config_path)
-
-        # test get non-existing option
-        self.assertEqual(None,
-                         config.Config(config_path, default_config_path).
-                         get('blah', 'blah'))
-
-        # test error paths
-        with self.assertRaises(IOError):
-            config.Config('/non/existent/path')
-        with self.assertRaises(IOError):
-            config.Config(test_default_config,
-                          default_config_path='/non/existen/path')
-
-    def cmp_configs(self, config_path, default_config_path):
-
-        parser = configparser.ConfigParser()
-        parser.read(config_path)
-
-        default_parser = configparser.ConfigParser()
-        default_parser.read(default_config_path)
-
-        for section in default_parser.sections():
-            self.assertTrue(parser.has_section(section))
-            for option in default_parser.options(section):
-                self.assertTrue(parser.has_option(section, option))
+@pytest.mark.parametrize('build_parser,extra_dests,epilog_snippets', [
+    (build_cadcget_parser, ('output', 'identifier', 'fhead'), (
+        'Examples:',
+        'cadcget GEMINI/N20220825S0383.fits',
+        'cadcget --cert ~/.ssl/cadcproxy.pem',
+        'cutout=[1][10:120,20:30]',
+    )),
+    (build_cadcput_parser, ('type', 'encoding', 'replace', 'identifier', 'src'), (
+        'Examples:',
+        'cadcput --cert ~/.ssl/cadcproxy.pem',
+        'cadcput -v -n cadc:TEST/',
+        'cadcput -v -u auser cadc:TEST/',
+    )),
+    (build_cadcinfo_parser, ('identifier',), (
+        'Examples:',
+        'cadcinfo CFHT/1000003f.fits.fz',
+        'cadcinfo cadc:CFHT/1000003f.fits.fz',
+    )),
+    (build_cadcremove_parser, ('identifier',), (
+        'Examples:',
+        'cadcremove --cert ~/.ssl/cadcproxy.pem',
+        'cadc:CFHT/700000o.fz',
+    )),
+])
+def test_storage_cli_parser_contract(build_parser, extra_dests, epilog_snippets):
+    parser = build_parser()
+    assert_has_base_dests(parser, use_service=True)
+    assert_has_dests(parser, *extra_dests)
+    assert_help_contains(parser, DEFAULT_RESOURCE_ID)
+    assert_epilog_contains(parser, *epilog_snippets)

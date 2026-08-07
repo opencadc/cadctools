@@ -3,7 +3,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2022.                            (c) 2022.
+#  (c) 2023.                            (c) 2023.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -68,17 +68,20 @@
 import unittest
 from argparse import ArgumentError
 
-from mock import Mock, patch
-from six import StringIO
-from six.moves.urllib.parse import urlparse
+from unittest.mock import Mock, patch
+from io import StringIO
+from urllib.parse import urlparse
 import tempfile
 import os
 import sys
 import logging
 import hashlib
 from cadcutils.util import date2ivoa, str2ivoa, get_base_parser, \
-    get_log_level, get_logger, Md5File
+    get_log_level, get_logger, Md5File, get_url_content, VersionWarning, check_version
+from cadcutils import exceptions, util
 import pytest
+from tempfile import NamedTemporaryFile
+import warnings
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
@@ -257,104 +260,118 @@ class UtilTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             parser.add_subparsers(dest='cmd')
 
-    @patch('sys.exit', Mock(side_effect=[MyExitError, MyExitError, MyExitError,
-                                         MyExitError, MyExitError,
-                                         MyExitError]))
-    def test_base_parser_help(self):
-        # help with a simple, no subparsers basic parser - these are
-        # the default arguments
-        self.maxDiff = None
+    def test_base_parser_contract(self):
+        from cadcutils.util.tests.parser_helpers import (
+            assert_has_dests, assert_has_base_dests, get_subparser,
+            subparser_names, option_dests)
 
-        with open(os.path.join(TESTDATA_DIR, 'help.txt'), 'r') as f:
-            expected_stdout = f.read()
+        parser = get_base_parser(subparsers=False, version=3.3)
+        assert_has_base_dests(parser)
 
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            with self.assertRaises(MyExitError):
-                sys.argv = ["cadc-client", "--help"]
-                parser = get_base_parser(subparsers=False, version=3.3)
-                parser.parse_args()
-            assert expected_stdout.strip('\n') == \
-                _fix_help(stdout_mock.getvalue())
+        parser = get_base_parser(subparsers=False)
+        assert_has_base_dests(parser)
+        assert 'version' not in option_dests(parser)
 
-        # same test but no version this time
-        with open(os.path.join(TESTDATA_DIR, 'help_no_version.txt'), 'r') as f:
-            expected_stdout = f.read()
+        parser = get_base_parser(subparsers=False)
+        parser.add_argument('-x', action='store_true', help='test argument')
+        parser.add_argument('fileID', help='the ID of the file in the archive',
+                            nargs='+')
+        assert_has_dests(parser, 'x', 'fileID')
 
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            with self.assertRaises(MyExitError):
-                sys.argv = ["cadc-client", "--help"]
-                parser = get_base_parser(subparsers=False)
-                parser.parse_args()
-            assert expected_stdout.strip('\n') == \
-                _fix_help(stdout_mock.getvalue())
-
-        # --help with a simple parser with a few extra command line options
-        with open(os.path.join(TESTDATA_DIR, 'help_extra_opt.txt'), 'r') as f:
-            expected_stdout = f.read()
-
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            with self.assertRaises(MyExitError):
-                sys.argv = ["cadc-client", "--help"]
-                parser = get_base_parser(subparsers=False)
-                parser.add_argument('-x', action='store_true',
-                                    help='test argument')
-                parser.add_argument('fileID',
-                                    help='the ID of the file in the archive',
-                                    nargs='+')
-                parser.parse_args()
-            assert expected_stdout.strip() == _fix_help(stdout_mock.getvalue())
-
-        # help with a parser with 2 subcommands
         parser = get_base_parser()
         subparsers = parser.add_subparsers(dest='cmd', help='My subcommands')
-        parser_cmd1 = subparsers.add_parser('cmd1')
-        parser_cmd1.add_argument('-x', action='store_true',
-                                 help='test argument')
-        parser_cmd2 = subparsers.add_parser('cmd2')
-        parser_cmd2.add_argument('fileID',
-                                 help='the ID of the file in the archive',
-                                 nargs='+')
+        subparsers.add_parser('cmd1')
+        cmd2 = subparsers.add_parser('cmd2')
+        cmd2.add_argument('fileID', help='the ID of the file in the archive',
+                          nargs='+')
+        assert subparser_names(parser) == ['cmd1', 'cmd2']
+        assert_has_base_dests(get_subparser(parser, 'cmd1'))
+        assert_has_base_dests(get_subparser(parser, 'cmd2'))
+        assert_has_dests(get_subparser(parser, 'cmd2'), 'fileID')
 
-        with open(os.path.join(TESTDATA_DIR, 'help_subcommands.txt'),
-                  'r') as f:
-            expected_stdout = f.read()
+    def test_check_version(self):
+        # mock pypi returns version ['1.0.1', '1.0.2a1', '1.0.1.1', '0.9.9', '1.0.2dev20190219']
+        with patch('cadcutils.util.utils.get_url_content') as mock_content:
+            with open(os.path.join(TESTDATA_DIR, 'myapp_versions.json')) as f:
+                versions_json = f.read()
+            mock_content.return_value = versions_json
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", category=VersionWarning)
+                # reset checked flag
+                util.check_version.checked = []
+                with pytest.raises(VersionWarning):
+                    check_version('cadc-application 0.2')
 
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            with self.assertRaises(MyExitError):
-                sys.argv = ["cadc-client", "-h"]
-                parser.parse_args()
-        assert expected_stdout.strip('\n') == _fix_help(stdout_mock.getvalue())
+                # subsequent calls are not checked
+                check_version('cadc-application 0.2')
 
-        with open(os.path.join(TESTDATA_DIR, 'help_subcommands1.txt'),
-                  'r') as f:
-            expected_stdout = f.read()
+                # check a different package. mock_content is going to return
+                # the versions above so this should fail
+                with pytest.raises(VersionWarning):
+                    check_version('cadc-other-application 0.5.5')
 
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            with self.assertRaises(MyExitError):
-                sys.argv = ['cadc-client', 'cmd1', '-h']
-                parser.parse_args()
-        assert expected_stdout.strip('\n') == _fix_help(stdout_mock.getvalue())
+                # subsequent calls should not be checked
+                check_version('cadc-other-application 0.5.5')
 
-        with open(os.path.join(TESTDATA_DIR, 'help_subcommands2.txt'),
-                  'r') as f:
-            expected_stdout = f.read()
+                util.check_version.checked = []
+                with pytest.raises(VersionWarning):
+                    check_version('cadc-application 1.0.0')
 
-        with patch('sys.stdout', new_callable=StringIO) as stdout_mock:
-            with self.assertRaises(MyExitError):
-                sys.argv = ['cadc-client', 'cmd2', '-h']
-                parser.parse_args()
-            assert expected_stdout.strip('\n') == \
-                _fix_help(stdout_mock.getvalue())
+                util.check_version.checked = []
+                check_version('cadc-application 1.0.1')
 
 
-def _fix_help(help_txt):
-    """
-    Deals with incompatibilities between versions
-    :param help_txt:
-    :return:
-    """
-    # Different title in python 3.10
-    return help_txt.replace('options:', 'optional arguments:').strip('\n')
+def test_get_url_content():
+    cache_file = NamedTemporaryFile()
+    content = 'TEST CACHE'
+    with patch('cadcutils.util.utils.requests.Session') as mock_session:
+        response = Mock()
+        response.text = content
+        msession = Mock()
+        msession.get.return_value = response
+        mock_session.return_value = msession
+        assert content == get_url_content('https://some.site',
+                                          cache_file=cache_file.name,
+                                          refresh_interval=0)  # force cache update
+        with open(cache_file.name, 'r') as f:
+            cache_content = f.read()
+        assert content == cache_content
+
+        new_content = 'TEST CACHE AGAIN'
+        response.text = new_content
+        msession.get.return_value = response
+        mock_session.return_value = msession
+        # use cache
+        assert content == get_url_content('https://some.site',
+                                          cache_file=cache_file.name,
+                                          refresh_interval=1000)  # use cache
+        assert mock_session.get.call_count == 0
+        # force refresh
+        assert new_content == get_url_content('https://some.site',
+                                              cache_file=cache_file.name,
+                                              refresh_interval=0)  # force refresh
+        with open(cache_file.name, 'r') as f:
+            cache_content = f.read()
+        assert new_content == cache_content
+
+        # use outdated cache when URL not accessible
+        msession = Mock()
+        msession.get.side_effect = [exceptions.HttpException()]
+        mock_session.return_value = msession
+        assert new_content == get_url_content('https://some.site',
+                                              cache_file=cache_file.name,
+                                              refresh_interval=0)
+
+        # repeat but remove the cache file
+        cache_file.close()  # temporary file deleted when closed
+        msession = Mock()
+        msession.get.side_effect = [exceptions.HttpException()]
+        mock_session.return_value = msession
+        msession.get.side_effect = [Exception('Some error')]
+        with pytest.raises(RuntimeError):
+            assert new_content == get_url_content('https://some.site',
+                                                  cache_file=cache_file.name,
+                                                  refresh_interval=0)
 
 
 class TestMd5File(unittest.TestCase):

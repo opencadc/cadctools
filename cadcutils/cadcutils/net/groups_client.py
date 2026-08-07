@@ -4,7 +4,7 @@
 # ******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # *************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 #
-#  (c) 2021.                            (c) 2021.
+#  (c) 2026.                            (c) 2026.
 #  Government of Canada                 Gouvernement du Canada
 #  National Research Council            Conseil national de recherches
 #  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -69,18 +69,17 @@
 """
 Module that contains functionality related to CADC groups.
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 
 import sys
 import traceback
 import logging
-from six.moves.urllib.parse import urlparse, urlencode
+from urllib.parse import urlparse, urlencode
 
 
 from cadcutils import version  # TODO should it be application version instead?
 from cadcutils import util, exceptions
-from . import BaseWsClient, Subject
+from cadcutils.util.cli_errors import format_user_error
+from . import BaseWsClient, Subject, User
 from .auth import SECURITY_METHODS_IDS, CookieInfo
 from . import Role, Group, Identity
 from .group_xml import GroupWriter, GroupReader, GroupsReader
@@ -101,6 +100,8 @@ SEARCH_CAPABILITY_ID = 'ivo://ivoa.net/std/GMS#search-1.0'
 GROUPS_PATH = 'groups'
 GROUP_MEMBER_PATH = 'groupMembers'
 USER_MEMBER_PATH = 'userMembers'
+
+SUPPORTED_SERVER_VERSIONS = {'ac': '1.3'}
 
 APP_NAME = 'cadc-group'
 
@@ -123,10 +124,12 @@ class GroupsClient():
         :param resource_id: the resource ID of the service (service ID)
         :param host: Host for the GMS service (use for testing mainly)
         :param agent: The name of the agent (to be used in server logging)
-        :param insecure Allow insecure server connections over SSL (testing)
+        :param insecure: skip SSL server certificate verification (for testing
+        only; not recommended)
         """
         self.resource_id = resource_id
         self.host = host
+        util.check_version(version=version.version)
 
         self._subject = subject
         if agent is None:
@@ -164,7 +167,8 @@ class GroupsClient():
 
         self._gms_client = BaseWsClient(resource_id, subject, self.agent,
                                         retry=True, host=self.host,
-                                        insecure=insecure)
+                                        insecure=insecure,
+                                        server_versions=SUPPORTED_SERVER_VERSIONS)
         # double check it is a GMS server
         try:
             self._search_ep = \
@@ -389,6 +393,67 @@ def print_group_members(group):
         (',\n'+' '*17).join([gr.group_id for gr in group.group_members])))
 
 
+def print_group_admins(group):
+    print('   User Administrators: {}'.format((',\n'+' '*17).join(
+        ['{} ({})'.format(
+            m.identities['HTTP'].name,
+            m.identities['X500'].name) for m in group.user_admins])))
+    print('  Group Administrators: {}'.format(
+        (',\n'+' '*17).join([gr.group_id for gr in group.group_admins])))
+
+
+def _add_admin_user(group, user):
+    if user.strip().lower().startswith('cn='):
+        id_type = 'X500'
+    else:
+        id_type = 'HTTP'
+    for admin_user in group.user_admins:
+        if (id_type in admin_user.identities) and admin_user.identities[id_type].name.lower() == user.strip().lower():
+            raise ValueError("User " + user.strip().lower() + " already in the admins group")
+    admin = User()
+    admin.identities[id_type] = Identity(user.strip().lower(), id_type)
+    group.add_user_admin(admin)
+
+
+def _remove_admin_users(group, users):
+    # removes user from group's admins or raises ValueError if not found
+    # Note: users are matched on HTTP or X500 identities and not on the CADC internal identity
+    for ru in users:
+        if not group.user_admins:
+            raise ValueError("Nothing to remove - admins list empty")
+        rm_user = ru.strip().lower()
+        if rm_user.startswith('cn='):
+            id_type = 'X500'
+        else:
+            id_type = 'HTTP'
+        rm_user_found = False
+        for eu in group.user_admins:
+            if (id_type in eu.identities) and (eu.identities[id_type].name.lower() == rm_user):
+                group.user_admins.remove(eu)
+                rm_user_found = True
+                break
+        if not rm_user_found:
+            raise ValueError("User " + rm_user + " not found in the admins list")
+
+
+def _add_admin_groups(group, add_groups):
+    for ag in add_groups:
+        add_group = Group(ag)
+        if add_group not in group.group_admins:
+            group.group_admins.add(add_group)
+        else:
+            raise ValueError("Group " + ag + " already in the admins group")
+
+
+def _remove_admin_groups(group, rm_groups):
+    for rg in rm_groups:
+        rm_group = Group(rg)
+        if rm_group in group.group_admins:
+            group.group_admins.remove(Group(rg))
+        else:
+            raise ValueError("Group " + rg + " not in admins groups")
+
+
 def main_app():
     parser = util.get_base_parser(version=version.version, auth_required=True,
                                   default_resource_id=CADC_AC_SERVICE_ID)
@@ -446,8 +511,8 @@ def main_app():
 
     members_parser = subparsers.add_parser(
         'members',
-        description='Display, sets or deletes group membership information',
-        help='Display, sets or deletes group membership information')
+        description='Displays, sets or deletes group membership information',
+        help='Displays, sets or deletes group membership information')
     cmd_group = members_parser.add_mutually_exclusive_group()
     cmd_group.add_argument('-clear', '--clear', action='store_true',
                            help='Clear group and user membership')
@@ -465,6 +530,28 @@ def main_app():
     members_parser.epilog = (
         'Examples:\n'
         '        cadc-groups members --erase GEMINI foo\n')
+
+    admins_parser = subparsers.add_parser(
+        'admins',
+        description='Displays, sets or deletes group adminstrator information',
+        help='Displays, sets or deletes group adminstrators information')
+    cmd_group = admins_parser.add_mutually_exclusive_group()
+    cmd_group.add_argument('-clear', '--clear', action='store_true',
+                           help='Clear group and user admins')
+    cmd_group.add_argument('--remove-group', action='append',
+                           help='Remove admin group with provided ID')
+    cmd_group.add_argument('--add-group', action='append',
+                           help='Add admin group with provided ID')
+    cmd_group.add_argument('--remove-user', action='append',
+                           help='Remove admin user with CADC username or '
+                                'distinguished name (DN)')
+    cmd_group.add_argument('--add-user', action='append',
+                           help='Add admin user with with given CADC username'
+                                ' or distinguished name (DN)')
+    admins_parser.add_argument('groupid', help='ID of the group')
+    members_parser.epilog = (
+        'Examples:\n'
+        '        cadc-groups admins --erase GEMINI foo\n')
 
     remove_parser = subparsers.add_parser(
         'remove',
@@ -493,10 +580,12 @@ def main_app():
             print('ERROR: Not found: {}'.format(str(exception)))
         elif isinstance(exception, exceptions.ForbiddenException):
             print('ERROR: Unauthorized to perform operation')
+        elif isinstance(exception, exceptions.SslException):
+            print('ERROR: {}'.format(format_user_error(exception)))
         elif isinstance(exception, exceptions.UnexpectedException):
             print('ERROR: Unexpected server error: {}'.format(str(exception)))
         else:
-            print('ERROR: {}'.format(exception))
+            print('ERROR: {}'.format(format_user_error(exception)))
 
         # if logger.isEnabledFor(logging.DEBUG):
         #     traceback.print_stack()
@@ -509,14 +598,6 @@ def main_app():
         parser.print_usage(file=sys.stderr)
         sys.stderr.write("{}: error: too few arguments\n".format(APP_NAME))
         sys.exit(-1)
-    if args.verbose:
-        logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-        logger.setLevel(logging.INFO)
-    elif args.debug:
-        logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
-        logger.setLevel(logging.DEBUG)
-    else:
-        logging.basicConfig(level=logging.WARNING, stream=sys.stdout)
 
     subject = Subject.from_cmd_line_args(args)
 
@@ -574,6 +655,32 @@ def main_app():
                                                member_group_id=rg)
             else:
                 print_group_members(group)
+        elif args.cmd == 'admins':
+            logger.info('admins')
+            group = client.get_group(args.groupid)
+            if args.clear:
+                group.group_admins.clear()
+                group.user_admins.clear()
+                client.update_group(group)
+            elif args.add_user:
+                # Note: admin users need to be added one-by-one in order for the
+                # server to provide the internal CADC ID which is the user primary
+                # key
+                for admin in args.add_user:
+                    _add_admin_user(group, admin)
+                    client.update_group(group)
+            elif args.add_group:
+                _add_admin_groups(group, args.add_group)
+                client.update_group(group)
+            elif args.remove_user:
+                _remove_admin_users(group, args.remove_user)
+                client.update_group(group)
+            elif args.remove_group:
+                _remove_admin_groups(group, args.remove_group)
+                client.update_group(group)
+            else:
+                print_group_admins(group)
+
         elif args.cmd == 'remove':
             logger.info('remove')
             for gi in args.groupid:
