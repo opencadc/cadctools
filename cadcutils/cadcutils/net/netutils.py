@@ -91,8 +91,10 @@ CADC_VO_VIEWS = {'data': '{}#data'.format(VO_CADC_VIEW_URI),
 SSO_SECURITY_METHODS = {
     'tls-with-certificate': 'ivo://ivoa.net/sso#tls-with-certificate',
     'cookie': 'ivo://ivoa.net/sso#cookie',
-    'token': 'vos://cadc.nrc.ca~vospace/CADC/std/Auth#token-1.0'
+    'token': 'ivo://ivoa.net/sso#token'
 }
+# Older vos clients still send the legacy CADC token securityMethod URI.
+_LEGACY_TOKEN_SECURITY_METHOD = 'vos://cadc.nrc.ca~vospace/CADC/std/Auth#token-1.0'
 
 
 def get_header_filename(headers):
@@ -232,6 +234,8 @@ class Transfer(object):
 
             if security_methods:
                 for sm in security_methods:
+                    if sm == _LEGACY_TOKEN_SECURITY_METHOD:
+                        sm = SSO_SECURITY_METHODS['token']
                     if sm not in SSO_SECURITY_METHODS.values():
                         raise AttributeError(
                             'Invalid security method {}. Supported values: {}'.
