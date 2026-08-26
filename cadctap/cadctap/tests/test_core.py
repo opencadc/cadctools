@@ -397,13 +397,46 @@ def test_create_index(caps_get_mock, base_get_mock, base_post_mock):
     post_calls = [call((TABLE_UPDATE_CAPABILITY_ID, None),
                   allow_redirects=False,
                   data={'table': 'schema.sometable',
-                        'unique': 'true',
+                        'index_type': ['unique'],
                         'index': 'col1'}),
                   call('{}/phase'.format(job_location),
                   data={'PHASE': 'RUN'})]
     base_post_mock.assert_has_calls(post_calls)
 
     # expected get calls
+    get_calls = [call('{}/phase'.format(job_location), data={'WAIT': 1}),
+                 call('{}/phase'.format(job_location), data={'WAIT': 1})]
+    base_get_mock.assert_has_calls(get_calls)
+
+    # case: unique=True
+    base_post_mock.reset_mock()
+    base_get_mock.reset_mock()
+    base_get_mock.side_effect = [response2, response3]
+    client.create_index('schema.sometable', 'col1', unique=False)
+    post_calls = [call((TABLE_UPDATE_CAPABILITY_ID, None),
+                       allow_redirects=False,
+                       data={'table': 'schema.sometable',
+                             'index': 'col1'}),
+                  call('{}/phase'.format(job_location),
+                       data={'PHASE': 'RUN'})]
+    base_post_mock.assert_has_calls(post_calls)
+    get_calls = [call('{}/phase'.format(job_location), data={'WAIT': 1}),
+                 call('{}/phase'.format(job_location), data={'WAIT': 1})]
+    base_get_mock.assert_has_calls(get_calls)
+
+    # case: test param build: index_type=['unique', 'long-lat']
+    base_post_mock.reset_mock()
+    base_get_mock.reset_mock()
+    base_get_mock.side_effect = [response2, response3]
+    client.create_index('schema.sometable', 'col1', unique=True, index_type=['long-lat'])
+    post_calls = [call((TABLE_UPDATE_CAPABILITY_ID, None),
+                       allow_redirects=False,
+                       data={'table': 'schema.sometable',
+                             'index_type': ['long-lat', 'unique'],
+                             'index': 'col1'}),
+                  call('{}/phase'.format(job_location),
+                       data={'PHASE': 'RUN'})]
+    base_post_mock.assert_has_calls(post_calls)
     get_calls = [call('{}/phase'.format(job_location), data={'WAIT': 1}),
                  call('{}/phase'.format(job_location), data={'WAIT': 1})]
     base_get_mock.assert_has_calls(get_calls)
@@ -765,7 +798,19 @@ class TestCadcTapClient(unittest.TestCase):
 
         sys.argv = ['cadc-tap', 'index', '-v', 'tablename', 'columnName']
         main_app()
-        calls = [call('tablename', 'columnName', False)]
+        calls = [call('tablename', 'columnName', False, index_type=None)]
+        client_mock.return_value.create_index.assert_has_calls(calls)
+
+        client_mock.return_value.create_index.reset_mock()
+        sys.argv = ['cadc-tap', 'index', '-v', 'tablename', 'columnName', '--index-type', 'unique']
+        main_app()
+        calls = [call('tablename', 'columnName', False, index_type=['unique'])]
+        client_mock.return_value.create_index.assert_has_calls(calls)
+
+        client_mock.return_value.create_index.reset_mock()
+        sys.argv = ['cadc-tap', 'index', '-v', 'tablename', 'columnName', '--unique']
+        main_app()
+        calls = [call('tablename', 'columnName', True, index_type=None)]
         client_mock.return_value.create_index.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'load', 'tablename', 'path/to/file']

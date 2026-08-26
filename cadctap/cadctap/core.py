@@ -295,26 +295,45 @@ class CadcTapClient(object):
         self._tap_client.delete((TABLES_CAPABILITY_ID, table_name))
         logger.debug('Successfully deleted table {}'.format(table_name))
 
-    def create_index(self, table_name, column_name, unique=False):
+    def create_index(self, table_name, column_name, unique=False, index_type=None):
         """
         Creates a table index in the catalog service
         :param table_name: name of the table
-        :param column_name: name of the column
-        :param unique: True if index is unique, False otherwise
+        :param column_name: name of the column or comma-separated list of columns; order matters
+        :param unique: True if index is unique, False otherwise (deprecated, use index_type=['unique'] instead)
+        :param index_type: optional list of index type qualifiers; allowed values are 'long-lat', 'x-y', 'unique'
         """
         if not table_name or not column_name:
             raise AttributeError(
                 'table name and column required in index: {}/{}'.
                 format(table_name, column_name))
 
+        # Normalise index_type to a list
+        if index_type is None:
+            index_type = []
+
+        # Support legacy unique flag
+        if unique and 'unique' not in index_type:
+            index_type = list(index_type) + ['unique']
+
+        allowed_index_types = {'long-lat', 'x-y', 'unique'}
+        for it in index_type:
+            if it not in allowed_index_types:
+                raise AttributeError(
+                    'invalid INDEX_TYPE: {!r} (choose from {})'.format(
+                        it, ', '.join(sorted(allowed_index_types))))
+
+
         logger.debug('{} for column {} in table {}'.
-                     format('Unique index' if unique else 'Index',
-                            column_name, table_name,))
+                     format('Unique index' if 'unique' in index_type else 'Index',
+                            column_name, table_name))
+
+        data={'table': table_name,
+                'index': column_name}
+        if index_type:
+            data['index_type'] = index_type
         result = self._tap_client.post((TABLE_UPDATE_CAPABILITY_ID, None),
-                                       data={'table': table_name,
-                                             'index': column_name,
-                                             'unique': 'true' if unique
-                                             else 'false'},
+                                       data=data,
                                        allow_redirects=False)
         if result.status_code == 303:
             job_url = result.headers['Location']
@@ -1129,13 +1148,19 @@ def build_parser(command='cadc-tap query'):
         help='create a table index')
     index_parser.add_argument(
         '-U', '--unique', action='store_true',
-        help='index is unique')
+        help='index is unique (Deprecated; use --index-type parameter instead)')
+    index_parser.add_argument(
+        '--index-type',
+        action='append',
+        choices=['long-lat', 'x-y', 'unique'],
+        default=None,
+        help='index type(s); Allowed values: [long-lat, x-y, unique]')
     index_parser.add_argument(
         'TABLENAME',
         help='name of the table in the tap service to create the index for')
     index_parser.add_argument(
         'COLUMN',
-        help='name of the column to create the index for')
+        help='Comma separated name(s) of the column(s) to create the index for')
 
     load_parser = subparsers.add_parser(
         'load',
@@ -1231,7 +1256,7 @@ def main_app(command='cadc-tap query'):
                 else:
                     reply = input('Please reply with yes or no: ')
         elif args.cmd == 'index':
-            client.create_index(args.TABLENAME, args.COLUMN, args.unique)
+            client.create_index(args.TABLENAME, args.COLUMN, args.unique, index_type=args.index_type)
         elif args.cmd == 'load':
             client.load(args.TABLENAME, args.SOURCE, args.format)
         elif args.cmd == 'query':
