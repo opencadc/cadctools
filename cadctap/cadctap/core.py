@@ -172,6 +172,25 @@ def parse_app_format(allowed_formats, label='format'):
     return _parse
 
 
+def _add_vosi_headers(headers, auth_read=None, group_read=None,
+                      group_write=None, owner=None):
+    """
+    Add optional VOSI permission headers to the headers dict.
+    :param headers: dict to update in-place
+    :param auth_read: x-vosi-auth-read value ('true', 'false' or 'null')
+    :param group_read: x-vosi-group-read value (URI string or 'null')
+    :param group_write: x-vosi-group-write value (URI string or 'null')
+    :param owner: x-vosi-owner value (string)
+    """
+    if auth_read is not None:
+        headers['x-vosi-auth-read'] = auth_read
+    if group_read is not None:
+        headers['x-vosi-group-read'] = group_read
+    if group_write is not None:
+        headers['x-vosi-group-write'] = group_write
+    if owner is not None:
+        headers['x-vosi-owner'] = owner
+
 class CadcTapClient(object):
     """Class to access CADC databases.
     Example of usage:
@@ -261,12 +280,19 @@ class CadcTapClient(object):
                 self.permissions_support = False
                 logger.debug('Service has no support for permissions')
 
-    def create_table(self, table_name, table_definition, type='VOSITable'):
+    def create_table(self, table_name, table_definition, type='VOSITable',
+                     auth_read=None, group_read=None, group_write=None,
+                     owner=None):
         """
         Creates a table in the catalog service.
         :param table_name: Name of the table in the TAP service
         :param table_definition: Stream containing the table definition
         :param type: Type of the table definition file
+        :param auth_read: flag indicating that the resource requires
+            authentication to read ('true', 'false' or 'null')
+        :param group_read: GMS group URI with read permission, or None
+        :param group_write: GMS group URI with write permission or None
+        :param owner: identifier for the owner of the table
         """
         if not table_name or not table_definition:
             raise AttributeError(
@@ -278,6 +304,7 @@ class CadcTapClient(object):
         logger.debug('Creating {} from file {} of type {}'.
                      format(table_name, table_definition, file_type))
         headers = {'Content-Type': ALLOWED_TB_DEF_TYPES[file_type]}
+        _add_vosi_headers(headers, auth_read, group_read, group_write, owner)
         self._tap_client.put((TABLES_CAPABILITY_ID, table_name),
                              headers=headers,
                              data=open(table_definition, 'rb').read())
@@ -1020,6 +1047,32 @@ def _get_permission_modes(opt):
         raise ArgumentError(None, 'Unexpected group name(s)')
     return props
 
+def _add_vosi_permission_args(parser):
+    """Add optional VOSI permission header arguments to the parser."""
+    parser.add_argument(
+        '--auth-read',
+        default=None,
+        choices=['true', 'false', 'null'],
+        help='x-vosi-auth-read: whether the resource requires authentication '
+             'to read (true, false, or null)',
+        required=False)
+    parser.add_argument(
+        '--group-read',
+        default=None,
+        help='x-vosi-group-read: GMS group URI with read permission, '
+             'or "null" to clear',
+        required=False)
+    parser.add_argument(
+        '--group-write',
+        default=None,
+        help='x-vosi-group-write: GMS group URI with write permission, '
+             'or "null" to clear',
+        required=False)
+    parser.add_argument(
+        '--owner',
+        default=None,
+        help='x-vosi-owner: identifier for the owner of the table',
+        required=False)
 
 def build_parser(command='cadc-tap query'):
     """
@@ -1132,6 +1185,7 @@ def build_parser(command='cadc-tap query'):
         'TABLEDEFINITION',
         help='file containing the definition of the table or "-" if definition'
         ' in stdin')
+    _add_vosi_permission_args(create_parser)
 
     delete_parser = subparsers.add_parser(
         'delete',
@@ -1239,7 +1293,11 @@ def main_app(command='cadc-tap query'):
 
         if args.cmd == 'create':
             client.create_table(args.TABLENAME, args.TABLEDEFINITION,
-                                args.format)
+                                args.format,
+                                auth_read=args.auth_read,
+                                group_read=args.group_read,
+                                group_write=args.group_write,
+                                owner=args.owner)
         elif args.cmd == 'delete':
             reply = input(
                 'You are about to delete table {} and its content... '
