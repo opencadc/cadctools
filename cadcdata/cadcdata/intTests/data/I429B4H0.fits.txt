@@ -36,7 +36,7 @@ OBJECT  = 'f429h000'           / FIELD NUMBER-HCON
          /                                                                      
 PROJTYPE=                    0 / FIELD NUMBER-HCON                              
 AUTHORS = 'Marc-Antoine Miville-Deschenes & Guilaine Lagache'                   
-COMMENT = 'IRIS is a reprocessing of the ISSA plates'                           
+COMMENT  = 'IRIS is a reprocessing of the ISSA plates' /                        
 AUTODEGL=                    T / Automatic deglitching                          
 DESTRIPE=                    T / Wavelet/Fourier Destriping                     
 COR-GAIN=                    T / Scale and brightness dependant gain correction 
