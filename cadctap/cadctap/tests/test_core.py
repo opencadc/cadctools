@@ -288,6 +288,47 @@ def test_create_table(caps_get_mock, base_put_mock):
         headers={'Content-Type': '{}'.format(
             ALLOWED_TB_DEF_TYPES['VOSITable'])})
 
+    # all four VOSI permission headers
+    base_put_mock.reset_mock()
+    client.create_table('sometable', def_table, 'VOSITable',
+                        auth_read='true',
+                        group_read='ivo://cadc.nrc.ca/gms?ReadGroup',
+                        group_write='ivo://cadc.nrc.ca/gms?WriteGroup',
+                        owner='someowner')
+    base_put_mock.assert_called_with(
+        (TABLES_CAPABILITY_ID, 'sometable'), data=def_table_content,
+        headers={
+            'Content-Type': ALLOWED_TB_DEF_TYPES['VOSITable'],
+            'x-vosi-auth-read': 'true',
+            'x-vosi-group-read': 'ivo://cadc.nrc.ca/gms?ReadGroup',
+            'x-vosi-group-write': 'ivo://cadc.nrc.ca/gms?WriteGroup',
+            'x-vosi-owner': 'someowner',
+        })
+
+    # partial VOSI headers — only auth_read and owner
+    base_put_mock.reset_mock()
+    client.create_table('sometable', def_table, 'VOSITable',
+                        auth_read='false',
+                        owner='anotherowner')
+    base_put_mock.assert_called_with(
+        (TABLES_CAPABILITY_ID, 'sometable'), data=def_table_content,
+        headers={
+            'Content-Type': ALLOWED_TB_DEF_TYPES['VOSITable'],
+            'x-vosi-auth-read': 'false',
+            'x-vosi-owner': 'anotherowner',
+        })
+
+    # auth_read='null' value passed through as-is
+    base_put_mock.reset_mock()
+    client.create_table('sometable', def_table, 'VOSITable',
+                        auth_read='null')
+    base_put_mock.assert_called_with(
+        (TABLES_CAPABILITY_ID, 'sometable'), data=def_table_content,
+        headers={
+            'Content-Type': ALLOWED_TB_DEF_TYPES['VOSITable'],
+            'x-vosi-auth-read': 'null',
+        })
+
     # error cases
     with pytest.raises(AttributeError):
         client.create_table(None, def_table)
@@ -397,13 +438,46 @@ def test_create_index(caps_get_mock, base_get_mock, base_post_mock):
     post_calls = [call((TABLE_UPDATE_CAPABILITY_ID, None),
                   allow_redirects=False,
                   data={'table': 'schema.sometable',
-                        'unique': 'true',
+                        'index_type': ['unique'],
                         'index': 'col1'}),
                   call('{}/phase'.format(job_location),
                   data={'PHASE': 'RUN'})]
     base_post_mock.assert_has_calls(post_calls)
 
     # expected get calls
+    get_calls = [call('{}/phase'.format(job_location), data={'WAIT': 1}),
+                 call('{}/phase'.format(job_location), data={'WAIT': 1})]
+    base_get_mock.assert_has_calls(get_calls)
+
+    # case: unique=True
+    base_post_mock.reset_mock()
+    base_get_mock.reset_mock()
+    base_get_mock.side_effect = [response2, response3]
+    client.create_index('schema.sometable', 'col1', unique=False)
+    post_calls = [call((TABLE_UPDATE_CAPABILITY_ID, None),
+                       allow_redirects=False,
+                       data={'table': 'schema.sometable',
+                             'index': 'col1'}),
+                  call('{}/phase'.format(job_location),
+                       data={'PHASE': 'RUN'})]
+    base_post_mock.assert_has_calls(post_calls)
+    get_calls = [call('{}/phase'.format(job_location), data={'WAIT': 1}),
+                 call('{}/phase'.format(job_location), data={'WAIT': 1})]
+    base_get_mock.assert_has_calls(get_calls)
+
+    # case: test param build: index_type=['unique', 'long-lat']
+    base_post_mock.reset_mock()
+    base_get_mock.reset_mock()
+    base_get_mock.side_effect = [response2, response3]
+    client.create_index('schema.sometable', 'col1', unique=True, index_type=['long-lat'])
+    post_calls = [call((TABLE_UPDATE_CAPABILITY_ID, None),
+                       allow_redirects=False,
+                       data={'table': 'schema.sometable',
+                             'index_type': ['long-lat', 'unique'],
+                             'index': 'col1'}),
+                  call('{}/phase'.format(job_location),
+                       data={'PHASE': 'RUN'})]
+    base_post_mock.assert_has_calls(post_calls)
     get_calls = [call('{}/phase'.format(job_location), data={'WAIT': 1}),
                  call('{}/phase'.format(job_location), data={'WAIT': 1})]
     base_get_mock.assert_has_calls(get_calls)
@@ -760,12 +834,38 @@ class TestCadcTapClient(unittest.TestCase):
 
         sys.argv = ['cadc-tap', 'create', '-d', 'tablename', 'path/to/file']
         main_app()
-        calls = [call('tablename', 'path/to/file', 'VOSITable')]
+        calls = [call('tablename', 'path/to/file', 'VOSITable', auth_read=None,
+                      group_read=None, group_write=None, owner=None)]
+        client_mock.return_value.create_table.assert_has_calls(calls)
+
+        client_mock.return_value.create_table.reset_mock()
+        sys.argv = ['cadc-tap', 'create', '-d',
+                    '--auth-read', 'true',
+                    '--group-read', 'ivo://cadc.nrc.ca/gms?ReadGroup',
+                    '--group-write', 'ivo://cadc.nrc.ca/gms?WriteGroup',
+                    '--owner', 'myuser',
+                    'tablename', 'path/to/file']
+        main_app()
+        calls = [call('tablename', 'path/to/file', 'VOSITable', auth_read='true',
+                      group_read='ivo://cadc.nrc.ca/gms?ReadGroup', group_write='ivo://cadc.nrc.ca/gms?WriteGroup',
+                      owner='myuser')]
         client_mock.return_value.create_table.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'index', '-v', 'tablename', 'columnName']
         main_app()
-        calls = [call('tablename', 'columnName', False)]
+        calls = [call('tablename', 'columnName', False, index_type=None)]
+        client_mock.return_value.create_index.assert_has_calls(calls)
+
+        client_mock.return_value.create_index.reset_mock()
+        sys.argv = ['cadc-tap', 'index', '-v', 'tablename', 'columnName', '--index-type', 'unique']
+        main_app()
+        calls = [call('tablename', 'columnName', False, index_type=['unique'])]
+        client_mock.return_value.create_index.assert_has_calls(calls)
+
+        client_mock.return_value.create_index.reset_mock()
+        sys.argv = ['cadc-tap', 'index', '-v', 'tablename', 'columnName', '--unique']
+        main_app()
+        calls = [call('tablename', 'columnName', True, index_type=None)]
         client_mock.return_value.create_index.assert_has_calls(calls)
 
         sys.argv = ['cadc-tap', 'load', 'tablename', 'path/to/file']
