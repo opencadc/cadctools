@@ -178,8 +178,10 @@ def _add_vosi_headers(headers, auth_read=None, group_read=None,
     Add optional VOSI permission headers to the headers dict.
     :param headers: dict to update in-place
     :param auth_read: x-vosi-auth-read value ('true', 'false' or 'null')
-    :param group_read: x-vosi-group-read value (URI string or 'null')
-    :param group_write: x-vosi-group-write value (URI string or 'null')
+    :param group_read: x-vosi-group-read value: a GMS group identifier
+        indicating a group with read permission, or literal null
+    :param group_write: x-vosi-group-write value: a GMS group identifier
+        indicating a group with write permission, or literal null
     :param owner: x-vosi-owner value (string)
     """
     if auth_read is not None:
@@ -291,8 +293,10 @@ class CadcTapClient(object):
         :param type: Type of the table definition file
         :param auth_read: flag indicating that the resource requires
             authentication to read ('true', 'false' or 'null')
-        :param group_read: GMS group URI with read permission, or None
-        :param group_write: GMS group URI with write permission or None
+        :param group_read: a GMS group identifier
+            indicating a group with read permission, or literal null
+        :param group_write: a GMS group identifier
+            indicating a group with write permission, or literal null
         :param owner: identifier for the owner of the table
         """
         if not table_name or not table_definition:
@@ -1060,14 +1064,14 @@ def _add_vosi_permission_args(parser):
     parser.add_argument(
         '--group-read',
         default=None,
-        help='x-vosi-group-read: GMS group URI with read permission, '
-             'or "null" to clear',
+        help='x-vosi-group-read: a GMS group identifier indicating a group '
+             'with read permission, or literal null',
         required=False)
     parser.add_argument(
         '--group-write',
         default=None,
-        help='x-vosi-group-write: GMS group URI with write permission, '
-             'or "null" to clear',
+        help='x-vosi-group-write: a GMS group identifier indicating a group '
+             'with write permission, or literal null',
         required=False)
     parser.add_argument(
         '--owner',
