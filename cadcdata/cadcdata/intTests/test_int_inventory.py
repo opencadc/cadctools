@@ -3,7 +3,7 @@
 # *******************  CANADIAN ASTRONOMY DATA CENTRE  *******************
 # **************  CENTRE CANADIEN DE DONNÉES ASTRONOMIQUES  **************
 # *
-# *  (c) 2022.                            (c) 2022.
+# *  (c) 2026.                            (c) 2026.
 # *  Government of Canada                 Gouvernement du Canada
 # *  National Research Council            Conseil national de recherches
 # *  Ottawa, Canada, K1A 0R6              Ottawa, Canada, K1A 0R6
@@ -66,6 +66,7 @@
 
 import pytest
 import os
+from functools import cache
 from urllib.parse import urlparse
 import hashlib
 from os.path import expanduser
@@ -96,6 +97,32 @@ def check_file(file_name, size, md5):
         for chunk in iter(lambda: f.read(4096), b""):
             hash_md5.update(chunk)
     assert md5 == hash_md5.hexdigest()
+
+
+@cache
+def get_storage_inventory_locations():
+    """
+    Return CADC storage inventory (minoc) location resource IDs.
+
+    Include only IDs of the form ivo://cadc.nrc.ca/<site>/minoc where
+    <site> is not 'lsst'. The registry is queried once; later calls
+    reuse the cached list.
+    """
+    reg = requests.get(
+        'https://{}/reg/resource-caps'.format(REG_HOST), verify=False).text
+    location_resource_ids = []
+    for line in reg.split('\n'):
+        line = line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+        resource_id = line.split('=')[0].strip()
+        parsed = urlparse(resource_id)
+        path_parts = parsed.path.strip('/').split('/')
+        if (parsed.scheme == 'ivo' and parsed.netloc == 'cadc.nrc.ca' and
+                len(path_parts) == 2 and path_parts[1] == 'minoc' and
+                path_parts[0] != 'lsst'):
+            location_resource_ids.append(resource_id)
+    return location_resource_ids
 
 
 @pytest.mark.intTests
@@ -151,7 +178,7 @@ def test_client_public():
         # cutout
         # file name as in the returned Content-Disposition
         file_id = 'CFHT/806045o.fits.fz'
-        cutout_dest = '/tmp/806045o.fits.1__10_120_20_30___2__10_120_20_30.fz'
+        cutout_dest = '/tmp/806045o.fits.1__10_120_20_30___2__10_120_20_30.fits'
         if os.path.isfile(cutout_dest):
             os.remove(cutout_dest)
         try:
@@ -167,18 +194,27 @@ def test_client_public():
             # NAXIS1  =                  111 / size of the n'th axis
             # NAXIS2  =                   11 / size of the n'th axis
             with open(cutout_dest, 'rb') as f:
-                line = f.read(80).decode('ascii')
-                naxis_header_values = ['0', '2']
+                # Uncompressed FITS IMAGE HDUs have binary pixel data between
+                # headers; skip records that are not ASCII header cards.
+                naxis_header_values = ['0', '2', '2']
                 current_naxis = 0
+                line = f.read(80)
                 while line:
-                    if 'NAXIS ' in line:
+                    try:
+                        line = line.decode('ascii')
+                    except UnicodeDecodeError:
+                        line = f.read(80)
+                        continue
+                    keyword = line[:8].rstrip()
+                    if keyword == 'NAXIS':
                         assert naxis_header_values[current_naxis] in line
                         current_naxis += 1
-                    if 'NAXIS1' in line:
+                    elif keyword == 'NAXIS1':
                         assert '111' in line
-                    if 'NAXIS2' in line:
+                    elif keyword == 'NAXIS2':
                         assert '11' in line
-                    line = f.read(80).decode('ascii')
+                    line = f.read(80)
+                assert current_naxis == len(naxis_header_values)
             # not sure how to check the content of the file
         finally:
             # clean up
@@ -280,19 +316,10 @@ def test_client_authenticated():
             md5.update(f.read())
         md5sum = md5.hexdigest()
         file_size = os.stat(test_file).st_size
-        # find out locations
-        reg = requests.get(
-            'https://{}/reg/resource-caps'.format(REG_HOST), verify=False).text
-        location_resource_ids = []
-        for line in reg.split('\n'):
-            line.strip()
-            if not line.startswith('#') and ('minoc' in line) and (
-                    '/ad/minoc' not in line) and ('ws-sf' not in line):
-                location_resource_ids.append(line.split('=')[0].strip())
+        location_resource_ids = get_storage_inventory_locations()
 
         # test all operations on a location
-        for resource_id in \
-                [id for id in location_resource_ids if 'minoc' in id]:
+        for resource_id in location_resource_ids:
             location_operations(subject=subject, resource_id=resource_id,
                                 file=test_file, id_root=id_root,
                                 md5sum=md5sum, size=file_size)
@@ -310,8 +337,7 @@ def test_client_authenticated():
         client.cadcinfo(global_id)
 
         file_info = None
-        for resource_id in \
-                [id for id in location_resource_ids if 'minoc' in id]:
+        for resource_id in location_resource_ids:
             try:
                 location_client = StorageInventoryClient(
                     subject=subject, resource_id=resource_id, host=REG_HOST,
@@ -381,15 +407,7 @@ def test_put_transactions():
                 md5.update(f.read())
             md5sum = md5.hexdigest()
             file_size = os.stat(test_file).st_size
-            # find out locations
-            reg = requests.get('https://{}/reg/resource-caps'.format(REG_HOST),
-                               verify=False).text
-            location_resource_ids = []
-            for line in reg.split('\n'):
-                line.strip()
-                if not line.startswith('#') and ('minoc' in line) and (
-                        '/ad/minoc' not in line and 'site' not in line):
-                    location_resource_ids.append(line.split('=')[0].strip())
+            location_resource_ids = get_storage_inventory_locations()
 
             # test all operations on a location
             for resource_id in location_resource_ids:
@@ -476,15 +494,7 @@ def test_put_transaction_append():
                 md5.update(f.read())
             md5sum = md5.hexdigest()
             file_size = os.stat(test_file).st_size
-            # find out locations
-            reg = requests.get('https://{}/reg/resource-caps'.format(REG_HOST),
-                               verify=False).text
-            location_resource_ids = []
-            for line in reg.split('\n'):
-                line.strip()
-                if not line.startswith('#') and ('minoc' in line) and (
-                        '/ad/minoc' not in line and 'site' not in line):
-                    location_resource_ids.append(line.split('=')[0].strip())
+            location_resource_ids = get_storage_inventory_locations()
 
             # test all operations on a location
             for resource_id in location_resource_ids:
