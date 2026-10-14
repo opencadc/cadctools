@@ -191,6 +191,7 @@ def _add_vosi_headers(headers, auth_read=None, group_read=None,
     if owner is not None:
         headers['x-vosi-owner'] = owner
 
+
 class CadcTapClient(object):
     """Class to access CADC databases.
     Example of usage:
@@ -349,7 +350,6 @@ class CadcTapClient(object):
                 raise AttributeError(
                     'invalid INDEX_TYPE: {!r} (choose from {})'.format(
                         it, ', '.join(sorted(allowed_index_types))))
-
 
         logger.debug('{} for column {} in table {}'.
                      format('Unique index' if 'unique' in index_type else 'Index',
@@ -1047,6 +1047,7 @@ def _get_permission_modes(opt):
         raise ArgumentError(None, 'Unexpected group name(s)')
     return props
 
+
 def _add_vosi_permission_args(parser):
     """Add optional VOSI permission header arguments to the parser."""
     parser.add_argument(
@@ -1073,6 +1074,7 @@ def _add_vosi_permission_args(parser):
         default=None,
         help='x-vosi-owner: identifier for the owner of the table',
         required=False)
+
 
 def build_parser(command='cadc-tap query'):
     """
