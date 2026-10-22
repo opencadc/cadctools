@@ -318,7 +318,7 @@ def test_create_table(caps_get_mock, base_put_mock):
             'x-vosi-owner': 'anotherowner',
         })
 
-    # auth_read='null' value passed through as-is
+    # auth_read='null' value passed through as-is. Unsetting the auth_read header.
     base_put_mock.reset_mock()
     client.create_table('sometable', def_table, 'VOSITable',
                         auth_read='null')

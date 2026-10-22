@@ -174,16 +174,7 @@ def parse_app_format(allowed_formats, label='format'):
 
 def _add_vosi_headers(headers, auth_read=None, group_read=None,
                       group_write=None, owner=None):
-    """
-    Add optional VOSI permission headers to the headers dict.
-    :param headers: dict to update in-place
-    :param auth_read: x-vosi-auth-read value ('true', 'false' or 'null')
-    :param group_read: x-vosi-group-read value: a GMS group identifier
-        indicating a group with read permission, or literal null
-    :param group_write: x-vosi-group-write value: a GMS group identifier
-        indicating a group with write permission, or literal null
-    :param owner: x-vosi-owner value (string)
-    """
+    """Add optional VOSI permission headers to the headers dict."""
     if auth_read is not None:
         headers['x-vosi-auth-read'] = auth_read
     if group_read is not None:
@@ -293,6 +284,8 @@ class CadcTapClient(object):
         :param type: Type of the table definition file
         :param auth_read: flag indicating that the resource requires
             authentication to read ('true', 'false' or 'null')
+            Literal 'null' is to unset the value true or false.
+            Absent auth_read param means 'nothing to change'.
         :param group_read: a GMS group identifier
             indicating a group with read permission, or literal null
         :param group_write: a GMS group identifier
@@ -327,18 +320,18 @@ class CadcTapClient(object):
         self._tap_client.delete((TABLES_CAPABILITY_ID, table_name))
         logger.debug('Successfully deleted table {}'.format(table_name))
 
-    def create_index(self, table_name, column_name, unique=False, index_type=None):
+    def create_index(self, table_name, index, unique=False, index_type=None):
         """
         Creates a table index in the catalog service
         :param table_name: name of the table
-        :param column_name: name of the column or comma-separated list of columns; order matters
+        :param index: name of the column or comma-separated list of columns; order matters
         :param unique: True if index is unique, False otherwise (deprecated, use index_type=['unique'] instead)
         :param index_type: optional list of index type qualifiers; allowed values are 'long-lat', 'x-y', 'unique'
         """
-        if not table_name or not column_name:
+        if not table_name or not index:
             raise AttributeError(
-                'table name and column required in index: {}/{}'.
-                format(table_name, column_name))
+                'table name and column(s) required in index: {}/{}'.
+                format(table_name, index))
 
         # Normalise index_type to a list
         if index_type is None:
@@ -353,14 +346,14 @@ class CadcTapClient(object):
             if it not in allowed_index_types:
                 raise AttributeError(
                     'invalid INDEX_TYPE: {!r} (choose from {})'.format(
-                        it, ', '.join(sorted(allowed_index_types))))
+                        it, _format_choice_list(allowed_index_types)))
 
-        logger.debug('{} for column {} in table {}'.
+        logger.debug('{} for column(s) {} in table {}'.
                      format('Unique index' if 'unique' in index_type else 'Index',
-                            column_name, table_name))
+                            index, table_name))
 
         data={'table': table_name,
-                'index': column_name}
+                'index': index}
         if index_type:
             data['index_type'] = index_type
         result = self._tap_client.post((TABLE_UPDATE_CAPABILITY_ID, None),
@@ -1058,25 +1051,22 @@ def _add_vosi_permission_args(parser):
         '--auth-read',
         default=None,
         choices=['true', 'false', 'null'],
-        help='x-vosi-auth-read: whether the resource requires authentication '
-             'to read (true, false, or null)',
+        help='flag indicating that the resource requires authentication to read (true, false, or null)',
         required=False)
     parser.add_argument(
         '--group-read',
         default=None,
-        help='x-vosi-group-read: a GMS group identifier indicating a group '
-             'with read permission, or literal null',
+        help='a GMS group identifier indicating a group with read permission, or literal null',
         required=False)
     parser.add_argument(
         '--group-write',
         default=None,
-        help='x-vosi-group-write: a GMS group identifier indicating a group '
-             'with write permission, or literal null',
+        help='a GMS group identifier indicating a group with write permission, or literal null',
         required=False)
     parser.add_argument(
         '--owner',
         default=None,
-        help='x-vosi-owner: identifier for the owner of the table',
+        help='identifier for the owner of the table',
         required=False)
 
 
@@ -1214,13 +1204,17 @@ def build_parser(command='cadc-tap query'):
         action='append',
         choices=['long-lat', 'x-y', 'unique'],
         default=None,
-        help='index type(s); Allowed values: [long-lat, x-y, unique]')
+        help='qualifier to create a specialised index: a value of long-lat '
+            'requires 2 numeric columns which are used as longitude,latitude '
+            'pairs (spherical coordinates); a value of x-y requires 2 numeric '
+            'columns which are used as x,y pairs (cartesian coordinates); ')
     index_parser.add_argument(
         'TABLENAME',
         help='name of the table in the tap service to create the index for')
     index_parser.add_argument(
-        'COLUMN',
-        help='Comma separated name(s) of the column(s) to create the index for')
+        'INDEX',
+        help='create index operation; value is a column name in the table '
+             'or a comma-separated list of columns; order matters')
 
     load_parser = subparsers.add_parser(
         'load',
@@ -1320,7 +1314,7 @@ def main_app(command='cadc-tap query'):
                 else:
                     reply = input('Please reply with yes or no: ')
         elif args.cmd == 'index':
-            client.create_index(args.TABLENAME, args.COLUMN, args.unique, index_type=args.index_type)
+            client.create_index(args.TABLENAME, args.INDEX, args.unique, index_type=args.index_type)
         elif args.cmd == 'load':
             client.load(args.TABLENAME, args.SOURCE, args.format)
         elif args.cmd == 'query':
