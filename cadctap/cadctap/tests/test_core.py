@@ -449,7 +449,7 @@ def test_create_index(caps_get_mock, base_get_mock, base_post_mock):
                  call('{}/phase'.format(job_location), data={'WAIT': 1})]
     base_get_mock.assert_has_calls(get_calls)
 
-    # case: unique=True
+    # case: unique=false
     base_post_mock.reset_mock()
     base_get_mock.reset_mock()
     base_get_mock.side_effect = [response2, response3]
@@ -469,12 +469,12 @@ def test_create_index(caps_get_mock, base_get_mock, base_post_mock):
     base_post_mock.reset_mock()
     base_get_mock.reset_mock()
     base_get_mock.side_effect = [response2, response3]
-    client.create_index('schema.sometable', 'col1', unique=True, index_type=['long-lat'])
+    client.create_index('schema.sometable', 'col1,col2', unique=True, index_type=['long-lat'])
     post_calls = [call((TABLE_UPDATE_CAPABILITY_ID, None),
                        allow_redirects=False,
                        data={'table': 'schema.sometable',
                              'index_type': ['long-lat', 'unique'],
-                             'index': 'col1'}),
+                             'index': 'col1,col2'}),
                   call('{}/phase'.format(job_location),
                        data={'PHASE': 'RUN'})]
     base_post_mock.assert_has_calls(post_calls)

@@ -284,13 +284,20 @@ class CadcTapClient(object):
         :param type: Type of the table definition file
         :param auth_read: flag indicating that the resource requires
             authentication to read ('true', 'false' or 'null')
-            Literal 'null' is to unset the value true or false.
-            Absent auth_read param means 'nothing to change'.
-        :param group_read: a GMS group identifier
-            indicating a group with read permission, or literal null
-        :param group_write: a GMS group identifier
-            indicating a group with write permission, or literal null
-        :param owner: identifier for the owner of the table
+            Literal 'null' means clear the flag (unset/clear the existing setting).
+            If the parameter is omitted entirely, the existing auth_reade value
+            remains unchanged.
+        :param group_read: A GMS group identifier
+            indicating a group with read permission, or literal 'null'
+            Literal 'null' means clear the value (unset/clear the existing setting).
+            If the parameter is omitted entirely, the existing group_read value
+            remains unchanged.
+        :param group_write: A GMS group identifier
+            indicating a group with write permission, or literal 'null'
+            Literal 'null' means clear the value (unset/clear the existing setting).
+            If the parameter is omitted entirely, the existing group_write value
+            remains unchanged.
+        :param owner: Identifier for the owner of the schema or table
         """
         if not table_name or not table_definition:
             raise AttributeError(
@@ -1051,22 +1058,28 @@ def _add_vosi_permission_args(parser):
         '--auth-read',
         default=None,
         choices=['true', 'false', 'null'],
-        help='flag indicating that the resource requires authentication to read (true, false, or null)',
+        help='flag indicating that the resource requires authentication to read (true, false, or null). '
+             'Literal "null" is to unset/clear the existing setting. If the parameter is omitted entirely, '
+             'the existing auth-read value remains unchanged.',
         required=False)
     parser.add_argument(
         '--group-read',
         default=None,
-        help='a GMS group identifier indicating a group with read permission, or literal null',
+        help='a GMS group identifier indicating a group with read permission, or literal "null". '
+             'Literal "null" is to unset/clear the existing setting. If the parameter is omitted entirely, '
+             'the existing group-read value remains unchanged.',
         required=False)
     parser.add_argument(
         '--group-write',
         default=None,
-        help='a GMS group identifier indicating a group with write permission, or literal null',
+        help='a GMS group identifier indicating a group with write permission, or literal "null". '
+             'Literal "null" is  to unset/clear the existing setting. If the parameter is omitted entirely, '
+             'the existing group-write value remains unchanged.',
         required=False)
     parser.add_argument(
         '--owner',
         default=None,
-        help='identifier for the owner of the table',
+        help='identifier for the owner of the schema or table',
         required=False)
 
 
