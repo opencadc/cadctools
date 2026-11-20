@@ -104,9 +104,10 @@ def test_root_parser_contract(root_parser):
     ('schema', ('tablename',)),
     ('query', ('output_file', 'maxrec', 'QUERY', 'input_file', 'timeout',
                'format', 'tmptable')),
-    ('create', ('format', 'TABLENAME', 'TABLEDEFINITION')),
+    ('create', ('format', 'TABLENAME', 'TABLEDEFINITION',
+                'auth_read', 'group_read', 'group_write', 'owner')),
     ('delete', ('TABLENAME',)),
-    ('index', ('unique', 'TABLENAME', 'COLUMN')),
+    ('index', ('unique', 'TABLENAME', 'INDEX', 'index_type')),
     ('load', ('format', 'TABLENAME', 'SOURCE')),
     ('permission', ('MODE', 'TARGET', 'GROUPS')),
 ])
