@@ -93,7 +93,7 @@ call.__wrapped__ = None
 
 THIS_DIR = os.path.dirname(os.path.realpath(__file__))
 TESTDATA_DIR = os.path.join(THIS_DIR, 'data')
-BASE_URL = 'https://ws-cadc.canfar.net/youcat'
+BASE_URL = 'https://ws-uv.canfar.net/youcat'
 
 
 class MyExitError(Exception):
